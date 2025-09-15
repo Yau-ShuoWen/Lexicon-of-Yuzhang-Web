@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Boot API 测试工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="header">
+    <h1>Spring Boot API 测试工具</h1>
+    <p>测试后端控制器: <code>HelloWorldController.java</code></p>
+</div>
+
+<!-- 测试无参端点 -->
+<div class="card">
+    <h2 class="card-title">/api/helloworld 测试</h2>
+    <div class="endpoint-info">GET http://localhost:8080/api/helloworld</div>
+    <p>测试基本端点功能</p>
+    <button id="testHelloWorld">测试 /api/helloworld</button>
+    <div class="response" id="helloWorldResponse">响应将显示在这里...</div>
+</div>
+
+<!-- 测试带参端点 -->
+<div class="card">
+    <h2 class="card-title">/api/hello/param 测试</h2>
+    <div class="endpoint-info">GET http://localhost:8080/api/hello/param?name=XXX</div>
+    <div class="input-group">
+        <label for="nameInput">输入名字参数:</label>
+        <input type="text" id="nameInput" placeholder="输入你的名字" value="Spring Boot开发者">
+    </div>
+    <button id="testHelloParam">测试 /api/hello/param</button>
+    <div class="response" id="helloParamResponse">响应将显示在这里...</div>
+</div>
+
+<script>
+    // DOM 元素
+    const helloWorldBtn = document.getElementById('testHelloWorld');
+    const helloParamBtn = document.getElementById('testHelloParam');
+    const helloWorldResponse = document.getElementById('helloWorldResponse');
+    const helloParamResponse = document.getElementById('helloParamResponse');
+    const nameInput = document.getElementById('nameInput');
+
+    // 测试无参端点
+    helloWorldBtn.addEventListener('click', async () => {
+        try {
+            helloWorldResponse.innerHTML = '请求中...';
+            const response = await fetch('http://localhost:8080/api/helloworld');
+
+            if (!response.ok) {
+                throw new Error(`HTTP错误! 状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+            helloWorldResponse.className = 'response success';
+            helloWorldResponse.innerHTML = data.message;
+        } catch (error) {
+            helloWorldResponse.className = 'response error';
+            helloWorldResponse.innerHTML = `❌ 请求失败: ${error.message}`;
+        }
+    });
+
+    // 测试带参端点
+    helloParamBtn.addEventListener('click', async () => {
+        try {
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('请输入名字');
+                return;
+            }
+
+            helloParamResponse.innerHTML = '请求中...';
+            const url = `http://localhost:8080/api/hello/param?name=${encodeURIComponent(name)}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`HTTP错误! 状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+            helloParamResponse.className = 'response success';
+            helloParamResponse.innerHTML = data.message;
+        } catch (error) {
+            helloParamResponse.className = 'response error';
+            helloParamResponse.innerHTML = `❌ 请求失败: ${error.message}`;
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="keywords"
+          content="chữ Nôm, chữ Nôm tiêu chuẩn, Tra cứu chữ Nôm, chuẩn hóa chữ Nôm, học chữ Nôm, 喃字, 标准喃字, 喃字查询, 喃字标准化, 学喃字, チュノム, 標準チュノム, チュノム検索, チュノム標準化, チュノム学習, 쯔놈, 표준 쯔놈, 쯔놈 검색, 쯔놈 표준화, 쯔놈 학습, Nôm character, Standard Nôm character, Nôm character Look-up, Nôm character Standardization, Learning Nôm character">
+    <title>豫章词话</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200..900&display=swap" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet" type="text/css"/>
+    <style>
+        @charset "UTF-8";
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'cambria','宋体', 'Noto Serif TC', 'Noto Serif', serif;
+        }
+
+        :root {
+            --primary-green: #49796B;
+            --text-dark: #2c3e50;
+            --burnt-sienna: #E97451;
+            --background-green: #eef4f2;
+            --white: #FFFFFF;
+        }
+
+        body {
+            color: var(--text-dark);
+            background: linear-gradient(to right bottom, var(--white), var(--background-green));
+            min-height: 100vh; /* 确保渐变覆盖整个视口高度 */
+            background-attachment: fixed; /* 使渐变背景固定，不随滚动移动 */
+        }
+
+        .header {
+            text-align: center;
+            padding: 28px 10px 12px 10px;
+            border-bottom: 2px solid var(--primary-green);
+            position: relative;
+        }
+
+        .main-content a {
+            color: var(--burnt-sienna);
+            text-decoration: none; /* 去掉下划线 */
+        }
+
+        .logo {
+            font-weight: ;
+            color: var(--primary-green);
+            margin: 10px 0;
+            position: relative;
+            display: ;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            gap: ;
+        }
+
+        .logo-qn {
+            font-size: 15px;
+            color: var(--text-dark);
+        }
+
+        .logo-hn {
+            font-size: 21px;
+            color: var(--text-dark);
+        }
+
+        .nav {
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .nav-item {
+            min-width: 10px; /* 设置主链接的最小宽度 */
+            position: relative;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .nav-item > a {
+            text-decoration: none;
+            font-weight: normal;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        .nav-text {
+            font-size: 16px;
+            color: var(--primary-green);
+        }
+
+        .nav-item:last-child .dropdown {
+            right: 0; /* 右对齐 */
+            left: auto; /* 取消左对齐 */
+        }
+
+        /* 其他 nav-item 的 dropdown 保持左对齐 */
+        .nav-item:not(:last-child) .dropdown {
+            left: 0;
+            right: auto;
+        }
+
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #fff;
+            min-width: 250px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            border-top: 3px solid var(--primary-green);
+            z-index: 1;
+            min-width: 250px;
+            max-width: calc(100vw - 40px);
+            overflow-x: hidden;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .nav-item:hover .dropdown {
+            display: block;
+        }
+
+        .dropdown a {
+            color: var(--text-dark);
+            font-weight: normal;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s ease;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: left;
+            font-size: 15px; /* 调整字号与主体文字一致 */
+        }
+
+        .cta-button {
+            background-color: var(--burnt-sienna);
+            color: var(--white);
+            padding: 0.4rem 1.0rem;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            display: block; /* 新增 */
+            margin: 0 auto; /* 新增 */
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 30px;
+            margin-top: 0;
+            background: transparent;
+        }
+
+        .left-column {
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .right-column {
+            width: 30%;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .section {
+            background-color: var(--background-green);
+            padding: 1.5rem;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .section2 {
+            background-color: transparent;
+            border: 1px solid var(--primary-green);
+            padding: 1.5rem;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .section-title {
+            font-size: 18px;
+            color: var(--primary-green);
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title-noline {
+            font-size: 18px;
+            color: var(--primary-green);
+            margin-bottom: 12px;
+        }
+
+        .section-content {
+            line-height: 1.6;
+            color: var(--text-dark);
+            font-size: 15px;
+        }
+
+        .section-content p {
+            margin-bottom: 10px; /* 增加段落之间的间距 */
+        }
+
+        footer {
+            background-color: var(--primary-green);
+            padding: 15px;
+            font-size: 13px;
+            text-align: center;
+            color: #fff;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 599px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .left-column, .right-column {
+                width: 100%;
+            }
+
+            .nav-container {
+                display: none;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-toggle {
+                display: block;
+                cursor: pointer;
+                font-size: ;
+                padding: 10px;
+                background-color: var(--primary-green);
+                color: white;
+                border-radius: 5px;
+                margin: 10px;
+                display: flex;
+                align-items: center;
+            }
+
+            .nav-toggle-text {
+                margin-left: 5px;
+                font-size: ;
+            }
+
+            .nav-item {
+                padding: 10px 20px;
+            }
+
+            .logo-qn {
+                font-size: 13px;
+            }
+
+            .section {
+                padding: 0.5rem;
+            }
+
+            .section2 {
+                padding: 0.5rem;
+            }
+        }
+
+        @media (min-width: 600px) {
+            .nav-toggle {
+                display: none;
+            }
+
+            .nav-container {
+                display: flex;
+            }
+        }
+
+        .nav-item:hover {
+            background-color: var(--background-green);
+        }
+
+        .nav-item:hover > a .nav-text {
+            color: var(--primary-green);
+            font-weight: bold;
+        }
+
+        .dropdown a:hover {
+            color: var(--burnt-sienna);
+            transform: translateX(2px);
+            transition: all 0.2s ease;
+        }
+
+        .image-banner {
+            position: relative;
+            width: 100%;
+            height: 399px;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+
+        .banner-images {
+            display: flex;
+            height: 100%;
+            position: relative;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 2.5s ease;
+        }
+
+        .image-container.active {
+            opacity: 1;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .caption {
+            position: absolute;
+            bottom: 0px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background-color: rgba(73, 121, 107, 0.39);
+            padding: 3px;
+            font-size: 13px;
+        }
+
+        // <uniquifier>: Use a unique and descriptive class name
+        // <weight>: Use a value from 200 to 900
+
+        .noto-serif-tc-
+
+        <uniquifier> {
+            font-family: "Noto Serif TC", serif;
+            font-optical-sizing: auto;
+            font-weight: < weight >;
+            font-style: normal;
+        }
+
+        .language-dropdown {
+            display: inline-block;
+        }
+
+        .dropbtn {
+            background-color: #ffffff; /* 按钮背景颜色 */
+            color: #000; /* 按钮文字颜色 */
+            padding: 10px; /* 按钮内边距 */
+            border: 1px solid #ccc; /* 边框 */
+            cursor: pointer; /* 鼠标指针样式 */
+        }
+    </style>
+</head>
+
+<body>
+<header class="header">
+    <div class="logo" style="display: flex; align-items: center; justify-content: center;">
+        <img src="files/hp-logo.png" alt="Logo" style="max-height: 60px; height: auto; margin-right: 8px;"/>
+        <div class="logo-text" style="text-align: center;">
+            <span class="logo-qn">ỦY BAN PHỤC SINH HÁN NÔM VIỆT NAM</span>
+            <span class="logo-hn" style="letter-spacing: 3px;">委班復生漢喃越南</span>
+        </div>
+    </div>
+
+    <div style="text-align: right; height:12px;">
+        <a href="path/to/english-version.html" style="font-size: 12px; color: var(--text-dark); text-decoration: none;">English</a>
+    </div>
+</header>
+
+<nav class="nav">
+    <div class="nav-toggle" onclick="toggleNav(this)"> <!-- 传递当前元素 -->
+        ☰ <span class="nav-toggle-text">ＵＢＰＳＨＮＶＮ</span>
+    </div>
+    <div class="nav-container">
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>TRANG CHỦ</small><br/>張主</span>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>CHỮ HÁN NÔM LÀ Gì</small><br/>𡨸漢喃𱺵之</span>
+            </a>
+            <div class="dropdown">
+                <a href="#">Định nghĩa của "chữ Hán Nôm"<br/>定義𧵑「𡨸漢喃」</a>
+                <a href="bchnctd/postscript.html">Những quan niệm sai lầm phổ biến về chữ Hán Nôm<br/>仍觀念差𡍚普遍𧗱𡨸漢喃</a>
+                <a href="#">Ưu thế của chữ Hán Nôm trong xã hội hiện đại<br/>優勢𧵑𡨸漢喃𥪝社會現代</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>CHỮ HÁN NÔM CHUẨN</small><br/>𡨸漢喃準</span>
+            </a>
+            <div class="dropdown">
+                <a href="#">Mục đích của việc chuẩn hóa<br/>目的𧵑役準化</a>
+                <a href="#">Các khía cạnh chính của việc chuẩn hóa<br/>各㓶𧣲正𧵑役準化 </a>
+                <a href="#">Nguyên tắc xác định chữ Hán Nôm chuẩn<br/>原則確定𡨸漢喃準</a>
+                <a href="BCHNCTD.html"><i>Bảng chữ Hán Nôm Chuẩn Thường dùng</i><br/>『榜𡨸漢喃準常用』</a>
+                <a href="Lookup-CHNC.html">Công cụ tra cứu chữ Hán Nôm chuẩn<br/>查究𡨸漢喃準</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>PHÔNG CHỮ HÁN NÔM</small><br/>風𡨸漢喃</span>
+            </a>
+            <div class="dropdown">
+                <a href="#">Về kiểu chữ Minh<br/>𧗱矯𡨸明</a>
+                <a href="#">Về mối quan hệ giữa kiểu chữ Minh và Khải thư viết tay<br/>𧗱䋦關係𡧲矯𡨸明吧楷書曰𢬣</a>
+                <a href="wi/index.php/%E6%9D%BF%E3%91%84:%E5%BC%B5%E6%AD%A3/font">Tải phông chữ<br/>載風𡨸</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>CÔNG CỤ CHỮ HÁN NÔM</small><br/>工具𡨸漢喃</span>
+            </a>
+            <div class="dropdown">
+                <a href="wi/index.php/%E6%BA%96%E5%8C%96:IME">Bộ gõ chữ Hán Nôm<br/>部𢫈𡨸漢喃</a>
+                <a href="converter/">Công cụ chuyển tự trực tuyến<br/>工具轉字直線</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <a href="#">
+                <span class="nav-text"><small>CÁC DỰ ÁN</small><br/>各預案</span>
+            </a>
+            <div class="dropdown">
+                <a href="wi/">Vi-na-uy-ki (Uy-ki có thể chỉnh sửa bằng chữ Hán Nôm)<br/>韋那威其（威其固体整𢯢憑𡨸漢喃）</a>
+                <a href="https://www.youtube.com/@nomnacophong">Nôm Na Cổ Phong (Kênh
+                    YouTube)<br/>喃那古風（涇YouTube）</a>
+                <a href="https://www.facebook.com/profile.php?id=61551716735678">Truyện Nôm Tranh Việt (Trang
+                    Facebook)<br/>傳喃幀越（張派綀㯷）</a>
+            </div>
+        </div>
+        <!-- [其他导航项目类似修改] -->
+    </div>
+</nav>
+
+<div class="image-banner">
+    <div class="banner-images">
+        <div class="image-container">
+            <img src="files/image1.jpg"
+                 alt='"Tuyên ngôn độc lập" được viết bằng chữ Hán Nôm chuẩn 『宣言獨立』得曰憑𡨸漢喃準'/>
+            <div class="caption"><span style="white-space: nowrap;"><i>Tuyên ngôn độc lập</i> được viết bằng chữ Hán Nôm chuẩn</span>
+                <span style="white-space: nowrap;">『宣言獨立』得曰憑𡨸漢喃準</span></div>
+        </div>
+        <div class="image-container">
+            <img src="files/image2.jpg" alt='Một trang trong "Bảng chữ Hán Nôm Chuẩn Thường dùng" 𠬠張𥪝『榜𡨸漢喃準常用』'/>
+            <div class="caption"><span style="white-space: nowrap;">Một trang trong <i>Bảng chữ Hán Nôm Chuẩn Thường dùng</i></span>
+                <span style="white-space: nowrap;">𠬠張𥪝『榜𡨸漢喃準常用』</span></div>
+        </div>
+        <div class="image-container">
+            <img src="files/image3.jpg" alt='Nhập chữ Hán Nôm bằng Bộ gõ Hán Nôm Uy-xơn 入𡨸漢喃憑部𢫈漢喃威𢺛'/>
+            <div class="caption"><span style="white-space: nowrap;">Nhập chữ Hán Nôm bằng Bộ gõ Hán Nôm Uy-xơn</span>
+                <span style="white-space: nowrap;">入𡨸漢喃憑部𢫈漢喃威𢺛</span></div>
+        </div>
+        <div class="image-container">
+            <img src="files/image4.jpg" alt='Một văn bản Hán Nôm cận đại "Hương ước mục lục" 𠬠文本漢喃近代『鄉約目錄』'/>
+            <div class="caption"><span style="white-space: nowrap;">Một văn bản Hán Nôm cận đại <i>Hương ước mục lục</i></span>
+                <span style="white-space: nowrap;">𠬠文本漢喃近代『鄉約目錄』</span></div>
+        </div>
+        <div class="image-container">
+            <img src="files/image6.png"
+                 alt='Giấy khai sinh ghi bằng chữ Quốc ngữ và chữ Hán Nôm, cấp năm 1950 紙開生𥱬憑𡨸國語吧𡨸漢喃、給𢆥1950'/>
+            <div class="caption"><span style="white-space: nowrap;">Giấy khai sinh ghi bằng chữ Quốc ngữ và chữ Hán Nôm, cấp năm 1950</span>
+                <span style="white-space: nowrap;">紙開生𥱬憑𡨸國語吧𡨸漢喃、給𢆥1950</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="main-content"
+     style="max-width: 1200px; margin: 0 auto; background-color: transparent; padding: 20px; border: none;">
+    <div style="display: flex; align-items: center; flex-direction: column;">
+        <p style="line-height: 1.6; margin-bottom: 10px; font-size: 15px;">Kể từ sự xuất hiện của chữ Nôm vào thế kỷ X,
+            hệ thống chữ viết Hán Nôm (không phải Hán Văn) đã được sử dụng rộng rãi tại Việt Nam cho đến đầu thế kỷ XX,
+            trước khi dần được thay thế bởi chữ Quốc ngữ. Trong khi chữ Quốc ngữ mới chỉ phổ biến hơn một thế kỷ, chữ
+            Hán Nôm đã đồng hành cùng dân tộc hơn một thiên niên kỷ trong việc ghi chép tiếng Việt.<br/>計自事出現𧵑𡨸喃𠓨世紀X、系統𡨸曰漢喃（空沛漢文）㐌得使用㢅𠸤在越南朱𦤾頭世紀XX、𠓀欺𢴍得𠊝替𤳸𡨸國語。𥪝欺𡨸國語㵋只普遍欣𠬠世紀、𡨸漢喃㐌同行共民族欣𠬠千年紀𥪝役𥱬劄㗂越。
+        </p>
+        <p style="line-height: 1.6; margin-bottom: 10px; font-size: 15px;">Từ thời cận đại đến nay, do thiếu hiểu biết
+            sâu rộng về hệ thống chữ viết này, nhiều người còn có <a href="bchnctd/postscript.html">những nhận thức chưa
+                đúng về chữ Hán Nôm</a>. Trên thực tế, đặc điểm một chữ một âm của chữ Hán Nôm hoàn toàn phù hợp với
+            tính chất đơn lập của tiếng Việt (Tiếng Việt thuộc về loại hình ngôn ngữ đơn lập, mỗi hình vị là một đơn vị
+            cú pháp cách biệt tương đương với một từ, có thể di chuyển được trong câu). Qua hơn một nghìn năm tồn tại và
+            phát triển, chữ Hán Nôm đã trở thành một hệ thống chữ viết hoàn chỉnh, thích hợp để ghi chép cả tiếng Việt
+            cổ lẫn hiện đại.<br/> <a href="weixin://bizmsgmenu?msgmenucontent=爸爸&msgmenuid=960"></a>自時近代𦤾𫢩、由少曉別漊㢅𧗱系統𡨸曰尼、𡗉𠊛群固<a
+                    href="bchnctd/postscript.html">仍認識𣗓倲𧗱𡨸漢喃</a>。𨑗寔際、特點𠬠𡨸𠬠音𧵑𡨸漢喃完全符合貝性質單立𧵑㗂越（㗂越屬𧗱類型言語單立、每形位𱺵𠬠單位句法隔別相當貝𠬠詞、固体移轉得𥪝句）。過欣𠬠𠦳𢆥存在吧發展、𡨸漢喃㐌𠭤成𠬠系統𡨸曰完整、適合抵𥱬劄哿㗂越古悋現代。
+        </p>
+        <button class="cta-button">Đọc thêm 讀添</button>
+    </div>
+</div>
+
+<main class="main-content">
+    <div class="left-column">
+        <section class="section">
+            <h2 class="section-title">Thông tin về Ủy ban 通信𧗱委班</h2>
+            <div class="section-content">
+                <p>Ủy ban Phục sinh Hán Nôm Việt Nam được thành lập ngày 25 tháng 11 năm 2011, là một tổ chức phi lợi
+                    nhuận hoạt động trực tuyến, chuyên về nghiên cứu và phổ biến chữ Hán Nôm. Chúng tôi tin rằng chữ Hán
+                    Nôm không chỉ là di sản văn hoá quý báu trong bảo tàng, mà còn là cầu nối quan trọng giữa quá khứ,
+                    hiện tại và tương lai của dân tộc, vẫn mang những giá trị thiết thực trong đời sống xã hội đương
+                    đại.<br/>委班復生漢喃越南得成立𣈜25𣎃11𢆥2011、𱺵𠬠組織非利潤活動直線、專𧗱研究吧普遍𡨸漢喃。衆碎信哴𡨸漢喃空只𱺵遺產文化貴寶𥪝寶藏、𦓡群𱺵橋綏關重𡧲過去、現在吧將來𧵑民族、吻𫼳仍價值切寔𥪝𠁀𤯩社會當代。
+                </p>
+                <p>Một trong những nhiệm vụ trọng tâm của Ủy ban là công tác chuẩn hóa chữ Hán Nôm. Nhờ sự đóng góp tận
+                    tâm của các học giả và chuyên gia trong và ngoài Ủy ban, sau hơn ba năm nghiên cứu, chúng tôi đã
+                    công bố <i><a href="Lookup-CHNC.html">Bảng chữ Hán Nôm Chuẩn Thường dùng</a></i> - phương án chuẩn
+                    hóa chữ Hán Nôm đầu tiên trong lịch sử vào ngày 25 tháng 5 năm 2022. Song song với việc này, để tạo
+                    điều kiện thuận lợi cho việc sử dụng chữ Hán Nôm trong thời đại số, Ủy ban đã phát triển các công cụ
+                    thiết yếu như phông chữ, bộ gõ, công cụ chuyển tự và lần lượt công bố các kết quả nghiên cứu liên
+                    quan.<br/>𠬠𥪝仍任務重心𧵑委班𱺵工作準化𡨸漢喃。𢘾事㨂𢵰盡心𧵑各學者吧專家𥪝吧外委班、𢖖󠄁欣𠀧𢆥研究、衆碎㐌公布『<a
+                            href="Lookup-CHNC.html">榜𡨸漢喃準常用</a>』－方案準化𡨸漢喃頭先𥪝歷史𠓨𣈜25𣎃5𢆥2022。雙雙貝役尼、抵造條件順利朱役使用𡨸漢喃𥪝時代數、委班㐌發展各工具切要如風𡨸、部𢫈、工具轉字吧吝𦀎公布各結果研究連關。
+                </p>
+                <p>Trong thời gian sắp tới, dựa trên nền tảng chữ Hán Nôm chuẩn, Ủy ban sẽ tập trung nghiên cứu và phát
+                    triển tài liệu giảng dạy chữ Hán Nôm, đồng thời xây dựng các sản phẩm ứng dụng, góp phần thúc đẩy
+                    việc bảo tồn và phổ biến di sản văn hóa quý giá này.<br/>𥪝時間𢯛𬧐、澦𨑗𡋂磉𡨸漢喃準、委班仕集中研究吧發展材料講𠰺𡨸漢喃、同時𡏦𥩯各產品應用、𢵰份促𢩽役保存吧普遍遺產文化貴價尼。
+                </p>
+                <button class="cta-button">Đọc thêm 讀添</button>
+            </div>
+        </section>
+
+        <section class="section2">
+            <h2 class="section-title">Vì sao cần chuẩn hóa chữ Hán Nôm? 爲哰懃準化𡨸漢喃？</h2>
+            <div class="section-content">
+                <p>Chuẩn hóa là nền tảng cốt yếu để một hệ thống chữ viết được phổ biến rộng rãi trong xã hội. Lịch sử
+                    đã chứng minh rằng hầu hết các quốc gia có hệ thống chữ viết riêng trong thời cận đại đều đã trải
+                    qua quá trình cải cách và chuẩn hóa chữ viết. Một hệ thống chữ viết chưa được chuẩn hóa sẽ khó có
+                    thể phát huy hiệu quả trong giao tiếp và truyền tải văn hóa.<br/>準化𱺵𡋂磉骨要抵𠬠系統𡨸曰得普遍㢅𠸤𥪝社會。歷史㐌證明哴侯歇各國家固系統𡨸曰𥢆𥪝時近代調㐌𱱇過過程改革吧準化𡨸曰。𠬠系統𡨸曰𣗓得準化仕𠸋固体發揮效果𥪝交接吧傳載文化。
+                </p>
+
+                <p>Ủy ban nhận định rằng việc đưa chữ Hán Nôm vào sử dụng thực tiễn là một trong những phương thức then
+                    chốt để gìn giữ di sản văn hóa quý báu này, và việc chuẩn hóa chính là điều kiện tiên quyết để đưa
+                    chữ Hán Nôm vào sử dụng rộng rãi trong đời sống. Việc chuẩn hóa sẽ mang lại nhiều lợi ích thiết
+                    thực: nâng cao hiệu quả giao tiếp và nghiên cứu, tránh những hiểu lầm do sự đa dạng của các dị thể,
+                    đồng thời tạo điều kiện thuận lợi cho việc giảng dạy và học tập chữ viết này.<br/>委班認定哴役迻𡨸漢喃𠓨使用寔踐𱺵𠬠𥪝仍方式杄𢱝抵𢷹𡨺遺產文化貴寶尼、吧役準化正𱺵條件先決抵迻𡨸漢喃𠓨使用㢅𠸤𥪝𠁀𤯩。役準化仕𫼳吏𡗉利益切寔：㨢高效果交接吧研究、𠬉仍曉𡍚由事多樣𧵑各異體、同時造條件順利朱役講𠰺吧學習𡨸曰尼。
+                </p>
+
+                <p>Trong bối cảnh kỷ nguyên số hóa hiện nay, việc chuẩn hóa còn đóng vai trò quan trọng trong việc phát
+                    triển các công cụ công nghệ phục vụ việc nhập liệu, xử lý và chuyển đổi văn bản Hán Nôm. Đây chính
+                    là nền tảng để chữ Hán Nôm hội nhập vào đời sống đương đại, trở thành một hệ thống chữ viết khoa học
+                    và thiết thực cho người Việt.<br/>𥪝背景紀元數化現𫢩、役準化群㨂𦠘𠻀關重𥪝役發展各工具工藝服務役入料、處理吧轉𢷮文本漢喃。低正𱺵𡋂磉抵𡨸漢喃匯入𠓨𠁀𤯩當代、𠭤成𠬠系統𡨸曰科學吧切寔朱𠊛越。
+                </p>
+
+                <p>Điều quan trọng cần lưu ý là Ủy ban không hề phản đối việc sử dụng chữ Quốc ngữ. Ngược lại, chúng tôi
+                    kỳ vọng thông qua những nỗ lực này, người dân có thể vừa sử dụng thành thạo chữ Quốc ngữ, vừa am
+                    hiểu sâu sắc hơn về chữ viết truyền thống của dân tộc. Qua đó, chúng ta sẽ cùng nhau xây dựng một
+                    cầu nối vững chắc giữa quá khứ, hiện tại và tương lai cho nền văn hóa nước ta.<br/>條關重懃留意𱺵委班空𢭁反對役使用𡨸國語。逆吏、衆碎期望通過仍努力尼、𠊛民固体𣃣使用成繰𡨸國語、𣃣諳曉漊銫欣𧗱𡨸曰傳統𧵑民族。過妬、衆些仕共僥𡏦𥩯𠬠橋綏凭𢡠𡧲過去、現在吧將來朱𡋂文化渃些。
+                </p>
+                <button class="cta-button">Đọc thêm 讀添</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="right-column">
+        <section class="section2">
+            <h2 class="section-title">Thông báo 通報</h2>
+            <div class="section-content">
+                <p>Ủy ban đang triển khai dự án chuyển tự từ chữ Quốc ngữ sang chữ Hán Nôm chuẩn trong hệ thống sách
+                    giáo khoa môn Ngữ văn từ bậc Tiểu học đến Trung học phổ thông. Chúng tôi đang tuyển tình nguyện viên
+                    muốn cùng tham gia dự án này.<br/>委班當展開預案轉字自𡨸國語𨖅𡨸漢喃準𥪝系統冊教科門語文自堛小學𦤾中學普通。衆碎當選情願員㦖共參加預案尼。
+                </p>
+                <p>I. Quy trình thực hiện<br/>&nbsp;&nbsp;1. Số hóa nội dung từ sách giáo khoa sang định dạng văn
+                    bản<br/>&nbsp;&nbsp;2. Hiệu đính văn bản chữ Quốc ngữ<br/>&nbsp;&nbsp;3. Chuyển tự từ chữ Quốc ngữ
+                    sang chữ Hán Nôm chuẩn<br/>I. 規程寔現<br/>&nbsp;&nbsp;1. 數化內容自冊教科𨖅定樣文本<br/>&nbsp;&nbsp;2.
+                    校訂文本𡨸國語<br/>&nbsp;&nbsp;3. 轉字自𡨸國語𨖅𡨸漢喃準</p>
+                <p>II. Mục tiêu dự án<br/>&nbsp;&nbsp;- Xây dựng tài liệu đối chiếu Quốc ngữ - Hán Nôm trên nền tảng
+                    sách giáo khoa, tạo điều kiện thuận lợi cho việc học chữ Hán Nôm<br/>&nbsp;&nbsp;- Thống kê tần suất
+                    sử dụng chữ Hán Nôm làm cơ sở rà soát, điều chỉnh "Bảng Phân phối chữ Hán Nôm theo Lớp" và biên soạn
+                    giáo trình phù hợp với từng cấp học<br/>II. 目標預案<br/>&nbsp;&nbsp;-
+                    𡏦𥩯材料對照國語－漢喃𨑗𡋂磉冊教科、造條件順利朱役學𡨸漢喃<br/>&nbsp;&nbsp;-
+                    統計頻率使用𡨸漢喃𫜵基礎攞詧、調整「榜分配𡨸漢喃蹺笠」吧編撰教程符合貝層級學</p>
+                <p>III. Yêu cầu đối với tình nguyện viên<br/>&nbsp;&nbsp;- Tiếng mẹ đẻ là tiếng Việt<br/>&nbsp;&nbsp;-
+                    Có kiến thức nền tảng về chữ Hán hoặc chữ Nôm<br/>&nbsp;&nbsp;- Ưu tiên người có trình độ đại học
+                    trở lên<br/>III. 要求對貝情願員<br/>&nbsp;&nbsp;- 㗂媄𤯰𱺵㗂越<br/>&nbsp;&nbsp;-
+                    固見識𡋂磉𧗱𡨸漢或𡨸喃<br/>&nbsp;&nbsp;- 優先𠊛固程度大學𠭤𬨠</p>
+                <p>Các ứng viên quan tâm vui lòng gửi email về địa chỉ: hannom.rcv AT gmail.com (Vui lòng thay "AT" bằng
+                    "@" trước khi gửi email).<br/>各應員關心𢝙𢚸寄伊𩄲𧗱地址：hannom.rcv AT gmail.com（𢝙𢚸𠊝「AT」憑「@」𠓀欺寄伊𩄲）。
+                </p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">联系我们</h2>
+            <div class="section-content">
+                <p>
+                    <li>Email 伊𩄲: <b>hannom.rcv AT gmail.com</b><br/><small>※ Vui lòng thay "AT" bằng "@" trước khi gửi
+                        email 𢝙𢚸𠊝「AT」憑「@」𠓀欺寄伊𩄲</small></li>
+                    <li><a href="https://chat.deepseek.com/">Trang Facebook 張派綀㯷</a></li>
+                    <li><a href="https://www.facebook.com/groups/ubpshnvn">Nhóm Facebook 𡖡派綀㯷</a></li>
+                    <li><a href="https://zalo.me/g/fuumnc140">Nhóm Zalo 𡖡耶露</a></li>
+                </p>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+    let currentIndex = 0;
+    const containers = document.querySelectorAll('.image-container');
+    const totalImages = containers.length;
+
+    function showNextImage() {
+        containers[currentIndex].classList.remove('active');
+        currentIndex = (currentIndex + 1) % totalImages;
+        containers[currentIndex].classList.add('active');
+    }
+
+    containers[currentIndex].classList.add('active');
+
+    setInterval(showNextImage, 6000);
+
+    function toggleNav(element) {
+        const navContainer = document.querySelector('.nav-container');
+        navContainer.style.display = navContainer.style.display === 'flex' ? 'none' : 'flex';
+
+        // 切换☰和×
+        if (navContainer.style.display === 'flex') {
+            element.innerHTML = '× <span class="nav-toggle-text">UBPSHNVN</span>'; // 显示×
+        } else {
+            element.innerHTML = '☰ <span class="nav-toggle-text">ＵＢＰＳＨＮＶＮ</span>'; // 显示☰
+        }
+    }
+
+    // 窄屏模式下始终显示nav部分
+    window.onresize = function () {
+        const navContainer = document.querySelector('.nav-container');
+        if (window.innerWidth >= 599) {
+            navContainer.style.display = 'flex'; // 宽屏模式下始终显示
+        } else {
+            navContainer.style.display = 'none'; // 小于399px时隐藏
+        }
+    };
+
+    // 点击下拉菜单外部时关闭菜单
+    window.onclick = function (event) {
+        if (!event.target.matches('.dropbtn')) {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                var openDropdown = dropdowns[i];
+                if (openDropdown.style.display === 'block') {
+                    openDropdown.style.display = 'none';
+                }
+            }
+        }
+    }
+</script>
+
+<footer>
+    <p>Copyright © 2023-2025 保留所有权利</p>
+</footer>
+</body>
+</html>

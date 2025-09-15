@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方言拼音设置</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --light-bg: #f8f9fa;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            padding-bottom: 80px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-weight: 600;
+            padding: 12px 20px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .form-check {
+            margin-bottom: 12px;
+            padding-left: 2rem;
+        }
+
+        .form-check-input {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-top: 0.1rem;
+        }
+
+        .info-icon {
+            color: var(--primary-color);
+            cursor: pointer;
+            margin-left: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .info-icon:hover {
+            color: var(--secondary-color);
+            transform: scale(1.1);
+        }
+
+        .preview-container {
+            background-color: #f0f8ff;
+            border: 1px solid #cce5ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 10px;
+            min-height: 100px;
+            font-size: 1.2rem;
+            line-height: 1.6;
+        }
+
+        .phonetic-example {
+            font-family: 'Cambria', serif;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 3px 0;
+        }
+
+        .btn-submit {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.4);
+        }
+
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1050;
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .bottom-sheet.show {
+            transform: translateY(0);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1040;
+            display: none;
+        }
+
+        .sheet-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+        }
+
+        .close-sheet {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6c757d;
+        }
+
+        .sheet-content {
+            padding: 20px;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        .tone-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .tone-table th, .tone-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tone-table th {
+            background-color: #f8f9fa;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            padding: 5px 10px;
+        }
+
+        .phonetic-highlight {
+            color: #e63946;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                margin-bottom: 15px;
+            }
+
+            .preview-container {
+                padding: 15px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 顶部标题栏 -->
+<div class="header">
+    <div class="container">
+        <div class="d-flex align-items-center">
+            <button class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 class="mb-0 ms-3">方言拼音设置</h2>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <!-- 字符限制设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>字符是否限制于26个字母</span>
+            <i class="fas fa-info-circle info-icon" data-title="字符是否限制于26个字母" data-content="拼音方案包括26个字母和扩展字母（如 ü, ẹ），为了输入和显示方便，特别设计了限制在26字母以内的写法。ẹ 可以写作 ee，音调标注在后一个 e 上；ü 可以写作 yu，音调标注在 u 上。注：不同于汉语拼音，无论是否以 ü 开头，都会替换为 yu。"></i>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="use26">
+                <input class="form-check-input" type="radio" name="use26" id="radioNamUse26" value="26">
+                <label class="form-check-label" for="radioNamUse26">
+                    限制在26个字母内
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="use26" id="radioNamUse28" value="28">
+                <label class="form-check-label" for="radioNamUse28">
+                    使用扩展字母（ü, ẹ）
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音调标注设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>音调标注设计</span>
+            <i class="fas fa-info-circle info-icon" data-title="音调标注设计" data-content="考虑到不同人对拼音的理解不同，特别设计了两套标注读音的方法："></i>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="tone">
+                <input class="form-check-input" type="radio" name="tone" id="radioNamHideTone" value="0">
+                <label class="form-check-label" for="radioNamHideTone">
+                    不显示音调
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="tone" id="radioNamUseIndex" value="1">
+                <label class="form-check-label" for="radioNamUseIndex">
+                    使用音调符号（如 à, á）
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="tone" id="radioNamUseNum" value="3">
+                <label class="form-check-label" for="radioNamUseNum">
+                    使用数字标注（如 a1, a2）
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 字母大小写设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>字母大小写设置</span>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="upper">
+                <input class="form-check-input" type="radio" name="upper" id="radioNamAllLower" value="0">
+                <label class="form-check-label" for="radioNamAllLower">
+                    全部小写
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="upper" id="radioNamAllUpper" value="1">
+                <label class="form-check-label" for="radioNamAllUpper">
+                    全部大写
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="upper" id="radioNamFirst" value="2">
+                <label class="form-check-label" for="radioNamFirst">
+                    首字母大写
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- zi ci si 的韵母设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>zi ci si 的韵母 i 的格式</span>
+            <i class="fas fa-info-circle info-icon" data-title="zi ci si 的韵母 i 的格式" data-content="由于普通话和南昌话中都不区分尖团音，所以不会出现混用。但是为了清晰，可以调整这个选项，把 z c s 后的 i 做双写或隐藏处理，标注声调的时候标在最后一个字母上。"></i>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="zcs">
+                <input class="form-check-input" type="radio" name="zcs" id="radioNamUseII" value="0">
+                <label class="form-check-label" for="radioNamUseII">
+                    使用 ii（如 zii）
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="zcs" id="radioNamUseI" value="1">
+                <label class="form-check-label" for="radioNamUseI">
+                    使用 i（如 zi）
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="zcs" id="radioNamHideI" value="2">
+                <label class="form-check-label" for="radioNamHideI">
+                    隐藏 i（如 z）
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代声母设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>是否使用代声母</span>
+            <i class="fas fa-info-circle info-icon" data-title="是否使用代声母" data-content="普通话不允许 i u ü 出现在拼音开头，会根据规则变为 yi wu yu，本意是连写时区分音节，但是一定程度上造成了同一读音的不同写法。为了清晰，拟取消这个规则，但是为了适应，可以重新打开这个选项，程序会自动拟合成类似于汉语拼音的写法。"></i>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="iu">
+                <input class="form-check-input" type="radio" name="iu" id="radioNamUseIU" value="0">
+                <label class="form-check-label" for="radioNamUseIU">
+                    直接使用 i, u, ü
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="iu" id="radioNamUseYW" value="1">
+                <label class="form-check-label" for="radioNamUseYW">
+                    使用 y, w 开头（如 yi, wu, yu）
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 入声韵尾设置 -->
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            <span>是否显示入声韵尾</span>
+            <i class="fas fa-info-circle info-icon" data-title="是否显示入声韵尾" data-content="南昌话里入声韵尾接近退化，理论上区分 t、k，实际上都可以读作喉塞音 [ʔ]，所以默认隐藏。如果要详细研究，可以调整这个选项，同时参考国际音标。同时，统一变换为 q 是其他方言拼音方案的实践。"></i>
+        </div>
+        <div class="card-body">
+            <div class="form-check" id="end">
+                <input class="form-check-input" type="radio" name="end" id="radioNamUseTK" value="0">
+                <label class="form-check-label" for="radioNamUseTK">
+                    显示 t/k（如 at, ak）
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="end" id="radioNamHideEnd" value="1">
+                <label class="form-check-label" for="radioNamHideEnd">
+                    隐藏入声韵尾
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="end" id="radioNamUseQ" value="3">
+                <label class="form-check-label" for="radioNamUseQ">
+                    统一使用 q（如 aq）
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览区域 -->
+    <div class="card">
+        <div class="card-header">
+            拼音方案预览
+        </div>
+        <div class="card-body">
+            <div class="preview-container" id="previewText">
+                选择不同的设置选项，这里将显示对应的拼音方案预览效果...
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <button class="btn btn-primary btn-submit" id="submitButton">
+        应用设置
+    </button>
+</div>
+
+<!-- 底部弹窗 -->
+<div class="overlay" id="overlay"></div>
+<div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-header">
+        <h4 id="sheetTitle">标题</h4>
+        <button class="close-sheet">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sheet-content" id="sheetContent">
+        内容加载中...
+    </div>
+</div>
+
+<script>
+    // 初始化设置
+    const defaultSettings = {
+        yu: 1, ee: 2, oe: 2,     // 字符限制
+        num: 1,                   // 音调标注
+        capital: 0,               // 大小写
+        ii: 1,                    // zcs韵母
+        alt: 0,                   // 代声母
+        ptk: 1                    // 入声韵尾
+    };
+
+    // 当前设置
+    let currentSettings = {...defaultSettings};
+
+    // DOM元素
+    const previewText = document.getElementById('previewText');
+    const bottomSheet = document.getElementById('bottomSheet');
+    const overlay = document.getElementById('overlay');
+    const sheetTitle = document.getElementById('sheetTitle');
+    const sheetContent = document.getElementById('sheetContent');
+    const closeSheetBtn = document.querySelector('.close-sheet');
+    const infoIcons = document.querySelectorAll('.info-icon');
+    const submitButton = document.getElementById('submitButton');
+
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', function() {
+        // 从localStorage加载设置
+        loadSettings();
+
+        // 设置单选按钮状态
+        setRadioButtons();
+
+        // 刷新预览
+        refreshPreview();
+
+        // 绑定事件
+        bindEvents();
+    });
+
+    // 从localStorage加载设置
+    function loadSettings() {
+        const savedSettings = localStorage.getItem('NamStyle');
+        if (savedSettings) {
+            currentSettings = JSON.parse(savedSettings);
+        } else {
+            currentSettings = {...defaultSettings};
+            saveSettings();
+        }
+    }
+
+    // 保存设置到localStorage
+    function saveSettings() {
+        localStorage.setItem('NamStyle', JSON.stringify(currentSettings));
+    }
+
+    // 设置单选按钮状态
+    function setRadioButtons() {
+        // 字符限制
+        if (currentSettings.yu === 2 && currentSettings.ee === 0) {
+            document.getElementById('radioNamUse26').checked = true;
+        } else {
+            document.getElementById('radioNamUse28').checked = true;
+        }
+
+        // 音调标注
+        document.querySelector(`input[name="tone"][value="${currentSettings.num}"]`).checked = true;
+
+        // 大小写
+        document.querySelector(`input[name="upper"][value="${currentSettings.capital}"]`).checked = true;
+
+        // zcs韵母
+        document.querySelector(`input[name="zcs"][value="${currentSettings.ii}"]`).checked = true;
+
+        // 代声母
+        document.querySelector(`input[name="iu"][value="${currentSettings.alt}"]`).checked = true;
+
+        // 入声韵尾
+        document.querySelector(`input[name="end"][value="${currentSettings.ptk}"]`).checked = true;
+    }
+
+    // 绑定事件
+    function bindEvents() {
+        // 字符限制单选按钮
+        document.getElementById('radioNamUse26').addEventListener('change', function() {
+            if (this.checked) {
+                currentSettings.yu = 2;
+                currentSettings.ee = 0;
+                currentSettings.oe = 2;
+                saveSettings();
+                refreshPreview();
+            }
+        });
+
+        document.getElementById('radioNamUse28').addEventListener('change', function() {
+            if (this.checked) {
+                currentSettings.yu = 1;
+                currentSettings.ee = 2;
+                currentSettings.oe = 2;
+                saveSettings();
+                refreshPreview();
+            }
+        });
+
+        // 音调标注单选按钮
+        document.querySelectorAll('input[name="tone"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentSettings.num = parseInt(this.value);
+                    saveSettings();
+                    refreshPreview();
+                }
+            });
+        });
+
+        // 大小写单选按钮
+        document.querySelectorAll('input[name="upper"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentSettings.capital = parseInt(this.value);
+                    saveSettings();
+                    refreshPreview();
+                }
+            });
+        });
+
+        // zcs韵母单选按钮
+        document.querySelectorAll('input[name="zcs"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentSettings.ii = parseInt(this.value);
+                    saveSettings();
+                    refreshPreview();
+                }
+            });
+        });
+
+        // 代声母单选按钮
+        document.querySelectorAll('input[name="iu"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentSettings.alt = parseInt(this.value);
+                    saveSettings();
+                    refreshPreview();
+                }
+            });
+        });
+
+        // 入声韵尾单选按钮
+        document.querySelectorAll('input[name="end"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentSettings.ptk = parseInt(this.value);
+                    saveSettings();
+                    refreshPreview();
+                }
+            });
+        });
+
+        // 信息图标点击事件
+        infoIcons.forEach(icon => {
+            icon.addEventListener('click', function() {
+                const title = this.getAttribute('data-title');
+                const content = this.getAttribute('data-content');
+                showInfoSheet(title, content);
+            });
+        });
+
+        // 关闭弹窗按钮
+        closeSheetBtn.addEventListener('click', closeInfoSheet);
+        overlay.addEventListener('click', closeInfoSheet);
+
+        // 提交按钮
+        submitButton.addEventListener('click', function() {
+            // 这里可以添加提交到服务器的逻辑
+            alert('设置已应用！');
+            refreshPreview();
+        });
+    }
+
+    // 显示信息弹窗
+    function showInfoSheet(title, content) {
+        sheetTitle.textContent = title;
+        sheetContent.innerHTML = formatContent(content);
+        bottomSheet.classList.add('show');
+        overlay.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 格式化内容（处理双斜线标记）
+    function formatContent(content) {
+        return content
+            .replace(/\/\/(.*?)\/\//g, '<span class="phonetic-example">$1</span>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // 关闭信息弹窗
+    function closeInfoSheet() {
+        bottomSheet.classList.remove('show');
+        overlay.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // 刷新预览
+    function refreshPreview() {
+        // 这里应该从服务器获取预览数据，我们模拟一下
+        const previewData = generatePreview();
+        previewText.innerHTML = previewData;
+    }
+
+    // 生成预览数据
+    function generatePreview() {
+        const examples = [
+            { char: '温', pinyin: 'ùn', num: 'un1' },
+            { char: '成', pinyin: 'cẹ́n', num: 'cẹn2' },
+            { char: '眼', pinyin: 'ngǎn', num: 'ngan3' },
+            { char: '邻', pinyin: 'līn', num: 'lin4' },
+            { char: '定', pinyin: 'tiãng', num: 'tiang5' },
+            { char: '辣', pinyin: 'la̋', num: 'la6' },
+            { char: '石', pinyin: 'sȁ', num: 'sa7' }
+        ];
+
+        let preview = '<p>当前拼音方案示例：</p>';
+
+        examples.forEach(item => {
+            let display;
+            if (currentSettings.num === 0) {
+                // 不显示音调
+                display = item.pinyin.replace(/[̀́̌̄̃̋̏]/g, '');
+            } else if (currentSettings.num === 1) {
+                // 使用音调符号
+                display = item.pinyin;
+            } else {
+                // 使用数字标注
+                display = item.num;
+            }
+
+            // 处理大小写
+            if (currentSettings.capital === 1) {
+                display = display.toUpperCase();
+            } else if (currentSettings.capital === 2) {
+                display = display.charAt(0).toUpperCase() + display.slice(1);
+            }
+
+            preview += `<div class="phonetic-example">${item.char}：<span class="phonetic-highlight">${display}</span></div>`;
+        });
+
+        preview += '<p class="mt-3">南昌方言示例：<br>南昌话属于赣语昌都片，是赣语中具有代表性的方言。</p>';
+
+        return preview;
+    }
+</script>
+</body>
+</html>

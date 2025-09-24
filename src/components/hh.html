@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue.js 入门教程</title>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+<div id="app">
+    <!-- 这里将由 Vue 控制 -->
+    <h1>{{ message }}</h1>
+</div>
+
+<script>
+    // 创建 Vue 应用
+    const app = Vue.createApp({
+        // 数据选项 - 定义应用中的数据
+        data() {
+            return {
+                message: "你好，Vue!",
+                counter: 0
+            }
+        },
+        // 方法选项 - 定义应用中的方法
+        methods: {
+            increment() {
+                this.counter++;
+            },
+            decrement() {
+                this.counter--;
+            }
+        }
+    });
+
+    // 将应用挂载到 DOM 元素上
+    app.mount('#app');
+</script>
+</body>
+</html>

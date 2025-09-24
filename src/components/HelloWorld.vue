@@ -1,8 +1,9 @@
 <template>
   <div>
-    <h2>前后端联调测试</h2>
-    <button @click="callHello">调用 /api/hello</button>
-    <button @click="callHelloParam">调用 /api/hello/param?name=budou</button>
+    <h2>前后端连接测试</h2>
+    <button @click="callHello">默认问候</button>
+    <input type="text" placeholder="你的名字" @input="callHelloParam" v-model="name" maxlength="100" />
+    <button @click="callHelloParam"></button>
     <p v-if="message">返回结果：{{ message }}</p>
   </div>
 </template>
@@ -11,6 +12,7 @@
 import { ref } from 'vue'
 
 const message = ref('')
+const name = ref('')
 
 function callHello() {
   fetch('http://localhost:8080/api/hello')
@@ -24,7 +26,8 @@ function callHello() {
 }
 
 function callHelloParam() {
-  fetch('http://localhost:8080/api/hello/param?name=budou')
+  const params = new URLSearchParams({ name: name.value.trim() })
+  fetch(`http://localhost:8080/api/hello/param?name=`+name.value)
       .then(res => res.json())
       .then(data => {
         message.value = data.message

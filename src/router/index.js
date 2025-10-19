@@ -2,10 +2,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HelloWorld from "../components/HelloWorld.vue";
 import Logo from "../views/logo.vue";
+import pinyinStyle from "../views/pinyinStyle.vue";
 
 // 导入页面组件
 const Home = () => import('../views/Home.vue')
-const About = () => import('../views/About.vue')
+const Search = () => import('../views/Search.vue')
 const Contact = () => import('../views/Contact.vue')
 
 const routes = [
@@ -15,9 +16,9 @@ const routes = [
         component: Home
     },
     {
-        path: '/about',
-        name: 'About',
-        component: About
+        path: '/search',
+        name: 'Search',
+        component: Search
     },
     {
         path: '/contact',
@@ -33,7 +34,12 @@ const routes = [
         path: '/logo',
         name: 'Logo',
         component: Logo
-
+    }
+    ,
+    {
+        path: '/style',
+        name: 'pinyinStyle',
+        component: pinyinStyle
     }
 ]
 

@@ -1,0 +1,15 @@
+@font-face {
+    font-family: 'Charis SIL';
+    src: url('CharisSIL-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Cambria';
+    src: url('cambria.ttc') format('truetype-collection');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

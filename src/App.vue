@@ -12,16 +12,21 @@ export default {
 <!--import HelloWorld from "./components/HelloWorld.vue";-->
 <!--</script>-->
 
+<style>
+@import '/public/fonts/fonts.css';
+</style>
+
 <template>
   <div id="app">
 
 
-    <nav style="padding: 20px; background: #f0f0f0;">
-      <router-link id="link" to="/" >首页</router-link>
-      <router-link id="link" to="/about"   >关于</router-link>
-      <router-link id="link" to="/contact" >联系</router-link>
-      <router-link id="link" to="/test" >测试</router-link>
-      <router-link id="link" to="/logo" >支持</router-link>
+    <nav>
+      <router-link id="link" to="/">首页</router-link>
+      <router-link id="link" to="/search">查询</router-link>
+      <router-link id="link" to="/style">样式</router-link>
+      <router-link id="link" to="/contact">联系</router-link>
+      <router-link id="link" to="/test">测试</router-link>
+      <router-link id="link" to="/logo">技术支持</router-link>
     </nav>
 
     <!-- 主要内容区域 -->
@@ -34,11 +39,18 @@ export default {
 
 <style scoped>
 
-#app{
-  font-family: 標楷體, sans-serif;
+#app {
+  font-family: MiSans, sans-serif;
 }
-#link
-{
-  margin-right: 50px; text-decoration: none;
+
+#link {
+  margin-right: 50px;
+  text-decoration: none;
+}
+
+nav {
+  padding: 20px;
+  background: #f0f0f0;
+  width: 100%; /* 关键设置 */
 }
 </style>

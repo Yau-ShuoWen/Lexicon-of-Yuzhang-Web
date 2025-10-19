@@ -1,7 +1,8 @@
 <template>
   <div class="contact">
-    <h1>联系我们</h1>
-    <p>这是联系页面</p>
+    <a class="aaa" href="https://github.com/Yau-ShuoWen" target="_blank">
+      <img src="../assets/github.svg" alt="GitHub" class="icon">
+      github账号</a>
   </div>
 </template>
 
@@ -15,4 +16,18 @@ export default {
 .contact {
   padding: 20px;
 }
+
+.icon {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.aaa {
+  margin-right: 10px;
+  padding: 6px 12px;
+  font-size: 16px;
+}
+
 </style>

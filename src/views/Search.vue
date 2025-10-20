@@ -171,7 +171,7 @@ const searchHanzi = async () => {
       vague: vague.value
     })
 
-    const response = await fetch(`http://localhost:8080/api/search/nam/byhanzi?${params}`)
+    const response = await fetch(`/api/search/nam/byhanzi?${params}`)
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)

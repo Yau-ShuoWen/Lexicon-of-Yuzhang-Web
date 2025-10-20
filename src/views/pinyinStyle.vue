@@ -27,7 +27,7 @@ const preview = async () => {
   //previewResult.value = '';
 
   try {
-    const response = await fetch('http://localhost:8080/api/pinyin/nam/preview', {
+    const response = await fetch('/api/pinyin/nam/preview', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -55,7 +55,7 @@ const reset = async () => {
   error.value = '';
 
   try {
-    const response = await fetch('http://localhost:8080/api/pinyin/nam/style/init');
+    const response = await fetch('/api/pinyin/nam/style/init');
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

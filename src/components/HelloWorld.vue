@@ -3,7 +3,7 @@
     <h2>打个招呼</h2>
 
     <input type="text" placeholder="你想说的" @input="callHelloParam" v-model="name" maxlength="100"/>
-    <div class="bbb">
+    <div>
       <button @click="callHello">默认问候</button>
       <button @click="callHelloParam">刷新文本</button>
       <p v-if="message">{{ message }}</p>
@@ -11,11 +11,11 @@
 
   </div>
 
-  <div class="aaa">
-    <h2>简繁体转换</h2>
-      <input type="text" placeholder="繁體文本" @input="transfer" v-model="txt" maxlength="500"/>
-      <button @click="transfer">刷新简体文本</button>
-      <p v-if="sc">{{ sc }}</p>
+  <h2>简繁体转换</h2>
+  <input type="text" placeholder="繁體文本" @input="transfer" v-model="txt" maxlength="500"/>
+  <div>
+    <button @click="transfer">刷新简体文本</button>
+    <p v-if="sc">{{ sc }}</p>
   </div>
 </template>
 
@@ -29,7 +29,7 @@ const txt = ref('')
 const sc = ref('')
 
 function callHello() {
-  fetch('http://localhost:8080/api/hello')
+  fetch('/api/hello')
       .then(res => res.json())
       .then(data => {
         message.value = data.message
@@ -40,7 +40,7 @@ function callHello() {
 }
 
 function callHelloParam() {
-  fetch(`http://localhost:8080/api/hello/param?name=` + name.value)
+  fetch(`/api/hello/param?name=` + name.value)
       .then(res => res.json())
       .then(data => {
         message.value = data.message
@@ -52,7 +52,7 @@ function callHelloParam() {
 
 
 function transfer() {
-  fetch(`http://localhost:8080/api/transfer/tc?tc=` + txt.value)
+  fetch(`/api/transfer/tc?tc=` + txt.value)
       .then(res => res.json())
       .then(data => {
         sc.value = data.sc
@@ -71,11 +71,20 @@ button {
 
 .aaa {
   display: grid;
-}
-
-.bbb {
+  /* padding: 0 200px 0 200px*/
   flex-direction: column;
 }
+
+.aaa input {
+  max-width: 200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.aaa button {
+  max-width: 100px; /* 或者你想要的宽度 */
+}
+
 
 div {
   flex-direction: column;

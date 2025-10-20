@@ -7,11 +7,6 @@ export default {
 }
 </script>
 
-
-<!--<script setup>-->
-<!--import HelloWorld from "./components/HelloWorld.vue";-->
-<!--</script>-->
-
 <style>
 @import '/public/fonts/fonts.css';
 </style>
@@ -20,7 +15,7 @@ export default {
   <div id="app">
 
 
-    <nav>
+    <nav class="main-nav">
       <router-link id="link" to="/">首页</router-link>
       <router-link id="link" to="/search">查询</router-link>
       <router-link id="link" to="/style">样式</router-link>
@@ -30,7 +25,7 @@ export default {
     </nav>
 
     <!-- 主要内容区域 -->
-    <div style="padding: 200px;">
+    <div style="padding: 20px 0;">
       <router-view></router-view>
     </div>
 
@@ -41,16 +36,35 @@ export default {
 
 #app {
   font-family: MiSans, sans-serif;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 #link {
-  margin-right: 50px;
+
   text-decoration: none;
 }
 
-nav {
+.main-nav {
   padding: 20px;
   background: #f0f0f0;
-  width: 100%; /* 关键设置 */
+  width: 100%;
+  flex-shrink: 0;
+
+
+  display: flex;
+  flex-wrap: wrap; /* 关键：允许换行 */
+  gap: 50px; /* 替代 margin-right */
+  justify-content: center; /* 水平居中 */
+  align-items: center;
+  box-sizing: border-box; /* 确保 padding 包含在宽度内 */
+}
+
+.main-nav a {
+  text-decoration: none;
+  color: black;
 }
 </style>

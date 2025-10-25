@@ -6,7 +6,7 @@
     <div>
       <button @click="callHello">默认问候</button>
       <button @click="callHelloParam">刷新文本</button>
-      <p v-if="message">{{ message }}</p>
+      <p v-if="message" v-html="message"></p>
     </div>
 
   </div>
@@ -22,6 +22,7 @@
 <script setup>
 
 import {ref} from 'vue'
+import {formatTextWithFont} from "../utils/textFormatter.js";
 
 const message = ref('')
 const name = ref('')
@@ -43,7 +44,7 @@ function callHelloParam() {
   fetch(`/api/hello/param?name=` + name.value)
       .then(res => res.json())
       .then(data => {
-        message.value = data.message
+        message.value = formatTextWithFont(data.message);
       })
       .catch(err => {
         message.value = '请求失败: ' + err.message

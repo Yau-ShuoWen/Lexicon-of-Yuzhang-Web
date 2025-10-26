@@ -1,0 +1,16 @@
+/* 字体定义 */
+@font-face {
+    font-family: 'Charis SIL';
+    src: url('@/assets/fonts/CharisSIL-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Cambria';
+    src: url('@/assets/fonts/cambria.ttc') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

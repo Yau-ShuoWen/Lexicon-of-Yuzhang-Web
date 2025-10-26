@@ -1,0 +1,56 @@
+/* 导入基础样式 */
+@import './base/_reset.css';
+@import './base/_variables.css';
+@import './base/_typography.css';
+@import './base/_fonts.css';
+
+/* 导入组件样式 */
+@import './components/_buttons.css';
+@import './components/_forms.css';
+@import './components/_cards.css';
+
+/* 导入布局样式 */
+@import './layouts/_container.css';
+@import './layouts/_navigation.css';
+
+/* 导入工具样式 */
+@import './utilities/_spacing.css';
+@import './utilities/_display.css';
+
+/* 全局样式 */
+#app {
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    :root {
+        --container-max-width: 100%;
+        --spacing-md: 0.75rem;
+        --spacing-lg: 1rem;
+        --spacing-xl: 1.5rem;
+    }
+
+    .main-nav {
+        gap: var(--spacing-lg);
+        padding: var(--spacing-md);
+    }
+
+    .page-container {
+        padding: var(--spacing-lg) 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-nav {
+       /* flex-direction: column;*/
+        gap: var(--spacing-md);
+    }
+
+    .container {
+        padding: 0 var(--spacing-sm);
+    }
+}

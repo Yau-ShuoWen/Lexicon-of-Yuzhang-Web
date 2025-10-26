@@ -1,0 +1,76 @@
+/* CSS 自定义属性 - 设计系统 */
+:root {
+    /* 颜色系统 */
+    --color-primary: #4a6fc8;
+    --color-primary-dark: #3a5ca9;
+    --color-primary-light: #667eea;
+
+    --color-secondary: #764ba2;
+    --color-accent: #f5576c;
+
+    --color-success: #28a745;
+    --color-warning: #ff9800;
+    --color-error: #dc3545;
+    --color-info: #3498db;
+
+    --color-text: #333333;
+    --color-text-light: #666666;
+    --color-text-lighter: #999999;
+
+    --color-background: #ffffff;
+    --color-background-alt: #f5f7fa;
+    --color-background-card: #ffffff;
+
+    --color-border: #e1e5e9;
+    --color-border-light: #f0f0f0;
+
+    /* 渐变 */
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+
+    /* 字体 */
+    --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-heading: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-mono: 'Courier New', monospace;
+    --font-family-chinese: 'Microsoft YaHei', sans-serif;
+
+    /* 字体大小 */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+
+    /* 间距 */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+
+    /* 边框圆角 */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+
+    /* 阴影 */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+
+    /* 过渡 */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.3s ease;
+    --transition-slow: 0.5s ease;
+
+    /* 布局 */
+    --container-max-width: 1200px;
+    --header-height: 60px;
+}

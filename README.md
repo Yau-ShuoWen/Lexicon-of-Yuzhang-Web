@@ -13,7 +13,7 @@
 
 ## 历程
 
-<img src="public/create.png" width="50%" height="auto" alt="项目创建时间">
+<img src="src/assets/images/create.png" width="50%" height="auto" alt="项目创建时间">
 
 
 ## 代码相关

@@ -1,0 +1,63 @@
+/* 表单组件 */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.form-control {
+    padding: 12px 16px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-base);
+    transition: border-color var(--transition-base);
+    background-color: white;
+}
+
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(74, 111, 200, 0.2);
+}
+
+.form-control:disabled {
+    background-color: var(--color-background-alt);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* 选择框 */
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 40px;
+}
+
+/* 输入组 */
+.input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+}
+
+.input-group .form-control {
+    flex: 1;
+}
+
+/* 表单验证状态 */
+.form-control.error {
+    border-color: var(--color-error);
+}
+
+.form-control.success {
+    border-color: var(--color-success);
+}

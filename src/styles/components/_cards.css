@@ -1,0 +1,48 @@
+/* 卡片组件 */
+.card {
+    background: var(--color-background-card);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: box-shadow var(--transition-base);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border-light);
+    background-color: var(--color-background-alt);
+}
+
+.card-title {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.card-body {
+    padding: var(--spacing-lg);
+}
+
+.card-footer {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--color-border-light);
+    background-color: var(--color-background-alt);
+}
+
+/* 卡片变体 */
+.card-primary {
+    border-left: 4px solid var(--color-primary);
+}
+
+.card-success {
+    border-left: 4px solid var(--color-success);
+}
+
+.card-error {
+    border-left: 4px solid var(--color-error);
+}

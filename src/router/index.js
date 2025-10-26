@@ -1,14 +1,14 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-import HelloWorld from "../components/HelloWorld.vue";
-import Logo from "../views/logo.vue";
-import pinyinStyle from "../views/pinyinStyle.vue";
-import login from "../views/Login.vue";
-import Contact from "../views/Contact.vue";
-import Search from "../views/Search.vue";
-import Home from "../views/Home.vue";
-import Register from "../views/Register.vue";
-import Profile from "../views/Profile.vue"; // 新增导入
+import HelloWorld from "../views/HelloWorld.vue";
+import Logo from "../views/SponsorLogo.vue";
+import pinyinStyle from "../views/PinyinStyle.vue";
+import login from "../views/UserLogin.vue";
+import Contact from "../views/ContactPage.vue";
+import Search from "../views/SearchPage.vue";
+import Home from "../views/HomePage.vue";
+import Register from "../views/UserRegister.vue";
+import Profile from "../views/UserProfile.vue"; // 新增导入
 
 const routes = [
     {

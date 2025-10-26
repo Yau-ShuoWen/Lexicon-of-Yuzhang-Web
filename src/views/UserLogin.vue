@@ -1,17 +1,14 @@
-<!-- src/views/Login.vue -->
 <script setup>
 import {ref} from 'vue'
 import {useRouter} from 'vue-router'
 
 const router = useRouter()
 
-// 响应式数据
 const username = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-// 登录方法
 const handleLogin = async () => {
   if (!username.value || !password.value) {
     errorMessage.value = '请输入用户名和密码'
@@ -26,14 +23,9 @@ const handleLogin = async () => {
     const result = await response.json()
 
     if (result.success) {
-      // 保存token到localStorage
       localStorage.setItem('token', result.token)
       localStorage.setItem('username', result.username)
-
-      // 触发存储事件，让App.vue能够检测到状态变化
       window.dispatchEvent(new Event('storage'))
-
-      // 跳转到个人信息页
       await router.push('/profile')
     } else {
       errorMessage.value = result.message || '登录失败'
@@ -46,7 +38,6 @@ const handleLogin = async () => {
   }
 }
 
-// 回车登录
 const handleKeyPress = (event) => {
   if (event.key === 'Enter') {
     handleLogin()
@@ -55,12 +46,13 @@ const handleKeyPress = (event) => {
 </script>
 
 <template>
-  <!-- 模板部分保持不变 -->
-  <div class="login-container">
-    <div class="login-card">
-      <h2 class="login-title">用户登录</h2>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="page-header">
+        <h1 class="page-title">用户登录</h1>
+      </div>
 
-      <form @submit.prevent="handleLogin" class="login-form">
+      <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
           <label for="username">用户名</label>
           <input
@@ -70,6 +62,7 @@ const handleKeyPress = (event) => {
               placeholder="请输入用户名"
               @keypress="handleKeyPress"
               :disabled="isLoading"
+              class="form-control"
           />
         </div>
 
@@ -82,6 +75,7 @@ const handleKeyPress = (event) => {
               placeholder="请输入密码"
               @keypress="handleKeyPress"
               :disabled="isLoading"
+              class="form-control"
           />
         </div>
 
@@ -91,7 +85,7 @@ const handleKeyPress = (event) => {
 
         <button
             type="submit"
-            class="login-button"
+            class="btn btn-primary btn-lg w-100"
             :disabled="isLoading || !username || !password"
         >
           <span v-if="isLoading">登录中...</span>
@@ -99,7 +93,7 @@ const handleKeyPress = (event) => {
         </button>
       </form>
 
-      <div class="login-links">
+      <div class="auth-links">
         <router-link to="/register" class="link">还没有账号？立即注册</router-link>
       </div>
     </div>
@@ -107,127 +101,64 @@ const handleKeyPress = (event) => {
 </template>
 
 <style scoped>
-/* 样式保持不变 */
-.login-container {
+.auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  background: var(--gradient-primary);
+  padding: var(--spacing-md);
 }
 
-.login-card {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+.auth-card {
+  background: var(--color-background-card);
+  padding: var(--spacing-2xl);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 400px;
 }
 
-.login-title {
-  text-align: center;
-  margin-bottom: 30px;
-  color: #333;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.login-form {
+.auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 8px;
-  color: #555;
-  font-weight: 500;
-}
-
-.form-group input {
-  padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 0.3s ease;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.form-group input:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
+  gap: var(--spacing-lg);
 }
 
 .error-message {
   background-color: #fee;
-  color: #c33;
-  padding: 12px;
-  border-radius: 6px;
+  color: var(--color-error);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
   border: 1px solid #fcc;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
 }
 
-.login-button {
-  padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 10px;
-}
-
-.login-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-.login-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.login-links {
+.auth-links {
   text-align: center;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
 }
 
 .link {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
 }
 
 .link:hover {
   text-decoration: underline;
 }
 
-/* 响应式设计 */
-@media (max-width: 480px) {
-  .login-card {
-    padding: 30px 20px;
-  }
+.w-100 {
+  width: 100%;
+}
 
-  .login-title {
-    font-size: 24px;
+@media (max-width: 480px) {
+  .auth-card {
+    padding: var(--spacing-xl);
   }
 }
 </style>

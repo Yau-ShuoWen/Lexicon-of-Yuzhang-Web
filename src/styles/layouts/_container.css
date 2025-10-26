@@ -1,0 +1,33 @@
+/* 布局容器 */
+.container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+.container-fluid {
+    width: 100%;
+    padding: 0 var(--spacing-md);
+}
+
+/* 页面容器 */
+.page-container {
+    min-height: calc(100vh - var(--header-height));
+    padding: var(--spacing-xl) 0;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.page-title {
+    margin-bottom: var(--spacing-sm);
+}
+
+.page-subtitle {
+    color: var(--color-text-light);
+    font-size: var(--font-size-lg);
+}

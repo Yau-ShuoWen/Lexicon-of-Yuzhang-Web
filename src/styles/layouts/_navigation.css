@@ -1,0 +1,36 @@
+/* 导航组件 */
+.main-nav {
+    padding: var(--spacing-lg);
+    background: var(--color-background-alt);
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xl);
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--color-text);
+    font-weight: 500;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    transition: all var(--transition-base);
+}
+
+.nav-link:hover {
+    color: var(--color-primary);
+    background-color: rgba(74, 111, 200, 0.1);
+}
+
+.nav-link.router-link-active {
+    color: var(--color-primary);
+    background-color: rgba(74, 111, 200, 0.1);
+}
+
+.user-link {
+    color: var(--color-success) !important;
+    font-weight: 600;
+}

@@ -113,65 +113,66 @@ defineExpose({
 
           <div class="config-form" style="flex-wrap: wrap">
             <div class="form-group">
-              <label>ü 的处理方式 (yu):</label>
+              <label>「余/句/女」韵母的字母版本</label>
               <select v-model="config.yu" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">将 v 替换为 ü</option>
-                <option value="2">将 v 替换为 yu</option>
+                <option value="0">使用字母 v</option>
+                <option value="1">使用字母 ü</option>
+                <option value="2">使用双字母 yu</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>"gn" 音的处理方式</label>
+              <label>「念/捏/尼」音核的字母版本</label>
               <select v-model="config.gn" @change="preview" class="form-control">
-                <option value="0">保留原来的n</option>
-                <option value="1">恢复为gn</option>
+                <option value="0">使用字母 n</option>
+                <option value="1">使用老国音字母 gn</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>ee 的处理方式</label>
+              <label>「深/更/本」音核的字母版本</label>
               <select v-model="config.ee" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">替换为 ё</option>
-                <option value="2">替换为 ẹ</option>
+                <option value="0">使用双字母 ee</option>
+                <option value="1">使用字母 ё</option>
+                <option value="2">使用字母 ẹ</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>oe 的处理方式</label>
+              <label>「二/儿/耳」韵母的字母版本</label>
               <select v-model="config.oe" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">替换为 ö</option>
-                <option value="2">替换为 ̣ọ</option>
-                <option value="3">替换为 o</option>
+                <option value="0">使用双字母 oe</option>
+                <option value="1">使用字母 ö</option>
+                <option value="2">使用字母 ọ</option>
+                <option value="3">使用字母 o</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>ii 的处理方式</label>
+              <label>「之/齿/时」的字母版本</label>
               <select v-model="config.ii" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">替换为 i</option>
-                <option value="2">使用zcs</option>
+                <option value="0">使用双字母 ii</option>
+                <option value="1">使用和普通话类似字母 i</option>
+                <option value="2">使用空韵母 zcs</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>入声尾音的处理</label>
+              <label>入声韵尾的处理</label>
               <select v-model="config.ptk" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">删除结尾的 t 或 k</option>
-                <option value="2">将结尾的 t 或 k 替换为 h</option>
-                <option value="3">将结尾的 t 或 k 替换为 q</option>
+                <option value="0">保留韵尾t k</option>
+                <option value="1">隐藏韵尾</option>
+                <option value="2">统一使用字母 h 表示</option>
+                <option value="3">统一使用字母 q 表示</option>
+                <option value="4">只有k韵尾替换为 h</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>替代声母规则</label>
+              <label>零声母i u的规则</label>
               <select v-model="config.alt" @change="preview" class="form-control">
-                <option value="0">不处理</option>
-                <option value="1">符合普通话规律的</option>
+                <option value="0">不改变</option>
+                <option value="1">模仿普通话规律的yi wu</option>
                 <option value="2">直接在i前加y，u前加w</option>
               </select>
             </div>
@@ -189,7 +190,7 @@ defineExpose({
               <label>标注声调的方式</label>
               <select v-model="config.num" @change="preview" class="form-control">
                 <option value="0">不加音调</option>
-                <option value="1">智能添加，符合规范</option>
+                <option value="1">符合规范的添加</option>
                 <option value="2">符号音调加到后面</option>
                 <option value="3">数字音调加到后面</option>
               </select>

@@ -11,13 +11,20 @@
     <div class="card">
       <div class="card-body">
         <div class="flex justify-center gap-5">
-          <a href="https://vite.dev" target="_blank" class="tech-logo">
-            <img src="/src/assets/icons/vite.svg" class="logo" alt="Vite logo" />
-            <span>Vite</span>
-          </a>
+
           <a href="https://vuejs.org/" target="_blank" class="tech-logo">
             <img src="/src/assets/icons/vue.svg" class="logo vue" alt="Vue logo" />
             <span>Vue.js</span>
+          </a>
+
+          <a href="https://vite.dev" target="_blank" class="tech-logo">
+            <img src="/src/assets/icons/vite.svg" class="logo vite" alt="Vite logo" />
+            <span>Vite</span>
+          </a>
+
+          <a href="https://hanlp.hankcs.com/" target="_blank" class="tech-logo">
+            <img src="/src/assets/icons/hanlp.svg" class="logo hanlp" alt="Hanlp logo" />
+            <span>Hanlp</span>
           </a>
         </div>
       </div>
@@ -46,8 +53,12 @@
   transition: filter var(--transition-base);
 }
 
-.logo:hover {
+.logo.vite:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.vue:hover {
+  filter: drop-shadow(0 0 2em #42b883aa);
 }
 
 .logo.vue:hover {

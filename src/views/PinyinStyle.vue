@@ -2,6 +2,12 @@
 import { ref, reactive, onMounted } from 'vue';
 import {formatTextWithFont} from "../utils/textFormatter.js";
 
+// 缓存键名常量
+const STORAGE_KEYS = {
+  CONFIG: 'pinyin_style_config',
+  PREVIEW: 'pinyin_style_preview'
+};
+
 const config = reactive({
   yu: 1,
   gn: 0,
@@ -17,6 +23,65 @@ const config = reactive({
 const previewResult = ref('');
 const loading = ref(false);
 const error = ref('');
+
+// 保存配置到缓存
+const saveConfigToCache = () => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
+  } catch (err) {
+    console.error('保存配置到缓存失败:', err);
+  }
+};
+
+// 从缓存加载配置
+const loadConfigFromCache = () => {
+  try {
+    const cachedConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    if (cachedConfig) {
+      const parsedConfig = JSON.parse(cachedConfig);
+      Object.assign(config, parsedConfig);
+      return true;
+    }
+  } catch (err) {
+    console.error('从缓存加载配置失败:', err);
+  }
+  return false;
+};
+
+// 保存预览结果到缓存
+const savePreviewToCache = () => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PREVIEW, previewResult.value);
+  } catch (err) {
+    console.error('保存预览结果到缓存失败:', err);
+  }
+};
+
+// 从缓存加载预览结果
+const loadPreviewFromCache = () => {
+  try {
+    const cachedPreview = localStorage.getItem(STORAGE_KEYS.PREVIEW);
+    if (cachedPreview) {
+      previewResult.value = cachedPreview;
+      return true;
+    }
+  } catch (err) {
+    console.error('从缓存加载预览结果失败:', err);
+  }
+  return false;
+};
+
+// 清除所有缓存
+const clearCache = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.CONFIG);
+    localStorage.removeItem(STORAGE_KEYS.PREVIEW);
+    return true;
+  } catch (err) {
+    console.error('清除缓存失败:', err);
+    return false;
+  }
+};
 
 const preview = async () => {
   loading.value = true;
@@ -37,6 +102,9 @@ const preview = async () => {
 
     const data = await response.json();
     previewResult.value = formatTextWithFont(data.message);
+
+    // 保存预览结果到缓存
+    savePreviewToCache();
   } catch (err) {
     error.value = '预览请求失败: ' + err.message;
     console.error('Preview error:', err);
@@ -58,7 +126,12 @@ const reset = async () => {
 
     const defaultConfig = await response.json();
     Object.assign(config, defaultConfig);
-    preview()
+
+    // 保存默认配置到缓存
+    saveConfigToCache();
+
+    // 获取新的预览
+    await preview();
   } catch (err) {
     error.value = '重置请求失败: ' + err.message;
     console.error('Reset error:', err);
@@ -67,9 +140,40 @@ const reset = async () => {
   }
 };
 
+// 清除缓存并重置
+const clearCacheAndReset = async () => {
+  const success = clearCache();
+  if (success) {
+    await reset();
+  } else {
+    error.value = '清除缓存失败';
+  }
+};
+
 onMounted(() => {
-  reset();
+  // 尝试从缓存加载配置和预览
+  const hasCachedConfig = loadConfigFromCache();
+  const hasCachedPreview = loadPreviewFromCache();
+
+  // 如果有缓存的配置但没有预览，或者没有缓存，则重置
+  if ((hasCachedConfig && !hasCachedPreview) || (!hasCachedConfig && !hasCachedPreview)) {
+    reset();
+  }
+  // 如果两者都有缓存，则不需要额外操作，界面会显示缓存的内容
 });
+
+// 监听配置变化，自动保存到缓存
+Object.keys(config).forEach(key => {
+  // 使用watchEffect来监听每个配置项的变化
+  // 这里使用一个简化的方式：在preview方法中保存配置
+});
+
+// 修改preview方法，在发送请求前保存配置
+const previewWithCache = async () => {
+  // 保存当前配置到缓存
+  saveConfigToCache();
+  await preview();
+};
 
 defineExpose({
   formatTextWithFont
@@ -91,10 +195,10 @@ defineExpose({
                 <span class="error-icon">❌</span>
                 {{ error }}
               </div>
-<!--              <div v-else-if="loading" class="loading-state">-->
-<!--                <span class="loading-spinner"></span>-->
-<!--                加载中...-->
-<!--              </div>-->
+              <div v-else-if="loading" class="loading-state">
+                <span class="loading-spinner"></span>
+                加载中...
+              </div>
               <div v-else-if="previewResult" class="preview-result" v-html="previewResult">
               </div>
               <div v-else class="preview-placeholder">
@@ -114,7 +218,7 @@ defineExpose({
           <div class="config-form" style="flex-wrap: wrap">
             <div class="form-group">
               <label>「余/句/女」韵母的字母版本</label>
-              <select v-model="config.yu" @change="preview" class="form-control">
+              <select v-model="config.yu" @change="previewWithCache" class="form-control">
                 <option value="0">使用字母 v</option>
                 <option value="1">使用字母 ü</option>
                 <option value="2">使用双字母 yu</option>
@@ -122,8 +226,8 @@ defineExpose({
             </div>
 
             <div class="form-group">
-              <label>「念/捏/尼」音核的字母版本</label>
-              <select v-model="config.gn" @change="preview" class="form-control">
+              <label>「念/捏/尼」声母的字母版本</label>
+              <select v-model="config.gn" @change="previewWithCache" class="form-control">
                 <option value="0">使用字母 n</option>
                 <option value="1">使用老国音字母 gn</option>
               </select>
@@ -131,7 +235,7 @@ defineExpose({
 
             <div class="form-group">
               <label>「深/更/本」音核的字母版本</label>
-              <select v-model="config.ee" @change="preview" class="form-control">
+              <select v-model="config.ee" @change="previewWithCache" class="form-control">
                 <option value="0">使用双字母 ee</option>
                 <option value="1">使用字母 ё</option>
                 <option value="2">使用字母 ẹ</option>
@@ -139,8 +243,8 @@ defineExpose({
             </div>
 
             <div class="form-group">
-              <label>「二/儿/耳」韵母的字母版本</label>
-              <select v-model="config.oe" @change="preview" class="form-control">
+              <label>「二/儿/耳」音节的字母版本</label>
+              <select v-model="config.oe" @change="previewWithCache" class="form-control">
                 <option value="0">使用双字母 oe</option>
                 <option value="1">使用字母 ö</option>
                 <option value="2">使用字母 ọ</option>
@@ -150,7 +254,7 @@ defineExpose({
 
             <div class="form-group">
               <label>「之/齿/时」的字母版本</label>
-              <select v-model="config.ii" @change="preview" class="form-control">
+              <select v-model="config.ii" @change="previewWithCache" class="form-control">
                 <option value="0">使用双字母 ii</option>
                 <option value="1">使用和普通话类似字母 i</option>
                 <option value="2">使用空韵母 zcs</option>
@@ -159,7 +263,7 @@ defineExpose({
 
             <div class="form-group">
               <label>入声韵尾的处理</label>
-              <select v-model="config.ptk" @change="preview" class="form-control">
+              <select v-model="config.ptk" @change="previewWithCache" class="form-control">
                 <option value="0">保留韵尾t k</option>
                 <option value="1">隐藏韵尾</option>
                 <option value="2">统一使用字母 h 表示</option>
@@ -170,7 +274,7 @@ defineExpose({
 
             <div class="form-group">
               <label>零声母i u的规则</label>
-              <select v-model="config.alt" @change="preview" class="form-control">
+              <select v-model="config.alt" @change="previewWithCache" class="form-control">
                 <option value="0">不改变</option>
                 <option value="1">模仿普通话规律的yi wu</option>
                 <option value="2">直接在i前加y，u前加w</option>
@@ -179,7 +283,7 @@ defineExpose({
 
             <div class="form-group">
               <label>大写格式控制</label>
-              <select v-model="config.capital" @change="preview" class="form-control">
+              <select v-model="config.capital" @change="previewWithCache" class="form-control">
                 <option value="0">全部小写</option>
                 <option value="1">全部大写</option>
                 <option value="2">首字母大写</option>
@@ -188,7 +292,7 @@ defineExpose({
 
             <div class="form-group">
               <label>标注声调的方式</label>
-              <select v-model="config.num" @change="preview" class="form-control">
+              <select v-model="config.num" @change="previewWithCache" class="form-control">
                 <option value="0">不加音调</option>
                 <option value="1">符合规范的添加</option>
                 <option value="2">符号音调加到后面</option>
@@ -197,11 +301,14 @@ defineExpose({
             </div>
 
             <div class="button-group">
-              <button class="btn btn-primary" @click="preview" :disabled="loading">
+              <button class="btn btn-primary" @click="previewWithCache" :disabled="loading">
                 结果刷新
               </button>
               <button class="btn btn-outline" @click="reset" :disabled="loading">
                 重置配置
+              </button>
+              <button class="btn btn-secondary" @click="clearCacheAndReset" :disabled="loading">
+                清除缓存
               </button>
             </div>
           </div>
@@ -332,10 +439,12 @@ defineExpose({
   display: flex;
   gap: var(--spacing-md);
   margin-top: var(--spacing-lg);
+  flex-wrap: wrap;
 }
 
 .button-group .btn {
   flex: 1;
+  min-width: 120px;
 }
 
 /* 移动端样式 - 当屏幕宽度小于800px时 */

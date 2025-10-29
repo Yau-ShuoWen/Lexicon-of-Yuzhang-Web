@@ -23,7 +23,7 @@
           </a>
 
           <a href="https://hanlp.hankcs.com/" target="_blank" class="tech-logo">
-            <img src="/src/assets/icons/hanlp.svg" class="logo hanlp" alt="Hanlp logo" />
+            <img src="/src/assets/icons/hanlp.png" class="logo hanlp" alt="Hanlp logo" />
             <span>Hanlp</span>
           </a>
         </div>

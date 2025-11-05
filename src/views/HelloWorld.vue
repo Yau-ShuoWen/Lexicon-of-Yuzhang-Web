@@ -28,39 +28,25 @@
       </div>
     </div>
 
-    <div class="card mt-4">
-      <div class="card-body">
-        <h3 class="card-title">简繁体转换</h3>
-
-        <div class="form-group">
-          <input
-              type="text"
-              placeholder="繁體文本"
-              @input="transfer"
-              v-model="txt"
-              maxlength="500"
-              class="form-control"
-          />
-        </div>
-
-        <button @click="transfer" class="btn btn-primary">刷新简体文本</button>
-
-        <div v-if="sc" class="response mt-3">
-          {{ sc }}
-        </div>
-      </div>
-    </div>
+    <!-- 使用简繁体转换组件 -->
+    <SimplifiedTraditionalConverter
+        title="繁简体转换工具"
+        :showCharCount="true"
+        :showClearButton="true"
+        :maxLength="2000"
+    />
   </div>
 </template>
 
 <script setup>
-import {ref} from 'vue'
-import {formatTextWithFont} from "../utils/textFormatter.js";
+import { ref } from 'vue'
+import { formatTextWithFont } from "../utils/textFormatter.js"
+import SimplifiedTraditionalConverter from '../components/SimplifiedTraditionalConverter.vue'
 
 const message = ref('')
 const name = ref('')
-const txt = ref('')
-const sc = ref('')
+const traditionalText = ref('')
+const simplifiedText = ref('')
 
 function callHello() {
   fetch('/api/hello')
@@ -84,18 +70,30 @@ function callHelloParam() {
       })
 }
 
-function transfer() {
-  fetch(`/api/transfer/tc?tc=` + txt.value)
-      .then(res => res.json())
-      .then(data => {
-        sc.value = data.sc
-      }).catch(err => {
-    sc.value = '我也不知道: ' + err.message
-  })
+// 简繁体转换组件的事件处理
+function handleTraditionalUpdate(value) {
+  traditionalText.value = value
+}
+
+function handleSimplifiedUpdate(value) {
+  simplifiedText.value = value
+}
+
+function handleConvert(data) {
+  console.log('转换完成:', data)
+}
+
+function handleCorrect(data) {
+  console.log('校对完成:', data)
+}
+
+function handleError(error) {
+  console.error('转换错误:', error)
 }
 </script>
 
 <style scoped>
+/* 原有的样式保持不变 */
 .button-group {
   display: flex;
   gap: var(--spacing-sm);

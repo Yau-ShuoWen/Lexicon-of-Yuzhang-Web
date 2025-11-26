@@ -281,53 +281,44 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 模板部分保持不变，但普通话读音部分需要确保正确显示 -->
   <div class="edit-page">
     <div class="page-header">
       <button @click="goBack" class="back-btn">← 返回搜索</button>
-      <h2>{{ isNew ? '新增' : '编辑' }}</h2>
+      <h2>{{ isNew ? '新增' : '編輯' }}</h2>
     </div>
 
-    <div v-if="isLoading" class="loading">加载中...</div>
+    <div v-if="isLoading" class="loading">加載中...</div>
 
     <div v-else class="edit-form">
-      <!-- 保存状态提示 -->
-      <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
-        {{ saveMessage }}
-      </div>
-
-      <!-- 基础信息 -->
       <div class="form-section">
         <div class="form-grid">
           <div class="form-field">
-            <label>简体字:</label>
-            <input v-model="formData.hanzi" type="text" class="short-input"/>
-          </div>
-          <div class="form-field">
-            <label>繁体字:</label>
+            <label>繁體字</label>
             <input v-model="formData.hantz" type="text" class="short-input"/>
           </div>
           <div class="form-field">
-            <label>标准拼音:</label>
+            <label>簡體字</label>
+            <input v-model="formData.hanzi" type="text" class="short-input"/>
+          </div>
+          <div class="form-field">
+            <label>標準拼音</label>
             <input v-model="formData.stdPy" type="text" class="short-input"/>
           </div>
           <div class="form-field">
-            <label>特殊性标记:</label>
+            <label>特殊性標記</label>
             <select v-model="formData.special" class="short-input">
-              <option value="0">普通</option>
+              <option value="0">普通漢字</option>
               <option value="1">特殊方言字</option>
               <option value="2">占位字</option>
-              <option value="-1">不使用</option>
+              <option value="-1">不使用漢字</option>
             </select>
           </div>
         </div>
       </div>
 
-
-      <!-- 多拼音 (带拖拽功能) -->
       <div class="form-section">
         <div class="section-header">
-          <h3>多拼音 (可拖拽排序)</h3>
+          <h3>多拼音</h3>
           <button
               @click="addArrayItem(formData.mulPy, { sc: '', tc: '', pinyin: '', sort: formData.mulPy.length + 1 })">添加
           </button>
@@ -348,17 +339,14 @@ onMounted(() => {
               v-model:simplifiedText="item.tc"
               :layout="'small'"
           />
-<!--          <input v-model="item.sc" placeholder="简体音" class="short-input"/>-->
-<!--          <input v-model="item.tc" placeholder="繁体音" class="short-input"/>-->
           <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>
           <input v-model="item.sort" type="number" placeholder="排序" class="short-input" disabled/>
-          <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">删除</button>
+          <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">刪除</button>
         </div>
       </div>
 
-      <!-- 普通话读音 -->
       <div class="form-section">
-        <h3>普通话读音对应</h3>
+        <h3>普通話讀音對應</h3>
         <div v-if="mandarinOptions.length > 0" class="checkbox-group">
           <div v-for="option in mandarinOptions" :key="option.info" class="checkbox-item">
             <input
@@ -371,29 +359,30 @@ onMounted(() => {
           </div>
         </div>
         <div v-else class="no-options">
-          {{ formData.hanzi && formData.hantz ? '暂无普通话读音选项' : '请先填写简体和繁体字以加载普通话读音选项' }}
+          {{ formData.hanzi && formData.hantz ? '暫無對應讀音' : '請先填寫簡繁體內容獲得讀音' }}
         </div>
       </div>
 
-      <!-- 国际音标 -->
       <div class="form-section">
         <div class="section-header">
-          <h3>国际音标</h3>
+          <h3>國際音標</h3>
           <button @click="addArrayItem(formData.ipaExp, { alpha: '', beta: '', gamma: '', delta: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.ipaExp" :key="index" class="array-item">
-          <input v-model="item.alpha" placeholder="简体解释" class="short-input"/>
-          <input v-model="item.beta" placeholder="繁体解释" class="short-input"/>
-          <input v-model="item.gamma" placeholder="标签" class="short-input"/>
-          <input v-model="item.delta" placeholder="内容" class="long-input"/>
-          <button @click="removeArrayItem(formData.ipaExp, index)" class="remove-btn">删除</button>
+          <FlexibleTextField
+              v-model:traditionalText="item.beta"
+              v-model:simplifiedText="item.alpha"
+              :layout="'small'"
+          />
+          <input v-model="item.gamma" placeholder="標籤" class="short-input"/>
+          <input v-model="item.delta" placeholder="內容" class="long-input"/>
+          <button @click="removeArrayItem(formData.ipaExp, index)" class="remove-btn">刪除</button>
         </div>
       </div>
 
-      <!-- 相似字 -->
       <div class="form-section">
         <div class="section-header">
-          <h3>相似字</h3>
+          <h3>相似漢字</h3>
           <button @click="addArrayItem(formData.similar, { hanzi: '', hantz: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
@@ -402,34 +391,28 @@ onMounted(() => {
               v-model:simplifiedText="item.hantz"
               :layout="'small'"
           />
-<!--          <input v-model="item.hanzi" placeholder="" class="short-input"/>-->
-<!--          <input v-model="item.hantz" placeholder="" class="short-input"/>-->
-          <button @click="removeArrayItem(formData.similar, index)" class="remove-btn">删除</button>
+          <button @click="removeArrayItem(formData.similar, index)" class="remove-btn">刪除</button>
         </div>
       </div>
 
-      <!-- 含义 -->
       <div class="form-section">
         <div class="section-header">
-          <h3>含义</h3>
+          <h3>含義</h3>
           <button @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
           <FlexibleTextField
-              v-model:traditionalText="item.left"
-              v-model:simplifiedText="item.right"
+              v-model:traditionalText="item.right"
+              v-model:simplifiedText="item.left"
               :layout="'large'"
           />
-<!--          <input v-model="item.left" placeholder="简体含义" class="short-input"/>-->
-<!--          <input v-model="item.right" placeholder="繁体含义" class="short-input"/>-->
-          <button @click="removeArrayItem(formData.mean, index)" class="remove-btn">删除</button>
+          <button @click="removeArrayItem(formData.mean, index)" class="remove-btn">刪除</button>
         </div>
       </div>
 
-      <!-- 注释 -->
       <div class="form-section">
         <div class="section-header">
-          <h3>注释</h3>
+          <h3>註釋</h3>
           <button
               @click="addArrayItem(formData.note, { left: { left: '', right: '' }, right: { left: '', right: '' } })">添加
           </button>
@@ -437,40 +420,34 @@ onMounted(() => {
         <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
 
           <FlexibleTextField
-              v-model:traditionalText="item.left.left"
-              v-model:simplifiedText="item.right.left"
+              v-model:traditionalText="item.right.left"
+              v-model:simplifiedText="item.left.left"
               :layout="'small'"
           />
 
           <FlexibleTextField
-              v-model:traditionalText="item.left.right"
-              v-model:simplifiedText="item.right.right"
+              v-model:traditionalText="item.right.right"
+              v-model:simplifiedText="item.left.right"
               :layout="'large'"
           />
-<!--          <div class="note-part">-->
-<!--            <label>简体:</label>-->
-<!--            <input v-model="item.left.left" placeholder="标签" class="short-input"/>-->
-<!--            <input v-model="item.left.right" placeholder="内容" class="long-input"/>-->
-<!--          </div>-->
-<!--          <div class="note-part">-->
-<!--            <label>繁体:</label>-->
-<!--            <input v-model="item.right.left" placeholder="标签" class="short-input"/>-->
-<!--            <input v-model="item.right.right" placeholder="内容" class="long-input"/>-->
-<!--          </div>-->
-          <button @click="removeArrayItem(formData.note, index)" class="remove-btn">删除</button>
+
+          <button @click="removeArrayItem(formData.note, index)" class="remove-btn">刪除</button>
         </div>
       </div>
 
-      <!-- 保存按钮 -->
+      <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
+        {{ saveMessage }}
+      </div>
+
       <div class="form-actions">
         <button @click="saveData" :disabled="isSaving" class="save-btn">
           {{ isSaving ? '保存中...' : '保存' }}
         </button>
       </div>
+
     </div>
   </div>
 </template>
-<!--***-->
 
 <style scoped>
 .edit-page {

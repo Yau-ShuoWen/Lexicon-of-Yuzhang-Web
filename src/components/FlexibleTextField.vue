@@ -5,7 +5,7 @@
       <input
           type="text"
           class="form-control small-input"
-          :placeholder="`繁体`"
+          :placeholder="`繁體`"
           :value="modelTraditional"
           :maxlength="maxLength"
           @input="onTraditionalInput"
@@ -15,7 +15,7 @@
       <input
           type="text"
           class="form-control small-input"
-          :placeholder="`简体`"
+          :placeholder="`簡體`"
           :value="modelSimplified"
           :maxlength="maxLength"
           @input="onSimplifiedInput"
@@ -34,7 +34,7 @@
     <div v-else class="form-group">
 
         <textarea
-            :placeholder="`繁体`"
+            :placeholder="`繁體`"
             :value="modelTraditional"
             :maxlength="maxLength"
             class="form-control textarea"
@@ -44,7 +44,7 @@
         ></textarea>
 
       <textarea
-          :placeholder="`简体`"
+          :placeholder="`簡體`"
           :value="modelSimplified"
           :maxlength="maxLength"
           class="form-control textarea"
@@ -97,7 +97,7 @@ const props = defineProps({
   // 防抖延迟（毫秒）
   debounceDelay: {
     type: Number,
-    default: 500
+    default: 2000
   },
   // 转换API地址
   conversionApi: {
@@ -157,16 +157,19 @@ const charCountInfo = computed(() => {
 // 状态消息
 const statusMessage = computed(() => {
   if (isConverting.value) {
-    return '转换中……'
+    return '轉換中……'
   }
   if (isDebouncing.value) {
-    return '请输入……'
+    return '請輸入文本'
   }
   if (!charCountInfo.value.isConsistent && modelTraditional.value && modelSimplified.value) {
-    return `请校对简体`
+    return `請校對簡體`
   }
   if (charCountInfo.value.isConsistent && modelTraditional.value && modelSimplified.value) {
-    return '转换完成！'
+    return '轉換完成！'
+  }
+  if (!modelTraditional.value) {
+    return '請輸入文本'
   }
   return ''
 })

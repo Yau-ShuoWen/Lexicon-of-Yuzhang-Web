@@ -33,14 +33,14 @@ const performSearch = async () => {
   }
 }
 
-// 方法：选择条目进入编辑
 const selectItem = (item) => {
-  router.push(`/edit/${item.id}`)
+  const route = router.resolve(`/edit/${item.id}`)
+  window.open(route.href, '_blank')
 }
 
-// 方法：新增汉字
 const createNew = () => {
-  router.push('/edit/new')
+  const route = router.resolve(`/edit/new`)
+  window.open(route.href, '_blank')
 }
 </script>
 
@@ -52,6 +52,7 @@ const createNew = () => {
           type="text"
           placeholder="输入简体或繁体汉字进行搜索"
           @keyup.enter="performSearch"
+          @input="performSearch"
       />
       <button @click="performSearch" :disabled="isLoading">
         {{ isLoading ? '搜索中...' : '搜索' }}
@@ -86,7 +87,6 @@ const createNew = () => {
       </div>
     </div>
 
-    <!-- 无结果提示 -->
     <div v-else-if="searchText && !isLoading" class="no-results">
       未找到相关汉字
     </div>

@@ -1,12 +1,14 @@
 /* CSS 自定义属性 - 设计系统 */
 :root {
-    /* 颜色系统 */
-    --color-primary: #4a6fc8;
-    --color-primary-dark: #3a5ca9;
-    --color-primary-light: #667eea;
+    --color-primary: #2e7d32; /* 深绿色 */
+    --color-primary-dark: #1b5e20; /* 墨绿色 */
+    --color-primary-light: #8bc34a; /* 黄绿色 */
 
-    --color-secondary: #764ba2;
-    --color-accent: #f5576c;
+    --color-secondary: #4a6fc8; /* 主蓝色 */
+    --color-secondary-dark: #3a5ca9; /* 深蓝色 */
+    --color-secondary-light: #667eea; /* 浅蓝色 */
+
+    --color-accent: #f36048;
 
     --color-success: #28a745;
     --color-warning: #ff9800;
@@ -24,9 +26,9 @@
     --color-border: #e1e5e9;
     --color-border-light: #f0f0f0;
 
-    /* 渐变 */
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    /* 渐变 - 更新为绿色系 */
+    --gradient-primary: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+    --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 
     /* 字体 */

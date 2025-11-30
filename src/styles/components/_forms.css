@@ -22,8 +22,8 @@
 }
 
 .form-control:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(74, 111, 200, 0.2);
+    border-color: var(--color-primary); /* 使用主绿色 */
+    box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2); /* 绿色阴影 */
 }
 
 .form-control:disabled {

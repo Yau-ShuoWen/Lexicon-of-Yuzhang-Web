@@ -1,3 +1,6 @@
+<!-- 导航路径为：/developer-home -->
+<!-- 修改时候请勿删除此路径 -->
+
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -62,7 +65,6 @@ const handleKeyPress = (event) => {
 
       <form @submit.prevent="handleRegister" class="auth-form">
         <div class="form-group">
-          <label for="reg-username">用户名</label>
           <input
               id="reg-username"
               v-model="username"
@@ -75,7 +77,6 @@ const handleKeyPress = (event) => {
         </div>
 
         <div class="form-group">
-          <label for="reg-password">密码</label>
           <input
               id="reg-password"
               v-model="password"
@@ -88,7 +89,6 @@ const handleKeyPress = (event) => {
         </div>
 
         <div class="form-group">
-          <label for="confirm-password">确认密码</label>
           <input
               id="confirm-password"
               v-model="confirmPassword"
@@ -131,8 +131,97 @@ const handleKeyPress = (event) => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--gradient-secondary);
   padding: var(--spacing-md);
+}
+
+.auth-card {
+  background: var(--color-background-card);
+  padding: var(--spacing-2xl);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.form-control {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 2px rgba(74, 111, 200, 0.1);
+}
+
+.form-control:disabled {
+  background-color: var(--color-background-alt);
+  cursor: not-allowed;
+}
+
+.btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-secondary {
+  background: var(--gradient-secondary);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-lg {
+  padding: var(--spacing-lg);
+  font-size: var(--font-size-lg);
+}
+
+.error-message {
+  background-color: #fee;
+  color: var(--color-error);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  border: 1px solid #fcc;
+  text-align: center;
+  font-size: var(--font-size-sm);
 }
 
 .success-message {
@@ -145,5 +234,42 @@ const handleKeyPress = (event) => {
   font-size: var(--font-size-sm);
 }
 
-/* 其他样式与 UserLogin.vue 相同 */
+.auth-links {
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.link {
+  color: var(--color-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.page-title {
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  font-weight: 600;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: var(--spacing-xl);
+  }
+}
 </style>

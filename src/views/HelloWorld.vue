@@ -1,12 +1,8 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <h1 class="page-title">功能测试</h1>
-    </div>
-
     <div class="card">
       <div class="card-body">
-        <h3 class="card-title">打招呼功能</h3>
+        <h3 class="card-title">连接测试</h3>
 
         <div class="form-group">
           <input
@@ -28,20 +24,28 @@
       </div>
     </div>
 
-    <!-- 使用简繁体转换组件 -->
-    <SimplifiedTraditionalConverter
-        title="繁简体转换工具"
-        :showCharCount="true"
-        :showClearButton="true"
-        :maxLength="2000"
-    />
+    <div class="card">
+      <div class="card-body">
+        <h3 class="card-title">简繁转换框：小</h3>
+        <FlexibleTextField layout="small"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h3 class="card-title">简繁转换框：大</h3>
+        <FlexibleTextField layout="large"/>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { formatTextWithFont } from "../utils/textFormatter.js"
+import {ref} from 'vue'
+import {formatTextWithFont} from "../utils/textFormatter.js"
 import SimplifiedTraditionalConverter from '../components/SimplifiedTraditionalConverter.vue'
+import FlexibleTextField from "../components/FlexibleTextField.vue";
 
 const message = ref('')
 const name = ref('')

@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <h1 class="page-title">汉字查询</h1>
-      <p class="page-subtitle">查询汉字的拼音、含义及相关信息</p>
-    </div>
+    <!--    <div class="page-header">-->
+    <!--      <h1 class="page-title">汉字查询</h1>-->
+    <!--      <p class="page-subtitle">查询汉字的拼音、含义及相关信息</p>-->
+    <!--    </div>-->
 
     <!-- 搜索表单 -->
     <div class="card search-card">
@@ -19,31 +19,58 @@
             />
           </div>
 
+
           <div class="search-params">
             <div class="form-group">
+              <label>打开设置面板</label>
+              <select v-model="openSetting" @change="saveConfig" class="form-control">
+                <option :value="true">开启</option>
+                <option :value="false">关闭</option>
+              </select>
+            </div>
+
+            <div v-if="openSetting" class="form-group">
               <label>语言：</label>
-              <select v-model="lang" class="form-control">
+              <select v-model="lang" @change="saveConfig" class="form-control">
                 <option value="sc">简体</option>
                 <option value="tc">繁體</option>
               </select>
             </div>
 
-            <div class="form-group">
-              <label>拼音格式：</label>
-              <select v-model="status" class="form-control">
+            <div v-if="openSetting" class="form-group">
+              <label>模糊识别：</label>
+              <select v-model="vague" @change="saveConfig" class="form-control">
+                <option :value="true">开启</option>
+                <option :value="false">关闭</option>
+              </select>
+            </div>
+
+            <div v-if="openSetting" class="form-group">
+              <label>拼音/国际音标设置</label>
+              <select v-model="phonogram" @change="saveConfig" class="form-control">
                 <option :value="1">拼音</option>
                 <option :value="2">国际音标（仅用于参考资料）</option>
                 <option :value="3">国际音标</option>
               </select>
             </div>
 
-            <div class="form-group">
-              <label>模糊识别：</label>
-              <select v-model="vague" class="form-control">
-                <option :value="true">开启</option>
-                <option :value="false">关闭</option>
+            <div v-if="openSetting&&phonogram!==1" class="form-group">
+              <label>自定义拼音样式：</label>
+              <select v-model="syllable" @change="saveConfig" class="form-control">
+                <option :value="0">汉语语言学通用符号</option>
+                <option :value="1">标准国际音标符号</option>
               </select>
             </div>
+
+            <div v-if="openSetting&&phonogram!==1" class="form-group">
+              <label>使用自定义音调样式：</label>
+              <select v-model="tone" @change="saveConfig" class="form-control">
+                <option :value="0">五度标记法数字</option>
+                <option :value="1">五度标记法符号</option>
+                <option :value="2">四角符号</option>
+              </select>
+            </div>
+
           </div>
 
           <button @click="searchHanzi" :disabled="loading" class="btn btn-primary btn-lg">
@@ -131,16 +158,18 @@
                 </div>
               </div>
 
-              <!-- 拼音解释 -->
-              <div v-if="selectedInfo.pyExplain && selectedInfo.pyExplain.length > 0" class="detail-item">
-                <h4 class="detail-label">拼音解释</h4>
+              <div v-if="selectedInfo.note && selectedInfo.note.length > 0" class="detail-item">
+                <h4 class="detail-label">说明</h4>
                 <div class="detail-content">
                   <div
-                      v-for="(explain, idx) in selectedInfo.pyExplain"
+                      v-for="(pair, idx) in selectedInfo.note"
                       :key="idx"
                       class="detail-row"
                   >
-                    <span v-html="formatTextWithFont(explain)"></span>
+                    <span class="detail-key">
+                      <span v-html="formatTextWithFont(pair.left)"></span>:
+                    </span>
+                    <span class="detail-value" v-html="formatTextWithFont(pair.right)"></span>
                   </div>
                 </div>
               </div>
@@ -159,19 +188,6 @@
                 </div>
               </div>
 
-              <!-- 备注 -->
-              <div v-if="selectedInfo.note && selectedInfo.note.length > 0" class="detail-item">
-                <h4 class="detail-label">备注</h4>
-                <div class="detail-content">
-                  <div
-                      v-for="(note, idx) in selectedInfo.note"
-                      :key="idx"
-                      class="detail-row"
-                  >
-                    <span v-html="formatTextWithFont(note)"></span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -190,13 +206,21 @@
 </template>
 
 <script setup>
-import {ref, reactive} from 'vue'
+import {ref, reactive, onMounted, watch} from 'vue'
 import {formatTextWithFont as formatTextWithFontUtil} from '../utils/textFormatter.js'
+
+// 缓存键名常量
+const STORAGE_KEYS = {
+  SEARCH_CONFIG: 'search_page_config'
+};
 
 const hanziInput = ref('')
 const lang = ref('sc')
-const status = ref(1)
+const phonogram = ref(1)
 const vague = ref(false)
+const openSetting = ref(false)
+const syllable = ref(0)
+const tone = ref(0)
 const results = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -204,6 +228,62 @@ const searched = ref(false)
 const selectedHanzi = ref('')
 const selectedPinyin = ref('')
 const selectedInfo = ref({})
+
+// 保存配置到缓存
+const saveConfig = () => {
+  try {
+    const config = {
+      lang: lang.value,
+      phonogram: phonogram.value,
+      vague: vague.value,
+      openSetting: openSetting.value,
+      syllable: syllable.value,
+      tone: tone.value
+    };
+    localStorage.setItem(STORAGE_KEYS.SEARCH_CONFIG, JSON.stringify(config));
+  } catch (err) {
+    console.error('保存搜索配置到缓存失败:', err);
+  }
+};
+
+// 从缓存加载配置
+const loadConfigFromCache = () => {
+  try {
+    const cachedConfig = localStorage.getItem(STORAGE_KEYS.SEARCH_CONFIG);
+    if (cachedConfig) {
+      const parsedConfig = JSON.parse(cachedConfig);
+
+      // 设置到对应的ref变量
+      if (parsedConfig.lang !== undefined) lang.value = parsedConfig.lang;
+      if (parsedConfig.phonogram !== undefined) phonogram.value = parsedConfig.phonogram;
+      if (parsedConfig.vague !== undefined) vague.value = parsedConfig.vague;
+      if (parsedConfig.openSetting !== undefined) openSetting.value = parsedConfig.openSetting;
+      if (parsedConfig.syllable !== undefined) syllable.value = parsedConfig.syllable;
+      if (parsedConfig.tone !== undefined) tone.value = parsedConfig.tone;
+
+      return true;
+    }
+  } catch (err) {
+    console.error('从缓存加载搜索配置失败:', err);
+  }
+  return false;
+};
+
+// 获取拼音样式配置
+const getPinyinStyleConfig = () => {
+
+
+  try {
+    const cachedConfig = localStorage.getItem('pinyin_style_config');
+    if (cachedConfig) {
+      return JSON.parse(cachedConfig);
+    }
+  } catch (err) {
+    console.error('获取拼音样式配置失败:', err);
+  }
+
+  return null;
+}
 
 const searchHanzi = async () => {
   if (!hanziInput.value.trim()) {
@@ -218,14 +298,26 @@ const searchHanzi = async () => {
   selectedPinyin.value = ''
 
   try {
+    // 构建查询参数
     const params = new URLSearchParams({
       hanzi: hanziInput.value,
       lang: lang.value,
-      status: status.value,
-      vague: vague.value
+      phonogram: phonogram.value,
+      vague: vague.value,
+      toneStyle: tone.value,
+      syllableStyle: syllable.value
     })
 
-    const response = await fetch(`/api/search/nam/byhanzi?${params}`)
+    // 获取拼音样式配置
+    const styleConfig = getPinyinStyleConfig();
+
+    const response = await fetch(`/api/search/nam/byhanzi?${params}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: styleConfig ? JSON.stringify(styleConfig) : null
+    })
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -256,8 +348,17 @@ const selectPinyin = (hanzi, pinyin, info) => {
 const formatTextWithFont = (text) => {
   return formatTextWithFontUtil(text)
 }
-</script>
 
+// 组件挂载时加载缓存配置
+onMounted(() => {
+  loadConfigFromCache();
+});
+
+// 使用watch监听所有配置项的变化
+watch([lang, phonogram, vague, openSetting, syllable, tone], () => {
+  saveConfig();
+});
+</script>
 <style scoped>
 .search-card {
   max-width: 800px;

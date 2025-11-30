@@ -1,3 +1,6 @@
+<!-- 导航路径为：/developer-home -->
+<!-- 修改时候请勿删除此路径 -->
+
 <script setup>
 import {ref} from 'vue'
 import {useRouter} from 'vue-router'
@@ -54,7 +57,6 @@ const handleKeyPress = (event) => {
 
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
-          <label for="username">用户名</label>
           <input
               id="username"
               v-model="username"
@@ -67,7 +69,6 @@ const handleKeyPress = (event) => {
         </div>
 
         <div class="form-group">
-          <label for="password">密码</label>
           <input
               id="password"
               v-model="password"
@@ -94,7 +95,7 @@ const handleKeyPress = (event) => {
       </form>
 
       <div class="auth-links">
-        <router-link to="/register" class="link">还没有账号？立即注册</router-link>
+        <router-link to="/register" class="link">注册账号</router-link>
       </div>
     </div>
   </div>
@@ -106,7 +107,6 @@ const handleKeyPress = (event) => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--gradient-primary);
   padding: var(--spacing-md);
 }
 
@@ -123,6 +123,71 @@ const handleKeyPress = (event) => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.form-control {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.1);
+}
+
+.form-control:disabled {
+  background-color: var(--color-background-alt);
+  cursor: not-allowed;
+}
+
+.btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-lg {
+  padding: var(--spacing-lg);
+  font-size: var(--font-size-lg);
 }
 
 .error-message {
@@ -154,6 +219,18 @@ const handleKeyPress = (event) => {
 
 .w-100 {
   width: 100%;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.page-title {
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  font-weight: 600;
+  margin: 0;
 }
 
 @media (max-width: 480px) {

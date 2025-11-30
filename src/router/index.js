@@ -1,60 +1,69 @@
-// src/router/index.js
-import { createRouter, createWebHistory } from 'vue-router'
-import HelloWorld from "../views/HelloWorld.vue";
-import Logo from "../views/SponsorLogo.vue";
-import pinyinStyle from "../views/PinyinStyle.vue";
-import login from "../views/UserLogin.vue";
-import Contact from "../views/ContactPage.vue";
-import Search from "../views/SearchPage.vue";
-import Home from "../views/HomePage.vue";
-import Register from "../views/UserRegister.vue";
-import Profile from "../views/UserProfile.vue"; // 新增导入
+import {createRouter, createWebHistory} from 'vue-router'
 
 const routes = [
     {
         path: '/',
         name: 'Home',
-        component: Home
+        component: () => import('../views/HomePage.vue')
     },
     {
         path: '/search',
         name: 'Search',
-        component: Search
-    },
-    {
-        path: '/contact',
-        name: 'Contact',
-        component: Contact
+        component: () => import('../views/SearchPage.vue')
     },
     {
         path: '/test',
         name: 'Test',
-        component: HelloWorld
+        component: () => import('../views/HelloWorld.vue')
     },
     {
-        path: '/logo',
-        name: 'Logo',
-        component: Logo
+        path: '/about',
+        name: 'About',
+        component: () => import('../views/AboutPage.vue')
     },
     {
         path: '/style',
-        name: 'pinyinStyle',
-        component: pinyinStyle
+        name: 'PinyinStyle',
+        component: () => import('../views/PinyinStyle.vue')
     },
+
+
     {
         path: '/login',
-        name: 'login',
-        component: login
+        name: 'Login',
+        component: () => import('../views/Developer/UserLogin.vue')
     },
     {
         path: '/register',
-        name: 'register',
-        component: Register
+        name: 'Register',
+        component: () => import('../views/Developer/UserRegister.vue')
     },
     {
-        path: '/profile', // 新增个人信息路由
-        name: 'profile',
-        component: Profile
+        path: '/profile',
+        name: 'Profile',
+        component: () => import('../views/Developer/UserProfile.vue')
+    },
+    {
+        path: '/developer-home',
+        name: 'Developer Home',
+        component: () => import('../views/Developer/NavigationPage.vue')
+    },
+
+    {
+        path: '/reference',
+        name: 'Reference',
+        component: () => import('../views/ReferencePage.vue')
+    },
+    {
+        path: '/edit/:id?',
+        name: 'Edit',
+        component: () => import('../views/EditPage.vue'),
+        props: true
+    },
+    {
+        path: '/filter',
+        name: 'Filter',
+        component: () => import('../views/filterPage.vue')
     }
 ]
 

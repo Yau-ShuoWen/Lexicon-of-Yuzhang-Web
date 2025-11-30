@@ -28,7 +28,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
+    transform: translateY(1px);
     box-shadow: var(--shadow-lg);
 }
 
@@ -38,15 +38,31 @@
 }
 
 .btn-secondary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+    transform: translateY(1px);
+    box-shadow: var(--shadow-lg);
 }
 
+
+
+/* 有轮廓的按钮变体 */
 .btn-outline {
     background: transparent;
     color: var(--color-primary);
     border: 2px solid var(--color-primary);
 }
+
+.btn-outline-primary {
+    background: transparent;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--color-secondary);
+    border: 2px solid var(--color-secondary);
+}
+
 
 .btn-outline:hover:not(:disabled) {
     background: var(--color-primary);

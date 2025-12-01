@@ -6,7 +6,7 @@ export default {
         delete: '删除',
         edit: '编辑',
         search: '搜索',
-        loading: '加载中...',
+        loading: '加载中……',
         success: '成功',
         error: '错误',
         open: '开启',

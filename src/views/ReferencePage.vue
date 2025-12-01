@@ -494,7 +494,7 @@ const handleAddCitiao = async () => {
   }
 }
 
-const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleString('zh-CN') : '-'
+const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleString('sc') : '-'
 
 onMounted(() => loadDictionaries())
 </script>

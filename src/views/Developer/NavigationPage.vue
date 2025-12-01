@@ -2,6 +2,7 @@
 <!-- 修改时候请勿删除此路径 -->
 
 <script setup>
+import BackButton from "../../components/Button/BackButton.vue";
 </script>
 
 <template>
@@ -9,6 +10,10 @@
     <div class="container">
 
       <div class="d-flex flex-column gap-5">
+
+        <section>
+          <BackButton  target-route="/about" button-text="← 返回目录" />
+        </section>
 
         <section>
           <h2 class="text-xl font-semibold mb-3">方言拼音</h2>

@@ -9,7 +9,12 @@ const routes = [
     {
         path: '/search',
         name: 'Search',
-        component: () => import('../views/SearchPage.vue')
+        component: () => import('../components/SearchResult.vue')
+    },
+    {
+        path: '/hanzi',
+        name: 'HanziDetail',
+        component: () => import('../components/HanziDetail.vue')
     },
     {
         path: '/test',

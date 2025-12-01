@@ -2,6 +2,7 @@
 import {ref, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import FlexibleTextField from "../components/FlexibleTextField.vue";
+import BackButton from '../components/Button/BackButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,11 +220,6 @@ const saveData = async () => {
   }
 }
 
-// 方法：返回筛选页面
-const goBack = () => {
-  router.push('/filter')
-}
-
 // 数组操作方法
 const addArrayItem = (array, template = {}) => {
   array.push({...template})
@@ -283,7 +279,6 @@ onMounted(() => {
 <template>
   <div class="edit-page">
     <div class="page-header">
-      <button @click="goBack" class="back-btn">← 返回搜索</button>
       <h2>{{ isNew ? '新增' : '編輯' }}</h2>
     </div>
 
@@ -461,19 +456,6 @@ onMounted(() => {
   align-items: center;
   gap: 20px;
   margin-bottom: 30px;
-}
-
-.back-btn {
-  padding: 8px 16px;
-  border: 1px solid #ccc;
-  background: white;
-  color: #333;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.back-btn:hover {
-  background: #f5f5f5;
 }
 
 .loading {

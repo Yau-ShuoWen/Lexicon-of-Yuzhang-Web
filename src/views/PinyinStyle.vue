@@ -222,6 +222,8 @@ defineExpose({
                 <option value="0">使用字母 v</option>
                 <option value="1">使用字母 ü</option>
                 <option value="2">使用双字母 yu</option>
+                <option value="3">使字母 ụ</option>
+                <option value="4">使字母 y</option>
               </select>
             </div>
 
@@ -258,6 +260,7 @@ defineExpose({
                 <option value="0">使用双字母 ii</option>
                 <option value="1">使用和普通话类似字母 i</option>
                 <option value="2">使用空韵母 zcs</option>
+                <option value="3">使用韵母 ị</option>
               </select>
             </div>
 

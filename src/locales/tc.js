@@ -6,7 +6,7 @@ export default {
         delete: '刪除',
         edit: '編輯',
         search: '搜尋',
-        loading: '載入中...',
+        loading: '載入中……',
         success: '成功',
         error: '錯誤',
         open: '開啟',

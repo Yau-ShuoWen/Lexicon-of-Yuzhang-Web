@@ -15,7 +15,6 @@ export default {
   },
   methods: {
     goBack() {
-      // 使用 back() 方法，效果相同但有时更可靠
       this.$router.back();
     }
   }

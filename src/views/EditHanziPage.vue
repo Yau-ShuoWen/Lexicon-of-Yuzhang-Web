@@ -285,6 +285,32 @@ watch(() => route.params.id, (newId) => {
   }
 })
 
+// 监听多拼音数组的变化，更新标准拼音选项
+watch(() => formData.value.mulPy, () => {
+  // 当多拼音数组变化时，检查当前选中的标准拼音是否还存在
+  if (formData.value.stdPy) {
+    const exists = formData.value.mulPy.some(item =>
+        item.pinyin && item.pinyin.trim() === formData.value.stdPy.trim()
+    )
+    if (!exists) {
+      formData.value.stdPy = ''
+    }
+  }
+}, { deep: true })
+
+// 监听多拼音条目的拼音变化
+watch(() => formData.value.mulPy.map(item => item.pinyin), () => {
+  // 当拼音内容变化时，检查当前选中的标准拼音是否还存在
+  if (formData.value.stdPy) {
+    const exists = formData.value.mulPy.some(item =>
+        item.pinyin && item.pinyin.trim() === formData.value.stdPy.trim()
+    )
+    if (!exists) {
+      formData.value.stdPy = ''
+    }
+  }
+}, { deep: true })
+
 // 初始化
 onMounted(() => {
   if (!isNew.value) {
@@ -341,7 +367,7 @@ onMounted(() => {
           </div>
           <div class="form-field">
             <label>標準拼音</label>
-            <input v-model="formData.stdPy" type="text" class="short-input"/>
+            <input v-model="formData.stdPy" type="text" class="short-input" readonly/>
           </div>
           <div class="form-field">
             <label>特殊性標記</label>
@@ -362,6 +388,26 @@ onMounted(() => {
               @click="addArrayItem(formData.mulPy, { sc: '', tc: '', pinyin: '', sort: formData.mulPy.length + 1 })">添加
           </button>
         </div>
+
+        <!-- 主拼音单选按钮组 -->
+        <div class="main-pinyin-selector">
+          <span class="selector-label">主拼音：</span>
+          <div class="radio-group">
+            <div v-for="(item, index) in formData.mulPy" :key="index" class="radio-item">
+              <template v-if="item.pinyin && item.pinyin.trim()">
+                <input
+                    type="radio"
+                    :id="'stdPy-' + index"
+                    :name="'stdPyRadio'"
+                    :value="item.pinyin.trim()"
+                    v-model="formData.stdPy"
+                />
+                <label :for="'stdPy-' + index">{{ item.pinyin.trim() }}</label>
+              </template>
+            </div>
+          </div>
+        </div>
+
         <div
             v-for="(item, index) in formData.mulPy"
             :key="index"
@@ -374,8 +420,8 @@ onMounted(() => {
           <div class="drag-handle">⋮⋮</div>
 
           <FlexibleTextField
-              v-model:traditionalText="item.sc"
-              v-model:simplifiedText="item.tc"
+              v-model:traditionalText="item.tc"
+              v-model:simplifiedText="item.sc"
               :layout="'small'"
           />
           <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>
@@ -426,8 +472,8 @@ onMounted(() => {
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
           <FlexibleTextField
-              v-model:traditionalText="item.hanzi"
-              v-model:simplifiedText="item.hantz"
+              v-model:traditionalText="item.hantz"
+              v-model:simplifiedText="item.hanzi"
               :layout="'small'"
           />
           <button @click="removeArrayItem(formData.similar, index)" class="remove-btn">刪除</button>
@@ -524,6 +570,45 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 
+/* 主拼音选择器样式 */
+.main-pinyin-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.selector-label {
+  font-weight: bold;
+  color: #333;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.radio-item input[type="radio"] {
+  margin: 0;
+}
+
+.radio-item label {
+  cursor: pointer;
+  user-select: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -563,6 +648,13 @@ onMounted(() => {
   padding: 6px 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+/* 标准拼音输入框只读样式 */
+input[readonly] {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  color: #666;
 }
 
 .array-item {

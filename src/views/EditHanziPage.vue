@@ -2,15 +2,11 @@
 import {ref, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import FlexibleTextField from "../components/FlexibleTextField.vue";
-import BackButton from '../components/Button/BackButton.vue'
 
 const route = useRoute()
 const router = useRouter()
+const id = route.params.id   // 从路由获取ID
 
-// 从路由获取ID
-const id = route.params.id
-
-// 响应式数据 - 根据后端结构调整
 const formData = ref({
   id: null,
   hanzi: '',
@@ -25,36 +21,37 @@ const formData = ref({
   note: []
 })
 
-const mandarinOptions = ref([])
+const previousId = ref(null)   // 前一个的编号
+const nextId = ref(null)       // 后一个的编号
+const mandarinOptions = ref([])// 普通话读音的选择
 const isLoading = ref(false)
 const isSaving = ref(false)
 const saveMessage = ref('')
 
-// 判断是否为新增模式
-const isNew = ref(!id || id === 'new')
-
-// 保存从后端加载的原始 mandarin 数据
-const originalMandarin = ref([])
+const isNew = ref(!id || id === 'new')  // 判断是否为新增模式
+const originalMandarin = ref([])        // 保存从后端加载的原始 mandarin 数据
 
 // 方法：加载汉字详情
-const loadHanziDetail = async (id) => {
+const loadHanzi = async (id) => {
   if (isNew.value) return
 
   isLoading.value = true
   try {
-    const response = await fetch(`/api/edit/nam/byid?id=${id}`)
+    const response = await fetch(`/api/edit/nam/hanzi/by-id?id=${id}`)
     if (!response.ok) throw new Error('加载失败')
 
-    const data = await response.json()
+    const apiResponse = await response.json()
+    console.log('完整响应:', apiResponse)
 
-    // 保存原始的 mandarin 数据
-    originalMandarin.value = data.mandarin || []
+    if (!apiResponse.success) throw new Error(apiResponse.message || '加载失败')
+    if (apiResponse.data.empty) throw new Error('未找到数据')
+    const data = apiResponse.data.value
 
-    // 转换数据格式以匹配前端界面
-    formData.value = transformDataFromBackend(data)
 
-    // 加载详情后自动加载普通话选项并设置选中状态
-    await loadMandarinOptions()
+    originalMandarin.value = data.mandarin || []    // 保存原始的 mandarin 数据
+    formData.value = transformDataFromBackend(data) // 转换数据格式以匹配前端界面
+    await loadMandarinOptions()                     // 加载详情后自动加载普通话选项并设置选中状态
+    await loadNearBy(id)
   } catch (error) {
     console.error('加载汉字详情失败:', error)
     saveMessage.value = '加载失败：' + error.message
@@ -62,6 +59,26 @@ const loadHanziDetail = async (id) => {
     isLoading.value = false
   }
 }
+
+// 找到上一个和下一个词条
+const loadNearBy = async (id) => {
+  try {
+    const res = await fetch(`/api/edit/nam/get-nearby?id=${id}`)
+    if (!res.ok) throw new Error('加载上下文失败')
+
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message)
+
+    const data = json.data
+
+    previousId.value = data.left.empty ? null : data.left.value
+    nextId.value = data.right.empty ? null : data.right.value
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 
 // 方法：从后端数据转换到前端格式
 const transformDataFromBackend = (data) => {
@@ -264,14 +281,14 @@ watch([() => formData.value.hanzi, () => formData.value.hantz], () => {
 // 监听路由变化，当ID变化时重新加载数据
 watch(() => route.params.id, (newId) => {
   if (newId && newId !== 'new') {
-    loadHanziDetail(newId)
+    loadHanzi(newId)
   }
 })
 
 // 初始化
 onMounted(() => {
   if (!isNew.value) {
-    loadHanziDetail(id)
+    loadHanzi(id)
   }
 })
 </script>
@@ -280,6 +297,33 @@ onMounted(() => {
   <div class="edit-page">
     <div class="page-header">
       <h2>{{ isNew ? '新增' : '編輯' }}</h2>
+
+      <div class="nav-buttons">
+        <button
+            :disabled="!previousId"
+            @click="router.push(`/edit/${previousId}`)"
+        >上一条
+        </button>
+
+        <button
+            :disabled="!nextId"
+            @click="router.push(`/edit/${nextId}`)"
+        >下一条
+        </button>
+      </div>
+    </div>
+
+
+    <div class="page-header">
+      <div class="form-actions">
+        <button @click="saveData" :disabled="isSaving" class="save-btn">
+          {{ isSaving ? '保存中...' : '保存' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
+      {{ saveMessage }}
     </div>
 
     <div v-if="isLoading" class="loading">加載中...</div>
@@ -429,17 +473,6 @@ onMounted(() => {
           <button @click="removeArrayItem(formData.note, index)" class="remove-btn">刪除</button>
         </div>
       </div>
-
-      <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
-        {{ saveMessage }}
-      </div>
-
-      <div class="form-actions">
-        <button @click="saveData" :disabled="isSaving" class="save-btn">
-          {{ isSaving ? '保存中...' : '保存' }}
-        </button>
-      </div>
-
     </div>
   </div>
 </template>
@@ -647,5 +680,14 @@ button:hover {
   background: #005a87;
 }
 
+.nav-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-buttons button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
 
 </style>

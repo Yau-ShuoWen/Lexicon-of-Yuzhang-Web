@@ -1,7 +1,8 @@
 <script setup>
 import {ref, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import FlexibleTextField from "../components/FlexibleTextField.vue";
+import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
+import DictSelect from "../../components/Select/DictSelect.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -111,10 +112,8 @@ const transformDataToBackend = (data) => {
 
   // 确保 ipaExp 数组中的对象有正确的结构
   backendData.ipaExp = backendData.ipaExp.map(item => ({
-    alpha: item.alpha,
-    beta: item.beta,
-    gamma: item.gamma,
-    delta: item.delta
+    left: item.left,
+    right: item.right
   }))
 
   // 确保 mean 数组中的对象有正确的结构
@@ -296,7 +295,7 @@ watch(() => formData.value.mulPy, () => {
       formData.value.stdPy = ''
     }
   }
-}, { deep: true })
+}, {deep: true})
 
 // 监听多拼音条目的拼音变化
 watch(() => formData.value.mulPy.map(item => item.pinyin), () => {
@@ -309,7 +308,7 @@ watch(() => formData.value.mulPy.map(item => item.pinyin), () => {
       formData.value.stdPy = ''
     }
   }
-}, { deep: true })
+}, {deep: true})
 
 // 初始化
 onMounted(() => {
@@ -357,17 +356,14 @@ onMounted(() => {
     <div v-else class="edit-form">
       <div class="form-section">
         <div class="form-grid">
+
           <div class="form-field">
-            <label>繁體字</label>
-            <input v-model="formData.hantz" type="text" class="short-input"/>
-          </div>
-          <div class="form-field">
-            <label>簡體字</label>
-            <input v-model="formData.hanzi" type="text" class="short-input"/>
-          </div>
-          <div class="form-field">
-            <label>標準拼音</label>
-            <input v-model="formData.stdPy" type="text" class="short-input" readonly/>
+            <label>繁體字和简体字</label>
+            <AutoProofreadText
+                v-model:traditionalText="formData.hantz"
+                v-model:simplifiedText="formData.hanzi"
+                :layout="'small'"
+            />
           </div>
           <div class="form-field">
             <label>特殊性標記</label>
@@ -383,7 +379,7 @@ onMounted(() => {
 
       <div class="form-section">
         <div class="section-header">
-          <h3>多拼音</h3>
+          <h3>拼音</h3>
           <button
               @click="addArrayItem(formData.mulPy, { sc: '', tc: '', pinyin: '', sort: formData.mulPy.length + 1 })">添加
           </button>
@@ -419,13 +415,13 @@ onMounted(() => {
         >
           <div class="drag-handle">⋮⋮</div>
 
-          <FlexibleTextField
+          <AutoProofreadText
               v-model:traditionalText="item.tc"
               v-model:simplifiedText="item.sc"
               :layout="'small'"
           />
           <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>
-          <input v-model="item.sort" type="number" placeholder="排序" class="short-input" disabled/>
+          <label>排序顺序：{{item.sort}}</label>
           <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">刪除</button>
         </div>
       </div>
@@ -451,16 +447,19 @@ onMounted(() => {
       <div class="form-section">
         <div class="section-header">
           <h3>國際音標</h3>
-          <button @click="addArrayItem(formData.ipaExp, { alpha: '', beta: '', gamma: '', delta: '' })">添加</button>
+          <button @click="addArrayItem(formData.ipaExp, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.ipaExp" :key="index" class="array-item">
-          <FlexibleTextField
-              v-model:traditionalText="item.beta"
-              v-model:simplifiedText="item.alpha"
-              :layout="'small'"
-          />
-          <input v-model="item.gamma" placeholder="標籤" class="short-input"/>
-          <input v-model="item.delta" placeholder="內容" class="long-input"/>
+          <div class="form-field">
+            <DictSelect
+                v-model="item.left"
+                :placeholder="'请选择词典'"
+            />
+
+          </div>
+          <div class="form-field">
+            <input v-model="item.right" placeholder="內容" class="short-input"/>
+          </div>
           <button @click="removeArrayItem(formData.ipaExp, index)" class="remove-btn">刪除</button>
         </div>
       </div>
@@ -471,7 +470,7 @@ onMounted(() => {
           <button @click="addArrayItem(formData.similar, { hanzi: '', hantz: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
-          <FlexibleTextField
+          <AutoProofreadText
               v-model:traditionalText="item.hantz"
               v-model:simplifiedText="item.hanzi"
               :layout="'small'"
@@ -486,7 +485,7 @@ onMounted(() => {
           <button @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
-          <FlexibleTextField
+          <AutoProofreadText
               v-model:traditionalText="item.right"
               v-model:simplifiedText="item.left"
               :layout="'large'"
@@ -504,13 +503,13 @@ onMounted(() => {
         </div>
         <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
 
-          <FlexibleTextField
+          <AutoProofreadText
               v-model:traditionalText="item.right.left"
               v-model:simplifiedText="item.left.left"
               :layout="'small'"
           />
 
-          <FlexibleTextField
+          <AutoProofreadText
               v-model:traditionalText="item.right.right"
               v-model:simplifiedText="item.left.right"
               :layout="'large'"
@@ -633,14 +632,6 @@ onMounted(() => {
   border-radius: 4px;
   width: 120px;
   min-width: 120px;
-}
-
-.long-input {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  flex: 1;
-  min-width: 200px;
 }
 
 .form-field input,

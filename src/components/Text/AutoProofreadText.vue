@@ -22,7 +22,7 @@
           @blur="onSimplifiedBlur"
       />
 
-      <button class="small-clear-btn" @click="clearAll">清除</button>
+      <button class="clear-btn" @click="clearAll">清除</button>
 
       <div v-if="statusMessage"
            class="status-message"
@@ -56,7 +56,7 @@
 
     <!-- 按钮 + 状态消息（大版本使用） -->
     <div v-if="layout === 'large'" class="button-group">
-      <button @click="clearAll">清除</button>
+      <button @click="clearAll" class="clear-btn">清除</button>
 
       <div v-if="statusMessage" class="status-message mt-2" :class="statusType">
         {{ statusMessage }}
@@ -548,6 +548,26 @@ defineExpose({
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
   flex-wrap: wrap;
+}
+
+.clear-btn,
+.correction-btn {
+  white-space: nowrap;
+  padding: 4px 10px;
+  height: 32px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.clear-btn {
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
+.clear-btn:hover {
+  background-color: #e9ecef;
 }
 
 .status-message {

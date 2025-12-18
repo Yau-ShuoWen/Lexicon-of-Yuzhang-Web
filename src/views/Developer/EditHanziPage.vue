@@ -3,6 +3,7 @@ import {ref, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
 import DictSelect from "../../components/Select/DictSelect.vue";
+import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -415,14 +416,23 @@ onMounted(() => {
         >
           <div class="drag-handle">⋮⋮</div>
 
+          <label>排序顺序：{{ item.sort }}</label>
+          <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">刪除</button>
+
           <AutoProofreadText
               v-model:traditionalText="item.tc"
               v-model:simplifiedText="item.sc"
               :layout="'small'"
           />
-          <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>
-          <label>排序顺序：{{item.sort}}</label>
-          <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">刪除</button>
+<!--          <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>-->
+
+          <PinyinProofreadText
+              v-model="item.pinyin"
+              :placeholder="'拼音'"
+              class="short-input"
+          />
+
+
         </div>
       </div>
 

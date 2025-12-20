@@ -20,7 +20,7 @@ const performSearch = async () => {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`/api/edit/nam/byhanzi?hanzi=${encodeURIComponent(searchText.value)}`)
+    const response = await fetch(`/api/edit/nam/by-hanzi?hanzi=${encodeURIComponent(searchText.value)}`)
     if (!response.ok) throw new Error('网络请求失败')
 
     const data = await response.json()

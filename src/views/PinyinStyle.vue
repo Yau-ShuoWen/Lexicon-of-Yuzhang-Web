@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import {formatTextWithFont} from "../utils/textFormatter.js";
+import {formatRichText} from "../utils/textFormatter.js";
 
 // 缓存键名常量
 const STORAGE_KEYS = {
@@ -101,7 +101,7 @@ const preview = async () => {
     }
 
     const data = await response.json();
-    previewResult.value = formatTextWithFont(data.message);
+    previewResult.value = formatRichText(data.message);
 
     // 保存预览结果到缓存
     savePreviewToCache();
@@ -176,7 +176,7 @@ const previewWithCache = async () => {
 };
 
 defineExpose({
-  formatTextWithFont
+  formatTextWithFont: formatRichText
 });
 </script>
 
@@ -219,11 +219,10 @@ defineExpose({
             <div class="form-group">
               <label>「余/句/女」韵母的字母版本</label>
               <select v-model="config.yu" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 v</option>
+                <option value="0">使用字母 yu</option>
                 <option value="1">使用字母 ü</option>
-                <option value="2">使用双字母 yu</option>
-                <option value="3">使字母 ụ</option>
-                <option value="4">使字母 y</option>
+                <option value="2">使用字母 v（普通话）</option>
+                <option value="3">使用字母 ụ</option>
               </select>
             </div>
 
@@ -231,25 +230,25 @@ defineExpose({
               <label>「念/捏/尼」声母的字母版本</label>
               <select v-model="config.gn" @change="previewWithCache" class="form-control">
                 <option value="0">使用字母 n</option>
-                <option value="1">使用老国音字母 gn</option>
+                <option value="1">使用字母 gn（老国音）</option>
               </select>
             </div>
 
             <div class="form-group">
               <label>「深/更/本」音核的字母版本</label>
               <select v-model="config.ee" @change="previewWithCache" class="form-control">
-                <option value="0">使用双字母 ee</option>
-                <option value="1">使用字母 ё</option>
-                <option value="2">使用字母 ẹ</option>
+                <option value="0">使用字母 ee</option>
+                <option value="1">使用字母 ẹ</option>
+                <option value="2">使用字母 ё</option>
               </select>
             </div>
 
             <div class="form-group">
               <label>「二/儿/耳」音节的字母版本</label>
               <select v-model="config.oe" @change="previewWithCache" class="form-control">
-                <option value="0">使用双字母 oe</option>
-                <option value="1">使用字母 ö</option>
-                <option value="2">使用字母 ọ</option>
+                <option value="0">使用字母 oe</option>
+                <option value="1">使用字母 ọ</option>
+                <option value="2">使用字母 ö</option>
                 <option value="3">使用字母 o</option>
               </select>
             </div>
@@ -257,9 +256,9 @@ defineExpose({
             <div class="form-group">
               <label>「之/齿/时」的字母版本</label>
               <select v-model="config.ii" @change="previewWithCache" class="form-control">
-                <option value="0">使用双字母 ii</option>
-                <option value="1">使用和普通话类似字母 i</option>
-                <option value="2">使用空韵母 zcs</option>
+                <option value="0">使用字母 ii</option>
+                <option value="1">使用字母 i（和普通话类似）</option>
+                <option value="2">不使用字母 （空韵母）</option>
                 <option value="3">使用韵母 ị</option>
               </select>
             </div>
@@ -298,8 +297,8 @@ defineExpose({
               <select v-model="config.num" @change="previewWithCache" class="form-control">
                 <option value="0">不加音调</option>
                 <option value="1">符合规范的添加</option>
-                <option value="2">符号音调加到后面</option>
-                <option value="3">数字音调加到后面</option>
+                <option value="2">数字音调加到后面</option>
+                <option value="3">符号音调加到后面</option>
               </select>
             </div>
 

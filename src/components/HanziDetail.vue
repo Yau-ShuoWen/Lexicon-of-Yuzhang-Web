@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { formatTextWithFont } from '../utils/textFormatter.js'
+import {ref, onMounted, watch, computed, onUnmounted} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {formatRichText} from '../utils/textFormatter.js'
 import BackButton from "./Button/BackButton.vue";
-import StatusDisplay from "./StatusDisplay.vue";
+import StatusDisplay from "./Status/StatusDisplay.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +54,7 @@ const getSearchConfig = () => {
 }
 
 // 获取汉字详情
-const fetchHanziDetail = async (query) => {
+const loadHanzi = async (query) => {
   if (!query.trim()) return
 
   loading.value = true
@@ -81,10 +81,7 @@ const fetchHanziDetail = async (query) => {
       }
     })
 
-    if (!response.ok) {
-      throw new Error('获取汉字详情失败，请稍后重试')
-    }
-
+    if (!response.ok) throw new Error('获取汉字详情失败，请稍后重试')
     const responseData = await response.json()
 
     // 检查 API 响应是否成功
@@ -114,15 +111,7 @@ const fetchHanziDetail = async (query) => {
   }
 }
 
-// 复用 textFormatter.js 中的函数
-const formatText = formatTextWithFont
-
-// 格式化显示文本（不包含HTML标签）- 用于纯文本显示
-const formatDisplayText = (text) => {
-  if (!text) return ''
-  return text.replace(/\/\/(.*?)\/\//g, '$1')
-      .replace(/--(.*?)--/g, '$1')
-}
+const formatText = formatRichText
 
 // 选择拼音
 const selectPinyin = (pinyinKey) => {
@@ -138,14 +127,14 @@ const currentInfo = computed(() => {
 // 重试获取
 const handleRetry = () => {
   if (hanzi.value.trim()) {
-    fetchHanziDetail(hanzi.value)
+    loadHanzi(hanzi.value)
   }
 }
 
 // 监听语言变化
 const handleLanguageChange = () => {
   if (hanzi.value.trim()) {
-    fetchHanziDetail(hanzi.value)
+    loadHanzi(hanzi.value)
   }
 }
 
@@ -162,27 +151,56 @@ const removeLanguageListener = () => {
 watch(() => route.query.q, (newQuery) => {
   if (newQuery) {
     hanzi.value = newQuery
-    fetchHanziDetail(newQuery)
+    loadHanzi(newQuery)
+  }
+})
+
+// 使用方法
+const formatSpecial = (specialArray) => {
+  if (!specialArray || specialArray.length === 0) {
+    return ''
+  }
+
+  const labels = []
+
+  if (specialArray.includes(0)) {
+    labels.push('用法同普通话')
+  }
+  if (specialArray.includes(1)) {
+    labels.push('特殊汉字')
+  }
+  if (specialArray.includes(2)) {
+    labels.push('占位字')
+  }
+  if (specialArray.includes(3)) {
+    labels.push('不使用')
+  }
+
+  return labels.join('、')
+}
+// 监听路由参数变化
+watch(() => route.params.hanzi, (newHanzi) => {
+  if (newHanzi) {
+    hanzi.value = newHanzi
+    loadHanzi(newHanzi)
   }
 })
 
 onMounted(() => {
-  if (route.query.q) {
-    hanzi.value = route.query.q
-    fetchHanziDetail(route.query.q)
+  // 从路由参数获取汉字
+  if (route.params.hanzi) {
+    hanzi.value = route.params.hanzi
+    loadHanzi(route.params.hanzi)
   }
   setupLanguageListener()
-})
-
-onUnmounted(() => {
-  removeLanguageListener()
 })
 </script>
 
 <template>
-  <div class="hanzi-detail-page">
-    <div class="detail-container">
-      <BackButton target-route="/search" :target-query="{ q: hanzi }" button-text="← 返回搜索结果" />
+  <div class="hanzi-detail-page page-container">
+    <div class="detail-container container">
+      <BackButton target-route="/search" :target-query="{ q: hanzi }" button-text="← 返回搜索结果"/>
+<!--      <BackButton target-route="/"  button-text="← 返回首页"/>-->
 
       <!-- 状态显示组件 -->
       <StatusDisplay
@@ -195,87 +213,111 @@ onUnmounted(() => {
 
       <!-- 汉字详情展示 -->
       <div v-else-if="hanziData" class="detail-section">
-        <!-- 大字显示汉字 -->
-        <div class="hanzi-display-section">
-          <div class="hanzi-char-large">{{ hanziData.hanzi }}</div>
-        </div>
+        <!-- 电脑端左右布局容器 -->
+        <div class="detail-layout">
+          <!-- 左侧固定区域：汉字 + 拼音选项 -->
+          <div class="left-panel">
+            <!-- 大字显示汉字 -->
+            <div class="hanzi-display-section">
+              <div class="hanzi-char-large text-center">{{ hanziData.hanzi }}</div>
+            </div>
 
-        <!-- 拼音按钮组 -->
-        <div class="pinyin-buttons" v-if="hanziData.infoMap && Object.keys(hanziData.infoMap).length > 0">
-          <button
-              v-for="(info, pinyinKey) in hanziData.infoMap"
-              :key="pinyinKey"
-              class="pinyin-button"
-              :class="{ active: selectedPinyin === pinyinKey }"
-              @click="selectPinyin(pinyinKey)"
-          >
-            <span v-html="formatText(info.stdPy)"></span>
-          </button>
-        </div>
-
-        <!-- 详细信息 -->
-        <div v-if="currentInfo" class="detail-info-section">
-          <!-- 特殊性 -->
-          <div v-if="currentInfo.special !== undefined" class="info-row">
-            <div class="info-label">特殊性：</div>
-            <div class="info-value">
-              {{ currentInfo.special ? '方言特有' : '同普通话' }}
+            <!-- 拼音按钮组（垂直排列） -->
+            <div class="pinyin-buttons-vertical" v-if="hanziData.infoMap && Object.keys(hanziData.infoMap).length > 0">
+              <button
+                  v-for="(info, pinyinKey) in hanziData.infoMap"
+                  :key="pinyinKey"
+                  class="pinyin-button-vertical btn-ghost"
+                  :class="{ active: selectedPinyin === pinyinKey }"
+                  @click="selectPinyin(pinyinKey)"
+              >
+                <span v-html="formatText(info.stdPy)"></span>
+              </button>
             </div>
           </div>
 
-          <!-- 读音变体 -->
-          <div v-if="currentInfo.mulPy && currentInfo.mulPy.length > 0" class="info-row">
-            <div class="info-label">读音变体：</div>
-            <div class="info-value">
-              <div v-for="(pair, idx) in currentInfo.mulPy" :key="idx" class="variant-item">
-                <span class="variant-left">{{ pair.left }}：</span>
-                <span class="variant-right" v-html="formatText(pair.right)"></span>
+          <!-- 右侧自适应区域：详细信息 -->
+          <div class="right-panel">
+            <!-- 手机端拼音按钮组（横向） -->
+            <div class="pinyin-buttons-horizontal d-flex flex-wrap justify-center gap-3 mb-5"
+                 v-if="hanziData.infoMap && Object.keys(hanziData.infoMap).length > 0">
+              <button
+                  v-for="(info, pinyinKey) in hanziData.infoMap"
+                  :key="pinyinKey"
+                  class="pinyin-button-horizontal btn-ghost"
+                  :class="{ active: selectedPinyin === pinyinKey }"
+                  @click="selectPinyin(pinyinKey)"
+              >
+                <span v-html="formatText(info.stdPy)"></span>
+              </button>
+            </div>
+
+            <!-- 详细信息 -->
+            <div v-if="currentInfo" class="detail-info-section card">
+              <!-- 特殊性 -->
+              <div v-if="currentInfo.special && currentInfo.special.length > 0"
+                   class="info-row d-flex mb-4 pb-4 border-bottom">
+                <div class="info-label font-semibold">特殊性</div>
+                <div class="info-value">
+                  {{ formatSpecial(currentInfo.special) }}
+                </div>
+              </div>
+
+              <div v-if="currentInfo.mulPy && currentInfo.mulPy.length > 0"
+                   class="info-row d-flex mb-4 pb-4 border-bottom">
+                <div class="info-label font-semibold">读音变体</div>
+                <div class="info-value">
+                  <div v-for="(pair, idx) in currentInfo.mulPy" :key="idx" class="variant-item d-flex mb-2">
+                    <span class="variant-left font-medium">{{ pair.left }}：</span>
+                    <span class="variant-right" v-html="formatText(pair.right)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="currentInfo.ipaExp && currentInfo.ipaExp.length > 0"
+                   class="info-row d-flex mb-4 pb-4 border-bottom">
+                <div class="info-label font-semibold">参考资料</div>
+                <div class="info-value">
+                  <div v-for="(pair, idx) in currentInfo.ipaExp" :key="idx" class="reference-item mb-2">
+                    <span class="reference-left font-medium">{{ pair.left }}</span>
+                    <span class="reference-right" v-html="formatText(pair.right)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 含义 -->
+              <div v-if="currentInfo.mean && currentInfo.mean.length > 0"
+                   class="info-row d-flex mb-4 pb-4 border-bottom">
+                <div class="info-label font-semibold">含义</div>
+                <div class="info-value">
+                  <ul class="meaning-list">
+                    <li v-for="(meaning, idx) in currentInfo.mean" :key="idx">
+                      {{ meaning }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- 注释 -->
+              <div v-if="currentInfo.note && currentInfo.note.length > 0" class="info-row d-flex flex-column mb-4">
+                <div class="info-value">
+                  <div v-for="(note, idx) in currentInfo.note" :key="idx" class="note-item d-flex mb-3">
+                    <div class="info-label font-semibold mb-3" style="min-width: 80px;">{{ note.left }}</div>
+                    <div class="note-right flex-1" v-html="formatText(note.right)"/>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 空状态提示 -->
+              <div v-if="!currentInfo.special &&
+                         (!currentInfo.mulPy || currentInfo.mulPy.length === 0) &&
+                         (!currentInfo.ipaExp || currentInfo.ipaExp.length === 0) &&
+                         (!currentInfo.mean || currentInfo.mean.length === 0) &&
+                         (!currentInfo.note || currentInfo.note.length === 0)"
+                   class="empty-info text-center py-4">
+                暂无其他信息
               </div>
             </div>
-          </div>
-
-          <!-- 参考资料 -->
-          <div v-if="currentInfo.ipaExp && currentInfo.ipaExp.length > 0" class="info-row">
-            <div class="info-label">参考资料：</div>
-            <div class="info-value">
-              <div v-for="(triple, idx) in currentInfo.ipaExp" :key="idx" class="reference-item">
-                <span class="reference-left">{{ triple.left }}（{{ triple.middle }}）：</span>
-                <span class="reference-right" v-html="formatText(triple.right)"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 含义 -->
-          <div v-if="currentInfo.mean && currentInfo.mean.length > 0" class="info-row">
-            <div class="info-label">含义：</div>
-            <div class="info-value">
-              <ul class="meaning-list">
-                <li v-for="(meaning, idx) in currentInfo.mean" :key="idx">
-                  {{ meaning }}
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- 注释 -->
-          <div v-if="currentInfo.note && currentInfo.note.length > 0" class="info-row">
-            <div class="info-label">注释：</div>
-            <div class="info-value">
-              <div v-for="(note, idx) in currentInfo.note" :key="idx" class="note-item">
-                <span class="note-left">{{ note.left }}：</span>
-                <span class="note-right">{{ note.right }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 空状态提示 -->
-          <div v-if="!currentInfo.special &&
-                     (!currentInfo.mulPy || currentInfo.mulPy.length === 0) &&
-                     (!currentInfo.ipaExp || currentInfo.ipaExp.length === 0) &&
-                     (!currentInfo.mean || currentInfo.mean.length === 0) &&
-                     (!currentInfo.note || currentInfo.note.length === 0)"
-               class="empty-info">
-            暂无其他信息
           </div>
         </div>
       </div>
@@ -285,20 +327,33 @@ onUnmounted(() => {
 
 <style scoped>
 .hanzi-detail-page {
-  min-height: 100vh;
   background: var(--color-background);
-  padding: 20px;
 }
 
-.detail-container {
-  max-width: 800px;
-  margin: 0 auto;
+/* 电脑端左右布局 */
+.detail-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 左侧面板 - 固定宽度 */
+.left-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+/* 右侧面板 - 自适应 */
+.right-panel {
+  width: 100%;
 }
 
 /* 大字显示 */
 .hanzi-display-section {
-  text-align: center;
-  margin: 40px 0 30px;
+  margin: 30px 0 30px;
 }
 
 .hanzi-char-large {
@@ -309,35 +364,59 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-/* 拼音按钮组 */
-.pinyin-buttons {
+/* 手机端拼音按钮组（横向） */
+.pinyin-buttons-horizontal {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 40px;
 }
 
-.pinyin-button {
+.pinyin-button-horizontal {
   padding: 12px 24px;
-  background: var(--color-background-alt);
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
   font-size: 18px;
-  font-weight: 500;
   color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.3s ease;
   min-width: 120px;
   text-align: center;
+  transition: all 0.3s ease;
 }
 
-.pinyin-button:hover {
-  background: var(--color-background);
+.pinyin-button-horizontal:hover {
   border-color: var(--color-primary-light);
 }
 
-.pinyin-button.active {
+.pinyin-button-horizontal.active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
+
+/* 电脑端拼音按钮组（垂直） */
+.pinyin-buttons-vertical {
+  display: none; /* 默认隐藏，在大屏幕显示 */
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+}
+
+.pinyin-button-vertical {
+  padding: 12px 24px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: 18px;
+  color: var(--color-text);
+  width: 100%;
+  max-width: 200px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.pinyin-button-vertical:hover {
+  border-color: var(--color-primary-light);
+}
+
+.pinyin-button-vertical.active {
   background: var(--color-primary-light);
   border-color: var(--color-primary);
   color: var(--color-primary-dark);
@@ -346,29 +425,13 @@ onUnmounted(() => {
 
 /* 详细信息区域 */
 .detail-info-section {
-  background: white;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
   padding: 30px;
-}
-
-.info-row {
-  display: flex;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
 }
 
 .info-label {
   flex: 0 0 120px;
-  font-weight: 600;
-  color: var(--color-text-dark);
+  color: var(--color-text);
   font-size: 16px;
 }
 
@@ -380,18 +443,7 @@ onUnmounted(() => {
 }
 
 /* 读音变体 */
-.variant-item {
-  margin-bottom: 8px;
-  display: flex;
-}
-
-.variant-item:last-child {
-  margin-bottom: 0;
-}
-
 .variant-left {
-  font-weight: 500;
-  color: var(--color-text-dark);
   min-width: 60px;
 }
 
@@ -401,17 +453,8 @@ onUnmounted(() => {
 }
 
 /* 参考资料 */
-.reference-item {
-  margin-bottom: 8px;
-}
-
-.reference-item:last-child {
-  margin-bottom: 0;
-}
-
 .reference-left {
-  font-weight: 500;
-  color: var(--color-text-dark);
+  color: var(--color-text);
 }
 
 .reference-right {
@@ -437,45 +480,38 @@ onUnmounted(() => {
 
 /* 注释 */
 .note-item {
-  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: 12px;
 }
 
 .note-item:last-child {
-  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .note-left {
-  font-weight: 500;
-  color: var(--color-text-dark);
+  color: var(--color-text);
 }
 
 .note-right {
   color: var(--color-text);
-  margin-left: 4px;
+  line-height: 1.6;
 }
 
 /* 空状态 */
 .empty-info {
-  text-align: center;
   color: var(--color-text-light);
   font-style: italic;
-  padding: 20px;
 }
 
-@media (max-width: 768px) {
-  .hanzi-detail-page {
-    padding: 16px;
-  }
-
+/* ==================== 响应式设计 ==================== */
+/* 手机端：768px以下，保持原布局 */
+@media (max-width: 767px) {
   .hanzi-char-large {
     font-size: 72px;
   }
 
-  .pinyin-buttons {
-    gap: 8px;
-  }
-
-  .pinyin-button {
+  .pinyin-button-horizontal {
     padding: 10px 16px;
     font-size: 16px;
     min-width: 100px;
@@ -493,14 +529,88 @@ onUnmounted(() => {
   .info-label {
     flex: none;
   }
+
+  /* 手机端隐藏垂直拼音按钮 */
+  .pinyin-buttons-vertical {
+    display: none;
+  }
+
+  /* 手机端显示横向拼音按钮 */
+  .pinyin-buttons-horizontal {
+    display: flex;
+  }
 }
 
+/* 电脑端：768px以上，启用左右布局 */
+@media (min-width: 768px) {
+  .detail-layout {
+    flex-direction: row;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .left-panel {
+    width: 280px;
+    flex-shrink: 0;
+    margin-bottom: 0;
+    position: sticky;
+    top: 20px;
+  }
+
+  .right-panel {
+    flex: 1;
+  }
+
+  /* 电脑端显示垂直拼音按钮 */
+  .pinyin-buttons-vertical {
+    display: flex;
+  }
+
+  /* 电脑端隐藏横向拼音按钮 */
+  .pinyin-buttons-horizontal {
+    display: none;
+  }
+}
+
+/* 中等屏幕调整 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .left-panel {
+    width: 240px;
+  }
+
+  .hanzi-char-large {
+    font-size: 80px;
+  }
+
+  .pinyin-button-vertical {
+    padding: 10px 20px;
+    font-size: 16px;
+    max-width: 180px;
+  }
+}
+
+/* 大屏幕调整 */
+@media (min-width: 1024px) {
+  .left-panel {
+    width: 320px;
+  }
+
+  .hanzi-char-large {
+    font-size: 96px;
+  }
+
+  .pinyin-button-vertical {
+    max-width: 220px;
+  }
+}
+
+/* 小手机端 */
 @media (max-width: 480px) {
   .hanzi-char-large {
     font-size: 56px;
   }
 
-  .pinyin-button {
+  .pinyin-button-horizontal {
     padding: 8px 12px;
     font-size: 14px;
     min-width: 80px;

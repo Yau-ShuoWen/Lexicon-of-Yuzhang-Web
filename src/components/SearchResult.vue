@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BackButton from "./Button/BackButton.vue";
-import StatusDisplay from "./StatusDisplay.vue";
+import StatusDisplay from "./Status/StatusDisplay.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -44,7 +44,6 @@ const getSearchConfig = () => {
   }
 }
 
-// 新的搜索函数 - 调用 search-query 接口
 const searchAll = async (query) => {
   if (!query.trim()) return
 
@@ -97,17 +96,28 @@ const handleResultClick = (result) => {
     const hanzi = result.info.hanzi
     const lang = result.info.lang
 
-    // 使用路由状态传递数据
     router.push({
-      path: '/hanzi',
-      query: { q: hanzi },
+      path: `/h/${encodeURIComponent(hanzi)}`,
       state: {
         lang: lang,
         searchResult: result
       }
     })
   }
-  // 未来可以添加其他类型的处理，如 ciyu
+
+  // if (result.tag === 'ciyu') {
+  //   const ciyu = result.info.ciyu
+  //   const lang = result.info.lang
+  //
+  //   router.push({
+  //     path: `/c/${encodeURIComponent(ciyu)}`,
+  //     state: {
+  //       lang: lang,
+  //       searchResult: result
+  //     }
+  //   })
+  // }
+
 }
 
 // 重试搜索

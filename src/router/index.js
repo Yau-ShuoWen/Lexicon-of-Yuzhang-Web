@@ -12,9 +12,10 @@ const routes = [
         component: () => import('../components/SearchResult.vue')
     },
     {
-        path: '/hanzi',
+        path: '/h/:hanzi',
         name: 'HanziDetail',
-        component: () => import('../components/HanziDetail.vue')
+        component: () => import('../components/HanziDetail.vue'),
+        props: true // 启用 props 传参
     },
     {
         path: '/test',
@@ -60,9 +61,14 @@ const routes = [
         component: () => import('../views/ReferencePage.vue')
     },
     {
+        path: '/refer',
+        name: 'Refer',
+        component: () => import('../views/Developer/EditReferencePage.vue')
+    },
+    {
         path: '/edit/:id?',
         name: 'Edit',
-        component: () => import('../views/EditPage.vue'),
+        component: () => import('../views/Developer/EditHanziPage.vue'),
         props: true
     },
     {

@@ -34,8 +34,8 @@ export default {
     },
     linguistic: {
         ipa:{
-            standard: '漢語語言學通用符號',
-            chinese: '標準國際音標',
+            standard: '標準國際音標',
+            chinese: '漢語語言學通用符號',
         },
 
         tone: {

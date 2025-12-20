@@ -26,15 +26,25 @@
 
     <div class="card">
       <div class="card-body">
+        <h3 class="card-title">拼音转换框</h3>
+        <PinyinProofreadText
+            :placeholder="'拼音'"
+            class="short-input"
+        />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
         <h3 class="card-title">简繁转换框：小</h3>
-        <FlexibleTextField layout="small"/>
+        <AutoProofreadText layout="small"/>
       </div>
     </div>
 
     <div class="card">
       <div class="card-body">
         <h3 class="card-title">简繁转换框：大</h3>
-        <FlexibleTextField layout="large"/>
+        <AutoProofreadText layout="large"/>
       </div>
     </div>
 
@@ -43,9 +53,9 @@
 
 <script setup>
 import {ref} from 'vue'
-import {formatTextWithFont} from "../utils/textFormatter.js"
-import SimplifiedTraditionalConverter from '../components/SimplifiedTraditionalConverter.vue'
-import FlexibleTextField from "../components/FlexibleTextField.vue";
+import {formatRichText} from "../utils/textFormatter.js"
+import AutoProofreadText from "../components/Text/AutoProofreadText.vue";
+import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
 
 const message = ref('')
 const name = ref('')
@@ -67,7 +77,7 @@ function callHelloParam() {
   fetch(`/api/hello/param?name=` + name.value)
       .then(res => res.json())
       .then(data => {
-        message.value = formatTextWithFont(data.message);
+        message.value = formatRichText(data.message);
       })
       .catch(err => {
         message.value = '请求失败: ' + err.message

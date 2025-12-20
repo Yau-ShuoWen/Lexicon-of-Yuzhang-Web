@@ -53,17 +53,17 @@
             <div v-if="phonogram!==1" class="form-group">
               <label>自定义拼音样式</label>
               <select v-model="syllable" @change="saveConfig" class="form-control">
-                <option :value="0">{{ $t('linguistic.ipa.chinese') }}</option>
-                <option :value="1">{{ $t('linguistic.ipa.standard') }}</option>
+                <option :value="1">{{ $t('linguistic.ipa.chinese') }}</option>
+                <option :value="2">{{ $t('linguistic.ipa.standard') }}</option>
               </select>
             </div>
 
             <div v-if="phonogram!==1" class="form-group">
               <label>{{ $t('linguistic.tone.hint') }}</label>
               <select v-model="tone" @change="saveConfig" class="form-control">
-                <option :value="0">{{ $t('linguistic.tone.five_degree.number') }}</option>
-                <option :value="1">{{ $t('linguistic.tone.five_degree.symbol') }}</option>
-                <option :value="2">{{ $t('linguistic.tone.four_corners') }}</option>
+                <option :value="1">{{ $t('linguistic.tone.five_degree.number') }}</option>
+                <option :value="2">{{ $t('linguistic.tone.five_degree.symbol') }}</option>
+                <option :value="3">{{ $t('linguistic.tone.four_corners') }}</option>
               </select>
             </div>
           </div>

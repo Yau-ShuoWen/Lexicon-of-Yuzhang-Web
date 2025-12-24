@@ -1,4 +1,4 @@
-/* 按钮组件 */
+/* buttons.css */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -15,10 +15,9 @@
     gap: var(--spacing-sm);
 }
 
-.btn:disabled {
-    opacity: 0.6;
+button:disabled {
+    background: #ccc;
     cursor: not-allowed;
-    transform: none !important;
 }
 
 /* 按钮变体 */
@@ -85,9 +84,16 @@
 }
 
 .btn-lg {
-    padding: 16px 32px;
-    font-size: var(--font-size-lg);
+    padding: 12px 30px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
 }
+
+/*.btn-lg {*/
+/*    padding: 16px 32px;*/
+/*    font-size: var(--font-size-lg);*/
+/*}*/
 
 /* 错误按钮 */
 .btn-error {
@@ -98,4 +104,79 @@
 .btn-error:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* 普通按钮使用白色 */
+
+.dev-normal-button {
+    border: 1px solid  #ccc;
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.dev-normal-button:hover {
+    background-color: #e9ecef;
+}
+
+/* 导航按钮使用蓝色 */
+
+.dev-nav-button {
+    border: 1px solid #007cba;
+    background: #007cba;
+    color: white;
+}
+
+.dev-nav-button:hover {
+    background: #005a87;
+}
+
+/* 删除按钮使用红色 */
+
+.dev-remove-btn {
+    border: #f44336;
+    background: #f44336;
+    color: white;
+}
+
+.dev-remove-btn:hover {
+    background: #e53935;
+}
+
+/* 增加按钮使用绿色 */
+
+.dev-add-btn{
+    border: #4caf50;
+    background: #4caf50;
+    color: white;
+}
+
+.dev-add-btn:hover{
+    background: #388e3c;
+}
+
+/* 统一禁用状态样式 - 深色版本 */
+.dev-normal-button:disabled,
+.dev-nav-button:disabled,
+.dev-remove-btn:disabled,
+.dev-add-btn:disabled {
+    border-color: #adb5bd !important;       /* 更深的中灰色边框 */
+    background-color: #dee2e6 !important;   /* 更深的浅灰色背景 */
+    color: #495057 !important;             /* 更深的文字颜色 */
+    cursor: not-allowed;
+    opacity: 0.75;                         /* 稍高不透明度保持可读性 */
+}
+
+.dev-btn-small {
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dev-btn-middle {
+    padding: 10px 20px;
+    margin: 16px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
 }

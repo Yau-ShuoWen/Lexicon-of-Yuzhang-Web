@@ -21,14 +21,14 @@
     <!-- 校正按钮（条件显示） -->
     <button
         v-if="showCorrectionButton"
-        class="correction-btn"
+        class="dev-btn-small correction-btn"
         @click="applyCorrection"
         :disabled="isCorrecting">
       {{ isCorrecting ? '校正中...' : '校正' }}
     </button>
 
     <!-- 清除按钮 -->
-    <button class="clear-btn" @click="clearAll">清除</button>
+    <button class="dev-btn-small dev-normal-button" @click="clearAll">清除</button>
   </div>
 </template>
 
@@ -285,7 +285,7 @@ defineExpose({
 })
 </script>
 
-<style scoped>
+<style>
 .pinyin-proofread-row {
   display: flex;
   align-items: center;
@@ -298,26 +298,6 @@ defineExpose({
   height: 32px;
   padding: 4px 8px;
   line-height: 1.3;
-}
-
-.clear-btn,
-.correction-btn {
-  white-space: nowrap;
-  padding: 4px 10px;
-  height: 32px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-}
-
-.clear-btn {
-  background-color: #f8f9fa;
-  color: #6c757d;
-}
-
-.clear-btn:hover {
-  background-color: #e9ecef;
 }
 
 .correction-btn {
@@ -342,7 +322,7 @@ defineExpose({
   border-radius: 4px;
   border-left: 4px solid;
   font-size: 14px;
-  min-width: 150px; /* 从100px加宽到150px */
+  min-width: 100px; /* 从100px加宽到150px */
   max-width: 250px; /* 从200px加宽到250px */
   white-space: normal; /* 允许换行 */
   word-break: break-word; /* 长单词换行 */

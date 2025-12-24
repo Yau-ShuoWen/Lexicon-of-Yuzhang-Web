@@ -1,4 +1,4 @@
-/* 文字排版系统 */
+/* _typography.css */
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-family-heading);
     font-weight: 600;

@@ -2,56 +2,50 @@
 <!-- 修改时候请勿删除此路径 -->
 
 <script setup>
-import BackButton from "../../components/Button/BackButton.vue";
+import JumpButton from "../../components/Button/JumpButton.vue";
 </script>
 
 <template>
-  <div class="page-container">
-    <div class="container">
+  <div class="narrow-layout">
 
-      <div class="d-flex flex-column gap-5">
+    <div class="d-flex flex-column gap-5">
 
-        <section>
-          <BackButton  target-route="/about" button-text="← 返回目录" />
-        </section>
+      <section>
+        <JumpButton size="middle" button-text="← 返回" to="/about"/>
+      </section>
 
-        <section>
-          <h2 class="text-xl font-semibold mb-3">方言拼音</h2>
-          <div class="d-flex flex-wrap gap-3">
-            <router-link to="/style" class="link btn btn-primary">拼音方案测试</router-link>
-          </div>
-        </section>
+      <section>
+        <h4>功能试用</h4>
+        <div class="d-flex flex-wrap gap-3">
+          <JumpButton to="/test" button-text="测试连接" size="middle"/>
+          <JumpButton to="/test/sc-tc" button-text="繁转简自动转换框" size="middle"/>
+          <JumpButton to="/test/pinyin-ipa" button-text="拼音、国际音标自动转换框" size="middle"/>
+        </div>
+      </section>
 
-        <section>
-          <h2 class="text-xl font-semibold mb-3">方言漢字、詞語、句子</h2>
-          <div class="d-flex flex-wrap gap-3">
-            <router-link to="/test" class="link btn btn-secondary">简繁转换</router-link>
-            <router-link to="/filter" class="link btn btn-secondary">編輯漢字</router-link>
-          </div>
-        </section>
+      <section>
+        <h4>方言拼音</h4>
+        <div class="d-flex flex-wrap gap-3">
+          <JumpButton to="/style" button-text="拼音方案测试" size="middle"/>
+        </div>
+      </section>
 
-        <section>
-          <h2 class="text-xl font-semibold mb-3">方言資料</h2>
-          <div class="d-flex flex-wrap gap-3">
-            <router-link to="/reference" class="link btn btn-primary">編輯資料</router-link>
-          </div>
-        </section>
+      <section>
+        <h4>方言漢字、詞語、句子</h4>
+        <div class="d-flex flex-wrap gap-3">
+          <JumpButton to="/filter" button-text="編輯漢字" size="middle"/>
+        </div>
+      </section>
 
-      </div>
+      <section>
+        <h4>方言資料</h4>
+        <div class="d-flex flex-wrap gap-3">
+          <JumpButton to="/reference" button-text="編輯資料" size="middle"/>
+        </div>
+      </section>
+
     </div>
   </div>
 </template>
 
-<style scoped>
-
-hr {
-  border: none;
-  height: 1px;
-  background-color: var(--color-border);
-  margin: 0;
-}
-
-section {
-  padding: 30 var(--spacing-sm);
-}
-</style>
+<style/>

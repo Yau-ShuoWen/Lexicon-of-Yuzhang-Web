@@ -1,8 +1,9 @@
-<!-- FilterPage.vue -->
-<script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+<!-- HanziEditFilter.vue -->
 
+<script setup>
+import {ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
+import JumpButton from "../../components/Button/JumpButton.vue";
 
 const router = useRouter()
 
@@ -23,8 +24,7 @@ const performSearch = async () => {
     const response = await fetch(`/api/edit/nam/by-hanzi?hanzi=${encodeURIComponent(searchText.value)}`)
     if (!response.ok) throw new Error('网络请求失败')
 
-    const data = await response.json()
-    searchResults.value = data
+    searchResults.value = await response.json()
   } catch (error) {
     errorMessage.value = '搜索失败：' + error.message
     searchResults.value = []
@@ -32,6 +32,13 @@ const performSearch = async () => {
     isLoading.value = false
   }
 }
+
+watch(searchText, (newValue) => {
+  if (!newValue.trim()) {
+    searchResults.value = []
+    errorMessage.value = ''
+  }
+})
 
 const selectItem = (item) => {
   const route = router.resolve(`/edit/${item.id}`)
@@ -42,10 +49,18 @@ const createNew = () => {
   const route = router.resolve(`/edit/new`)
   window.open(route.href, '_blank')
 }
+
+// 格式化汉字显示
+const formatHanzi = (item) => {
+  if (item.hantz === item.hanzi) return item.hanzi
+  return `${item.hanzi} / ${item.hantz}`
+}
 </script>
 
 <template>
-  <div class="filter-page">
+  <div class="narrow-layout">
+    <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
+    <h4>回车和「搜索」都可以刷新结果</h4>
     <div class="search-section">
       <input
           v-model="searchText"
@@ -54,20 +69,18 @@ const createNew = () => {
           @keyup.enter="performSearch"
           @input="performSearch"
       />
-      <button @click="performSearch" :disabled="isLoading">
+      <button class="dev-btn-small dev-nav-button" @click="performSearch" :disabled="isLoading">
         {{ isLoading ? '搜索中...' : '搜索' }}
       </button>
-      <button @click="createNew">新增汉字</button>
+      <button class="dev-btn-small dev-add-btn" @click="createNew">新增汉字</button>
     </div>
 
-    <!-- 错误信息 -->
     <div v-if="errorMessage" class="error-message">
       {{ errorMessage }}
     </div>
 
-    <!-- 搜索结果 -->
     <div v-if="searchResults.length > 0" class="results-section">
-      <h3>搜索结果 (点击条目进行编辑)</h3>
+      <h4>搜索结果（点击编辑）</h4>
       <div class="results-list">
         <div
             v-for="item in searchResults"
@@ -76,10 +89,7 @@ const createNew = () => {
             @click="selectItem(item)"
         >
           <div class="hanzi-display">
-            <span class="simplified">{{ item.hanzi }}</span>
-            <span class="traditional" v-if="item.hantz && item.hantz !== item.hanzi">
-              / {{ item.hantz }}
-            </span>
+            {{ formatHanzi(item) }}
           </div>
           <div class="pinyin">{{ item.stdPy }}</div>
           <div class="id">序号: {{ item.id }}</div>
@@ -87,19 +97,13 @@ const createNew = () => {
       </div>
     </div>
 
-    <div v-else-if="searchText && !isLoading" class="no-results">
+    <div v-else-if="searchText && !isLoading" class="no-results-high">
       未找到相关汉字
     </div>
   </div>
 </template>
 
-<style scoped>
-.filter-page {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
+<style>
 .search-section {
   display: flex;
   gap: 10px;
@@ -111,21 +115,6 @@ const createNew = () => {
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
-}
-
-.search-section button {
-  padding: 8px 16px;
-  border: 1px solid #007cba;
-  background: #007cba;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.search-section button:disabled {
-  background: #ccc;
-  border-color: #ccc;
-  cursor: not-allowed;
 }
 
 .error-message {
@@ -165,16 +154,7 @@ const createNew = () => {
 .hanzi-display {
   min-width: 100px;
   font-size: 18px;
-}
-
-.simplified {
   font-weight: bold;
-}
-
-.traditional {
- /* color: #666;*/
-  font-weight: bold;
- /* margin-left: 5px;*/
 }
 
 .pinyin {
@@ -185,11 +165,5 @@ const createNew = () => {
 .id {
   color: #999;
   font-size: 14px;
-}
-
-.no-results {
-  text-align: center;
-  color: #666;
-  padding: 40px;
 }
 </style>

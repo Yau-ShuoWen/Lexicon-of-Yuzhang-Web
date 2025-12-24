@@ -18,6 +18,12 @@ const routes = [
         props: true // 启用 props 传参
     },
     {
+        path: '/c/:ciyu',
+        name: 'CiyuDetail',
+        component: () => import('../components/CiyuDetail.vue'),
+        props: true // 启用 props 传参
+    },
+    {
         path: '/test',
         name: 'Test',
         component: () => import('../views/HelloWorld.vue')
@@ -68,13 +74,25 @@ const routes = [
     {
         path: '/edit/:id?',
         name: 'Edit',
-        component: () => import('../views/Developer/EditHanziPage.vue'),
+        component: () => import('../views/Developer/HanziEditor.vue'),
         props: true
     },
     {
         path: '/filter',
         name: 'Filter',
-        component: () => import('../views/filterPage.vue')
+        component: () => import('../views/Developer/HanziEditFilter.vue')
+    },
+
+
+    {
+        path: '/test/sc-tc',
+        name: 'TestSimplifiedAndTraditional',
+        component: () => import('../views/Test/TestScTc.vue')
+    },
+    {
+        path: '/test/pinyin-ipa',
+        name: 'TestPinyinAndIPA',
+        component: () => import('../views/Test/TestPinyinIPA.vue')
     }
 ]
 

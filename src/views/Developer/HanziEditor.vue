@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
 import DictSelect from "../../components/Select/DictSelect.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
+import JumpButton from "../../components/Button/JumpButton.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -325,28 +326,34 @@ onMounted(() => {
       <h2>{{ isNew ? '新增' : '編輯' }}</h2>
 
       <div class="nav-buttons">
+        <JumpButton
+            to="/filter"
+            buttonText="返回（不保存）"
+            size="small"
+        />
+
         <button
+            v-if="!isNew"
             :disabled="!previousId"
+            class="dev-nav-button"
             @click="router.push(`/edit/${previousId}`)"
-        >上一条
+        >{{ previousId ? '上一条' : '第一条'}}
         </button>
 
         <button
+            v-if="!isNew"
             :disabled="!nextId"
+            class="dev-nav-button"
             @click="router.push(`/edit/${nextId}`)"
-        >下一条
+        >{{ nextId ? '下一条' : '最后一条'}}
         </button>
-      </div>
-    </div>
 
-
-    <div class="page-header">
-      <div class="form-actions">
-        <button @click="saveData" :disabled="isSaving" class="save-btn">
+        <button @click="saveData" :disabled="isSaving" class="dev-add-btn">
           {{ isSaving ? '保存中...' : '保存' }}
         </button>
       </div>
     </div>
+
 
     <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
       {{ saveMessage }}
@@ -361,18 +368,20 @@ onMounted(() => {
           <div class="form-field">
             <label>繁體字和简体字</label>
             <AutoProofreadText
+                :disabled="!isNew"
                 v-model:traditionalText="formData.hantz"
                 v-model:simplifiedText="formData.hanzi"
                 :layout="'small'"
             />
           </div>
+
           <div class="form-field">
             <label>特殊性標記</label>
             <select v-model="formData.special" class="short-input">
               <option value="0">普通漢字</option>
               <option value="1">特殊方言字</option>
               <option value="2">占位字</option>
-              <option value="-1">不使用漢字</option>
+              <option value="3">不使用漢字</option>
             </select>
           </div>
         </div>
@@ -381,8 +390,9 @@ onMounted(() => {
       <div class="form-section">
         <div class="section-header">
           <h3>拼音</h3>
-          <button
-              @click="addArrayItem(formData.mulPy, { sc: '', tc: '', pinyin: '', sort: formData.mulPy.length + 1 })">添加
+          <button class="dev-add-btn"
+                  @click="addArrayItem(formData.mulPy, { sc: '', tc: '', pinyin: '', sort: formData.mulPy.length + 1 })">
+            添加
           </button>
         </div>
 
@@ -417,21 +427,13 @@ onMounted(() => {
           <div class="drag-handle">⋮⋮</div>
 
           <label>排序顺序：{{ item.sort }}</label>
-          <button @click="removeArrayItem(formData.mulPy, index)" class="remove-btn">刪除</button>
-
           <AutoProofreadText
               v-model:traditionalText="item.tc"
               v-model:simplifiedText="item.sc"
               :layout="'small'"
           />
-<!--          <input v-model="item.pinyin" placeholder="拼音" class="short-input"/>-->
-
-          <PinyinProofreadText
-              v-model="item.pinyin"
-              :placeholder="'拼音'"
-              class="short-input"
-          />
-
+          <PinyinProofreadText v-model="item.pinyin" :placeholder="'拼音'"/>
+          <button @click="removeArrayItem(formData.mulPy, index)" class="dev-remove-btn">刪除</button>
 
         </div>
       </div>
@@ -449,7 +451,7 @@ onMounted(() => {
             <label :for="'mdr-' + option.info">{{ option.info }}</label>
           </div>
         </div>
-        <div v-else class="no-options">
+        <div v-else class="no-results-low">
           {{ formData.hanzi && formData.hantz ? '暫無對應讀音' : '請先填寫簡繁體內容獲得讀音' }}
         </div>
       </div>
@@ -457,27 +459,20 @@ onMounted(() => {
       <div class="form-section">
         <div class="section-header">
           <h3>國際音標</h3>
-          <button @click="addArrayItem(formData.ipaExp, { left: '', right: '' })">添加</button>
+          <button class="dev-add-btn" @click="addArrayItem(formData.ipaExp, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.ipaExp" :key="index" class="array-item">
-          <div class="form-field">
-            <DictSelect
-                v-model="item.left"
-                :placeholder="'请选择词典'"
-            />
+          <DictSelect v-model="item.left" :placeholder="'请选择词典'"/>
+          <input v-model="item.right" placeholder="內容"/>
 
-          </div>
-          <div class="form-field">
-            <input v-model="item.right" placeholder="內容" class="short-input"/>
-          </div>
-          <button @click="removeArrayItem(formData.ipaExp, index)" class="remove-btn">刪除</button>
+          <button @click="removeArrayItem(formData.ipaExp, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
 
       <div class="form-section">
         <div class="section-header">
           <h3>相似漢字</h3>
-          <button @click="addArrayItem(formData.similar, { hanzi: '', hantz: '' })">添加</button>
+          <button class="dev-add-btn" @click="addArrayItem(formData.similar, { hanzi: '', hantz: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
           <AutoProofreadText
@@ -485,14 +480,14 @@ onMounted(() => {
               v-model:simplifiedText="item.hanzi"
               :layout="'small'"
           />
-          <button @click="removeArrayItem(formData.similar, index)" class="remove-btn">刪除</button>
+          <button @click="removeArrayItem(formData.similar, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
 
       <div class="form-section">
         <div class="section-header">
           <h3>含義</h3>
-          <button @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
+          <button class="dev-add-btn" @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
           <AutoProofreadText
@@ -500,15 +495,16 @@ onMounted(() => {
               v-model:simplifiedText="item.left"
               :layout="'large'"
           />
-          <button @click="removeArrayItem(formData.mean, index)" class="remove-btn">刪除</button>
+          <button @click="removeArrayItem(formData.mean, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
 
       <div class="form-section">
         <div class="section-header">
           <h3>註釋</h3>
-          <button
-              @click="addArrayItem(formData.note, { left: { left: '', right: '' }, right: { left: '', right: '' } })">添加
+          <button class="dev-add-btn"
+                  @click="addArrayItem(formData.note, { left: { left: '', right: '' }, right: { left: '', right: '' } })">
+            添加
           </button>
         </div>
         <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
@@ -525,14 +521,14 @@ onMounted(() => {
               :layout="'large'"
           />
 
-          <button @click="removeArrayItem(formData.note, index)" class="remove-btn">刪除</button>
+          <button @click="removeArrayItem(formData.note, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
+<style>
 .edit-page {
   padding: 20px;
   max-width: 1200px;
@@ -709,16 +705,6 @@ input[readonly] {
   color: #666;
 }
 
-.remove-btn {
-  padding: 4px 8px;
-  background: #f44336;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  min-width: 50px;
-}
 
 .checkbox-group {
   display: grid;
@@ -732,46 +718,18 @@ input[readonly] {
   gap: 6px;
 }
 
-.no-options {
-  color: #666;
-  font-style: italic;
-  padding: 10px;
-  text-align: center;
-}
-
 .form-actions {
   text-align: center;
   margin-top: 30px;
 }
 
-.save-btn {
-  padding: 12px 30px;
-  background: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.save-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
 button {
   padding: 6px 12px;
-  border: 1px solid #007cba;
-  background: #007cba;
-  color: white;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
 }
 
-button:hover {
-  background: #005a87;
-}
 
 .nav-buttons {
   display: flex;

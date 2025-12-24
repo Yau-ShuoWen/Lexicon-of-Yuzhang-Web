@@ -105,18 +105,18 @@ const handleResultClick = (result) => {
     })
   }
 
-  // if (result.tag === 'ciyu') {
-  //   const ciyu = result.info.ciyu
-  //   const lang = result.info.lang
-  //
-  //   router.push({
-  //     path: `/c/${encodeURIComponent(ciyu)}`,
-  //     state: {
-  //       lang: lang,
-  //       searchResult: result
-  //     }
-  //   })
-  // }
+  if (result.tag === 'ciyu') {
+    const ciyu = result.info.ciyu
+    const lang = result.info.lang
+
+    router.push({
+      path: `/c/${encodeURIComponent(ciyu)}`,
+      state: {
+        lang: lang,
+        searchResult: result
+      }
+    })
+  }
 
 }
 

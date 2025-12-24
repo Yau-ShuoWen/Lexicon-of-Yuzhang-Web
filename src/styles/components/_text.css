@@ -1,0 +1,11 @@
+.no-results-high {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+}
+
+.no-results-low {
+    text-align: center;
+    color: #666;
+    padding: 10px;
+}

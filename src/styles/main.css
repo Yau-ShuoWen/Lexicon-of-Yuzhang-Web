@@ -1,3 +1,5 @@
+/*main.css*/
+
 /* 导入基础样式 */
 @import './base/_reset.css';
 @import './base/_variables.css';
@@ -8,6 +10,7 @@
 @import './components/_buttons.css';
 @import './components/_forms.css';
 @import './components/_cards.css';
+@import "./components/_text.css";
 
 /* 导入布局样式 */
 @import './layouts/_container.css';

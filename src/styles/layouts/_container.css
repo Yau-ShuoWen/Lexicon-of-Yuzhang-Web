@@ -1,4 +1,4 @@
-/* 布局容器 */
+/* _container.css */
 .container {
     max-width: var(--container-max-width);
     margin: 0 auto;
@@ -30,4 +30,10 @@
 .page-subtitle {
     color: var(--color-text-light);
     font-size: var(--font-size-lg);
+}
+
+.narrow-layout {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
 }

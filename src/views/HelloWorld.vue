@@ -23,31 +23,6 @@
         <div v-if="message" class="response mt-3" v-html="message"></div>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-body">
-        <h3 class="card-title">拼音转换框</h3>
-        <PinyinProofreadText
-            :placeholder="'拼音'"
-            class="short-input"
-        />
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-body">
-        <h3 class="card-title">简繁转换框：小</h3>
-        <AutoProofreadText layout="small"/>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-body">
-        <h3 class="card-title">简繁转换框：大</h3>
-        <AutoProofreadText layout="large"/>
-      </div>
-    </div>
-
   </div>
 </template>
 
@@ -106,7 +81,7 @@ function handleError(error) {
 }
 </script>
 
-<style scoped>
+<style>
 /* 原有的样式保持不变 */
 .button-group {
   display: flex;

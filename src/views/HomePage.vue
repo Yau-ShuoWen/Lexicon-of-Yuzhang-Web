@@ -1,9 +1,7 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <p class="page-subtitle">{{$t('message.welcome')}}</p>
-    </div>
 
+    <p class="page-subtitle">{{$t('message.welcome')}}</p>
     <SearchInput/>
 
   </div>
@@ -26,11 +24,8 @@ export default defineComponent({
   margin: 0 auto;
 }
 
-.page-header {
-  text-align: center;
-}
-
 .page-subtitle {
+  text-align: center;
   font-size: 1.2rem;
   color: #666;
 }

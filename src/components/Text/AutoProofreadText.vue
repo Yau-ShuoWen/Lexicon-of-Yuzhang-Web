@@ -10,6 +10,7 @@
           :maxlength="maxLength"
           @input="onTraditionalInput"
           @blur="onTraditionalBlur"
+          :disabled="disabled"
       />
 
       <input
@@ -20,15 +21,17 @@
           :maxlength="maxLength"
           @input="onSimplifiedInput"
           @blur="onSimplifiedBlur"
+          :disabled="disabled"
       />
 
-      <button class="clear-btn" @click="clearAll">清除</button>
-
-      <div v-if="statusMessage"
+      <div v-if="statusMessage && !disabled"
            class="status-message"
-           :class="statusType">
+           :class="statusType"
+      >
         {{ statusMessage }}
       </div>
+
+      <button v-if="!disabled" class="dev-btn-small dev-normal-button" @click="clearAll" >清除</button>
     </div>
 
     <div v-else class="form-group">
@@ -41,6 +44,7 @@
             :rows="rows"
             @input="onTraditionalInput"
             @blur="onTraditionalBlur"
+            :disabled="disabled"
         ></textarea>
 
       <textarea
@@ -51,16 +55,17 @@
           :rows="rows"
           @input="onSimplifiedInput"
           @blur="onSimplifiedBlur"
+          :disabled="disabled"
       ></textarea>
     </div>
 
     <!-- 按钮 + 状态消息（大版本使用） -->
-    <div v-if="layout === 'large'" class="button-group">
-      <button @click="clearAll" class="clear-btn">清除</button>
-
-      <div v-if="statusMessage" class="status-message mt-2" :class="statusType">
+    <div v-if="layout === 'large' && !disabled" class="button-group">
+      <div v-if="statusMessage" class="status-message" :class="statusType">
         {{ statusMessage }}
       </div>
+
+      <button v-if="!disabled" @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
     </div>
   </div>
 </template>
@@ -103,6 +108,11 @@ const props = defineProps({
   conversionApi: {
     type: String,
     default: '/api/transfer/tc'
+  },
+  // 禁用状态
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -521,7 +531,7 @@ defineExpose({
 })
 </script>
 
-<style scoped>
+<style>
 /* 原有样式完全保持不变 */
 .small-row {
   display: flex;
@@ -537,37 +547,12 @@ defineExpose({
   line-height: 1.3;
 }
 
-.small-clear-btn {
-  white-space: nowrap;
-  padding: 4px 10px;
-  height: 32px;
-}
 
 .button-group {
   display: flex;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
   flex-wrap: wrap;
-}
-
-.clear-btn,
-.correction-btn {
-  white-space: nowrap;
-  padding: 4px 10px;
-  height: 32px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-}
-
-.clear-btn {
-  background-color: #f8f9fa;
-  color: #6c757d;
-}
-
-.clear-btn:hover {
-  background-color: #e9ecef;
 }
 
 .status-message {

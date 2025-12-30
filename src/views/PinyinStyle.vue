@@ -1,6 +1,7 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import {ref, reactive, onMounted} from 'vue';
 import {formatRichText} from "../utils/textFormatter.js";
+import JumpButton from "../components/Button/JumpButton.vue";
 
 // 缓存键名常量
 const STORAGE_KEYS = {
@@ -96,12 +97,12 @@ const preview = async () => {
       body: JSON.stringify(config)
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    const data = await response.json();
-    previewResult.value = formatRichText(data.message);
+    const apiResponse = await response.json();
+    if (!apiResponse.success) throw new Error(apiResponse.message || '加载失败')
+
+    previewResult.value = formatRichText(apiResponse.data);
 
     // 保存预览结果到缓存
     savePreviewToCache();
@@ -113,16 +114,41 @@ const preview = async () => {
   }
 };
 
-const reset = async () => {
+const reset1 = async () => {
   loading.value = true;
   error.value = '';
 
   try {
-    const response = await fetch('/api/pinyin/nam/style/init');
+    const response = await fetch('/api/pinyin/nam/style-init?SchemeParam=1');
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+
+    const defaultConfig = await response.json();
+    Object.assign(config, defaultConfig);
+
+    // 保存默认配置到缓存
+    saveConfigToCache();
+
+    // 获取新的预览
+    await preview();
+  } catch (err) {
+    error.value = '重置请求失败: ' + err.message;
+    console.error('reset1 error:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const reset2 = async () => {
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await fetch('/api/pinyin/nam/style-init?SchemeParam=2');
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
 
     const defaultConfig = await response.json();
     Object.assign(config, defaultConfig);
@@ -141,10 +167,10 @@ const reset = async () => {
 };
 
 // 清除缓存并重置
-const clearCacheAndReset = async () => {
+const clearCacheAndreset1 = async () => {
   const success = clearCache();
   if (success) {
-    await reset();
+    await reset1();
   } else {
     error.value = '清除缓存失败';
   }
@@ -157,7 +183,7 @@ onMounted(() => {
 
   // 如果有缓存的配置但没有预览，或者没有缓存，则重置
   if ((hasCachedConfig && !hasCachedPreview) || (!hasCachedConfig && !hasCachedPreview)) {
-    reset();
+    reset1();
   }
   // 如果两者都有缓存，则不需要额外操作，界面会显示缓存的内容
 });
@@ -181,138 +207,134 @@ defineExpose({
 </script>
 
 <template>
-  <div class="page-container">
-    <div class="config-layout">
-      <!-- 预览面板 -->
-      <div class="config-main">
-        <div class="preview-card card">
-          <div class="card-header">
-            <h3 class="card-title">预览效果</h3>
+  <div class="config-layout">
+    <div class="config-main">
+      <div class="preview-card card">
+
+        <div class="preview-content">
+          <div v-if="error" class="error-state">
+            <span class="error-icon">❌</span>
+            {{ error }}
           </div>
-          <div class="card-body">
-            <div class="preview-content">
-              <div v-if="error" class="error-state">
-                <span class="error-icon">❌</span>
-                {{ error }}
-              </div>
-              <div v-else-if="loading" class="loading-state">
-                <span class="loading-spinner"></span>
-                加载中...
-              </div>
-              <div v-else-if="previewResult" class="preview-result" v-html="previewResult">
-              </div>
-              <div v-else class="preview-placeholder">
-                <span class="placeholder-icon">👆</span>
-                <p>请点击"预览效果"查看拼音显示</p>
-              </div>
-            </div>
+          <div v-else-if="loading" class="loading-state">
+            <span class="loading-spinner"></span>
+            加载中...
+          </div>
+          <div v-else-if="previewResult" class="preview-result" v-html="previewResult">
+          </div>
+          <div v-else class="preview-placeholder">
+            <span class="placeholder-icon">👆</span>
+            <p>请点击"预览效果"查看拼音显示</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- 配置表单 -->
-      <div class="config-sidebar card">
-        <div class="card-body">
-          <h3 class="card-title">配置选项</h3>
+    <!-- 配置表单 -->
+    <div class="config-sidebar card">
+      <div class="card-body">
 
-          <div class="config-form" style="flex-wrap: wrap">
-            <div class="form-group">
-              <label>「余/句/女」韵母的字母版本</label>
-              <select v-model="config.yu" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 yu</option>
-                <option value="1">使用字母 ü</option>
-                <option value="2">使用字母 v（普通话）</option>
-                <option value="3">使用字母 ụ</option>
-              </select>
-            </div>
+        <div class="button-group">
+          <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
+          <button class="dev-btn-middle dev-add-btn" @click="reset1" :disabled="loading">
+            标准显示版本
+          </button>
+          <button class="dev-btn-middle dev-add-btn" @click="reset2" :disabled="loading">
+            标准输入版本
+          </button>
+          <button class="dev-btn-middle dev-nav-button" @click="previewWithCache" :disabled="loading">
+            结果刷新
+          </button>
+          <button class="dev-btn-middle dev-remove-btn" @click="clearCacheAndreset1" :disabled="loading">
+            清除缓存
+          </button>
+        </div>
 
-            <div class="form-group">
-              <label>「念/捏/尼」声母的字母版本</label>
-              <select v-model="config.gn" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 n</option>
-                <option value="1">使用字母 gn（老国音）</option>
-              </select>
-            </div>
+        <div class="config-form" style="flex-wrap: wrap">
+          <div class="form-group">
+            <h5>「余/句/女」韵母</h5>
+            <select v-model="config.yu" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">使用字母 yu（普通话开头）</option>
+              <option value="1">使用字母 ü（普通话书写）</option>
+              <option value="2">使用字母 v（普通话输入）</option>
+              <option value="3">使用字母 ụ</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>「深/更/本」音核的字母版本</label>
-              <select v-model="config.ee" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 ee</option>
-                <option value="1">使用字母 ẹ</option>
-                <option value="2">使用字母 ё</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>「念/捏/尼」声母</h5>
+            <select v-model="config.gn" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">使用字母 n</option>
+              <option value="1">使用字母 gn（老国音）</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>「二/儿/耳」音节的字母版本</label>
-              <select v-model="config.oe" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 oe</option>
-                <option value="1">使用字母 ọ</option>
-                <option value="2">使用字母 ö</option>
-                <option value="3">使用字母 o</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>「深/更/本」主元音</h5>
+            <select v-model="config.ee" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">使用字母 ee</option>
+              <option value="1">使用字母 ẹ</option>
+              <option value="2">使用字母 ё</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>「之/齿/时」的字母版本</label>
-              <select v-model="config.ii" @change="previewWithCache" class="form-control">
-                <option value="0">使用字母 ii</option>
-                <option value="1">使用字母 i（和普通话类似）</option>
-                <option value="2">不使用字母 （空韵母）</option>
-                <option value="3">使用韵母 ị</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>「二/儿/耳」音节</h5>
+            <select v-model="config.oe" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">使用字母 oe</option>
+              <option value="1">使用字母 ọ</option>
+              <option value="2">使用字母 ö</option>
+              <option value="3">使用字母 o</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>入声韵尾的处理</label>
-              <select v-model="config.ptk" @change="previewWithCache" class="form-control">
-                <option value="0">保留韵尾t k</option>
-                <option value="1">隐藏韵尾</option>
-                <option value="2">统一使用字母 h 表示</option>
-                <option value="3">统一使用字母 q 表示</option>
-                <option value="4">只有k韵尾替换为 h</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>「之/齿/时」音节</h5>
+            <select v-model="config.ii" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">使用字母 ii</option>
+              <option value="1">使用字母 i（普通话）</option>
+              <option value="2">不使用字母 （空韵母）</option>
+              <option value="3">使用韵母 ị</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>零声母i u的规则</label>
-              <select v-model="config.alt" @change="previewWithCache" class="form-control">
-                <option value="0">不改变</option>
-                <option value="1">模仿普通话规律的yi wu</option>
-                <option value="2">直接在i前加y，u前加w</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>入声韵尾</h5>
+            <select v-model="config.ptk" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">保留韵尾t k</option>
+              <option value="1">隐藏韵尾</option>
+              <option value="2">统一使用字母 h 表示</option>
+              <option value="3">统一使用字母 q 表示</option>
+              <option value="4">只有k韵尾替换为 h</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>大写格式控制</label>
-              <select v-model="config.capital" @change="previewWithCache" class="form-control">
-                <option value="0">全部小写</option>
-                <option value="1">全部大写</option>
-                <option value="2">首字母大写</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>零声母i u的规则</h5>
+            <select v-model="config.alt" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">不改变</option>
+              <option value="1">模仿普通话规律的yi wu</option>
+              <option value="2">直接在i前加y，u前加w</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label>标注声调的方式</label>
-              <select v-model="config.num" @change="previewWithCache" class="form-control">
-                <option value="0">不加音调</option>
-                <option value="1">符合规范的添加</option>
-                <option value="2">数字音调加到后面</option>
-                <option value="3">符号音调加到后面</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <h5>大写</h5>
+            <select v-model="config.capital" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">全部小写</option>
+              <option value="1">全部大写</option>
+              <option value="2">首字母大写</option>
+            </select>
+          </div>
 
-            <div class="button-group">
-              <button class="btn btn-primary" @click="previewWithCache" :disabled="loading">
-                结果刷新
-              </button>
-              <button class="btn btn-outline" @click="reset" :disabled="loading">
-                重置配置
-              </button>
-              <button class="btn btn-secondary" @click="clearCacheAndReset" :disabled="loading">
-                清除缓存
-              </button>
-            </div>
+          <div class="form-group">
+            <h5>标注声调</h5>
+            <select v-model="config.num" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">不加音调</option>
+              <option value="1">符号音调加到主元音上</option>
+              <option value="2">数字音调加到后面</option>
+              <option value="3">符号音调加到后面</option>
+            </select>
           </div>
         </div>
       </div>
@@ -322,32 +344,56 @@ defineExpose({
 
 <style scoped>
 .config-layout {
+  position: sticky;
   display: grid;
-  grid-template-columns: 1fr 380px; /* 右侧固定较窄宽度 */
+  grid-template-columns: 600px 1fr;
   gap: var(--spacing-xl);
-  max-width: 1400px; /* 增加最大宽度 */
   margin: 0 auto;
   align-items: start;
 }
 
 .config-sidebar {
-  position: sticky;
   top: var(--spacing-xl);
   height: fit-content;
-  max-height: calc(100vh - var(--spacing-xl) * 2);
   overflow-y: auto;
 }
 
 .config-form {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md); /* 减小间距 */
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
 }
 
+.form-group {
+  flex: 1 1 1 calc(50% - var(--spacing-md));
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+
+/* 按钮组样式 */
+.button-group {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* 确保按钮占据全宽 */
+.button-group button {
+  flex: 1 1 1 1 calc(50% - var(--spacing-md));
+  min-width: 120px;
+}
+
+/* 预览区域保持不变 */
 .config-main {
   display: flex;
   flex-direction: column;
   min-height: 500px;
+  width: 600px;
 }
 
 .preview-card {
@@ -403,13 +449,13 @@ defineExpose({
 }
 
 .preview-result {
-  color: var(--color-success);
+  color: var(--color-text);
   font-size: var(--font-size-xl);
   font-weight: 600;
   line-height: 1.6;
   text-align: center;
   padding: var(--spacing-lg);
-  background: var(--color-background-alt);
+  background: var(--color-background);
   border-radius: var(--border-radius-md);
   width: 100%;
 }
@@ -424,108 +470,5 @@ defineExpose({
   font-size: 2rem;
   margin-bottom: var(--spacing-md);
   display: block;
-}
-
-.config-json {
-  background: var(--color-background-alt);
-  color: var(--color-text);
-  padding: var(--spacing-lg);
-  border-radius: var(--border-radius-md);
-  overflow-x: auto;
-  font-size: var(--font-size-sm);
-  font-family: 'Courier New', monospace;
-  margin: 0;
-}
-
-.button-group {
-  display: flex;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
-  flex-wrap: wrap;
-}
-
-.button-group .btn {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* 移动端样式 - 当屏幕宽度小于800px时 */
-@media (max-width: 800px) {
-  .config-layout {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-    max-width: 100%;
-    padding: 0 var(--spacing-md);
-  }
-
-  .config-sidebar {
-    position: static;
-    max-height: none;
-    order: 2; /* 配置面板在移动端显示在下面 */
-  }
-
-  .config-main {
-    order: 1; /* 预览区域在移动端显示在上面 */
-    min-height: auto;
-  }
-
-  .preview-card {
-    position: static;
-    min-height: 200px;
-  }
-
-  .config-form {
-    gap: var(--spacing-sm);
-  }
-
-  .form-group {
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .form-group label {
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .form-control {
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: var(--font-size-sm);
-  }
-}
-
-/* 超小屏幕优化 */
-@media (max-width: 480px) {
-  .config-layout {
-    padding: 0 var(--spacing-sm);
-  }
-
-  .button-group {
-    flex-direction: column;
-  }
-
-  .preview-result {
-    font-size: var(--font-size-lg);
-    padding: var(--spacing-md);
-  }
-
-  .card-body {
-    padding: var(--spacing-md);
-  }
-}
-
-/* 中等屏幕优化 (800px - 1200px) */
-@media (min-width: 801px) and (max-width: 1200px) {
-  .config-layout {
-    grid-template-columns: 1fr 340px; /* 在中等屏幕上右侧更窄 */
-    max-width: 100%;
-    padding: 0 var(--spacing-lg);
-  }
-}
-
-/* 大屏幕优化 */
-@media (min-width: 1201px) {
-  .config-layout {
-    grid-template-columns: 1fr 380px;
-  }
 }
 </style>

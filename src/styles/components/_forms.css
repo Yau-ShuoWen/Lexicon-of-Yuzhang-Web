@@ -61,3 +61,20 @@ select.form-control {
 .form-control.success {
     border-color: var(--color-success);
 }
+
+.dev-form-field {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.dev-form-field-mid {
+    width: 200px;
+}
+
+
+.form-group-small {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--spacing-sm);
+}

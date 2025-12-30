@@ -217,6 +217,13 @@ function handleCheckResult(triple) {
       emit('invalid', {type: 'invalid'})
       break
 
+    case 4: // 需要补充音调
+      statusMessage.value = '缺少音调'
+      statusType.value = 'status-error'
+      showCorrectionButton.value = false
+      emit('invalid', {type: 'invalid'})
+      break
+
     default:
       // 未知状态码，保持原样
       statusMessage.value = ''

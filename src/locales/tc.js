@@ -14,6 +14,7 @@ export default {
     },
     nav: {
         home: '首頁',
+        pinyin: "拼音",
         about: '關於',
         contact: '聯繫',
         settings: '設定'
@@ -30,16 +31,16 @@ export default {
     },
     search: {
         fuzzy_recognition: '模糊識別',
-        pronunciation_choose:'讀音標註'
+        pronunciation_choose: '讀音標註'
     },
     linguistic: {
-        ipa:{
+        ipa: {
             standard: '標準國際音標',
             chinese: '漢語語言學通用符號',
         },
 
         tone: {
-            hint:"自定義音調樣式",
+            hint: "自定義音調樣式",
             five_degree:
                 {
                     number: "五度標記法：數字",

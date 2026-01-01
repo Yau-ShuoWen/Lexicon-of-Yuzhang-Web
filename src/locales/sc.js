@@ -15,6 +15,7 @@ export default {
     nav: {
         home: '首页',
         about: '关于',
+        pinyin: "拼音",
         contact: '联系',
         settings: '设置'
     },

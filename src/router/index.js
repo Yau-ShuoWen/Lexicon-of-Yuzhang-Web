@@ -18,6 +18,11 @@ const routes = [
         props: true // 启用 props 传参
     },
     {
+        path: '/pinyin',
+        name: 'PinyinTable',
+        component: () => import('../views/PinyinTable.vue'),
+    },
+    {
         path: '/c/:ciyu',
         name: 'CiyuDetail',
         component: () => import('../components/CiyuDetail.vue'),

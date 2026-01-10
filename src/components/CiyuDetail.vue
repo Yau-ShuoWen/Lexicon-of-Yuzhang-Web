@@ -21,13 +21,10 @@ const currentStatus = computed(() => {
   return null
 })
 
-// 从路由状态获取语言
-const getLang = () => {
-  if (route.state && route.state.lang) {
-    return route.state.lang
-  }
-  return localStorage.getItem('user-locale') || 'sc'
-}
+const currentLang = computed(() => {
+  return route.params.lang || 'sc'
+})
+
 
 // 获取搜索配置
 const getSearchConfig = () => {
@@ -60,13 +57,13 @@ const loadCiyu = async (query) => {
 
   try {
     const config = getSearchConfig()
-    const currentLang = getLang()
 
     const params = new URLSearchParams({
       ciyu: query.trim(),
-      lang: currentLang,
-      toneStyle: config.toneStyle,
-      syllableStyle: config.syllableStyle
+      lang: currentLang.value,
+      phonogram: config.phonogram || 1,
+      toneStyle: config.toneStyle || 1,
+      syllableStyle: config.syllableStyle || 1
     })
 
     const response = await fetch(`/api/search/nam/by-ciyu?${params}`, {
@@ -139,30 +136,18 @@ const handleRetry = () => {
   }
 }
 
-// 监听语言变化
-const handleLanguageChange = () => {
-  if (ciyu.value.trim()) {
-    loadCiyu(ciyu.value)
-  }
-}
 
-// 设置语言变化监听器
-const setupLanguageListener = () => {
-  window.addEventListener('languageChanged', handleLanguageChange)
-}
+watch(
+    () => [route.params.ciyu, route.params.lang],
+    ([newCiyu]) => {
+      if (newCiyu) {
+        ciyu.value = newCiyu
+        loadCiyu(newCiyu)
+      }
+    },
+    {immediate: true}
+)
 
-// 移除语言变化监听器
-const removeLanguageListener = () => {
-  window.removeEventListener('languageChanged', handleLanguageChange)
-}
-
-// 监听路由参数变化
-watch(() => route.params.ciyu, (newCiyu) => {
-  if (newCiyu) {
-    ciyu.value = newCiyu
-    loadCiyu(newCiyu)
-  }
-})
 
 onMounted(() => {
   // 从路由参数获取词语
@@ -170,7 +155,6 @@ onMounted(() => {
     ciyu.value = route.params.ciyu
     loadCiyu(route.params.ciyu)
   }
-  setupLanguageListener()
 })
 
 onUnmounted(() => {

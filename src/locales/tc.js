@@ -27,6 +27,7 @@ export default {
     },
     message: {
         welcome: '方言是我們能聽見的歷史',
+        welcome_nam :'南昌方言：方言係我們聽得到箇歷史 \n [fòng iēn xỉ ngǒ lẹ̄n tiàng de̋k dāu go li̋k sǐ] ',
         noData: '暫無數據'
     },
     search: {
@@ -49,4 +50,9 @@ export default {
             four_corners: "四角符號"
         }
     },
+    about:
+        {
+            developer_mode :"開發者模式",
+            github_project:"Github 專案"
+        }
 }

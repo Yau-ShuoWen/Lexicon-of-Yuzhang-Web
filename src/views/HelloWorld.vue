@@ -1,28 +1,25 @@
 <template>
-  <div class="page-container">
-    <div class="card">
-      <div class="card-body">
-        <h3 class="card-title">连接测试</h3>
+  <div class="container">
+    <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
+    <h3 class="card-title">连接测试</h3>
 
-        <div class="form-group">
-          <input
-              type="text"
-              placeholder="你想说的"
-              @input="callHelloParam"
-              v-model="name"
-              maxlength="100"
-              class="form-control"
-          />
-        </div>
-
-        <div class="button-group">
-          <button @click="callHello" class="btn btn-primary">默认问候</button>
-          <button @click="callHelloParam" class="btn btn-secondary">刷新文本</button>
-        </div>
-
-        <div v-if="message" class="response mt-3" v-html="message"></div>
-      </div>
+    <div class="form-group">
+      <input
+          type="text"
+          placeholder="你想说的"
+          @input="callHelloParam"
+          v-model="name"
+          maxlength="100"
+          class="form-control"
+      />
     </div>
+
+    <div class="button-group">
+      <button @click="callHello" class="btn btn-primary">默认问候</button>
+      <button @click="callHelloParam" class="btn btn-secondary">刷新文本</button>
+    </div>
+
+    <div v-if="message" class="response mt-3" v-html="message"></div>
   </div>
 </template>
 
@@ -31,6 +28,7 @@ import {ref} from 'vue'
 import {formatRichText} from "../utils/textFormatter.js"
 import AutoProofreadText from "../components/Text/AutoProofreadText.vue";
 import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
+import JumpButton from "../components/Button/JumpButton.vue";
 
 const message = ref('')
 const name = ref('')

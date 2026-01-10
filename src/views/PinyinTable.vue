@@ -1,8 +1,10 @@
 <script>
 import {formatRichText} from '../utils/textFormatter.js'
+import LanguageChanger from "../components/Button/LanguageChanger.vue";
 
 export default {
   name: 'PinyinTable',
+  components: {LanguageChanger},
 
   data() {
     return {
@@ -179,7 +181,7 @@ export default {
 
       <!-- 声调 -->
       <div class="attribute-group tone-group">
-        <div class="group-header"><h3>声调</h3></div>
+        <div class="group-header"><h3>声调（点击韵母查看变化）</h3></div>
         <div class="items-grid">
           <div
               v-for="(item, i) in toneItems"
@@ -228,7 +230,7 @@ export default {
 
 <style scoped>
 .pinyin-table-container {
-  max-width: 1200px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 20px;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;

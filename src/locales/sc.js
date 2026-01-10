@@ -27,6 +27,7 @@ export default {
     },
     message: {
         welcome: '方言是我们能听见的历史',
+        welcome_nam :'南昌方言：方言系我们听得到箇历史 \n [fòng iēn xỉ ngǒ lẹ̄n tiàng de̋k dāu go li̋k sǐ] ',
         noData: '暂无数据'
     },
     search: {
@@ -34,13 +35,13 @@ export default {
         noData: '暂无数据'
     },
     linguistic: {
-        ipa:{
+        ipa: {
             standard: '标准国际音标',
             chinese: '汉语语言学通用符号',
         },
 
         tone: {
-            hint:"自定义音调样式",
+            hint: "自定义音调样式",
             five_degree:
                 {
                     number: "五度标记法：数字",
@@ -48,5 +49,10 @@ export default {
                 },
             four_corners: "四角符号"
         }
-    }
+    },
+    about:
+        {
+            developer_mode: "开发者模式",
+            github_project: "Github 项目"
+        }
 }

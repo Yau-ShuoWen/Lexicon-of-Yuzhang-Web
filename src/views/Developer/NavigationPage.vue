@@ -40,7 +40,7 @@ import JumpButton from "../../components/Button/JumpButton.vue";
       <section>
         <h4>方言資料</h4>
         <div class="d-flex flex-wrap gap-3">
-          <JumpButton to="/reference" button-text="編輯資料" size="middle"/>
+          <JumpButton to="/refer" button-text="編輯資料" size="middle"/>
         </div>
       </section>
 

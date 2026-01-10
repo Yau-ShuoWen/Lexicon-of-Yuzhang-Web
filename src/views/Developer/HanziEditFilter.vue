@@ -40,14 +40,20 @@ watch(searchText, (newValue) => {
   }
 })
 
+const getLangPath = (path) => {
+  const lang = router.currentRoute.value.params.lang || 'sc'
+  if (path.startsWith('/sc/') || path.startsWith('/tc/')) return path
+  return `/${lang}${path}`
+}
+
 const selectItem = (item) => {
-  const route = router.resolve(`/edit/${item.id}`)
-  window.open(route.href, '_blank')
+  const path = getLangPath(`/edit/${item.id}`)
+  window.open(path, '_blank')
 }
 
 const createNew = () => {
-  const route = router.resolve(`/edit/new`)
-  window.open(route.href, '_blank')
+  const path = getLangPath(`/edit/new`)
+  window.open(path, '_blank')
 }
 
 // 格式化汉字显示

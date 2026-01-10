@@ -15,7 +15,6 @@
               />
 
               <div class="input-right-buttons">
-                <LanguageSwitcher class="language-switcher" />
                 <button
                     @click="toggleSettings"
                     class="btn btn-settings"
@@ -85,10 +84,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import LanguageSwitcher from "./Button/LanguageSwitcher.vue";
 
 // 缓存键名常量
 const STORAGE_KEYS = {
@@ -97,6 +95,7 @@ const STORAGE_KEYS = {
 };
 
 const router = useRouter()
+const route = useRoute()
 const { locale } = useI18n()
 
 const hanziInput = ref('')
@@ -107,6 +106,11 @@ const tone = ref(0)
 const loading = ref(false)
 const error = ref('')
 const showSettings = ref(false)
+
+const currentLang = computed(() => {
+  return route.params.lang === 'tc' ? 'tc' : 'sc'
+})
+
 
 const saveConfig = () => {
   try {
@@ -204,7 +208,7 @@ const handleSearch = () => {
   saveSearchHistory(query);
 
   router.push({
-    path: '/search',
+    path: `/${currentLang.value}/search`,
     query: {
       q: query
     }

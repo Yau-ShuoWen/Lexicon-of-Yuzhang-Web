@@ -1,4 +1,7 @@
 <script setup>
+import {useRoute} from 'vue-router'
+
+const route = useRoute()
 </script>
 
 <template>
@@ -6,7 +9,9 @@
     <div class="card-body">
       <div class="auth-links btn btn-ghost">
         <img src="../assets/icons/developer.svg" alt="code" class="icon">
-        <router-link to="/developer-home" class="link">开发者模式</router-link>
+        <router-link :to="{name: 'DeveloperHomeWithLang',params: { lang: route.params.lang }  }" class="link">
+          {{ $t('about.developer_mode') }}
+        </router-link>
       </div>
     </div>
   </div>
@@ -15,7 +20,7 @@
     <div class="card-body">
       <a href="https://github.com/Yau-ShuoWen" target="_blank" class="btn btn-ghost">
         <img src="../assets/icons/github.svg" alt="GitHub" class="icon">
-        GitHub 项目
+        {{ $t('about.github_project') }}
       </a>
     </div>
   </div>

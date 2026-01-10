@@ -22,13 +22,10 @@ const currentStatus = computed(() => {
   return null
 })
 
-// 从路由状态获取语言
-const getLang = () => {
-  if (route.state && route.state.lang) {
-    return route.state.lang
-  }
-  return localStorage.getItem('user-locale') || 'sc'
-}
+const currentLang = computed(() => {
+  return route.params.lang || 'sc'
+})
+
 
 // 获取搜索配置
 const getSearchConfig = () => {
@@ -64,14 +61,13 @@ const loadHanzi = async (query) => {
 
   try {
     const config = getSearchConfig()
-    const currentLang = getLang()
 
     const params = new URLSearchParams({
       hanzi: query.trim(),
-      lang: currentLang,
-      phonogram: config.phonogram,
-      toneStyle: config.toneStyle,
-      syllableStyle: config.syllableStyle
+      lang: currentLang.value,
+      phonogram: config.phonogram || 1,
+      toneStyle: config.toneStyle || 1,
+      syllableStyle: config.syllableStyle || 1
     })
 
     const response = await fetch(`/api/search/nam/by-hanzi?${params}`, {
@@ -131,30 +127,6 @@ const handleRetry = () => {
   }
 }
 
-// 监听语言变化
-const handleLanguageChange = () => {
-  if (hanzi.value.trim()) {
-    loadHanzi(hanzi.value)
-  }
-}
-
-// 设置语言变化监听器
-const setupLanguageListener = () => {
-  window.addEventListener('languageChanged', handleLanguageChange)
-}
-
-// 移除语言变化监听器
-const removeLanguageListener = () => {
-  window.removeEventListener('languageChanged', handleLanguageChange)
-}
-
-watch(() => route.query.q, (newQuery) => {
-  if (newQuery) {
-    hanzi.value = newQuery
-    loadHanzi(newQuery)
-  }
-})
-
 // 使用方法
 const formatSpecial = (specialArray) => {
   if (!specialArray || specialArray.length === 0) {
@@ -187,12 +159,10 @@ watch(() => route.params.hanzi, (newHanzi) => {
 })
 
 onMounted(() => {
-  // 从路由参数获取汉字
-  if (route.params.hanzi) {
+  if (route.params.hanzi) {  // 从路由参数获取汉字
     hanzi.value = route.params.hanzi
     loadHanzi(route.params.hanzi)
   }
-  setupLanguageListener()
 })
 </script>
 
@@ -200,7 +170,7 @@ onMounted(() => {
   <div class="hanzi-detail-page page-container">
     <div class="detail-container container">
       <BackButton target-route="/search" :target-query="{ q: hanzi }" button-text="← 返回搜索结果"/>
-<!--      <BackButton target-route="/"  button-text="← 返回首页"/>-->
+      <!--      <BackButton target-route="/"  button-text="← 返回首页"/>-->
 
       <!-- 状态显示组件 -->
       <StatusDisplay

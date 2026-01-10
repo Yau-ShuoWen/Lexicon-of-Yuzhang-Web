@@ -238,6 +238,12 @@ const saveData = async () => {
   }
 }
 
+const getLangPath = (path) => {
+  const lang = router.currentRoute.value.params.lang || 'sc'
+  if (path.startsWith('/sc/') || path.startsWith('/tc/')) return path
+  return `/${lang}${path}`
+}
+
 // 数组操作方法
 const addArrayItem = (array, template = {}) => {
   array.push({...template})
@@ -336,7 +342,7 @@ onMounted(() => {
             v-if="!isNew"
             :disabled="!previousId"
             class="dev-nav-button"
-            @click="router.push(`/edit/${previousId}`)"
+            @click="router.push(getLangPath(`/edit/${previousId}`))"
         >{{ previousId ? '上一条' : '第一条'}}
         </button>
 
@@ -344,7 +350,7 @@ onMounted(() => {
             v-if="!isNew"
             :disabled="!nextId"
             class="dev-nav-button"
-            @click="router.push(`/edit/${nextId}`)"
+            @click="router.push(getLangPath(`/edit/${nextId}`))"
         >{{ nextId ? '下一条' : '最后一条'}}
         </button>
 

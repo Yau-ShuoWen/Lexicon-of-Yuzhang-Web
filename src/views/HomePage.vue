@@ -1,7 +1,8 @@
 <template>
   <div class="page-container">
 
-    <p class="page-subtitle">{{$t('message.welcome')}}</p>
+    <p class="page-subtitle" v-formatted-text="$t('message.welcome')"/>
+    <p class="page-subtitle" v-formatted-text="$t('message.welcome_nam')"/>
     <SearchInput/>
 
   </div>
@@ -10,10 +11,10 @@
 <script>
 import {defineComponent} from "vue";
 import SearchInput from "../components/SearchInput.vue";
-import LanguageSwitcher from "../components/Button/LanguageSwitcher.vue";
+import LanguageChanger from "../components/Button/LanguageChanger.vue";
 
 export default defineComponent({
-  components: {LanguageSwitcher, SearchInput}
+  components: {LanguageChanger, SearchInput}
 })
 </script>
 

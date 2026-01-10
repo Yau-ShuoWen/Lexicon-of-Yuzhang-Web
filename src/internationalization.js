@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n'
+import {createI18n} from 'vue-i18n'
 import zhCN from './locales/sc.js'
 import zhTW from './locales/tc.js'
 

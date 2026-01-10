@@ -1,19 +1,28 @@
 <script setup>
-import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import BackButton from "./Button/BackButton.vue";
-import StatusDisplay from "./Status/StatusDisplay.vue";
+import {ref, computed, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import BackButton from './Button/BackButton.vue'
+import StatusDisplay from './Status/StatusDisplay.vue'
+import JumpButton from "./Button/JumpButton.vue";
 
 const route = useRoute()
 const router = useRouter()
 
+/** 状态 */
 const searchQuery = ref('')
-const results = ref([])  // 现在存储 SearchResult 列表
+const results = ref([])
 const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
 
-// 计算当前状态类型
+/** 来自url的语言 */
+const currentLang = computed(() => {
+  return route.params.lang || 'sc'
+})
+
+/**
+ * 当前页面状态
+ */
 const currentStatus = computed(() => {
   if (loading.value) return 'loading'
   if (error.value) return 'error'
@@ -22,28 +31,25 @@ const currentStatus = computed(() => {
   return null
 })
 
-// 获取当前语言
-const getCurrentLanguage = () => {
-  return localStorage.getItem('user-locale') || 'sc'
-}
-
-// 获取搜索配置
+/**
+ * 搜索配置（仍使用 localStorage）
+ */
 const getSearchConfig = () => {
   try {
-    const cachedConfig = localStorage.getItem('search_page_config')
-    if (cachedConfig) {
-      return JSON.parse(cachedConfig)
-    }
-  } catch (err) {
-    console.error('获取搜索配置失败:', err)
+    const cached = localStorage.getItem('search_page_config')
+    if (cached) return JSON.parse(cached)
+  } catch (e) {
+    console.error('读取搜索配置失败:', e)
   }
 
-  // 默认配置
   return {
     vague: false
   }
 }
 
+/**
+ * 执行搜索
+ */
 const searchAll = async (query) => {
   if (!query.trim()) return
 
@@ -54,120 +60,75 @@ const searchAll = async (query) => {
 
   try {
     const config = getSearchConfig()
-    const currentLang = getCurrentLanguage()
 
-    // 构建查询参数 - 使用 GET 请求
     const params = new URLSearchParams({
       query: query.trim(),
-      lang: currentLang,
+      lang: currentLang.value,
       vague: config.vague
     })
 
-    const response = await fetch(`/api/search/nam/search-query?${params}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
+    const res = await fetch(`/api/search/nam/search-query?${params}`)
+    if (!res.ok) throw new Error('查询失败，请稍后重试')
 
-    if (!response.ok) {
-      throw new Error('查询失败，请稍后重试')
-    }
-
-    const data = await response.json()
-    results.value = data
+    results.value = await res.json()
   } catch (err) {
     console.error('查询失败:', err)
-    error.value = err.message || '查询失败，请检查网络连接'
+    error.value = err.message || '查询失败，请检查网络'
   } finally {
     loading.value = false
   }
 }
 
-// 处理结果项点击
-const handleResultClick = (result) => {
-  if (!result.tag || !result.info) {
-    console.error('结果项缺少必要信息:', result)
-    return
-  }
-
-  // 根据 tag 动态跳转
-  if (result.tag === 'hanzi') {
-    const hanzi = result.info.hanzi
-    const lang = result.info.lang
-
-    router.push({
-      path: `/h/${encodeURIComponent(hanzi)}`,
-      state: {
-        lang: lang,
-        searchResult: result
+/**
+ * 路由变化驱动搜索
+ */
+watch(
+    () => [route.query.q, route.params.lang],
+    ([newQuery]) => {
+      if (newQuery) {
+        searchQuery.value = newQuery
+        searchAll(newQuery)
       }
-    })
-  }
+    },
+    {immediate: true}
+)
 
-  if (result.tag === 'ciyu') {
-    const ciyu = result.info.ciyu
-    const lang = result.info.lang
-
-    router.push({
-      path: `/c/${encodeURIComponent(ciyu)}`,
-      state: {
-        lang: lang,
-        searchResult: result
-      }
-    })
-  }
-
-}
-
-// 重试搜索
+/**
+ * 重试
+ */
 const handleRetry = () => {
   if (searchQuery.value.trim()) {
     searchAll(searchQuery.value)
   }
 }
 
-// 监听语言变化
-const handleLanguageChange = () => {
-  if (searchQuery.value.trim()) {
-    searchAll(searchQuery.value)
+/**
+ * 点击结果跳转
+ * （语言顺着 URL 走）
+ */
+const handleResultClick = (result) => {
+  if (!result?.tag || !result?.info) {
+    console.error('搜索结果结构异常:', result)
+    return
   }
-}
 
-// 设置语言变化监听器
-const setupLanguageListener = () => {
-  window.addEventListener('languageChanged', handleLanguageChange)
-}
+  const lang = currentLang.value
 
-// 移除语言变化监听器
-const removeLanguageListener = () => {
-  window.removeEventListener('languageChanged', handleLanguageChange)
-}
-
-watch(() => route.query.q, (newQuery) => {
-  if (newQuery) {
-    searchQuery.value = newQuery
-    searchAll(newQuery)
+  if (result.tag === 'hanzi') {
+    router.push(`/${lang}/h/${encodeURIComponent(result.info.hanzi)}`)
   }
-})
 
-onMounted(() => {
-  if (route.query.q) {
-    searchQuery.value = route.query.q
-    searchAll(route.query.q)
+  if (result.tag === 'ciyu') {
+    router.push(`/${lang}/c/${encodeURIComponent(result.info.ciyu)}`)
   }
-  setupLanguageListener()
-})
 
-onUnmounted(() => {
-  removeLanguageListener()
-})
+}
 </script>
 
 <template>
   <div class="search-results-page">
     <div class="results-container">
-      <BackButton target-route="/" button-text="← 返回首页" />
+      <JumpButton to="/home" button-text="← 返回首页"/>
 
       <!-- 状态显示组件 -->
       <StatusDisplay

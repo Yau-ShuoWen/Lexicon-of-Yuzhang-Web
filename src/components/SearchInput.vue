@@ -21,14 +21,10 @@
                     :class="{ active: showSettings }"
                     type="button"
                 >
-                  <img src="../assets/icons/set.svg" alt="设置" class="settings-icon" />
+                  <img src="../assets/icons/set.svg" alt="设置" class="settings-icon"/>
                 </button>
               </div>
             </div>
-
-            <button @click="handleSearch" :disabled="loading" class="btn btn-primary btn-lg btn-search">
-              {{ loading ? '查询中...' : '查询' }}
-            </button>
           </div>
 
           <div v-if="showSettings" class="search-params">
@@ -42,27 +38,27 @@
             </div>
 
             <div class="form-group">
-              <label>读音标注方法</label>
+              <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
               <select v-model="phonogram" @change="saveConfig" class="form-control">
-                <option :value="1">拼音</option>
-                <option :value="2">国际音标</option>
+                <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
+                <option :value="2" v-formatted-text="$t('linguistic.ipa.self')   "/>
               </select>
             </div>
 
             <div v-if="phonogram!==1" class="form-group">
-              <label>自定义拼音样式</label>
+              <label>{{ $t('linguistic.hint.ipa_style') }}</label>
               <select v-model="syllable" @change="saveConfig" class="form-control">
-                <option :value="1">{{ $t('linguistic.ipa.chinese') }}</option>
-                <option :value="2">{{ $t('linguistic.ipa.standard') }}</option>
+                <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese') "/>
+                <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
               </select>
             </div>
 
             <div v-if="phonogram!==1" class="form-group">
-              <label>{{ $t('linguistic.tone.hint') }}</label>
+              <label>{{ $t('linguistic.hint.tone_style') }}</label>
               <select v-model="tone" @change="saveConfig" class="form-control">
-                <option :value="1">{{ $t('linguistic.tone.five_degree.number') }}</option>
-                <option :value="2">{{ $t('linguistic.tone.five_degree.symbol') }}</option>
-                <option :value="3">{{ $t('linguistic.tone.four_corners') }}</option>
+                <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
+                <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
+                <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')      "/>
               </select>
             </div>
           </div>
@@ -84,9 +80,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import {ref, onMounted, watch, computed} from 'vue'
+import {useRouter, useRoute} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 
 // 缓存键名常量
 const STORAGE_KEYS = {
@@ -96,7 +92,7 @@ const STORAGE_KEYS = {
 
 const router = useRouter()
 const route = useRoute()
-const { locale } = useI18n()
+const {locale} = useI18n()
 
 const hanziInput = ref('')
 const phonogram = ref(1)
@@ -107,8 +103,12 @@ const loading = ref(false)
 const error = ref('')
 const showSettings = ref(false)
 
-const currentLang = computed(() => {
-  return route.params.lang === 'tc' ? 'tc' : 'sc'
+const language = computed(() => {
+  return route.params.language
+})
+
+const dialect =computed(() => {
+  return route.params.dialect
 })
 
 
@@ -208,7 +208,7 @@ const handleSearch = () => {
   saveSearchHistory(query);
 
   router.push({
-    path: `/${currentLang.value}/search`,
+    path: `/${language.value}/${dialect.value}/search`,
     query: {
       q: query
     }
@@ -248,6 +248,7 @@ watch([phonogram, vague, syllable, tone], () => {
   display: flex;
   gap: var(--spacing-md);
   align-items: flex-start;
+  min-width: 100px;
 }
 
 .search-input-group {

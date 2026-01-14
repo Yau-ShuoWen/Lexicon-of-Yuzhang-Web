@@ -26,8 +26,6 @@
 <script setup>
 import {ref} from 'vue'
 import {formatRichText} from "../utils/textFormatter.js"
-import AutoProofreadText from "../components/Text/AutoProofreadText.vue";
-import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
 import JumpButton from "../components/Button/JumpButton.vue";
 
 const message = ref('')

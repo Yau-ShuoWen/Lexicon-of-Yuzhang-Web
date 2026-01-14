@@ -9,12 +9,12 @@
         :maxlength="maxLength"
         @input="onInput"
         @blur="onBlur"
+        @keydown.enter.prevent="onEnter"
     />
 
     <!-- 状态消息（使用 v-html 显示格式化拼音） -->
     <div v-if="statusMessage"
-         class="status-message"
-         :class="statusType"
+         class="status-message" :class="statusType"
          v-html="formattedStatusMessage">
     </div>
 
@@ -34,25 +34,18 @@
 
 <script setup>
 import {ref, computed, watch, onMounted} from 'vue'
-import {formatRichText} from '../../utils/textFormatter.js' // 假设 textFormatter.js 在同级目录
+import {formatRichText} from '../../utils/textFormatter.js'
 
-// 定义组件属性 - 使用 v-model 绑定
+
 const props = defineProps({
-  // 双向绑定的拼音文本
-  modelValue: {
-    type: String,
-    default: ''
-  },
-  // 输入框占位符
-  placeholder: {
-    type: String,
-    default: '输入拼音'
-  },
-  // 最大长度
-  maxLength: {
-    type: Number,
-    default: 50
-  }
+  // 1. 双向绑定的拼音文本
+  // 2. 输入框占位符
+  // 3. 最大文本长度
+  // 4. 方言代号
+  modelValue: {type: String, default: ''},
+  placeholder: {type: String, default: '输入拼音'},
+  maxLength: {type: Number, default: 50},
+  dialect: {type: String, default: 'nam'}
 })
 
 // 定义事件
@@ -81,9 +74,6 @@ const correctionData = ref({
   rightValue: ''
 })
 
-// 防抖相关
-let debounceTimer = null
-const DEBOUNCE_DELAY = 500
 
 // 计算格式化后的状态消息
 const formattedStatusMessage = computed(() => {
@@ -100,23 +90,14 @@ const formattedStatusMessage = computed(() => {
 
 // 监听父组件传入的值变化
 watch(() => props.modelValue, (newVal) => {
-  if (newVal !== modelValue.value) {
-    modelValue.value = newVal
-    // 有新值时触发验证
-    if (newVal.trim()) {
-      scheduleCheck()
-    } else {
-      resetStatus()
-    }
-  }
+  if (newVal !== modelValue.value) modelValue.value = newVal
 })
 
 // 组件挂载时，如果有初始值就验证
 onMounted(() => {
-  if (modelValue.value.trim()) {
-    scheduleCheck()
-  }
+  if (modelValue.value.trim()) checkPinyin()
 })
+
 
 // 输入事件处理
 function onInput(event) {
@@ -124,35 +105,21 @@ function onInput(event) {
   modelValue.value = value
   emit('update:modelValue', value)
   emit('input', value)
-
-  // 触发防抖验证
-  scheduleCheck()
 }
 
-// 失去焦点事件
 function onBlur() {
   emit('blur', modelValue.value)
+
+  if (modelValue.value.trim()) checkPinyin()
+  else resetStatus()
 }
 
-// 防抖调度
-function scheduleCheck() {
-  // 清除之前的计时器
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
-  }
 
-  // 清空内容时不验证
-  if (!modelValue.value.trim()) {
-    resetStatus()
-    return
-  }
-
-  // 设置新的计时器
-  debounceTimer = setTimeout(() => {
-    checkPinyin()
-  }, DEBOUNCE_DELAY)
+function onEnter() {
+  if (modelValue.value.trim()) checkPinyin()
+  else resetStatus()
 }
+
 
 // 验证拼音
 async function checkPinyin() {
@@ -164,7 +131,7 @@ async function checkPinyin() {
 
   isChecking.value = true
   try {
-    const response = await fetch(`/api/pinyin/nam/normalize?pinyin=${encodeURIComponent(pinyin)}`)
+    const response = await fetch(`/api/pinyin/${props.dialect}/normalize?pinyin=${encodeURIComponent(pinyin)}`)
     if (!response.ok) {
       // 网络错误：不视为空内容，保持原样
       console.error('拼音验证请求失败:', response.status)
@@ -233,23 +200,20 @@ function handleCheckResult(triple) {
   }
 }
 
-// 应用校正
 function applyCorrection() {
-  if (!correctionData.value.rightValue || isCorrecting.value) {
-    return
-  }
+  if (!correctionData.value.rightValue || isCorrecting.value) return
+
+  const originalValue = modelValue.value
 
   isCorrecting.value = true
   try {
-    // 将校正值写入文本框
     modelValue.value = correctionData.value.rightValue
     emit('update:modelValue', correctionData.value.rightValue)
     emit('corrected', {
-      original: modelValue.value,
+      original: originalValue,
       corrected: correctionData.value.rightValue
     })
 
-    // 触发重新验证（立即执行，不清除防抖）
     setTimeout(() => {
       checkPinyin()
     }, 100)
@@ -264,12 +228,6 @@ function clearAll() {
   emit('update:modelValue', '')
   emit('clear')
   resetStatus()
-
-  // 清除防抖计时器
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
-  }
 }
 
 // 重置状态

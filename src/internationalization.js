@@ -3,7 +3,7 @@ import zhCN from './locales/sc.js'
 import zhTW from './locales/tc.js'
 
 // 获取保存的语言设置或默认简体中文
-const savedLocale = localStorage.getItem('user-locale') || 'sc'
+const savedLocale = localStorage.getItem('user-language') || 'sc'
 
 const i18n = createI18n({
     legacy: false, // 使用 Composition API 模式

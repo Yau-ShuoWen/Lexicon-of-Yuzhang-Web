@@ -14,8 +14,8 @@ export default {
     },
     nav: {
         home: '首页',
-        about: '关于',
         pinyin: "拼音",
+        about: '关于',
         contact: '联系',
         settings: '设置'
     },
@@ -35,13 +35,27 @@ export default {
         noData: '暂无数据'
     },
     linguistic: {
+        hint:{
+            how_to_mark:'读音标注方法',
+            ipa_style:'自定义国际音标样式',
+            tone_style:'自定义音调样式'
+        },
+
+        han_pinyin: {
+            self:"汉语拼音"
+        },
+
+        pinyin: {
+            self: '方言拼音'
+        },
+
         ipa: {
+            self: '国际音标',
             standard: '标准国际音标',
             chinese: '汉语语言学通用符号',
         },
 
         tone: {
-            hint: "自定义音调样式",
             five_degree:
                 {
                     number: "五度标记法：数字",

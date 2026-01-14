@@ -1,17 +1,25 @@
 <!-- HanziEditFilter.vue -->
 
 <script setup>
-import {ref, watch} from 'vue'
-import {useRouter} from 'vue-router'
+import {computed, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 
+// 路由
 const router = useRouter()
+const route = useRoute()
+
+// 语言、方言和路径
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
+const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 
 // 响应式数据
 const searchText = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+
 
 // 方法：执行搜索
 const performSearch = async () => {
@@ -21,7 +29,7 @@ const performSearch = async () => {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`/api/edit/nam/by-hanzi?hanzi=${encodeURIComponent(searchText.value)}`)
+    const response = await fetch(`/api/edit/${dialect.value}/by-hanzi?hanzi=${encodeURIComponent(searchText.value)}`)
     if (!response.ok) throw new Error('网络请求失败')
 
     searchResults.value = await response.json()
@@ -40,45 +48,20 @@ watch(searchText, (newValue) => {
   }
 })
 
-const getLangPath = (path) => {
-  const lang = router.currentRoute.value.params.lang || 'sc'
-  if (path.startsWith('/sc/') || path.startsWith('/tc/')) return path
-  return `/${lang}${path}`
-}
-
-const selectItem = (item) => {
-  const path = getLangPath(`/edit/${item.id}`)
-  window.open(path, '_blank')
-}
-
-const createNew = () => {
-  const path = getLangPath(`/edit/new`)
-  window.open(path, '_blank')
-}
-
-// 格式化汉字显示
-const formatHanzi = (item) => {
-  if (item.hantz === item.hanzi) return item.hanzi
-  return `${item.hanzi} / ${item.hantz}`
-}
 </script>
 
 <template>
   <div class="narrow-layout">
     <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
-    <h4>回车和「搜索」都可以刷新结果</h4>
+    <h4>按下回车键搜索</h4>
     <div class="search-section">
       <input
           v-model="searchText"
           type="text"
           placeholder="输入简体或繁体汉字进行搜索"
           @keyup.enter="performSearch"
-          @input="performSearch"
       />
-      <button class="dev-btn-small dev-nav-button" @click="performSearch" :disabled="isLoading">
-        {{ isLoading ? '搜索中...' : '搜索' }}
-      </button>
-      <button class="dev-btn-small dev-add-btn" @click="createNew">新增汉字</button>
+      <button class="dev-btn-small dev-add-btn" @click="router.push(getPath(`edit/new`))">新增汉字</button>
     </div>
 
     <div v-if="errorMessage" class="error-message">
@@ -90,15 +73,13 @@ const formatHanzi = (item) => {
       <div class="results-list">
         <div
             v-for="item in searchResults"
-            :key="item.id"
+            :key="item.tag"
             class="result-item"
-            @click="selectItem(item)"
+            @click="router.push(getPath(`edit/${item.tag}`))"
         >
-          <div class="hanzi-display">
-            {{ formatHanzi(item) }}
-          </div>
-          <div class="pinyin">{{ item.stdPy }}</div>
-          <div class="id">序号: {{ item.id }}</div>
+          <div class="hanzi-display">{{ item.title }}</div>
+          <div class="pinyin">{{ item.explain }}</div>
+          <div class="tag">序号: {{ item.tag }}</div>
         </div>
       </div>
     </div>
@@ -168,7 +149,7 @@ const formatHanzi = (item) => {
   color: #2196f3;
 }
 
-.id {
+.tag {
   color: #999;
   font-size: 14px;
 }

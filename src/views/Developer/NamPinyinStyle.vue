@@ -1,7 +1,7 @@
 <script setup>
 import {ref, reactive, onMounted} from 'vue';
-import {formatRichText} from "../utils/textFormatter.js";
-import JumpButton from "../components/Button/JumpButton.vue";
+import {formatRichText} from "../../utils/textFormatter.js";
+import JumpButton from "../../components/Button/JumpButton.vue";
 
 // 缓存键名常量
 const STORAGE_KEYS = {

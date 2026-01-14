@@ -27,7 +27,7 @@ export default {
     },
     message: {
         welcome: '方言是我們能聽見的歷史',
-        welcome_nam :'南昌方言：方言係我們聽得到箇歷史 \n [fòng iēn xỉ ngǒ lẹ̄n tiàng de̋k dāu go li̋k sǐ] ',
+        welcome_nam: '南昌方言：方言係我們聽得到箇歷史 \n [fòng iēn xỉ ngǒ lẹ̄n tiàng de̋k dāu go li̋k sǐ] ',
         noData: '暫無數據'
     },
     search: {
@@ -35,13 +35,27 @@ export default {
         pronunciation_choose: '讀音標註'
     },
     linguistic: {
+        hint: {
+            how_to_mark:'讀音標註方法',
+            ipa_style: '自定義國際音標樣式',
+            tone_style: '自定義音調樣式'
+        },
+
+        han_pinyin: {
+            self:"漢語拼音"
+        },
+
+        pinyin: {
+            self: '方言拼音'
+        },
+
         ipa: {
+            self: '國際音標',
             standard: '標準國際音標',
             chinese: '漢語語言學通用符號',
         },
 
         tone: {
-            hint: "自定義音調樣式",
             five_degree:
                 {
                     number: "五度標記法：數字",
@@ -52,7 +66,7 @@ export default {
     },
     about:
         {
-            developer_mode :"開發者模式",
-            github_project:"Github 專案"
+            developer_mode: "開發者模式",
+            github_project: "Github 專案"
         }
 }

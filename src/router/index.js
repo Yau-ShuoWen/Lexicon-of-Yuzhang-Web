@@ -1,23 +1,21 @@
 import {createRouter, createWebHistory} from 'vue-router'
 
+const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
+const VALID_DIALECTS = ['nam']       // 一门方言：南昌话
+
+const DEFAULT_LANGUAGE = 'sc'
+const DEFAULT_DIALECT = 'nam'
+
 const routes = [
-
-    // 重定向
     {
-        path: '/:lang/pinyin',
-        redirect: to => {
-            const {lang} = to.params
-            if (lang !== 'sc' && lang !== 'tc') return '/sc/pinyin'
-            return false
-        }
-    },
-
-
-    // 主要路由
-    {
-        path: '/:lang(sc|tc)',
-        component: () => import('../layouts/LangLayout.vue'),
+        path: '/:language(sc|tc)/:dialect(nam)',
+        component: () => import('../layouts/LayoutWithLD.vue'),
         children: [
+            {
+                path: 'home',
+                name: 'Home',
+                component: () => import('../views/HomePage.vue')
+            },
             {
                 path: 'pinyin',
                 name: 'PinyinTableWithLang',
@@ -25,23 +23,58 @@ const routes = [
             },
             {
                 path: 'about',
-                name: 'AboutWithLang',
+                name: 'AboutWithLangDialect',
                 component: () => import('../views/AboutPage.vue')
             },
+
+            // 开发者模式
             {
                 path: 'developer-home',
                 name: 'DeveloperHomeWithLang',
                 component: () => import('../views/Developer/NavigationPage.vue')
             },
+
+            // 测试
+            {
+                path: 'test',
+                name: 'Test',
+                component: () => import('../views/HelloWorld.vue')
+            },
+            {
+                path: 'test/sc-tc',
+                name: 'TestSimplifiedAndTraditional',
+                component: () => import('../views/Test/TestScTc.vue')
+            },
+            {
+                path: 'test/pinyin-ipa',
+                name: 'TestPinyinAndIPA',
+                component: () => import('../views/Test/TestPinyinIPA.vue')
+            },
+
+            // 编辑
+
+            {
+                path: 'filter',
+                name: 'Filter',
+                component: () => import('../views/Developer/HanziEditFilter.vue')
+            },
+            {
+                path: 'edit/:id?',
+                name: 'Edit',
+                component: () => import('../views/Developer/HanziEditor.vue'),
+                props: true
+            },
+            {
+                path: 'refer',
+                name: 'Refer',
+                component: () => import('../views/Developer/EditReferencePage.vue')
+            },
+
+            // 查询
             {
                 path: 'search',
                 name: 'SearchWithLang',
                 component: () => import('../components/SearchResult.vue')
-            },
-            {
-                path: 'home',
-                name: 'Home',
-                component: () => import('../views/HomePage.vue')
             },
             {
                 path: 'h/:hanzi',
@@ -55,37 +88,9 @@ const routes = [
                 component: () => import('../components/CiyuDetail.vue'),
                 props: true
             },
-            {
-                path: 'test',
-                name: 'Test',
-                component: () => import('../views/HelloWorld.vue')
-            },
-            {
-                path: 'style',
-                name: 'PinyinStyle',
-                component: () => import('../views/PinyinStyle.vue')
-            },
-            {
-                path: 'edit/:id?',
-                name: 'Edit',
-                component: () => import('../views/Developer/HanziEditor.vue'),
-                props: true
-            },
-            {
-                path: 'filter',
-                name: 'Filter',
-                component: () => import('../views/Developer/HanziEditFilter.vue')
-            },
-            {
-                path: 'test/sc-tc',
-                name: 'TestSimplifiedAndTraditional',
-                component: () => import('../views/Test/TestScTc.vue')
-            },
-            {
-                path: 'test/pinyin-ipa',
-                name: 'TestPinyinAndIPA',
-                component: () => import('../views/Test/TestPinyinIPA.vue')
-            },
+
+            // 登陆
+
             {
                 path: 'login',
                 name: 'Login',
@@ -101,90 +106,61 @@ const routes = [
                 name: 'Profile',
                 component: () => import('../views/Developer/UserProfile.vue')
             },
+
+        ]
+    },
+
+    // 特殊路由，未来会根据方言的不同完全更换界面
+    {
+        path: '/:language(sc|tc)/nam',
+        component: () => import('../layouts/LayoutWithLD.vue'),
+        children: [
             {
-                path: 'refer',
-                name: 'Refer',
-                component: () => import('../views/Developer/EditReferencePage.vue')
+                path: 'style',
+                name: 'PinyinStyle',
+                component: () => import('../views/Developer/NamPinyinStyle.vue')
             },
         ]
-
-
     },
 
-    // 默认跳转
-    {
-        path: '/pinyin',
-        redirect: '/sc/pinyin'
-    },
-    {
-        path: '/about',
-        redirect: '/sc/about'
-    },
-    {
-        path: '/developer-home',
-        redirect: '/sc/developer-home'
-    },
-    {
-        path: '/search',
-        redirect: '/sc/search'
-    },
     {
         path: '/',
-        redirect: '/sc/home'
+        name: 'Root'
     },
+
     {
-        path: '/h/:hanzi',
-        redirect: to => `/sc/h/${encodeURIComponent(to.params.hanzi)}`
-    },
-    {
-        path: '/c/:ciyu',
-        redirect: to => `/sc/c/${encodeURIComponent(to.params.ciyu)}`
-    },
-    {
-        path: '/test',
-        redirect: '/sc/test'
-    },
-    {
-        path: '/style',
-        redirect: '/sc/style'
-    },
-    {
-        path: '/edit/:id?',
-        redirect: '/sc/edit/:id?',
-    },
-    {
-        path: '/filter',
-        redirect: '/sc/filter'
-    },
-    {
-        path: '/test/sc-tc',
-        redirect: '/sc/test-tc'
-    },
-    {
-        path: '/test/pinyin-ipa',
-        redirect: '/sc/test/pinyin-ipa'
-    },
-    {
-        path: '/login',
-        redirect: '/sc/login'
-    },
-    {
-        path: '/register',
-        redirect: '/sc/register'
-    },
-    {
-        path: '/profile',
-        redirect: '/sc/profile'
-    },
-    {
-        path: '/refer',
-        redirect: '/sc/refer'
+        path: '/:pathMatch(.*)*',
+        redirect: '/'
     }
+
 ]
 
 const router = createRouter({
     history: createWebHistory(),
     routes
+})
+
+router.beforeEach((to, from, next) => {
+    if (to.path === '/') {
+        let language = localStorage.getItem('user-language')
+        let dialect = localStorage.getItem('user-dialect')
+
+        // language 校验
+        if (!VALID_LANGUAGES.includes(language)) {
+            language = DEFAULT_LANGUAGE
+            localStorage.setItem('user-language', language)
+        }
+
+        // dialect 校验
+        if (!VALID_DIALECTS.includes(dialect)) {
+            dialect = DEFAULT_DIALECT
+            localStorage.setItem('user-dialect', dialect)
+        }
+
+        return next(`/${language}/${dialect}/home`)
+    }
+
+    next()
 })
 
 export default router

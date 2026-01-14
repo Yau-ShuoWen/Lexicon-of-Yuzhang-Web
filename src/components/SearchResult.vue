@@ -1,7 +1,6 @@
 <script setup>
 import {ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import BackButton from './Button/BackButton.vue'
 import StatusDisplay from './Status/StatusDisplay.vue'
 import JumpButton from "./Button/JumpButton.vue";
 
@@ -15,9 +14,13 @@ const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
 
-/** 来自url的语言 */
-const currentLang = computed(() => {
-  return route.params.lang || 'sc'
+
+const language = computed(() => {
+  return route.params.language || 'sc'
+})
+
+const dialect = computed(() => {
+  return route.params.dialect || 'nam'
 })
 
 /**
@@ -42,9 +45,7 @@ const getSearchConfig = () => {
     console.error('读取搜索配置失败:', e)
   }
 
-  return {
-    vague: false
-  }
+  return {vague: false}
 }
 
 /**
@@ -63,11 +64,11 @@ const searchAll = async (query) => {
 
     const params = new URLSearchParams({
       query: query.trim(),
-      lang: currentLang.value,
+      lang: language.value,
       vague: config.vague
     })
 
-    const res = await fetch(`/api/search/nam/search-query?${params}`)
+    const res = await fetch(`/api/search/${dialect.value}/search-query?${params}`)
     if (!res.ok) throw new Error('查询失败，请稍后重试')
 
     results.value = await res.json()
@@ -83,7 +84,7 @@ const searchAll = async (query) => {
  * 路由变化驱动搜索
  */
 watch(
-    () => [route.query.q, route.params.lang],
+    () => [route.query.q, route.params.language],
     ([newQuery]) => {
       if (newQuery) {
         searchQuery.value = newQuery
@@ -102,33 +103,21 @@ const handleRetry = () => {
   }
 }
 
-/**
- * 点击结果跳转
- * （语言顺着 URL 走）
- */
 const handleResultClick = (result) => {
   if (!result?.tag || !result?.info) {
     console.error('搜索结果结构异常:', result)
     return
   }
 
-  const lang = currentLang.value
-
-  if (result.tag === 'hanzi') {
-    router.push(`/${lang}/h/${encodeURIComponent(result.info.hanzi)}`)
-  }
-
-  if (result.tag === 'ciyu') {
-    router.push(`/${lang}/c/${encodeURIComponent(result.info.ciyu)}`)
-  }
-
+  if (result.tag === 'hanzi') router.push(`/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.hanzi)}`)
+  if (result.tag === 'ciyu') router.push(`/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.ciyu)}`)
 }
 </script>
 
 <template>
   <div class="search-results-page">
     <div class="results-container">
-      <JumpButton to="/home" button-text="← 返回首页"/>
+      <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
 
       <!-- 状态显示组件 -->
       <StatusDisplay

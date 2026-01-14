@@ -1,5 +1,7 @@
 <template>
-  <button @click="handleClick" class="dev-normal-button" :class="sizeClass">
+  <button @click="handleClick"
+          class="dev-normal-button"
+          :class="sizeClass">
     {{ buttonText }}
   </button>
 </template>
@@ -21,31 +23,42 @@ export default {
       default: 'small',
     }
   },
+
   computed: {
     sizeClass() {
       return `dev-btn-${this.size}`
     },
 
     /**
-     * 计算最终跳转路径
+     * 统一解析跳转目标
+     * 规则：默认继承 lang + dialect
      */
     resolvedTo() {
-      const currentLang = this.$route.params.lang || 'sc'
+      const {lang = 'sc', dialect = 'nam'} = this.$route.params
 
-      // 已经是 /sc/... 或 /tc/...，直接返回
-      if (this.to.startsWith('/sc/') || this.to.startsWith('/tc/')) {
+      // 1️⃣ 已经是完整新结构：/sc/nam/xxx
+      if (this.to.startsWith(`/${lang}/${dialect}/`)) {
         return this.to
       }
 
-      // 不是绝对路径（极少见，但保险）
-      if (!this.to.startsWith('/')) {
-        return `/${currentLang}/${this.to}`
+      // 2️⃣ 明确指定了 lang（但没指定 dialect）
+      if (
+          this.to.startsWith('/sc/') ||
+          this.to.startsWith('/tc/')
+      ) {
+        return this.to
       }
 
-      // 普通裸路径：/about → /sc/about
-      return `/${currentLang}${this.to}`
+      // 3️⃣ 相对路径（about / test / xxx）
+      if (!this.to.startsWith('/')) {
+        return `/${lang}/${dialect}/${this.to}`
+      }
+
+      // 4️⃣ 裸路径：/about → /sc/nam/about
+      return `/${lang}/${dialect}${this.to}`
     }
   },
+
   methods: {
     handleClick() {
       this.$router.push(this.resolvedTo)

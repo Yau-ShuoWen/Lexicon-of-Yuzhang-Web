@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
 import BackButton from "./Button/BackButton.vue";
 import StatusDisplay from "./Status/StatusDisplay.vue";
+import JumpButton from "./Button/JumpButton.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,7 @@ const loading = ref(false)
 const error = ref('')
 const selectedPinyin = ref('') // 当前选中的拼音按钮
 
+
 // 计算当前状态类型
 const currentStatus = computed(() => {
   if (loading.value) return 'loading'
@@ -22,8 +24,12 @@ const currentStatus = computed(() => {
   return null
 })
 
-const currentLang = computed(() => {
-  return route.params.lang || 'sc'
+const language = computed(() => {
+  return route.params.language || 'sc'
+})
+
+const dialect = computed(() => {
+  return route.params.dialect || 'nam'
 })
 
 
@@ -64,13 +70,13 @@ const loadHanzi = async (query) => {
 
     const params = new URLSearchParams({
       hanzi: query.trim(),
-      lang: currentLang.value,
+      lang: language.value,
       phonogram: config.phonogram || 1,
       toneStyle: config.toneStyle || 1,
       syllableStyle: config.syllableStyle || 1
     })
 
-    const response = await fetch(`/api/search/nam/by-hanzi?${params}`, {
+    const response = await fetch(`/api/search/${dialect.value}/by-hanzi?${params}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -169,8 +175,8 @@ onMounted(() => {
 <template>
   <div class="hanzi-detail-page page-container">
     <div class="detail-container container">
-      <BackButton target-route="/search" :target-query="{ q: hanzi }" button-text="← 返回搜索结果"/>
-      <!--      <BackButton target-route="/"  button-text="← 返回首页"/>-->
+      <BackButton button-text="← 返回搜索结果" size="middle"/>
+
 
       <!-- 状态显示组件 -->
       <StatusDisplay
@@ -201,7 +207,7 @@ onMounted(() => {
                   :class="{ active: selectedPinyin === pinyinKey }"
                   @click="selectPinyin(pinyinKey)"
               >
-                <span v-html="formatText(info.stdPy)"></span>
+                <span v-html="formatText(info.mainPy)"></span>
               </button>
             </div>
           </div>
@@ -218,7 +224,7 @@ onMounted(() => {
                   :class="{ active: selectedPinyin === pinyinKey }"
                   @click="selectPinyin(pinyinKey)"
               >
-                <span v-html="formatText(info.stdPy)"></span>
+                <span v-html="formatText(info.mainPy)"></span>
               </button>
             </div>
 
@@ -233,22 +239,22 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div v-if="currentInfo.mulPy && currentInfo.mulPy.length > 0"
+              <div v-if="currentInfo.variantPy && currentInfo.variantPy.length > 0"
                    class="info-row d-flex mb-4 pb-4 border-bottom">
                 <div class="info-label font-semibold">读音变体</div>
                 <div class="info-value">
-                  <div v-for="(pair, idx) in currentInfo.mulPy" :key="idx" class="variant-item d-flex mb-2">
+                  <div v-for="(pair, idx) in currentInfo.variantPy" :key="idx" class="variant-item d-flex mb-2">
                     <span class="variant-left font-medium">{{ pair.left }}：</span>
                     <span class="variant-right" v-html="formatText(pair.right)"></span>
                   </div>
                 </div>
               </div>
 
-              <div v-if="currentInfo.ipaExp && currentInfo.ipaExp.length > 0"
+              <div v-if="currentInfo.ipa && currentInfo.ipa.length > 0"
                    class="info-row d-flex mb-4 pb-4 border-bottom">
                 <div class="info-label font-semibold">参考资料</div>
                 <div class="info-value">
-                  <div v-for="(pair, idx) in currentInfo.ipaExp" :key="idx" class="reference-item mb-2">
+                  <div v-for="(pair, idx) in currentInfo.ipa" :key="idx" class="reference-item mb-2">
                     <span class="reference-left font-medium">{{ pair.left }}</span>
                     <span class="reference-right" v-html="formatText(pair.right)"></span>
                   </div>
@@ -280,8 +286,8 @@ onMounted(() => {
 
               <!-- 空状态提示 -->
               <div v-if="!currentInfo.special &&
-                         (!currentInfo.mulPy || currentInfo.mulPy.length === 0) &&
-                         (!currentInfo.ipaExp || currentInfo.ipaExp.length === 0) &&
+                         (!currentInfo.variantPy || currentInfo.variantPy.length === 0) &&
+                         (!currentInfo.ipa || currentInfo.ipa.length === 0) &&
                          (!currentInfo.mean || currentInfo.mean.length === 0) &&
                          (!currentInfo.note || currentInfo.note.length === 0)"
                    class="empty-info text-center py-4">

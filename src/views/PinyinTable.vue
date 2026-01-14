@@ -1,159 +1,151 @@
-<script>
+<script setup>
+import {ref, computed, onMounted, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
-import LanguageChanger from "../components/Button/LanguageChanger.vue";
-
-export default {
-  name: 'PinyinTable',
-  components: {LanguageChanger},
-
-  data() {
-    return {
-      pinyinData: [],
-      loading: true,
-      selectedLast: null,
-      selectedLastDisplay: '',
-      tonePreviewData: []
-    }
-  },
-
-  computed: {
-    /** 声调（可被 preview 覆盖） */
-    toneItems() {
-      if (this.tonePreviewData?.length) {
-        return this.tonePreviewData
-      }
-      return (
-          this.pinyinData.find(g => g[0]?.attribute === 'tone') || []
-      )
-    },
-
-    /** 声母（独立，不可选） */
-    initialItems() {
-      return (
-          this.pinyinData.find(g => g[0]?.attribute === 'initial') || []
-      )
-    },
-
-    /** 韵母（所有 last* 合并） */
-    finalGroups() {
-      return this.pinyinData
-          .filter(g => g[0]?.attribute?.includes('last'))
-          .map(group => ({
-            attribute: group[0].attribute,
-            title: this.getAttributeName(group[0].attribute),
-            items: group
-          }))
-    }
-  },
-
-  mounted() {
-    this.fetchPinyinTable()
-  },
-
-  methods: {
-    async fetchPinyinTable() {
-      try {
-        this.loading = true
-        const res = await fetch('/api/pinyin/nam/table')
-        if (!res.ok) throw new Error(res.status)
-        this.pinyinData = await res.json()
-      } catch (e) {
-        console.error(e)
-        this.showError('加载拼音表失败')
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async handleItemClick(item) {
-      if (!item.valid) return
-      if (!item.attribute?.includes('last')) return
-
-      this.selectedLast = item.keyboard
-      this.selectedLastDisplay = this.formatDisplayText(item)
-
-      try {
-        const last = this.extractKeyboardValue(item.keyboard)
-        const res = await fetch(
-            `/api/pinyin/nam/get-tone-preview?last=${encodeURIComponent(last)}`
-        )
-        if (!res.ok) throw new Error(res.status)
-        this.tonePreviewData = await res.json()
-      } catch (e) {
-        console.error(e)
-        this.tonePreviewData = []
-        this.showError('获取声调预览失败')
-      }
-    },
-
-    formatDisplay(item) {
-      if (!item.valid) {
-        return formatRichText(' - ')
-      }
-
-      const s = item.standard?.trim() || ''
-      const k = item.keyboard?.trim() || ''
-
-      /** 声调：固定两行布局 */
-      if (item.attribute === 'tone') {
-        if (s === k) {
-          // 一行内容，但用占位保证两行高度
-          return formatRichText(
-              `${s}\n&nbsp;`
-          )
-        } else {
-          // 两行显示
-          return formatRichText(
-              `${s}\n${k}`
-          )
-        }
-      }
-
-      /** 其他（声母 / 韵母）：保持原逻辑 */
-      const text = s === k ? s : `${s} / ${k}`
-
-      try {
-        return formatRichText(` ${text} `)
-      } catch {
-        return text
-      }
-    },
 
 
-    formatDisplayText(item) {
-      const s = item.standard?.trim() || ''
-      const k = item.keyboard?.trim() || ''
-      return s === k ? s : `${s} / ${k}`
-    },
+const route = useRoute()
+const dialect = computed(() => route.params.dialect)
 
-    extractKeyboardValue(keyboard) {
-      return keyboard ? keyboard.replace(/[\[\]\s]/g, '') : ''
-    },
+const pinyinData = ref([])
+const loading = ref(true)
+const selectedLast = ref(null)
+const selectedLastDisplay = ref('')
+const tonePreviewData = ref([])
 
-    getAttributeName(attr) {
-      return {
-        tone: '声调',
-        initial: '声母',
-        lastWithSingle: '单韵母',
-        lastWithDouble: '双韵母',
-        lastWithNasal: '鼻音韵母',
-        lastWithShort: '入声韵母'
-      }[attr] || attr
-    },
+/* ---------- 计算属性 ---------- */
 
-    isSelected(keyboard) {
-      return this.selectedLast === keyboard
-    },
 
-    showError(message) {
-      const el = document.createElement('div')
-      el.className = 'error-message'
-      el.textContent = message
-      document.body.appendChild(el)
-      setTimeout(() => el.remove(), 3000)
-    }
+// 声调
+const toneItems = computed(() => {
+  if (tonePreviewData.value?.length) return tonePreviewData.value
+  return (pinyinData.value.find(g => g[0]?.attribute === 'tone') || [])
+})
+
+// 声母
+const initialItems = computed(() => {
+  return (pinyinData.value.find(g => g[0]?.attribute === 'initial') || [])
+})
+
+// 韵母
+const finalGroups = computed(() => {
+  return pinyinData.value
+      .filter(g => g[0]?.attribute?.includes('last'))
+      .map(group => ({
+        attribute: group[0].attribute,
+        title: getAttributeName(group[0].attribute),
+        items: group
+      }))
+})
+
+/* ---------- 生命周期 ---------- */
+onMounted(() => {
+  fetchPinyinTable()
+})
+
+/* ---------- 方法 ---------- */
+async function fetchPinyinTable() {
+  try {
+    loading.value = true
+    const res = await fetch(`/api/pinyin/${dialect.value}/table`)
+    if (!res.ok) throw new Error(res.status)
+    pinyinData.value = await res.json()
+  } catch (e) {
+    console.error(e)
+    showError('加载拼音表失败')
+  } finally {
+    loading.value = false
   }
 }
+
+async function handleItemClick(item) {
+  if (!item.valid) return
+  if (!item.attribute?.includes('last')) return
+
+  selectedLast.value = item.keyboard
+  selectedLastDisplay.value = formatDisplayText(item)
+
+  try {
+    const last = extractKeyboardValue(item.keyboard)
+    const res = await fetch(`/api/pinyin/${dialect.value}/get-tone-preview?last=${encodeURIComponent(last)}`)
+    if (!res.ok) throw new Error(res.status)
+    tonePreviewData.value = await res.json()
+  } catch (e) {
+    console.error(e)
+    tonePreviewData.value = []
+    showError('获取声调预览失败')
+  }
+}
+
+function formatDisplay(item) {
+  if (!item.valid) {
+    return formatRichText(' - ')
+  }
+
+  const s = item.standard?.trim() || ''
+  const k = item.keyboard?.trim() || ''
+
+  /** 声调：固定两行布局 */
+  if (item.attribute === 'tone') {
+    if (s === k) {
+      return formatRichText(`${s}\n`)
+    } else {
+      return formatRichText(`${s}\n${k}`)
+    }
+  }
+
+  /** 其他（声母 / 韵母） */
+  const text = s === k ? s : `${s} / ${k}`
+
+  try {
+    return formatRichText(` ${text} `)
+  } catch {
+    return text
+  }
+}
+
+function formatDisplayText(item) {
+  const s = item.standard?.trim() || ''
+  const k = item.keyboard?.trim() || ''
+  return s === k ? s : `${s} / ${k}`
+}
+
+function extractKeyboardValue(keyboard) {
+  return keyboard ? keyboard.replace(/[\[\]\s]/g, '') : ''
+}
+
+function getAttributeName(attr) {
+  return {
+    tone: '声调',
+    initial: '声母',
+    lastWithSingle: '单韵母',
+    lastWithDouble: '双韵母',
+    lastWithNasal: '鼻音韵母',
+    lastWithShort: '入声韵母'
+  }[attr] || attr
+}
+
+function isSelected(keyboard) {
+  return selectedLast.value === keyboard
+}
+
+function showError(message) {
+  const el = document.createElement('div')
+  el.className = 'error-message'
+  el.textContent = message
+  document.body.appendChild(el)
+  setTimeout(() => el.remove(), 3000)
+}
+
+/* ---------- 监听路由变化 ---------- */
+watch(dialect, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    selectedLast.value = null
+    selectedLastDisplay.value = ''
+    tonePreviewData.value = []
+    fetchPinyinTable()
+  }
+})
 </script>
 
 

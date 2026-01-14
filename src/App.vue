@@ -1,12 +1,14 @@
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import LanguageChanger from "./components/Button/LanguageChanger.vue";
+import {computed} from 'vue'
+import {useRoute} from 'vue-router'
+
+// 路由
 const route = useRoute()
 
-const currentLang = computed(() => {
-  return route.params.lang === 'tc' ? 'tc' : 'sc'
-})
+// 语言、方言和路径
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
+const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 </script>
 
 
@@ -14,16 +16,9 @@ const currentLang = computed(() => {
   <div id="app">
 
     <nav class="main-nav">
-      <router-link :to="`/${currentLang}/home`" class="nav-link"
-                   v-formatted-text="$t('nav.home')" />
-
-      <router-link :to="`/${currentLang}/pinyin`" class="nav-link"
-                   v-formatted-text="$t('nav.pinyin')" />
-
-      <router-link :to="`/${currentLang}/about`" class="nav-link"
-                   v-formatted-text="$t('nav.about')" />
-
-      <LanguageChanger/>
+      <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.home')"/>
+      <router-link :to="getPath(`pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
+      <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
     </nav>
 
     <main class="page-container">

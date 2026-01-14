@@ -7,6 +7,8 @@ import StatusDisplay from "./Status/StatusDisplay.vue";
 
 const route = useRoute()
 const router = useRouter()
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
 
 const ciyu = ref('')
 const ciyuData = ref(null)
@@ -21,9 +23,6 @@ const currentStatus = computed(() => {
   return null
 })
 
-const currentLang = computed(() => {
-  return route.params.lang || 'sc'
-})
 
 
 // 获取搜索配置
@@ -60,13 +59,13 @@ const loadCiyu = async (query) => {
 
     const params = new URLSearchParams({
       ciyu: query.trim(),
-      lang: currentLang.value,
+      lang: language.value,
       phonogram: config.phonogram || 1,
       toneStyle: config.toneStyle || 1,
       syllableStyle: config.syllableStyle || 1
     })
 
-    const response = await fetch(`/api/search/nam/by-ciyu?${params}`, {
+    const response = await fetch(`/api/search/${dialect.value}/by-ciyu?${params}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -138,7 +137,7 @@ const handleRetry = () => {
 
 
 watch(
-    () => [route.params.ciyu, route.params.lang],
+    () => [route.params.ciyu, route.params.language],
     ([newCiyu]) => {
       if (newCiyu) {
         ciyu.value = newCiyu

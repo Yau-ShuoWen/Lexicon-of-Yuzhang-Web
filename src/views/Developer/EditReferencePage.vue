@@ -142,7 +142,7 @@ const filteredResults = computed(() => {
   )
 })
 
-// 核心业务方法（移除了 loadDictionaries 方法）
+
 const handleDictionaryChange = (dictInfo) => {
   ElMessage.success(`已选择词典: ${dictInfo.name}`)
 }

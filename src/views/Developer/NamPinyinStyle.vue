@@ -10,15 +10,16 @@ const STORAGE_KEYS = {
 };
 
 const config = reactive({
-  yu: 1,
+  yu: 0,
   gn: 0,
-  ee: 2,
-  oe: 3,
-  ii: 1,
-  ptk: 1,
-  alt: 0,
+  ee: 0,
+  oe: 0,
+  ii: 0,
+  ptk: 0,
+  yw: 0,
   capital: 0,
-  num: 1
+  num: 0,
+  iu:0
 });
 
 const previewResult = ref('');
@@ -311,7 +312,7 @@ defineExpose({
 
           <div class="form-group">
             <h5>零声母i u的规则</h5>
-            <select v-model="config.alt" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+            <select v-model="config.yw" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
               <option value="0">不改变</option>
               <option value="1">模仿普通话规律的yi wu</option>
               <option value="2">直接在i前加y，u前加w</option>
@@ -334,6 +335,15 @@ defineExpose({
               <option value="1">符号音调加到主元音上</option>
               <option value="2">数字音调加到后面</option>
               <option value="3">符号音调加到后面</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <h5>字母标注的优先级</h5>
+            <select v-model="config.iu" @change="previewWithCache" class="dev-form-field dev-form-field-mid">
+              <option value="0">默认顺序 i>u</option>
+              <option value="1">并排时标在后面</option>
+              <option value="2">并排时标在前面</option>
             </select>
           </div>
         </div>

@@ -20,6 +20,8 @@ import JumpButton from "../../components/Button/JumpButton.vue";
           <JumpButton to="/test" button-text="测试连接" size="middle"/>
           <JumpButton to="/test/sc-tc" button-text="繁转简自动转换框" size="middle"/>
           <JumpButton to="/test/pinyin-ipa" button-text="拼音、国际音标自动转换框" size="middle"/>
+          <JumpButton to="/login" button-text="登陆" size="middle"/>
+          <JumpButton to="/profile" button-text="管理" size="middle"/>
         </div>
       </section>
 
@@ -33,14 +35,8 @@ import JumpButton from "../../components/Button/JumpButton.vue";
       <section>
         <h4>方言漢字、詞語、句子</h4>
         <div class="d-flex flex-wrap gap-3">
-          <JumpButton to="/filter" button-text="編輯漢字" size="middle"/>
-        </div>
-      </section>
-
-      <section>
-        <h4>方言資料</h4>
-        <div class="d-flex flex-wrap gap-3">
-          <JumpButton to="/refer" button-text="編輯資料" size="middle"/>
+          <JumpButton to="/hanzi-filter" button-text="編輯漢字" size="middle"/>
+          <JumpButton to="/ref-filter" button-text="編輯資料" size="middle"/>
         </div>
       </section>
 

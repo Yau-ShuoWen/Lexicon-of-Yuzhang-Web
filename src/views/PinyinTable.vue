@@ -2,6 +2,7 @@
 import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
+import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
 
 
 const route = useRoute()
@@ -12,9 +13,6 @@ const loading = ref(true)
 const selectedLast = ref(null)
 const selectedLastDisplay = ref('')
 const tonePreviewData = ref([])
-
-/* ---------- 计算属性 ---------- */
-
 
 // 声调
 const toneItems = computed(() => {
@@ -87,11 +85,8 @@ function formatDisplay(item) {
 
   /** 声调：固定两行布局 */
   if (item.attribute === 'tone') {
-    if (s === k) {
-      return formatRichText(`${s}\n`)
-    } else {
-      return formatRichText(`${s}\n${k}`)
-    }
+    if (s === k) return formatRichText(`${s}\n`)
+    else return formatRichText(`${s}\n${k}`)
   }
 
   /** 其他（声母 / 韵母） */
@@ -150,7 +145,6 @@ watch(dialect, (newVal, oldVal) => {
 
 
 <template>
-  <div class="pinyin-table-container">
     <div v-if="loading" class="loading">加载中...</div>
 
     <div v-else>
@@ -216,43 +210,10 @@ watch(dialect, (newVal, oldVal) => {
 
 
     </div>
-  </div>
 </template>
 
 
 <style scoped>
-.pinyin-table-container {
-  max-width: 1300px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.header h1 {
-  color: #2c3e50;
-  margin: 0 0 15px 0;
-  font-weight: 300;
-}
-
-.selection-info {
-  font-size: 16px;
-  color: #666;
-}
-
-.selected-value {
-  font-weight: 600;
-  color: #4dabf7;
-  padding: 4px 12px;
-  background: #e8f4fd;
-  border-radius: 20px;
-}
 
 .loading {
   text-align: center;
@@ -278,7 +239,7 @@ watch(dialect, (newVal, oldVal) => {
   margin-bottom: 30px;
 }
 
-.tone-group .group-description {
+.tone-group {
   color: #4dabf7;
   font-weight: 500;
 }
@@ -404,9 +365,6 @@ watch(dialect, (newVal, oldVal) => {
 }
 
 @media (max-width: 480px) {
-  .pinyin-table-container {
-    padding: 10px;
-  }
 
   /* 强制 3 列 */
   .items-grid {

@@ -191,7 +191,7 @@ const setMandarinSelection = (options) => {
 // 切换到其他词条，清空保存的结果
 const shiftToOther = async (newId) => {
   saveMessage.value = ''
-  await router.replace(getPath(`edit/${newId}`))
+  await router.replace(getPath(`hanzi-editor/${newId}`))
 }
 
 // 方法：保存数据
@@ -433,7 +433,7 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.ipa, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.ipa" :key="index" class="array-item">
-          <DictSelect v-model="item.left" :placeholder="'请选择词典'"/>
+          <DictSelect :dialect="dialect.value" v-model="item.left" :placeholder="'请选择词典'"/>
           <input v-model="item.right" placeholder="內容"/>
 
           <button @click="removeArrayItem(formData.ipa, index)" class="dev-remove-btn">刪除</button>
@@ -576,17 +576,6 @@ onMounted(() => {
   gap: 15px;
 }
 
-.form-field {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-field label {
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: #333;
-}
-
 /* 输入框样式 */
 .short-input {
   padding: 6px 8px;
@@ -594,13 +583,6 @@ onMounted(() => {
   border-radius: 4px;
   width: 120px;
   min-width: 120px;
-}
-
-.form-field input,
-.form-field select {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
 }
 
 /* 标准拼音输入框只读样式 */

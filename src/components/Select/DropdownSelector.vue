@@ -61,11 +61,12 @@ const triggerIcon = computed(() => {
   padding: 8px 12px;
   cursor: pointer;
   border-radius: 8px;
+  background: #F6F8FA;
   transition: background 0.2s;
 }
 
 .trigger:hover {
-  background: #f5f5f5;
+  background: #f0f0f0;
 }
 
 .trigger img {

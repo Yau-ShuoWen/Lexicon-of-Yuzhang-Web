@@ -31,17 +31,17 @@ export default {
 
     /**
      * 统一解析跳转目标
-     * 规则：默认继承 lang + dialect
+     * 规则：默认继承 language + dialect
      */
     resolvedTo() {
-      const {lang = 'sc', dialect = 'nam'} = this.$route.params
+      const {language = 'sc', dialect = 'nam'} = this.$route.params
 
       // 1️⃣ 已经是完整新结构：/sc/nam/xxx
-      if (this.to.startsWith(`/${lang}/${dialect}/`)) {
+      if (this.to.startsWith(`/${language}/${dialect}/`)) {
         return this.to
       }
 
-      // 2️⃣ 明确指定了 lang（但没指定 dialect）
+      // 2️⃣ 明确指定了 language（但没指定 dialect）
       if (
           this.to.startsWith('/sc/') ||
           this.to.startsWith('/tc/')
@@ -51,11 +51,11 @@ export default {
 
       // 3️⃣ 相对路径（about / test / xxx）
       if (!this.to.startsWith('/')) {
-        return `/${lang}/${dialect}/${this.to}`
+        return `/${language}/${dialect}/${this.to}`
       }
 
       // 4️⃣ 裸路径：/about → /sc/nam/about
-      return `/${lang}/${dialect}${this.to}`
+      return `/${language}/${dialect}${this.to}`
     }
   },
 

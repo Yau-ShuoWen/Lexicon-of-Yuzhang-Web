@@ -1,88 +1,74 @@
 <template>
-  <div class="search-input-container">
-    <div class="card search-card">
-      <div class="card-body">
-        <div class="search-form">
 
-          <div class="search-main">
-            <div class="form-group search-input-group">
-              <input
-                  type="text"
-                  v-model="hanziInput"
-                  placeholder="查询内容"
-                  @keyup.enter="handleSearch"
-                  class="form-control form-control-lg"
-              />
+  <div class="search-form">
 
-              <div class="input-right-buttons">
-                <button
-                    @click="toggleSettings"
-                    class="btn btn-settings"
-                    :class="{ active: showSettings }"
-                    type="button"
-                >
-                  <img src="../assets/icons/set.svg" alt="设置" class="settings-icon"/>
-                </button>
-              </div>
-            </div>
-          </div>
+    <div class="search-main">
 
-          <div v-if="showSettings" class="search-params">
+      <div class="form-group search-input-group">
+        <input
+            type="text"
+            v-model="hanziInput"
+            placeholder="查询内容"
+            @keyup.enter="handleSearch"
+            class="form-control form-control-lg"
+        />
 
-            <div class="form-group">
-              <label v-formatted-text="$t('search.fuzzy_recognition')"/>
-              <select v-model="vague" @change="saveConfig" class="form-control">
-                <option :value="true" v-formatted-text="$t('common.open')"/>
-                <option :value="false" v-formatted-text="$t('common.close')"/>
-              </select>
-            </div>
+        <div class="button-group">
+          <button @click="handleSearch" class="btn btn-settings" type="button">
+            <img src="../assets/icons/search.svg" alt="搜索" class="control-icon"/>
+          </button>
 
-            <div class="form-group">
-              <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
-              <select v-model="phonogram" @change="saveConfig" class="form-control">
-                <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
-                <option :value="2" v-formatted-text="$t('linguistic.ipa.self')   "/>
-              </select>
-            </div>
-
-            <div v-if="phonogram!==1" class="form-group">
-              <label>{{ $t('linguistic.hint.ipa_style') }}</label>
-              <select v-model="syllable" @change="saveConfig" class="form-control">
-                <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese') "/>
-                <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
-              </select>
-            </div>
-
-            <div v-if="phonogram!==1" class="form-group">
-              <label>{{ $t('linguistic.hint.tone_style') }}</label>
-              <select v-model="tone" @change="saveConfig" class="form-control">
-                <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
-                <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
-                <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')      "/>
-              </select>
-            </div>
-          </div>
-
-          <div v-if="error" class="card card-error mt-4">
-            <div class="card-body">
-              <div class="error-content">
-                <span class="error-icon">⚠️</span>
-                {{ error }}
-              </div>
-            </div>
-          </div>
+          <button @click="toggleSettings" class="btn btn-settings" :class="{ active: showSettings }" type="button">
+            <img src="../assets/icons/set.svg" alt="设置" class="control-icon"/>
+          </button>
         </div>
+
       </div>
     </div>
 
+    <div v-if="showSettings" class="search-params">
+
+      <div class="form-field">
+        <label v-formatted-text="$t('search.fuzzy_recognition')"/>
+        <select v-model="vague" @change="saveConfig" class="form-control">
+          <option :value="true" v-formatted-text="$t('common.open')"/>
+          <option :value="false" v-formatted-text="$t('common.close')"/>
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
+        <select v-model="phonogram" @change="saveConfig" class="form-control">
+          <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
+          <option :value="2" v-formatted-text="$t('linguistic.ipa.self')   "/>
+        </select>
+      </div>
+
+      <div v-if="phonogram!==1" class="form-field">
+        <label>{{ $t('linguistic.hint.ipa_style') }}</label>
+        <select v-model="syllable" @change="saveConfig" class="form-control">
+          <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese') "/>
+          <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
+        </select>
+      </div>
+
+      <div v-if="phonogram!==1" class="form-field">
+        <label>{{ $t('linguistic.hint.tone_style') }}</label>
+        <select v-model="tone" @change="saveConfig" class="form-control">
+          <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
+          <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
+          <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')      "/>
+        </select>
+      </div>
+    </div>
 
   </div>
+
 </template>
 
 <script setup>
 import {ref, onMounted, watch, computed} from 'vue'
 import {useRouter, useRoute} from 'vue-router'
-import {useI18n} from 'vue-i18n'
 
 // 缓存键名常量
 const STORAGE_KEYS = {
@@ -92,24 +78,15 @@ const STORAGE_KEYS = {
 
 const router = useRouter()
 const route = useRoute()
-const {locale} = useI18n()
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
 
 const hanziInput = ref('')
 const phonogram = ref(1)
 const vague = ref(false)
 const syllable = ref(0)
 const tone = ref(0)
-const loading = ref(false)
-const error = ref('')
 const showSettings = ref(false)
-
-const language = computed(() => {
-  return route.params.language
-})
-
-const dialect =computed(() => {
-  return route.params.dialect
-})
 
 
 const saveConfig = () => {
@@ -198,20 +175,14 @@ const handleSearch = () => {
   const query = hanziInput.value.trim();
 
   if (!query) {
-    error.value = '请输入要查询的汉字'
     return
   }
 
-  error.value = ''
-
-  // 保存搜索历史
-  saveSearchHistory(query);
+  saveSearchHistory(query);// 保存搜索历史
 
   router.push({
     path: `/${language.value}/${dialect.value}/search`,
-    query: {
-      q: query
-    }
+    query: {q: query}
   })
 }
 
@@ -221,9 +192,7 @@ onMounted(() => {
 
   // 加载搜索历史并填充到输入框
   const lastSearch = loadSearchHistory();
-  if (lastSearch) {
-    hanziInput.value = lastSearch;
-  }
+  if (lastSearch) hanziInput.value = lastSearch;
 });
 
 // 使用watch监听所有配置项的变化
@@ -233,15 +202,15 @@ watch([phonogram, vague, syllable, tone], () => {
 </script>
 
 <style scoped>
-.search-card {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
 .search-form {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+
+  max-width: 800px;   /* 最大宽度 */
+  width: 100%;        /* 小屏自适应 */
+  margin: 0 auto;     /* 水平居中 */
+  padding: 0 var(--spacing-md); /* 防止贴边（可选） */
 }
 
 .search-main {
@@ -263,7 +232,7 @@ watch([phonogram, vague, syllable, tone], () => {
 }
 
 /* 右侧按钮容器 */
-.input-right-buttons {
+.button-group {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -272,14 +241,6 @@ watch([phonogram, vague, syllable, tone], () => {
   align-items: center;
   gap: 8px;
   z-index: 10;
-}
-
-/* 语言切换器样式 */
-.language-switcher {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
 }
 
 /* 设置按钮样式 */
@@ -305,20 +266,14 @@ watch([phonogram, vague, syllable, tone], () => {
   background: var(--color-primary);
 }
 
-.btn-settings.active .settings-icon {
+.btn-settings.active .control-icon {
   filter: brightness(0) invert(1);
 }
 
-.settings-icon {
+.control-icon {
   width: 20px;
   height: 20px;
   transition: all var(--transition-base);
-}
-
-.btn-search {
-  min-width: 100px;
-  height: fit-content;
-  align-self: stretch;
 }
 
 .search-params {
@@ -343,14 +298,32 @@ watch([phonogram, vague, syllable, tone], () => {
   }
 }
 
-.error-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  color: var(--color-error);
-}
+/* 手机等小屏设备适配 */
+@media (max-width: 576px) {
+  * {
+    font-size: var(--font-size-sm);
+  }
 
-.error-icon {
-  font-size: var(--font-size-lg);
+  .form-control-lg {
+    padding: var(--spacing-md);
+    padding-right: 80px;
+    font-size: var(--font-size-sm);
+  }
+
+  .button-group {
+    right: 4px;
+    gap: 4px;
+  }
+
+  .btn-settings {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+
+  .control-icon {
+    width: 16px;
+    height: 16px;
+  }
 }
 </style>

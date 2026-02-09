@@ -12,7 +12,9 @@
 
 .page-container {
     padding: var(--spacing-xl) 0;
+    max-width: 1200px;
     min-height: auto;
+    margin: 0 auto;
 }
 .page-header {
     text-align: center;

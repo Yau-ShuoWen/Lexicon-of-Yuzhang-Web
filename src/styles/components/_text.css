@@ -9,3 +9,20 @@
     color: #666;
     padding: 10px;
 }
+
+/* 普通输入框 */
+
+.ordinary-input
+{
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* 副标题 */
+.page-subtitle {
+    text-align: center;
+    font-size: var(--font-size-base);
+    margin: 15px 0;
+}

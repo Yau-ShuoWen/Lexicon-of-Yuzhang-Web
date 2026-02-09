@@ -5,25 +5,16 @@ const route = useRoute()
 </script>
 
 <template>
-  <div class="card text-center">
-    <div class="card-body">
-      <div class="auth-links btn btn-ghost">
-        <img src="../assets/icons/developer.svg" alt="code" class="icon">
-        <router-link :to="{name: 'DeveloperHomeWithLang',params: { lang: route.params.language }  }" class="link">
-          {{ $t('about.developer_mode') }}
-        </router-link>
-      </div>
-    </div>
+  <div class="auth-links btn btn-ghost text-center">
+    <img src="../assets/icons/developer.svg" alt="code" class="icon">
+    <router-link :to="{name: 'DeveloperHomeWithLang',params: { language: route.params.language }  }" class="link">
+      {{ $t('about.developer_mode') }}
+    </router-link>
   </div>
-
-  <div class="card text-center">
-    <div class="card-body">
-      <a href="https://github.com/Yau-ShuoWen" target="_blank" class="btn btn-ghost">
-        <img src="../assets/icons/github.svg" alt="GitHub" class="icon">
-        {{ $t('about.github_project') }}
-      </a>
-    </div>
-  </div>
+  <a href="https://github.com/Yau-ShuoWen" target="_blank" class="btn btn-ghost">
+    <img src="../assets/icons/github.svg" alt="GitHub" class="icon">
+    {{ $t('about.github_project') }}
+  </a>
 </template>
 
 <style scoped>

@@ -1,8 +1,9 @@
-<!-- HanziEditFilter.vue -->
+<!-- src/views/ref/RefFilter.vue -->
 
 <script setup>
-import {computed, ref, watch} from 'vue'
+import {ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
+import DictSelect from '../../components/Select/DictSelect.vue'
 import JumpButton from "../../components/Button/JumpButton.vue";
 
 // 路由
@@ -19,20 +20,27 @@ const searchText = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const hasSearched = ref(false)
+const selectedDictionary = ref('')
 
 
-// 方法：执行搜索
+// 执行搜索
 const performSearch = async () => {
-  if (!searchText.value.trim()) return
+  if (!searchText.value.trim() || !selectedDictionary.value) return
 
+  hasSearched.value = true
   isLoading.value = true
   errorMessage.value = ''
+  searchResults.value = []
 
   try {
-    const response = await fetch(`/api/edit/${dialect.value}/by-hanzi?hanzi=${encodeURIComponent(searchText.value)}`)
-    if (!response.ok) throw new Error('网络请求失败')
+    const response = await fetch(`/api/ref/find-content/${selectedDictionary.value}?query=${encodeURIComponent(searchText.value)}`)
+    if (!response.ok) throw new Error(`HTTP错误: ${response.status}`)
 
-    searchResults.value = await response.json()
+    const json = await response.json()
+    if (!json.success) throw new Error(json.message)
+
+    searchResults.value = json.data;
   } catch (error) {
     errorMessage.value = '搜索失败：' + error.message
     searchResults.value = []
@@ -41,27 +49,51 @@ const performSearch = async () => {
   }
 }
 
+// 监听搜索输入
 watch(searchText, (newValue) => {
   if (!newValue.trim()) {
     searchResults.value = []
     errorMessage.value = ''
+    hasSearched.value = false
   }
 })
 
+// 监听词典变化
+watch(selectedDictionary, () => {
+  searchResults.value = []
+  searchText.value = ''
+})
 </script>
 
 <template>
   <div class="narrow-layout">
     <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
-    <h4>按下回车键搜索</h4>
+    <h4>参考文献管理</h4>
+
+    <!-- 词典选择 -->
+    <div class="dict-section">
+      <DictSelect
+          v-model="selectedDictionary"
+          :dialect="dialect"
+          cache-key="ref-dict"
+          placeholder="请选择词典"
+          :show-label="true"
+          label-text="词典选择"
+          width="300px"
+      />
+    </div>
+
+    <!-- 搜索区域 -->
     <div class="search-section">
       <input
           v-model="searchText"
           type="text"
-          placeholder="输入简体或繁体汉字进行搜索"
+          placeholder="输入关键词，按下回车键搜索"
           @keyup.enter="performSearch"
+          :disabled="!selectedDictionary"
+          class="ordinary-input"
       />
-      <button class="dev-btn-small dev-add-btn" @click="router.push(getPath(`edit/new`))">新增汉字</button>
+      <button class="dev-btn-small dev-nav-button" @click="performSearch">查询</button>
     </div>
 
     <div v-if="errorMessage" class="error-message">
@@ -73,19 +105,18 @@ watch(searchText, (newValue) => {
       <div class="results-list">
         <div
             v-for="item in searchResults"
-            :key="item.tag"
+            :key="item.id"
             class="result-item"
-            @click="router.push(getPath(`edit/${item.tag}`))"
+            @click="router.push(getPath(`ref-editor/${item.info.dict}/${item.info.sort}`))"
         >
-          <div class="hanzi-display">{{ item.title }}</div>
-          <div class="pinyin">{{ item.explain }}</div>
+          <div class="item-display">{{ item.title }}</div>
           <div class="tag">序号: {{ item.tag }}</div>
         </div>
       </div>
     </div>
 
-    <div v-else-if="searchText && !isLoading" class="no-results-high">
-      未找到相关汉字
+    <div v-else-if="hasSearched && !isLoading" class="no-results-high">
+      未找到相关内容
     </div>
   </div>
 </template>
@@ -95,13 +126,6 @@ watch(searchText, (newValue) => {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
-}
-
-.search-section input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
 }
 
 .error-message {
@@ -138,15 +162,10 @@ watch(searchText, (newValue) => {
   background-color: #f5f5f5;
 }
 
-.hanzi-display {
+.item-display {
   min-width: 100px;
   font-size: 18px;
   font-weight: bold;
-}
-
-.pinyin {
-  min-width: 120px;
-  color: #2196f3;
 }
 
 .tag {

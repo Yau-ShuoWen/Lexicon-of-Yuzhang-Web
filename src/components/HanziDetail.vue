@@ -4,10 +4,11 @@ import {useRoute, useRouter} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
 import BackButton from "./Button/BackButton.vue";
 import StatusDisplay from "./Status/StatusDisplay.vue";
-import JumpButton from "./Button/JumpButton.vue";
 
 const route = useRoute()
 const router = useRouter()
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
 
 const hanzi = ref('')
 const hanziData = ref(null)
@@ -24,35 +25,45 @@ const currentStatus = computed(() => {
   return null
 })
 
-const language = computed(() => {
-  return route.params.language || 'sc'
-})
 
-const dialect = computed(() => {
-  return route.params.dialect || 'nam'
-})
-
-
-// 获取搜索配置
+// 获取搜索配置（包含边界检查和默认值设置）
 const getSearchConfig = () => {
   try {
     const cachedConfig = localStorage.getItem('search_page_config')
     if (cachedConfig) {
       const config = JSON.parse(cachedConfig)
-      return {
-        phonogram: config.phonogram || 1,
-        toneStyle: config.tone || 1,
-        syllableStyle: config.syllable || 0
+
+      // 一次性校验和修正配置值
+      const validatedConfig = {
+        phonogram: (config.phonogram >= 1 && config.phonogram <= 3) ? config.phonogram : 1,
+        toneStyle: (config.tone >= 1 && config.tone <= 3) ? config.tone : 1,
+        syllableStyle: (config.syllable >= 1 && config.syllable <= 2) ? config.syllable : 1
       }
+
+      // 如果有修正，保存回 localStorage
+      if (validatedConfig.phonogram !== config.phonogram ||
+          validatedConfig.toneStyle !== config.tone ||
+          validatedConfig.syllableStyle !== config.syllable) {
+        const fixedConfig = {
+          ...config,
+          phonogram: validatedConfig.phonogram,
+          tone: validatedConfig.toneStyle,
+          syllable: validatedConfig.syllableStyle
+        }
+        localStorage.setItem('search_page_config', JSON.stringify(fixedConfig))
+      }
+
+      return validatedConfig
     }
   } catch (err) {
     console.error('获取搜索配置失败:', err)
   }
 
+  // 默认配置
   return {
     phonogram: 1,
     toneStyle: 1,
-    syllableStyle: 0
+    syllableStyle: 1
   }
 }
 
@@ -66,14 +77,14 @@ const loadHanzi = async (query) => {
   selectedPinyin.value = '' // 重置选中状态
 
   try {
-    const config = getSearchConfig()
+    const config = getSearchConfig()// 直接获取配置，无需后续校验
 
     const params = new URLSearchParams({
       hanzi: query.trim(),
       lang: language.value,
-      phonogram: config.phonogram || 1,
-      toneStyle: config.toneStyle || 1,
-      syllableStyle: config.syllableStyle || 1
+      phonogram: config.phonogram,
+      toneStyle: config.toneStyle,
+      syllableStyle: config.syllableStyle
     })
 
     const response = await fetch(`/api/search/${dialect.value}/by-hanzi?${params}`, {
@@ -128,31 +139,19 @@ const currentInfo = computed(() => {
 
 // 重试获取
 const handleRetry = () => {
-  if (hanzi.value.trim()) {
-    loadHanzi(hanzi.value)
-  }
+  if (hanzi.value.trim()) loadHanzi(hanzi.value)
 }
 
 // 使用方法
 const formatSpecial = (specialArray) => {
-  if (!specialArray || specialArray.length === 0) {
-    return ''
-  }
+  if (!specialArray || specialArray.length === 0) return ''
 
   const labels = []
 
-  if (specialArray.includes(0)) {
-    labels.push('用法同普通话')
-  }
-  if (specialArray.includes(1)) {
-    labels.push('特殊汉字')
-  }
-  if (specialArray.includes(2)) {
-    labels.push('占位字')
-  }
-  if (specialArray.includes(3)) {
-    labels.push('不使用')
-  }
+  if (specialArray.includes(0)) labels.push('用法同普通话')
+  if (specialArray.includes(1)) labels.push('特殊汉字')
+  if (specialArray.includes(2)) labels.push('占位字')
+  if (specialArray.includes(3)) labels.push('不使用')
 
   return labels.join('、')
 }

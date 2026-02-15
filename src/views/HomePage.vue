@@ -10,14 +10,21 @@
 </template>
 
 <script>
-import {defineComponent} from "vue";
+import {computed, defineComponent} from "vue";
 import SearchInput from "../components/SearchInput.vue";
 import LanguageSelector from "../components/Select/LanguageSelector.vue";
 import DialectSelector from "../components/Select/DialectSelector.vue";
+import {useRoute, useRouter} from "vue-router";
 
 export default defineComponent({
   components: {DialectSelector, LanguageSelector, SearchInput}
 });
+
+const route = useRoute()
+const router = useRouter()
+
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
 </script>
 
 <style scoped>

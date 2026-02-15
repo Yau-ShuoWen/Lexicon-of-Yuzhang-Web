@@ -7,6 +7,7 @@ import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
 import DictSelect from "../../components/Select/DictSelect.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 import BackButton from "../../components/Button/BackButton.vue";
+import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 
 // 路由
 const route = useRoute()
@@ -16,7 +17,7 @@ const id = route.params.id
 // 语言、方言和路径
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const getPath = (id) => `/${language.value}/${dialect.value}/hanzi-editor/${id}`
 
 const formData = ref({
   id: null,
@@ -191,7 +192,7 @@ const setMandarinSelection = (options) => {
 // 切换到其他词条，清空保存的结果
 const shiftToOther = async (newId) => {
   saveMessage.value = ''
-  await router.replace(getPath(`hanzi-editor/${newId}`))
+  await router.replace(getPath(`${newId}`))
 }
 
 // 方法：保存数据
@@ -334,7 +335,7 @@ onMounted(() => {
       {{ saveMessage }}
     </div>
 
-    <div v-if="isLoading" class="loading">加載中...</div>
+    <LoadingIcon v-if="isLoading" :show-text="true"/>
 
     <div v-else class="edit-form">
       <div class="form-section">
@@ -496,12 +497,6 @@ onMounted(() => {
   align-items: center;
   gap: 20px;
   margin-bottom: 30px;
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #666;
 }
 
 .save-message {

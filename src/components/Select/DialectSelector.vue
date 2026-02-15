@@ -2,7 +2,7 @@
 import {useRoute, useRouter} from 'vue-router'
 import DropdownSelector from './DropdownSelector.vue'
 import transferIcon from '../../assets/icons/LanguageAndDialect/transfer_dialect.svg'
-import namIcon from '../../assets/icons/LanguageAndDialect/nam.png'
+import namIcon from '../../assets/icons/LanguageAndDialect/lancong_rc.png'
 
 const route = useRoute()
 const router = useRouter()

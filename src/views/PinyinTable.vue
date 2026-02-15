@@ -3,6 +3,7 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
 import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
+import LoadingIcon from "../components/Status/LoadingIcon.vue";
 
 
 const route = useRoute()
@@ -83,14 +84,16 @@ function formatDisplay(item) {
   const s = item.standard?.trim() || ''
   const k = item.keyboard?.trim() || ''
 
-  /** 声调：固定两行布局 */
-  if (item.attribute === 'tone') {
-    if (s === k) return formatRichText(`${s}\n`)
-    else return formatRichText(`${s}\n${k}`)
-  }
+  const text = s;
 
-  /** 其他（声母 / 韵母） */
-  const text = s === k ? s : `${s} / ${k}`
+  // /** 声调：固定两行布局 */
+  // if (item.attribute === 'tone') {
+  //   if (s === k) return formatRichText(`${s}\n`)
+  //   else return formatRichText(`${s}\n${k}`)
+  // }
+  //
+  // /** 其他（声母 / 韵母） */
+  // const text = s === k ? s : `${s} / ${k}`
 
   try {
     return formatRichText(` ${text} `)
@@ -145,84 +148,73 @@ watch(dialect, (newVal, oldVal) => {
 
 
 <template>
-    <div v-if="loading" class="loading">加载中...</div>
+  <LoadingIcon v-if="loading"/>
 
-    <div v-else>
-
-
-      <!-- 声母 -->
-      <div class="attribute-group initial-group">
-        <div class="group-header"><h3>声母</h3></div>
-        <div class="items-grid">
-          <div
-              v-for="(item, i) in initialItems"
-              :key="i"
-              class="item-box initial-item"
-              :class="{ invalid: !item.valid }"
-          >
-            <div class="main-display" v-html="formatDisplay(item)"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- 声调 -->
-      <div class="attribute-group tone-group">
-        <div class="group-header"><h3>声调（点击韵母查看变化）</h3></div>
-        <div class="items-grid">
-          <div
-              v-for="(item, i) in toneItems"
-              :key="i"
-              class="item-box tone-item"
-              :class="{ invalid: !item.valid }"
-          >
-            <div class="main-display" v-html="formatDisplay(item)"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- 韵母 -->
-      <div class="attribute-group final-group">
-        <div class="group-header"><h3>韵母</h3></div>
-
+  <div v-else>
+    <!-- 声母 -->
+    <div class="attribute-group initial-group">
+      <div class="group-header"><h3>声母</h3></div>
+      <div class="items-grid">
         <div
-            v-for="(group, gi) in finalGroups"
-            :key="gi"
-            class="final-subgroup"
+            v-for="(item, i) in initialItems"
+            :key="i"
+            class="item-box initial-item"
+            :class="{ invalid: !item.valid }"
         >
-          <div class="final-subtitle">{{ group.title }}</div>
+          <div class="main-display" v-html="formatDisplay(item)"/>
+        </div>
+      </div>
+    </div>
 
-          <div class="items-grid">
-            <div
-                v-for="(item, i) in group.items"
-                :key="i"
-                class="item-box clickable"
-                :class="{
+    <!-- 声调 -->
+    <div class="attribute-group tone-group">
+      <div class="group-header"><h3>声调（点击韵母查看变化）</h3></div>
+      <div class="items-grid">
+        <div
+            v-for="(item, i) in toneItems"
+            :key="i"
+            class="item-box tone-item"
+            :class="{ invalid: !item.valid }"
+        >
+          <div class="main-display" v-html="formatDisplay(item)"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- 韵母 -->
+    <div class="attribute-group final-group">
+      <div class="group-header"><h3>韵母</h3></div>
+
+      <div
+          v-for="(group, gi) in finalGroups"
+          :key="gi"
+          class="final-subgroup"
+      >
+        <div class="final-subtitle">{{ group.title }}</div>
+
+        <div class="items-grid">
+          <div
+              v-for="(item, i) in group.items"
+              :key="i"
+              class="item-box clickable"
+              :class="{
                 invalid: !item.valid,
                 selected: isSelected(item.keyboard)
               }"
-                @click="handleItemClick(item)"
-            >
-              <div class="main-display" v-html="formatDisplay(item)"/>
-            </div>
+              @click="handleItemClick(item)"
+          >
+            <div class="main-display" v-html="formatDisplay(item)"/>
           </div>
         </div>
       </div>
-
-
     </div>
+
+
+  </div>
 </template>
 
 
 <style scoped>
-
-.loading {
-  text-align: center;
-  padding: 60px;
-  font-size: 18px;
-  color: #7f8c8d;
-  animation: pulse 1.5s infinite;
-}
-
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -288,7 +280,7 @@ watch(dialect, (newVal, oldVal) => {
 
 .items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
   gap: 10px;
 }
 
@@ -346,52 +338,6 @@ watch(dialect, (newVal, oldVal) => {
   color: #495057;
   line-height: 1.3;
 }
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .items-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 8px;
-  }
-
-  .item-box {
-    padding: 12px 8px;
-    min-height: 45px;
-  }
-
-  .main-display {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-
-  /* 强制 3 列 */
-  .items-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-
-  .item-box {
-    padding: 8px 4px;
-    min-height: 44px; /* 手指友好 */
-  }
-
-  .main-display {
-    font-size: 20px;
-    line-height: 1.25;
-  }
-
-  .group-header h3 {
-    font-size: 16px;
-  }
-
-  .final-subtitle {
-    font-size: 13px;
-    margin: 6px 0;
-  }
-}
-
 </style>
 
 <style>

@@ -1,17 +1,18 @@
 <script setup>
-import {ref, computed} from 'vue'
+import {ref, computed, onMounted, onUnmounted} from 'vue'
 
 const props = defineProps({
-  items: {type: Array, required: true}, // [{ value, label, icon }]
-  currentInRoute: {type: Function, required: true}, // () => string
-  changeFunc: {type: Function, required: true}, // (value) => void
+  items: {type: Array, required: true},
+  currentInRoute: {type: Function, required: true},
+  changeFunc: {type: Function, required: true},
   defaultText: {type: String, default: '选择'},
   defaultIcon: {type: String, required: true},
 })
 
 const open = ref(false)
+const dropdownRef = ref(null)
 
-// 动态变换的文字和图
+// 动态变换的文字和图标
 const triggerText = computed(() => {
   const current = props.items.find(item => item.value === props.currentInRoute())
   return current ? current.label : props.defaultText
@@ -21,12 +22,34 @@ const triggerIcon = computed(() => {
   const current = props.items.find(item => item.value === props.currentInRoute())
   return current ? current.icon : props.defaultIcon
 })
+
+// 点击外部关闭下拉菜单
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    open.value = false
+  }
+}
+
+// 处理触发器点击 - 避免事件冒泡
+const handleTriggerClick = (event) => {
+  event.stopPropagation()
+  open.value = !open.value
+}
+
+// 监听点击事件
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
-  <div class="dropdown-selector">
+  <div ref="dropdownRef" class="dropdown-selector">
     <!-- 触发器 -->
-    <div class="trigger" @click="open = !open">
+    <div class="trigger" @click="handleTriggerClick">
       <img :src="triggerIcon" alt=""/>
       <span v-text="triggerText"/>
     </div>
@@ -37,7 +60,7 @@ const triggerIcon = computed(() => {
           v-for="item in items"
           :key="item.value"
           :class="{ active: item.value === currentInRoute() }"
-          @click="changeFunc(item.value); open=false"
+          @click="changeFunc(item.value); open = false"
       >
         <img :src="item.icon" alt=""/>
         <span>{{ item.label }}</span>
@@ -51,7 +74,7 @@ const triggerIcon = computed(() => {
   position: relative;
   width: 160px;
   font-size: 16px;
-  user-select: none
+  user-select: none;
 }
 
 .trigger {
@@ -61,7 +84,7 @@ const triggerIcon = computed(() => {
   padding: 8px 12px;
   cursor: pointer;
   border-radius: 8px;
-  background: #F6F8FA;
+  background: #f6f8fa;
   transition: background 0.2s;
 }
 
@@ -83,7 +106,7 @@ const triggerIcon = computed(() => {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   padding: 6px 0;
-  z-index: 10;
+  z-index: 1000; /* 确保在最上层 */
 }
 
 .dropdown li {

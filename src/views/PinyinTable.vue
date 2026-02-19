@@ -2,7 +2,6 @@
 import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {formatRichText} from '../utils/textFormatter.js'
-import PinyinProofreadText from "../components/Text/PinyinProofreadText.vue";
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
 
 
@@ -32,7 +31,6 @@ const finalGroups = computed(() => {
       .filter(g => g[0]?.attribute?.includes('last'))
       .map(group => ({
         attribute: group[0].attribute,
-        title: getAttributeName(group[0].attribute),
         items: group
       }))
 })
@@ -112,17 +110,6 @@ function extractKeyboardValue(keyboard) {
   return keyboard ? keyboard.replace(/[\[\]\s]/g, '') : ''
 }
 
-function getAttributeName(attr) {
-  return {
-    tone: '声调',
-    initial: '声母',
-    lastWithSingle: '单韵母',
-    lastWithDouble: '双韵母',
-    lastWithNasal: '鼻音韵母',
-    lastWithShort: '入声韵母'
-  }[attr] || attr
-}
-
 function isSelected(keyboard) {
   return selectedLast.value === keyboard
 }
@@ -152,28 +139,13 @@ watch(dialect, (newVal, oldVal) => {
 
   <div v-else>
     <!-- 声母 -->
-    <div class="attribute-group initial-group">
+    <div class="attribute-group final-group">
       <div class="group-header"><h3>声母</h3></div>
       <div class="items-grid">
         <div
             v-for="(item, i) in initialItems"
             :key="i"
             class="item-box initial-item"
-            :class="{ invalid: !item.valid }"
-        >
-          <div class="main-display" v-html="formatDisplay(item)"/>
-        </div>
-      </div>
-    </div>
-
-    <!-- 声调 -->
-    <div class="attribute-group tone-group">
-      <div class="group-header"><h3>声调（点击韵母查看变化）</h3></div>
-      <div class="items-grid">
-        <div
-            v-for="(item, i) in toneItems"
-            :key="i"
-            class="item-box tone-item"
             :class="{ invalid: !item.valid }"
         >
           <div class="main-display" v-html="formatDisplay(item)"/>
@@ -190,7 +162,6 @@ watch(dialect, (newVal, oldVal) => {
           :key="gi"
           class="final-subgroup"
       >
-        <div class="final-subtitle">{{ group.title }}</div>
 
         <div class="items-grid">
           <div
@@ -209,6 +180,20 @@ watch(dialect, (newVal, oldVal) => {
       </div>
     </div>
 
+    <!-- 声调 -->
+    <div class="attribute-group final-group">
+      <div class="group-header"><h3>声调</h3></div>
+      <div class="items-grid">
+        <div
+            v-for="(item, i) in toneItems"
+            :key="i"
+            class="item-box tone-item"
+            :class="{ invalid: !item.valid }"
+        >
+          <div class="main-display" v-html="formatDisplay(item)"/>
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>

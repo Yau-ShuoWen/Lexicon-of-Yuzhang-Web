@@ -180,3 +180,9 @@ button:disabled {
     cursor: pointer;
     font-size: 14px;
 }
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px
+}

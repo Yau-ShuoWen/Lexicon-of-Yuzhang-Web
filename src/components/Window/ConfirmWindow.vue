@@ -1,54 +1,30 @@
 <script setup>
-import { ref } from 'vue'
+import {useConfirmState, resolveConfirm} from "../../services/confirmService"
 
-const props = defineProps({
-  title: { type: String, default: '确认' },
-  message: { type: String, default: '' },
-  confirmText: { type: String, default: '确定' },
-  cancelText: { type: String, default: '取消' }
-})
-
-const emit = defineEmits(['confirm', 'cancel'])
-
-const visible = ref(false)
-
-function open() {
-  visible.value = true
-}
-
-function close() {
-  visible.value = false
-}
-
-function onConfirm() {
-  emit('confirm')
-  close()
-}
-
-function onCancel() {
-  emit('cancel')
-  close()
-}
-
-defineExpose({ open, close })
+const {visible, options} = useConfirmState()
 </script>
 
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="onCancel">
-    <div class="modal-content">
-      <h3>{{ title }}</h3>
-      <p>{{ message }}</p>
 
+  <div v-if="visible" class="modal-overlay" @click.self="resolveConfirm(false)">
+
+    <div class="modal-content">
+
+      <h3>{{ options.title }}</h3>
+      <p v-if="options.message">{{ options.message }}</p>
       <div class="modal-actions">
-        <button class="dev-btn-small dev-remove-btn" @click="onConfirm">
-          {{ confirmText }}
+
+        <button
+            v-for="(btn,i) in options.actions"
+            :key="i" :class="btn.class"
+            @click="resolveConfirm(btn.key)">
+          {{ btn.text }}
         </button>
-        <button class="dev-btn-small" @click="onCancel">
-          {{ cancelText }}
-        </button>
+
       </div>
     </div>
   </div>
+
 </template>
 
 <style scoped>

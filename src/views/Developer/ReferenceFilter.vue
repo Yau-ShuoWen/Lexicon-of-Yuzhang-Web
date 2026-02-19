@@ -49,6 +49,28 @@ const performSearch = async () => {
   }
 }
 
+// 跳转特殊页面（第一页/最后一页/随机页）
+const jumpSpecialPage = async (type) => {
+  if (!selectedDictionary.value) return
+
+  try {
+    const response = await fetch(
+        `/api/ref/get-page-special/${selectedDictionary.value}?query=${type}`
+    )
+    if (!response.ok) throw new Error(`HTTP错误: ${response.status}`)
+
+    const json = await response.json()
+    if (!json.success) throw new Error(json.message)
+
+    const sort = json.data.frontSort   // RefPage 的开头序号
+    await router.push(getPath(`ref-editor/${selectedDictionary.value}/${sort}`))
+
+  } catch (error) {
+    errorMessage.value = '跳转失败：' + error.message
+  }
+}
+
+
 // 监听搜索输入
 watch(searchText, (newValue) => {
   if (!newValue.trim()) {
@@ -83,7 +105,33 @@ watch(selectedDictionary, () => {
       />
     </div>
 
-    <!-- 搜索区域 -->
+    <!-- 快速跳转按钮 -->
+    <div class="nav-buttons">
+      <button
+          class="dev-btn-small dev-nav-button"
+          :disabled="!selectedDictionary"
+          @click="jumpSpecialPage('first-page')"
+      >
+        第一页
+      </button>
+
+      <button
+          class="dev-btn-small dev-nav-button"
+          :disabled="!selectedDictionary"
+          @click="jumpSpecialPage('last-page')"
+      >
+        最后一页
+      </button>
+
+      <button
+          class="dev-btn-small dev-nav-button"
+          :disabled="!selectedDictionary"
+          @click="jumpSpecialPage('random')"
+      >
+        随机页
+      </button>
+    </div>
+
     <div class="search-section">
       <input
           v-model="searchText"

@@ -110,7 +110,7 @@ const handleResultClick = (result) => {
   }
 
   if (result.tag === 'hanzi') router.push(`/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.hanzi)}`)
-  if (result.tag === 'ciyu') router.push(`/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.ciyu)}`)
+  if (result.tag === 'ciyu') router.push(`/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`)
 }
 </script>
 

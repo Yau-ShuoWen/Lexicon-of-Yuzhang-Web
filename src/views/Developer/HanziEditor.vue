@@ -302,32 +302,29 @@ onMounted(() => {
 
 <template>
   <div class="edit-page">
-    <div class="page-header">
-      <h2>{{ isNew ? '新增' : '編輯' }}</h2>
 
-      <div class="nav-buttons">
-        <BackButton buttonText="返回（不保存）" size="small"/>
+    <div class="nav-buttons">
+      <BackButton buttonText="返回（不保存）" size="small"/>
 
-        <button
-            v-if="!isNew"
-            :disabled="!prevId"
-            class="dev-nav-button"
-            @click="shiftToOther(prevId)"
-        >{{ prevId ? '上一条' : '第一条' }}
-        </button>
+      <button
+          v-if="!isNew"
+          :disabled="!prevId"
+          class="dev-nav-button dev-btn-small"
+          @click="shiftToOther(prevId)"
+      >{{ prevId ? '上一条' : '第一条' }}
+      </button>
 
-        <button
-            v-if="!isNew"
-            :disabled="!nextId"
-            class="dev-nav-button"
-            @click="shiftToOther(nextId)"
-        >{{ nextId ? '下一条' : '最后一条' }}
-        </button>
+      <button
+          v-if="!isNew"
+          :disabled="!nextId"
+          class="dev-nav-button dev-btn-small"
+          @click="shiftToOther(nextId)"
+      >{{ nextId ? '下一条' : '最后一条' }}
+      </button>
 
-        <button @click="saveData" :disabled="isSaving" class="dev-add-btn">
-          {{ isSaving ? '保存中...' : '保存' }}
-        </button>
-      </div>
+      <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
+        {{ isSaving ? '保存中...' : isNew ? '保存新增' : '保存修改' }}
+      </button>
     </div>
 
 
@@ -651,27 +648,11 @@ input[readonly] {
   gap: 6px;
 }
 
-.form-actions {
-  text-align: center;
-  margin-top: 30px;
-}
-
 button {
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-}
-
-
-.nav-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.nav-buttons button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
 }
 
 </style>

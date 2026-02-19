@@ -1,6 +1,7 @@
 <script setup>
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
+import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
 
 // 路由
 const route = useRoute()
@@ -23,6 +24,7 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 
     <main class="page-container">
       <router-view/>
+      <ConfirmWindow/>
     </main>
   </div>
 </template>

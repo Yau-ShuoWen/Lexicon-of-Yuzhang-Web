@@ -58,7 +58,7 @@ const loadCiyu = async (query) => {
     const config = getSearchConfig()
 
     const params = new URLSearchParams({
-      ciyu: query.trim(),
+      query: query.trim(),
       lang: language.value,
       phonogram: config.phonogram || 1,
       toneStyle: config.toneStyle || 1,

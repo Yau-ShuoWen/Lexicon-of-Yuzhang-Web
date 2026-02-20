@@ -24,7 +24,7 @@ const logout = async () => {
     localStorage.removeItem('auth-token')
     alert('已退出登录')
     router.push({
-      name: 'DeveloperHomeWithLang',
+      name: 'DeveloperHome',
       params: route.params
     })
   }

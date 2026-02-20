@@ -7,7 +7,7 @@ const route = useRoute()
 <template>
   <div class="auth-links btn btn-ghost text-center">
     <img src="../assets/icons/developer.svg" alt="code" class="icon">
-    <router-link :to="{name: 'DeveloperHomeWithLang',params: { language: route.params.language }  }" class="link">
+    <router-link :to="{name: 'DeveloperHome',params: { language: route.params.language }  }" class="link">
       {{ $t('about.developer_mode') }}
     </router-link>
   </div>

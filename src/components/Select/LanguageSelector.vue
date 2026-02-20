@@ -10,7 +10,7 @@ const router = useRouter()
 
 const languages = [
   {value: 'sc', label: '简体中文', icon: scIcon},
-  {value: 'tc', label: '繁体中文', icon: tcIcon},
+  {value: 'tc', label: '繁體中文', icon: tcIcon},
 ]
 
 const currentLanguageInRoute = () => {

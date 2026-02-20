@@ -1,3 +1,5 @@
+<!-- ConfirmWindow.vue -->
+
 <script setup>
 import {useConfirmState, resolveConfirm} from "../../services/confirmService"
 

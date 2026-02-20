@@ -31,6 +31,8 @@
     --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 
+    --app-bg-color: #E8EFEA;
+
     /* 字体 */
     --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-family-heading: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

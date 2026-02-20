@@ -1,3 +1,5 @@
+// index.js
+
 import {createRouter, createWebHistory} from 'vue-router'
 import axios from 'axios'
 
@@ -19,19 +21,19 @@ const routes = [
             },
             {
                 path: 'pinyin',
-                name: 'PinyinTableWithLang',
+                name: 'PinyinTable',
                 component: () => import('../views/PinyinTable.vue')
             },
             {
                 path: 'about',
-                name: 'AboutWithLangDialect',
+                name: 'About',
                 component: () => import('../views/AboutPage.vue')
             },
 
             // 开发者模式
             {
                 path: 'developer-home',
-                name: 'DeveloperHomeWithLang',
+                name: 'DeveloperHome',
                 component: () => import('../views/Developer/NavigationPage.vue')
             },
 
@@ -85,18 +87,18 @@ const routes = [
             // 查询
             {
                 path: 'search',
-                name: 'SearchWithLang',
+                name: 'Search',
                 component: () => import('../components/SearchResult.vue')
             },
             {
                 path: 'h/:hanzi',
-                name: 'HanziDetailWithLang',
+                name: 'HanziDetail',
                 component: () => import('../components/HanziDetail.vue'),
                 props: true
             },
             {
                 path: 'c/:ciyu',
-                name: 'CiyuDetailWithLang',
+                name: 'CiyuDetail',
                 component: () => import('../components/CiyuDetail.vue'),
                 props: true
             },
@@ -176,7 +178,7 @@ router.beforeEach(async (to, from, next) => {
         if (!token) {
             alert('无权限，请先登录')
             return next({
-                name: 'DeveloperHomeWithLang',
+                name: 'DeveloperHome',
                 params: to.params
             })
         }
@@ -197,7 +199,7 @@ router.beforeEach(async (to, from, next) => {
             alert('登录已失效，请重新登录')
 
             return next({
-                name: 'DeveloperHomeWithLang',
+                name: 'DeveloperHome',
                 params: to.params
             })
         }

@@ -12,16 +12,18 @@ import JumpButton from "../../components/Button/JumpButton.vue";
 
       <section>
         <JumpButton size="middle" button-text="← 返回" to="/about"/>
+        <JumpButton to="/login" button-text="登陆" size="middle"/>
+        <JumpButton to="/profile" button-text="管理" size="middle"/>
       </section>
 
+
       <section>
-        <h4>功能试用</h4>
+        <h4>用前须知</h4>
         <div class="d-flex flex-wrap gap-3">
-          <JumpButton to="/test" button-text="测试连接" size="middle"/>
+<!--          <JumpButton to="/test" button-text="测试连接" size="middle"/>-->
           <JumpButton to="/test/sc-tc" button-text="繁转简自动转换框" size="middle"/>
-          <JumpButton to="/test/pinyin-ipa" button-text="拼音、国际音标自动转换框" size="middle"/>
-          <JumpButton to="/login" button-text="登陆" size="middle"/>
-          <JumpButton to="/profile" button-text="管理" size="middle"/>
+          <JumpButton to="/test/pinyin-ipa" button-text="拼音转换框" size="middle"/>
+
         </div>
       </section>
 

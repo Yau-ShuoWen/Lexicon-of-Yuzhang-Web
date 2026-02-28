@@ -1,13 +1,14 @@
 <!--HanziEditor.vue-->
 
 <script setup>
-import {ref, onMounted, watch, computed} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
 import DictSelect from "../../components/Select/DictSelect.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import ScAndTcText from "../../components/Text/ScAndTcText.vue";
 
 // 路由
 const route = useRoute()
@@ -66,7 +67,8 @@ const loadHanzi = async (id) => {
   } catch (error) {
     console.error('加载汉字详情失败:', error)
     saveMessage.value = '加载失败：' + error.message
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -224,7 +226,8 @@ const saveData = async () => {
   } catch (error) {
     console.error('保存失败:', error)
     saveMessage.value = '保存失败：' + error.message
-  } finally {
+  }
+  finally {
     isSaving.value = false
   }
 }
@@ -444,6 +447,8 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.similar, { sc: '', tc: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
+<!--          <AutoProofreadText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc" :layout="'small'"/>-->
+
           <AutoProofreadText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc" :layout="'small'"/>
           <button @click="removeArrayItem(formData.similar, index)" class="dev-remove-btn">刪除</button>
         </div>
@@ -455,7 +460,12 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
-          <AutoProofreadText v-model:traditionalText="item.right" v-model:simplifiedText="item.left" :layout="'large'"/>
+          <!--          <AutoProofreadText v-model:traditionalText="item.right" v-model:simplifiedText="item.left" :layout="'large'"/>-->
+
+          <ScAndTcText
+              v-model:traditionalText="item.right" v-model:simplifiedText="item.left"
+              :layout="'large'" :dialect="dialect"/>
+
           <button @click="removeArrayItem(formData.mean, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
@@ -470,10 +480,18 @@ onMounted(() => {
         </div>
         <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
 
-          <AutoProofreadText
-              v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left" :layout="'small'"/>
-          <AutoProofreadText
-              v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right" :layout="'large'"/>
+          <!--          <AutoProofreadText-->
+          <!--              v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left" :layout="'small'"/>-->
+          <!--          <AutoProofreadText-->
+          <!--              v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right" :layout="'large'"/>-->
+
+          <ScAndTcText
+              v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left"
+              :layout="'small'" :dialect="dialect"/>
+
+          <ScAndTcText
+              v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right"
+              :layout="'large'" :dialect="dialect"/>
 
           <button @click="removeArrayItem(formData.note, index)" class="dev-remove-btn">刪除</button>
         </div>

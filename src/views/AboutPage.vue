@@ -15,9 +15,10 @@ const route = useRoute()
     <img src="../assets/icons/github.svg" alt="GitHub" class="icon">
     {{ $t('about.github_project') }}
   </a>
-  <a href="http://beian.miit.gov.cn" target="_blank" class="btn btn-ghost">
+  <a href="https://beian.miit.gov.cn" target="_blank" class="btn btn-ghost">
     <img src="../assets/icons/icp.svg" alt="GitHub" class="icon">
     蜀ICP备 2026005399号</a>
+<!-- QQ交流群496423006， /assets/icons/qq.svg-->
 </template>
 
 <style scoped>

@@ -78,11 +78,11 @@ watch(searchText, (newValue) => {
             v-for="item in searchResults"
             :key="item.tag"
             class="result-item"
-            @click="router.push(getPath(`hanzi-editor/${item.tag}`))"
+            @click="router.push(getPath(`hanzi-editor/${item.info.query}`))"
         >
           <div class="item-display">{{ item.title }}</div>
           <div class="pinyin">{{ item.explain }}</div>
-          <div class="tag">序号: {{ item.tag }}</div>
+<!--          <div class="tag">序号: {{ item.tag }}</div>-->
         </div>
       </div>
     </div>

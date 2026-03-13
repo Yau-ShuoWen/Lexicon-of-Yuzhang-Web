@@ -434,7 +434,7 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.ipa, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.ipa" :key="index" class="array-item">
-          <DictSelect :dialect="dialect.value" v-model="item.left" :placeholder="'请选择词典'"/>
+          <DictSelect :dialect="dialect.toString()" v-model="item.left" :placeholder="'请选择词典'"/>
           <input v-model="item.right" placeholder="內容"/>
 
           <button @click="removeArrayItem(formData.ipa, index)" class="dev-remove-btn">刪除</button>
@@ -447,9 +447,8 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.similar, { sc: '', tc: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
-<!--          <AutoProofreadText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc" :layout="'small'"/>-->
-
-          <AutoProofreadText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc" :layout="'small'"/>
+          <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
+          :layout="'small'" :dialect="dialect.toString()"/>
           <button @click="removeArrayItem(formData.similar, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
@@ -460,7 +459,6 @@ onMounted(() => {
           <button class="dev-add-btn" @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
         </div>
         <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
-          <!--          <AutoProofreadText v-model:traditionalText="item.right" v-model:simplifiedText="item.left" :layout="'large'"/>-->
 
           <ScAndTcText
               v-model:traditionalText="item.right" v-model:simplifiedText="item.left"
@@ -480,18 +478,12 @@ onMounted(() => {
         </div>
         <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
 
-          <!--          <AutoProofreadText-->
-          <!--              v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left" :layout="'small'"/>-->
-          <!--          <AutoProofreadText-->
-          <!--              v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right" :layout="'large'"/>-->
-
           <ScAndTcText
               v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left"
-              :layout="'small'" :dialect="dialect"/>
-
+              :layout="'small'" :dialect="dialect.toString()"/>
           <ScAndTcText
               v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right"
-              :layout="'large'" :dialect="dialect"/>
+              :layout="'large'" :dialect="dialect.toString()"/>
 
           <button @click="removeArrayItem(formData.note, index)" class="dev-remove-btn">刪除</button>
         </div>

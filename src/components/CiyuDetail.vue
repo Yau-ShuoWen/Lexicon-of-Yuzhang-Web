@@ -1,9 +1,12 @@
+<!--  CiyuDetail.vue  -->
+
 <script setup>
-import {ref, onMounted, watch, computed, onUnmounted} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {formatRichText} from '../utils/textFormatter.js'
+import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { formatRichText } from '../utils/textFormatter.js'
 import BackButton from "./Button/BackButton.vue";
 import StatusDisplay from "./Status/StatusDisplay.vue";
+import { getValidatedSearchConfig } from '../utils/searchConfig.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,29 +26,6 @@ const currentStatus = computed(() => {
   return null
 })
 
-
-
-// 获取搜索配置
-const getSearchConfig = () => {
-  try {
-    const cachedConfig = localStorage.getItem('search_page_config')
-    if (cachedConfig) {
-      const config = JSON.parse(cachedConfig)
-      return {
-        toneStyle: config.tone || 1,
-        syllableStyle: config.syllable || 0
-      }
-    }
-  } catch (err) {
-    console.error('获取搜索配置失败:', err)
-  }
-
-  return {
-    toneStyle: 1,
-    syllableStyle: 0
-  }
-}
-
 // 获取词语详情
 const loadCiyu = async (query) => {
   if (!query.trim()) return
@@ -55,17 +35,16 @@ const loadCiyu = async (query) => {
   ciyuData.value = null
 
   try {
-    const config = getSearchConfig()
+    const config = getValidatedSearchConfig()
 
     const params = new URLSearchParams({
       query: query.trim(),
-      lang: language.value,
-      phonogram: config.phonogram || 1,
-      toneStyle: config.toneStyle || 1,
-      syllableStyle: config.syllableStyle || 1
+      phonogram: config.phonogram,
+      toneStyle: config.toneStyle,
+      syllableStyle: config.syllableStyle
     })
 
-    const response = await fetch(`/api/search/${dialect.value}/by-ciyu?${params}`, {
+    const response = await fetch(`/api/search/${language.value}/${dialect.value}/ciyu?${params}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -92,7 +71,8 @@ const loadCiyu = async (query) => {
   } catch (err) {
     console.error('获取词语详情失败:', err)
     error.value = err.message || '获取词语详情失败，请检查网络连接'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -137,7 +117,7 @@ const handleRetry = () => {
 
 
 watch(
-    () => [route.params.ciyu, route.params.language],
+  () => [route.params.ciyu, route.params.language, route.params.dialect],
     ([newCiyu]) => {
       if (newCiyu) {
         ciyu.value = newCiyu

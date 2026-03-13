@@ -32,6 +32,26 @@ const isSubmitting = ref(false)
 const tcLocked = computed(() => isScDirty.value)
 const scLocked = computed(() => isTcDirty.value)
 
+const tcBox = ref(null)
+const scBox = ref(null)
+
+function syncHeight(source, target) {
+  if (!source || !target) return
+  target.style.height = source.style.height
+}
+
+onMounted(() => {
+
+  const observer = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.target === tcBox.value) syncHeight(tcBox.value, scBox.value)
+      if (entry.target === scBox.value) syncHeight(scBox.value, tcBox.value)
+    }
+  })
+  if (tcBox.value) observer.observe(tcBox.value)
+  if (scBox.value) observer.observe(scBox.value)
+})
+
 // ============ 代码点长度 ============
 function cpLen(str) {
   return Array.from(str || '').length
@@ -187,15 +207,15 @@ defineExpose({clearAll})
 
     </div>
 
-    <div v-else class="form-group">
+    <div v-else class="horizontal-group">
 
       <textarea
-          placeholder="繁體" class="form-control textarea"
+          placeholder="繁體" class="form-control textarea" ref="tcBox"
           :value="newTc" :maxlength="maxLength" :rows="rows" :disabled="disabled || tcLocked"
           @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
 
       <textarea
-          placeholder="簡體" class="form-control textarea"
+          placeholder="簡體" class="form-control textarea" ref="scBox"
           :value="newSc" :maxlength="maxLength" :rows="rows" :disabled="disabled || scLocked"
           @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
 
@@ -212,6 +232,16 @@ defineExpose({clearAll})
 </template>
 
 <style>
+.horizontal-group {
+  display: flex;
+  gap: 12px;
+}
+
+.horizontal-group textarea {
+  width: 50%;
+  resize: vertical;
+}
+
 .small-row {
   display: flex;
   align-items: center;

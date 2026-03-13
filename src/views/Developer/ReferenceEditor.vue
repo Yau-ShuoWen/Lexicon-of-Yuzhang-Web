@@ -1,9 +1,9 @@
 <script setup>
-import {ref, computed, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
-import {confirm} from "../../services/confirmService";
+import { confirm } from "../../services/confirmService";
 
 // 路由
 const route = useRoute()
@@ -30,9 +30,48 @@ async function loadPage() {
     const json = await response.json()
     page.value = json.data
     await loadNearby()
-  } finally {
+  }
+  finally {
     loading.value = false
   }
+}
+
+const pageInfoTitle = ref('')
+const pageInfoNumber = ref('')
+
+const titleOptions = [
+  {label: '正文', value: '正文'},
+  {label: '附錄', value: '附錄'},
+  {label: '索引', value: '索引'},
+  {label: '前言', value: '前言'},
+  {label: '凡例', value: '凡例'}
+]
+
+watch(() => page.value?.pageInfo, (newVal) => {
+  if (!newVal) {
+    pageInfoTitle.value = ''
+    pageInfoNumber.value = ''
+    return
+  }
+  try {
+    pageInfoTitle.value = newVal.left || ''
+    pageInfoNumber.value = (newVal.right != null && newVal.right !== -1) ? String(newVal.right) : ''
+  } catch (e) {
+    console.warn('解析 pageInfo 失敗', e)
+    pageInfoTitle.value = ''
+    pageInfoNumber.value = ''
+  }
+}, {immediate: true})
+
+function syncPageInfoToPage() {
+  if (!page.value) return
+  const rawNum = pageInfoNumber.value
+  const pageNum = (rawNum === '' || rawNum == null) ? -1 : Number(rawNum)
+
+  page.value.pageInfo = ({
+    left: pageInfoTitle.value || '',
+    right: isNaN(pageNum) ? -1 : pageNum
+  })
 }
 
 async function loadNearby() {
@@ -55,13 +94,18 @@ async function savePage() {
   if (!page.value) return
   saving.value = true
   try {
+    syncPageInfoToPage()
     await fetch(`/api/ref/update-page/${dictionary.value}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(page.value)
     })
     message.value = '已保存'
-  } finally {
+  } catch (e) {
+    console.error(e)
+    message.value = '保存失敗: ' + e.message
+  }
+  finally {
     saving.value = false
   }
 }
@@ -100,7 +144,8 @@ async function deletePage() {
     const json = await response.json()
     await shiftToOther(json.data.frontSort)
     message.value = '页面删除成功'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -112,21 +157,12 @@ async function openDeleteConfirm() {
     title: '确认删除',
     message: '确定要删除当前页面吗？此操作不可撤销。',
     actions: [
-      {
-        key: true,
-        text: '确认删除',
-        class: 'dev-btn-small dev-remove-btn'
-      },
-      {
-        key: false,
-        text: '取消',
-        class: 'dev-btn-small dev-normal-button'
-      }
+      {key: true, text: '确认删除', class: 'dev-btn-small dev-remove-btn'},
+      {key: false, text: '取消', class: 'dev-btn-small dev-normal-button'}
     ]
   })
 
-  if (!ok) return
-  await deletePage()
+  if (ok) await deletePage()
 }
 
 async function openInsertConfirm() {
@@ -135,21 +171,9 @@ async function openInsertConfirm() {
     title: '新增页面',
     message: '请选择新增位置',
     actions: [
-      {
-        key: 'before',
-        text: '加在本页前',
-        class: 'dev-btn-small dev-add-btn'
-      },
-      {
-        key: 'after',
-        text: '加在本页后',
-        class: 'dev-btn-small dev-add-btn'
-      },
-      {
-        key: false,
-        text: '取消',
-        class: 'dev-btn-small dev-normal-button'
-      }
+      {key: 'before', text: '加在本页前', class: 'dev-btn-small dev-add-btn'},
+      {key: 'after', text: '加在本页后', class: 'dev-btn-small dev-add-btn'},
+      {key: false, text: '取消', class: 'dev-btn-small dev-normal-button'}
     ]
   })
 
@@ -174,6 +198,22 @@ watch(() => route.params.sort, () => {
         <BackButton buttonText="返回（不保存）" size="small"/>
 
         <button
+            :disabled="!prevSort"
+            class="dev-btn-small dev-nav-button"
+            @click="shiftToOther(prevSort)">
+          {{ prevSort ? '上一页' : '第一页' }}
+        </button>
+
+        <button
+            :disabled="!nextSort"
+            class="dev-btn-small dev-nav-button"
+            @click="shiftToOther(nextSort)">
+          {{ nextSort ? '下一页' : '最后一页' }}
+        </button>
+      </div>
+
+      <div class="nav-buttons">
+        <button
             :disabled="!page || loading"
             class="dev-btn-small dev-add-btn"
             @click="openInsertConfirm">
@@ -188,25 +228,25 @@ watch(() => route.params.sort, () => {
         </button>
 
         <button
-            :disabled="!prevSort"
-            class="dev-btn-small dev-nav-button"
-            @click="shiftToOther(prevSort)">
-          {{ prevSort ? '上一页' : '第一页' }}
-        </button>
-
-        <button
-            :disabled="!nextSort"
-            class="dev-btn-small dev-nav-button"
-            @click="shiftToOther(nextSort)">
-          {{ nextSort ? '下一页' : '最后一页' }}
-        </button>
-
-        <button
             :disabled="!page || saving"
             class="dev-btn-small dev-add-btn"
             @click="savePage">
           保存
         </button>
+
+        <div>
+          设置页码：
+          <select v-model="pageInfoTitle" class="dev-btn-small">
+            <option value=""> </option>
+            <option v-for="opt in titleOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          第
+          <input type="number" v-model="pageInfoNumber" class="dev-btn-small page-num"
+                 placeholder="" min="1"/>
+          頁
+        </div>
 
       </div>
     </div>
@@ -238,5 +278,9 @@ watch(() => route.params.sort, () => {
   min-height: 600px;
   font-size: 18px;
   line-height: 1.6;
+}
+
+.page-num {
+  width: 70px;
 }
 </style>

@@ -17,6 +17,25 @@ const dialect = computed(() => route.params.dialect)
 
     <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
 
+    <!-- 下面是试用的部分 -->
+    <div class="card">
+      <div class="card-body">
+        <h3 class="card-title">🔤 简繁转换框：小布局（适合短句/词条）</h3>
+        <p class="text-muted small mb-3">
+          💡 试试输入 <code>佢話冇人嚟</code> → 按 <kbd>Ctrl+Enter</kbd> → 观察「佢/冇/嚟」是否被保护
+        </p>
+        <ScAndTcText layout="small" :dialect="dialect.toString()"/>
+      </div>
+
+      <div class="card-body">
+        <h3 class="card-title">🔤 简繁转换框：大布局（适合段落/篇章）</h3>
+        <p class="text-muted small mb-3">
+          💡 粘贴一段古籍原文，修改几个字后按 <kbd>Ctrl+Enter</kbd>，体验「增量转换」如何保护你的校对
+        </p>
+        <ScAndTcText layout="large" :dialect="dialect.toString()"/>
+      </div>
+    </div>
+
     <!-- 🆘 浮动帮助按钮（手册隐藏后显示） -->
     <button
         v-if="$route.query.help === 'hide'"
@@ -258,25 +277,6 @@ const dialect = computed(() => route.params.dialect)
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- 📚 新手使用手册 结束                                          -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-
-    <!-- 下面是试用的部分 -->
-    <div class="card">
-      <div class="card-body">
-        <h3 class="card-title">🔤 简繁转换框：小布局（适合短句/词条）</h3>
-        <p class="text-muted small mb-3">
-          💡 试试输入 <code>佢話冇人嚟</code> → 按 <kbd>Ctrl+Enter</kbd> → 观察「佢/冇/嚟」是否被保护
-        </p>
-        <ScAndTcText layout="small" :dialect="dialect.toString()"/>
-      </div>
-
-      <div class="card-body">
-        <h3 class="card-title">🔤 简繁转换框：大布局（适合段落/篇章）</h3>
-        <p class="text-muted small mb-3">
-          💡 粘贴一段古籍原文，修改几个字后按 <kbd>Ctrl+Enter</kbd>，体验「增量转换」如何保护你的校对
-        </p>
-        <ScAndTcText layout="large" :dialect="dialect.toString()"/>
-      </div>
-    </div>
 
 
 

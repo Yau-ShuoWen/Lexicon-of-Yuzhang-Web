@@ -1,9 +1,10 @@
 <script setup>
-import {ref, onMounted, watch, computed, onUnmounted} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {formatRichText} from '../utils/textFormatter.js'
-import BackButton from "./Button/BackButton.vue";
-import StatusDisplay from "./Status/StatusDisplay.vue";
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { formatRichText } from '../utils/textFormatter.js'
+import BackButton from './Button/BackButton.vue'
+import StatusDisplay from './Status/StatusDisplay.vue'
+import { getValidatedSearchConfig } from '../utils/searchConfig.js' // 统一配置管理
 
 const route = useRoute()
 const router = useRouter()
@@ -16,56 +17,13 @@ const loading = ref(false)
 const error = ref('')
 const selectedPinyin = ref('') // 当前选中的拼音按钮
 
-
-// 计算当前状态类型
+// 状态计算
 const currentStatus = computed(() => {
   if (loading.value) return 'loading'
   if (error.value) return 'error'
   if (!hanziData.value && !loading.value) return 'empty'
   return null
 })
-
-
-// 获取搜索配置（包含边界检查和默认值设置）
-const getSearchConfig = () => {
-  try {
-    const cachedConfig = localStorage.getItem('search_page_config')
-    if (cachedConfig) {
-      const config = JSON.parse(cachedConfig)
-
-      // 一次性校验和修正配置值
-      const validatedConfig = {
-        phonogram: (config.phonogram >= 1 && config.phonogram <= 3) ? config.phonogram : 1,
-        toneStyle: (config.tone >= 1 && config.tone <= 3) ? config.tone : 1,
-        syllableStyle: (config.syllable >= 1 && config.syllable <= 2) ? config.syllable : 1
-      }
-
-      // 如果有修正，保存回 localStorage
-      if (validatedConfig.phonogram !== config.phonogram ||
-          validatedConfig.toneStyle !== config.tone ||
-          validatedConfig.syllableStyle !== config.syllable) {
-        const fixedConfig = {
-          ...config,
-          phonogram: validatedConfig.phonogram,
-          tone: validatedConfig.toneStyle,
-          syllable: validatedConfig.syllableStyle
-        }
-        localStorage.setItem('search_page_config', JSON.stringify(fixedConfig))
-      }
-
-      return validatedConfig
-    }
-  } catch (err) {
-    console.error('获取搜索配置失败:', err)
-  }
-
-  // 默认配置
-  return {
-    phonogram: 1,
-    toneStyle: 1,
-    syllableStyle: 1
-  }
-}
 
 // 获取汉字详情
 const loadHanzi = async (query) => {
@@ -74,88 +32,80 @@ const loadHanzi = async (query) => {
   loading.value = true
   error.value = ''
   hanziData.value = null
-  selectedPinyin.value = '' // 重置选中状态
+  selectedPinyin.value = ''
 
   try {
-    const config = getSearchConfig()// 直接获取配置，无需后续校验
+    const config = getValidatedSearchConfig() // 统一获取配置
 
     const params = new URLSearchParams({
-      hanzi: query.trim(),
-      lang: language.value,
+      query: query.trim(),
       phonogram: config.phonogram,
       toneStyle: config.toneStyle,
       syllableStyle: config.syllableStyle
     })
 
-    const response = await fetch(`/api/search/${dialect.value}/by-hanzi?${params}`, {
+    const res = await fetch(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: {'Content-Type': 'application/json'}
     })
 
-    if (!response.ok) throw new Error('获取汉字详情失败，请稍后重试')
-    const responseData = await response.json()
+    if (!res.ok) throw new Error('获取汉字详情失败，请稍后重试')
 
-    // 检查 API 响应是否成功
-    if (responseData.success) {
-      hanziData.value = responseData.data
+    const data = await res.json()
 
+    if (data.success) {
+      hanziData.value = data.data
       // 默认选择第一个拼音
-      if (hanziData.value && hanziData.value.infoMap && Object.keys(hanziData.value.infoMap).length > 0) {
-        selectedPinyin.value = Object.keys(hanziData.value.infoMap)[0]
+      if (hanziData.value?.infoMap) {
+        selectedPinyin.value = Object.keys(hanziData.value.infoMap)[0] || ''
       }
     } else {
-      // 处理失败情况
-      if (responseData.message && responseData.message.toLowerCase().includes('not found')) {
-        // 如果消息中包含 "not found"，设置空状态
-        error.value = '' // 清空错误信息，让 empty 状态显示
+      if (data.message?.toLowerCase().includes('not found')) {
         hanziData.value = null
+        error.value = ''
       } else {
-        // 其他错误情况
-        error.value = responseData.message || '获取汉字详情失败'
+        error.value = data.message || '获取汉字详情失败'
       }
     }
   } catch (err) {
     console.error('获取汉字详情失败:', err)
     error.value = err.message || '获取汉字详情失败，请检查网络连接'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
-const formatText = formatRichText
-
-// 选择拼音
-const selectPinyin = (pinyinKey) => {
-  selectedPinyin.value = pinyinKey
+// 选中拼音
+const selectPinyin = (key) => {
+  selectedPinyin.value = key
 }
 
-// 获取当前选中的拼音信息
+// 当前选中拼音信息
 const currentInfo = computed(() => {
-  if (!hanziData.value || !selectedPinyin.value) return null
-  return hanziData.value.infoMap[selectedPinyin.value]
+  return hanziData.value?.infoMap?.[selectedPinyin.value] || null
 })
 
-// 重试获取
+// 重试
 const handleRetry = () => {
   if (hanzi.value.trim()) loadHanzi(hanzi.value)
 }
 
-// 使用方法
-const formatSpecial = (specialArray) => {
-  if (!specialArray || specialArray.length === 0) return ''
-
+// 格式化特殊属性
+const formatSpecial = (arr) => {
+  if (!arr?.length) return ''
   const labels = []
-
-  if (specialArray.includes(0)) labels.push('用法同普通话')
-  if (specialArray.includes(1)) labels.push('特殊汉字')
-  if (specialArray.includes(2)) labels.push('占位字')
-  if (specialArray.includes(3)) labels.push('不使用')
-
+  if (arr.includes(0)) labels.push('用法同普通话')
+  if (arr.includes(1)) labels.push('特殊汉字')
+  if (arr.includes(2)) labels.push('占位字')
+  if (arr.includes(3)) labels.push('不使用')
   return labels.join('、')
 }
-// 监听路由参数变化
+
+// 格式化文本
+const formatText = formatRichText
+
+// 监听路由汉字变化
 watch(() => route.params.hanzi, (newHanzi) => {
   if (newHanzi) {
     hanzi.value = newHanzi
@@ -163,8 +113,9 @@ watch(() => route.params.hanzi, (newHanzi) => {
   }
 })
 
+// 页面初始加载
 onMounted(() => {
-  if (route.params.hanzi) {  // 从路由参数获取汉字
+  if (route.params.hanzi) {
     hanzi.value = route.params.hanzi
     loadHanzi(route.params.hanzi)
   }

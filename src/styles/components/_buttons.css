@@ -171,6 +171,7 @@ button:disabled {
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
+    height: 32px;
 }
 
 .dev-btn-middle {

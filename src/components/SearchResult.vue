@@ -14,14 +14,8 @@ const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
 
-
-const language = computed(() => {
-  return route.params.language || 'sc'
-})
-
-const dialect = computed(() => {
-  return route.params.dialect || 'nam'
-})
+const language = computed(() => {return route.params.language})
+const dialect = computed(() => {return route.params.dialect})
 
 /**
  * 当前页面状态
@@ -64,11 +58,10 @@ const searchAll = async (query) => {
 
     const params = new URLSearchParams({
       query: query.trim(),
-      lang: language.value,
       vague: config.vague
     })
 
-    const res = await fetch(`/api/search/${dialect.value}/search-query?${params}`)
+    const res = await fetch(`/api/search/${language.value}/${dialect.value}/query?${params}`)
     if (!res.ok) throw new Error('查询失败，请稍后重试')
 
     results.value = await res.json()
@@ -109,7 +102,7 @@ const handleResultClick = (result) => {
     return
   }
 
-  if (result.tag === 'hanzi') router.push(`/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.hanzi)}`)
+  if (result.tag === 'hanzi') router.push(`/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`)
   if (result.tag === 'ciyu') router.push(`/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`)
 }
 </script>

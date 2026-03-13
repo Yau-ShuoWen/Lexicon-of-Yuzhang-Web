@@ -14,6 +14,7 @@ const loading = ref(true)
 // Grid 分类
 const initialGrid = computed(() => pinyinData.value.find(g => g.code === 'initial'))
 const lastGrid = computed(() => pinyinData.value.find(g => g.code === 'last'))
+const specialGrid = computed(() => pinyinData.value.find(g => g.code === 'special'))
 const toneGrid = computed(() => pinyinData.value.find(g => g.code === 'tone'))
 
 // 生命周期
@@ -96,6 +97,27 @@ watch(dialect, fetchTable)
       </div>
 
       <div v-for="line in lastGrid.line" class="pinyin-line">
+        <div v-for="group in line.group" class="pinyin-group">
+          <div class="items-grid">
+
+            <div v-for="item in group.item"
+                 class="item-box clickable"
+                 :class="{ invalid: !item.exist }"
+                 @click="handleItemClick(item)">
+              <div class="main-display" v-html="formatDisplay(item)"/>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="specialGrid" class="attribute-group final-group">
+      <div class="group-header">
+        <h3>{{ specialGrid.name.left }}</h3>
+      </div>
+
+      <div v-for="line in specialGrid.line" class="pinyin-line">
         <div v-for="group in line.group" class="pinyin-group">
           <div class="items-grid">
 

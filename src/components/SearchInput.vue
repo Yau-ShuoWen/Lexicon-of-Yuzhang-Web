@@ -1,9 +1,91 @@
+<script setup>
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { getValidatedSearchConfig, saveSearchConfig } from '../utils/searchConfig.js'
+
+const router = useRouter()
+const route = useRoute()
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
+
+// 输入框和设置显示状态
+const hanziInput = ref('')
+const showSettings = ref(false)
+
+// --- 配置项 ---
+const config = getValidatedSearchConfig()
+const phonogram = ref(config.phonogram)
+const tone = ref(config.toneStyle)
+const syllable = ref(config.syllableStyle)
+const vague = ref(config.vague)
+
+// 切换显示设置面板
+const toggleSettings = () => showSettings.value = !showSettings.value
+
+// 当用户修改配置时保存
+const onConfigChange = () => {
+  // 自动修正超出范围的值
+  phonogram.value = [1,2,3].includes(phonogram.value) ? phonogram.value : 1
+  tone.value = [1,2,3].includes(tone.value) ? tone.value : 1
+  syllable.value = [1,2].includes(syllable.value) ? syllable.value : 1
+  vague.value = typeof vague.value === 'boolean' ? vague.value : true
+
+  saveSearchConfig({
+    phonogram: phonogram.value,
+    toneStyle: tone.value,
+    syllableStyle: syllable.value,
+    vague: vague.value
+  })
+}
+
+// 搜索历史操作
+const saveSearchHistory = (query) => {
+  try {
+    localStorage.setItem('search_history_temp', JSON.stringify({
+      query,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + 60 * 1000
+    }))
+  } catch {}
+}
+
+const loadSearchHistory = () => {
+  try {
+    const data = localStorage.getItem('search_history_temp')
+    if (!data) return ''
+    const h = JSON.parse(data)
+    if (Date.now() < h.expiresAt) return h.query
+    localStorage.removeItem('search_history_temp')
+  } catch {}
+  return ''
+}
+
+// 搜索操作
+const handleSearch = () => {
+  const query = hanziInput.value.trim()
+  if (!query) return
+  saveSearchHistory(query)
+  router.push({
+    path: `/${language.value}/${dialect.value}/search`,
+    query: { q: query }
+  })
+}
+
+// 初始化加载缓存配置和搜索历史
+onMounted(() => {
+  const lastSearch = loadSearchHistory()
+  if (lastSearch) hanziInput.value = lastSearch
+  // 自动修正缓存中错误值
+  onConfigChange()
+})
+
+// watch 自动保存配置变化
+watch([phonogram, tone, syllable, vague], () => onConfigChange())
+</script>
+
 <template>
-
   <div class="search-form">
-
     <div class="search-main">
-
       <div class="form-group search-input-group">
         <input
             type="text"
@@ -22,184 +104,49 @@
             <img src="../assets/icons/set.svg" alt="设置" class="control-icon"/>
           </button>
         </div>
-
       </div>
     </div>
 
     <div v-if="showSettings" class="search-params">
-
+      <!-- 模糊识别 -->
       <div class="form-field">
         <label v-formatted-text="$t('search.fuzzy_recognition')"/>
-        <select v-model="vague" @change="saveConfig" class="form-control">
+        <select v-model="vague" @change="onConfigChange" class="form-control">
           <option :value="true" v-formatted-text="$t('common.open')"/>
           <option :value="false" v-formatted-text="$t('common.close')"/>
         </select>
       </div>
 
+      <!-- 拼音/IPA选择 -->
       <div class="form-field">
         <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
-        <select v-model="phonogram" @change="saveConfig" class="form-control">
+        <select v-model="phonogram" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
-          <option :value="2" v-formatted-text="$t('linguistic.ipa.self')   "/>
+          <option :value="2" v-formatted-text="$t('linguistic.ipa.self')"/>
         </select>
       </div>
 
-      <div v-if="phonogram!==1" class="form-field">
+      <!-- IPA样式 -->
+      <div v-if="phonogram !== 1" class="form-field">
         <label>{{ $t('linguistic.hint.ipa_style') }}</label>
-        <select v-model="syllable" @change="saveConfig" class="form-control">
-          <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese') "/>
+        <select v-model="syllable" @change="onConfigChange" class="form-control">
+          <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
           <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
         </select>
       </div>
 
-      <div v-if="phonogram!==1" class="form-field">
+      <!-- 声调样式 -->
+      <div v-if="phonogram !== 1" class="form-field">
         <label>{{ $t('linguistic.hint.tone_style') }}</label>
-        <select v-model="tone" @change="saveConfig" class="form-control">
+        <select v-model="tone" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
           <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
-          <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')      "/>
+          <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')"/>
         </select>
       </div>
     </div>
-
   </div>
-
 </template>
-
-<script setup>
-import {ref, onMounted, watch, computed} from 'vue'
-import {useRouter, useRoute} from 'vue-router'
-
-// 缓存键名常量
-const STORAGE_KEYS = {
-  SEARCH_CONFIG: 'search_page_config',
-  SEARCH_HISTORY: 'search_history_temp'
-};
-
-const router = useRouter()
-const route = useRoute()
-const language = computed(() => route.params.language)
-const dialect = computed(() => route.params.dialect)
-
-const hanziInput = ref('')
-const phonogram = ref(1)
-const vague = ref(false)
-const syllable = ref(0)
-const tone = ref(0)
-const showSettings = ref(false)
-
-
-const saveConfig = () => {
-  try {
-    const config = {
-      phonogram: phonogram.value,
-      vague: vague.value,
-      syllable: syllable.value,
-      tone: tone.value
-    };
-    localStorage.setItem(STORAGE_KEYS.SEARCH_CONFIG, JSON.stringify(config));
-  } catch (err) {
-    console.error('保存搜索配置到缓存失败:', err);
-  }
-};
-
-// 保存搜索历史（临时存储1分钟）
-const saveSearchHistory = (query) => {
-  try {
-    const history = {
-      query: query,
-      timestamp: Date.now(),
-      expiresAt: Date.now() + 60 * 1000 // 1分钟后过期
-    };
-    localStorage.setItem(STORAGE_KEYS.SEARCH_HISTORY, JSON.stringify(history));
-  } catch (err) {
-    console.error('保存搜索历史失败:', err);
-  }
-};
-
-// 加载搜索历史
-const loadSearchHistory = () => {
-  try {
-    const historyData = localStorage.getItem(STORAGE_KEYS.SEARCH_HISTORY);
-    if (historyData) {
-      const history = JSON.parse(historyData);
-
-      // 检查是否过期
-      if (Date.now() < history.expiresAt) {
-        return history.query;
-      } else {
-        // 如果过期，清除历史记录
-        localStorage.removeItem(STORAGE_KEYS.SEARCH_HISTORY);
-      }
-    }
-  } catch (err) {
-    console.error('加载搜索历史失败:', err);
-  }
-  return '';
-};
-
-// 清除搜索历史
-const clearSearchHistory = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEYS.SEARCH_HISTORY);
-  } catch (err) {
-    console.error('清除搜索历史失败:', err);
-  }
-};
-
-const loadConfigFromCache = () => {
-  try {
-    const cachedConfig = localStorage.getItem(STORAGE_KEYS.SEARCH_CONFIG);
-    if (cachedConfig) {
-      const parsedConfig = JSON.parse(cachedConfig);
-
-      // 设置到对应的ref变量
-      if (parsedConfig.phonogram !== undefined) phonogram.value = parsedConfig.phonogram;
-      if (parsedConfig.vague !== undefined) vague.value = parsedConfig.vague;
-      if (parsedConfig.syllable !== undefined) syllable.value = parsedConfig.syllable;
-      if (parsedConfig.tone !== undefined) tone.value = parsedConfig.tone;
-
-      return true;
-    }
-  } catch (err) {
-    console.error('从缓存加载搜索配置失败:', err);
-  }
-  return false;
-};
-
-const toggleSettings = () => {
-  showSettings.value = !showSettings.value
-}
-
-const handleSearch = () => {
-  const query = hanziInput.value.trim();
-
-  if (!query) {
-    return
-  }
-
-  saveSearchHistory(query);// 保存搜索历史
-
-  router.push({
-    path: `/${language.value}/${dialect.value}/search`,
-    query: {q: query}
-  })
-}
-
-// 组件挂载时加载缓存配置和搜索历史
-onMounted(() => {
-  loadConfigFromCache();
-
-  // 加载搜索历史并填充到输入框
-  const lastSearch = loadSearchHistory();
-  if (lastSearch) hanziInput.value = lastSearch;
-});
-
-// 使用watch监听所有配置项的变化
-watch([phonogram, vague, syllable, tone], () => {
-  saveConfig();
-});
-</script>
 
 <style scoped>
 .search-form {

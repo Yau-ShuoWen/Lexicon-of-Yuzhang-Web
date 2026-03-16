@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { getValidatedSearchConfig, saveSearchConfig } from '../utils/searchConfig.js'
+import { getValidatedSearchConfig, saveSearchConfig } from '../../utils/searchConfig.js'
+import Info from "../../components/Status/Info.vue";
 
 const router = useRouter()
 const route = useRoute()
@@ -25,9 +26,9 @@ const toggleSettings = () => showSettings.value = !showSettings.value
 // 当用户修改配置时保存
 const onConfigChange = () => {
   // 自动修正超出范围的值
-  phonogram.value = [1,2,3].includes(phonogram.value) ? phonogram.value : 1
-  tone.value = [1,2,3].includes(tone.value) ? tone.value : 1
-  syllable.value = [1,2].includes(syllable.value) ? syllable.value : 1
+  phonogram.value = [1, 2, 3].includes(phonogram.value) ? phonogram.value : 1
+  tone.value = [1, 2, 3].includes(tone.value) ? tone.value : 1
+  syllable.value = [1, 2].includes(syllable.value) ? syllable.value : 1
   vague.value = typeof vague.value === 'boolean' ? vague.value : true
 
   saveSearchConfig({
@@ -46,7 +47,8 @@ const saveSearchHistory = (query) => {
       timestamp: Date.now(),
       expiresAt: Date.now() + 60 * 1000
     }))
-  } catch {}
+  } catch {
+  }
 }
 
 const loadSearchHistory = () => {
@@ -56,7 +58,8 @@ const loadSearchHistory = () => {
     const h = JSON.parse(data)
     if (Date.now() < h.expiresAt) return h.query
     localStorage.removeItem('search_history_temp')
-  } catch {}
+  } catch {
+  }
   return ''
 }
 
@@ -67,7 +70,7 @@ const handleSearch = () => {
   saveSearchHistory(query)
   router.push({
     path: `/${language.value}/${dialect.value}/search`,
-    query: { q: query }
+    query: {q: query}
   })
 }
 
@@ -97,11 +100,11 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
         <div class="button-group">
           <button @click="handleSearch" class="btn btn-settings" type="button">
-            <img src="../assets/icons/search.svg" alt="搜索" class="control-icon"/>
+            <img src="../../assets/icons/search.svg" alt="搜索" class="control-icon"/>
           </button>
 
           <button @click="toggleSettings" class="btn btn-settings" :class="{ active: showSettings }" type="button">
-            <img src="../assets/icons/set.svg" alt="设置" class="control-icon"/>
+            <img src="../../assets/icons/set.svg" alt="设置" class="control-icon"/>
           </button>
         </div>
       </div>
@@ -109,8 +112,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
     <div v-if="showSettings" class="search-params">
       <!-- 模糊识别 -->
+
       <div class="form-field">
         <label v-formatted-text="$t('search.fuzzy_recognition')"/>
+        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-vague-explain"/>
         <select v-model="vague" @change="onConfigChange" class="form-control">
           <option :value="true" v-formatted-text="$t('common.open')"/>
           <option :value="false" v-formatted-text="$t('common.close')"/>
@@ -120,6 +125,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <!-- 拼音/IPA选择 -->
       <div class="form-field">
         <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
+        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-phonogram-explain"/>
         <select v-model="phonogram" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
           <option :value="2" v-formatted-text="$t('linguistic.ipa.self')"/>
@@ -129,6 +135,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <!-- IPA样式 -->
       <div v-if="phonogram !== 1" class="form-field">
         <label>{{ $t('linguistic.hint.ipa_style') }}</label>
+        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-ipa-style-explain"/>
         <select v-model="syllable" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
           <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
@@ -138,6 +145,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <!-- 声调样式 -->
       <div v-if="phonogram !== 1" class="form-field">
         <label>{{ $t('linguistic.hint.tone_style') }}</label>
+        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-tone-style-explain"/>
         <select v-model="tone" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
           <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
@@ -154,9 +162,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
   flex-direction: column;
   gap: var(--spacing-lg);
 
-  max-width: 800px;   /* 最大宽度 */
-  width: 100%;        /* 小屏自适应 */
-  margin: 0 auto;     /* 水平居中 */
+  font-size: var(--font-size-base);
+  max-width: 800px; /* 最大宽度 */
+  width: 100%; /* 小屏自适应 */
+  margin: 0 auto; /* 水平居中 */
   padding: 0 var(--spacing-md); /* 防止贴边（可选） */
 }
 
@@ -174,7 +183,6 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
 .form-control-lg {
   padding: var(--spacing-lg);
-  font-size: var(--font-size-lg);
   padding-right: 120px; /* 增加右边距，给按钮区域腾出空间 */
 }
 
@@ -188,39 +196,6 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
   align-items: center;
   gap: 8px;
   z-index: 10;
-}
-
-/* 设置按钮样式 */
-.btn-settings {
-  background: transparent;
-  border: none;
-  padding: 8px;
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-}
-
-.btn-settings:hover {
-  background: var(--color-border);
-}
-
-.btn-settings.active {
-  background: var(--color-primary);
-}
-
-.btn-settings.active .control-icon {
-  filter: brightness(0) invert(1);
-}
-
-.control-icon {
-  width: 20px;
-  height: 20px;
-  transition: all var(--transition-base);
 }
 
 .search-params {
@@ -247,14 +222,15 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
 /* 手机等小屏设备适配 */
 @media (max-width: 576px) {
+
   * {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
   }
 
   .form-control-lg {
-    padding: var(--spacing-md);
-    padding-right: 80px;
-    font-size: var(--font-size-sm);
+    padding: 14px 80px 14px 14px;
+    font-size: var(--font-size-base);
+    min-height: 70px;
   }
 
   .button-group {
@@ -262,15 +238,12 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
     gap: 4px;
   }
 
-  .btn-settings {
-    width: 32px;
-    height: 32px;
-    padding: 6px;
+  /* 设置项一行一个 */
+  .search-params {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
   }
 
-  .control-icon {
-    width: 16px;
-    height: 16px;
-  }
 }
 </style>

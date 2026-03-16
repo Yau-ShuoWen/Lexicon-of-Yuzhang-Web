@@ -32,9 +32,9 @@ export function formatRichText(text) {
         if (inner.includes("-")) {
             const [pre, tone] = inner.split("-");
             return (
-                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif;">[${pre}` +
+                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif;  ">[${pre}` +
                 `</span>` +
-                `<span style="font-family: 'Charis SIL', 'Microsoft YaHei', sans-serif;">${tone}]</span>`
+                `<span style="font-family: 'Charis SIL', 'Microsoft YaHei', sans-serif; ">${tone}]</span>`
             );
         }
 
@@ -47,6 +47,8 @@ export function formatRichText(text) {
 
     text = text.replace(/\[(.*?)\]/g, '$1');
 
-
+    text = text.replace(/ {2,}/g, (spaces) => {
+        return "&nbsp;".repeat(spaces.length);
+    });
     return text;
 }

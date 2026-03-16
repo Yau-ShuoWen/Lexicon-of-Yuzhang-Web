@@ -32,6 +32,7 @@
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 
     --app-bg-color: #E8EFEA;
+    --card-bg-color: #c1dfc4;
 
     /* 字体 */
     --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

@@ -191,19 +191,22 @@ defineExpose({clearAll})
     <div v-if="layout === 'small'" class="small-row">
 
       <input type="text" class="form-control small-input" placeholder="繁體"
-          :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
-          @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
+             :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
+             @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
 
       <input type="text" class="form-control small-input" placeholder="簡體"
-          :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
-          @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+             :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
+             @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+
 
       <button @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
+      <div v-if="!disabled">
+        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
+        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
+        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
+        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
+      </div>
 
-      <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
-      <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
-      <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
-      <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
 
     </div>
 
@@ -219,7 +222,7 @@ defineExpose({clearAll})
           :value="newSc" :maxlength="maxLength" :rows="rows" :disabled="disabled || scLocked"
           @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
 
-      <div class="button-group">
+      <div v-if="!disabled" class="button-group">
         <button @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
         <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
         <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>

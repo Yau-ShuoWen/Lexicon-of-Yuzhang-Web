@@ -1,5 +1,4 @@
 <script setup>
-import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
 import JumpButton from "../../components/Button/JumpButton.vue";
 import ScAndTcText from "../../components/Text/ScAndTcText.vue";
 import { useRoute, useRouter } from "vue-router";

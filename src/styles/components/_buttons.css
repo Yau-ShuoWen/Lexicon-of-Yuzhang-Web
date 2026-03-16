@@ -187,3 +187,35 @@ button:disabled {
     gap: 10px;
     margin-bottom: 15px
 }
+
+
+.btn-settings {
+    background: transparent;
+    border: none;
+    padding: 8px;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+}
+
+.btn-settings:hover {
+    background: var(--color-border);
+}
+
+.btn-settings.active {
+    background: var(--color-primary);
+}
+
+.btn-settings.active .control-icon {
+    filter: brightness(0) invert(1);
+}
+.control-icon {
+    width: 20px;
+    height: 20px;
+    transition: all var(--transition-base);
+}

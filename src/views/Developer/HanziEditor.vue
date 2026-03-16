@@ -1,10 +1,8 @@
 <!--HanziEditor.vue-->
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AutoProofreadText from "../../components/Text/AutoProofreadText.vue";
-import DictSelect from "../../components/Select/DictSelect.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
@@ -20,16 +18,14 @@ const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const getPath = (id) => `/${language.value}/${dialect.value}/hanzi-editor/${id}`
 
-const formData = ref({
+const UpdateData = ref({
   id: null,
-  sc: '',
-  tc: '',
+  hanzi: {sc: '', tc: ''},
   mainPy: '',
   special: 0,
   similar: [],
   variantPy: [],
   mandarin: [],
-  ipa: [],
   mean: [],
   note: []
 })
@@ -61,7 +57,7 @@ const loadHanzi = async (id) => {
 
 
     originalMandarin.value = data.mandarin || []    // 保存原始的 mandarin 数据
-    formData.value = transformDataFromBackend(data) // 转换数据格式以匹配前端界面
+    UpdateData.value = data // 转换数据格式以匹配前端界面
     await loadMandarinOptions()                     // 加载详情后自动加载普通话选项并设置选中状态
     await loadNearBy(id)
   } catch (error) {
@@ -92,72 +88,16 @@ const loadNearBy = async (id) => {
   }
 }
 
-
-// 方法：从后端数据转换到前端格式,，确保所有数组都存在
-const transformDataFromBackend = (data) => {
-  return {
-    ...data,
-    //
-    similar: data.similar || [],
-    variantPy: data.variantPy || [],
-    mandarin: data.mandarin || [],
-    ipa: data.ipa || [],
-    mean: data.mean || [],
-    note: data.note || []
-  }
-}
-
-// 方法：从前端数据转换到后端格式
-const transformDataToBackend = (data) => {
-  // 对于新增模式，id 应该为 null
-  const backendData = {
-    ...data,
-    id: isNew.value ? null : data.id
-  }
-
-  // 确保 mandarin 数组中的对象有正确的结构
-  backendData.mandarin = backendData.mandarin.map(item => ({
-    info: item.info,
-    mandarinId: item.mandarinId,
-    dialectId: item.dialectId
-  }))
-
-  // 确保 ipa 数组中的对象有正确的结构
-  backendData.ipa = backendData.ipa.map(item => ({
-    left: item.left,
-    right: item.right
-  }))
-
-  // 确保 mean 数组中的对象有正确的结构
-  backendData.mean = backendData.mean.map(item => ({
-    left: item.left,
-    right: item.right
-  }))
-
-  // 确保 note 数组中的对象有正确的结构
-  backendData.note = backendData.note.map(item => ({
-    left: {
-      left: item.left?.left || '',
-      right: item.left?.right || ''
-    },
-    right: {
-      left: item.right?.left || '',
-      right: item.right?.right || ''
-    }
-  }))
-
-  return backendData
-}
-
 // 方法：加载普通话选项并设置选中状态
 const loadMandarinOptions = async () => {
-  if (!formData.value.sc && !formData.value.tc) return
+  if (!UpdateData.value.hanzi.sc && !UpdateData.value.hanzi.tc) return
 
   try {
-    const response = await fetch(`/api/edit/${dialect.value}/get-hanzi?sc=${formData.value.sc || ''}&tc=${formData.value.tc || ''}`)
+    const response = await fetch(`/api/edit/${dialect.value}/get-hanzi?sc=${UpdateData.value.hanzi.sc}&tc=${UpdateData.value.hanzi.tc}`)
     if (response.ok) {
       const options = await response.json()
       mandarinOptions.value = options
+
 
       // 设置选中状态：将后端返回的 mandarin 数据与选项列表匹配
       setMandarinSelection(options)
@@ -171,7 +111,7 @@ const loadMandarinOptions = async () => {
 const setMandarinSelection = (options) => {
   if (isNew.value) {
     // 新增模式，清空选中状态
-    formData.value.mandarin = []
+    UpdateData.value.mandarin = []
     return
   }
 
@@ -188,7 +128,7 @@ const setMandarinSelection = (options) => {
 
     if (matchedOption) selectedItems.push(matchedOption)
   })
-  formData.value.mandarin = selectedItems
+  UpdateData.value.mandarin = selectedItems
 }
 
 // 切换到其他词条，清空保存的结果
@@ -204,7 +144,8 @@ const saveData = async () => {
 
   try {
     // 转换数据格式以匹配后端
-    const backendData = transformDataToBackend(formData.value)
+    const backendData = UpdateData.value
+    backendData.id = isNew.value ? null : UpdateData.value.id   // 对于新增模式，id 应该为 null
 
     console.log('准备保存的数据:', JSON.stringify(backendData, null, 2))
 
@@ -255,20 +196,22 @@ const onVariantPyDrop = (event, newIndex) => {
   const oldIndex = parseInt(event.dataTransfer.getData('text/plain'))
 
   if (oldIndex !== newIndex) {
-    const item = formData.value.variantPy.splice(oldIndex, 1)[0]
-    formData.value.variantPy.splice(newIndex, 0, item)
+    const item = UpdateData.value.variantPy.splice(oldIndex, 1)[0]
+    UpdateData.value.variantPy.splice(newIndex, 0, item)
 
     // 重新计算排序序号
-    formData.value.variantPy.forEach((item, index) => {
+    UpdateData.value.variantPy.forEach((item, index) => {
       item.sort = index + 1
     })
   }
 }
 
-// 监听简繁体变化，自动加载普通话选项，简繁体都有内容时才加载
-watch([() => formData.value.sc, () => formData.value.tc], () => {
-  if (formData.value.sc && formData.value.tc) loadMandarinOptions()
-})
+watch(
+    [() => UpdateData.value.hanzi.sc, () => UpdateData.value.hanzi.tc],
+    () => {
+      if (UpdateData.value.hanzi.sc && UpdateData.value.hanzi.tc) loadMandarinOptions()
+    }
+)
 
 // 监听路由变化，当ID变化时重新加载数据
 watch(() => route.params.id, (newId) => {
@@ -276,23 +219,23 @@ watch(() => route.params.id, (newId) => {
 })
 
 // 监听多拼音数组的变化，更新标准拼音选项，检查当前选中的标准拼音是否还存在
-watch(() => formData.value.variantPy, () => {
-  if (formData.value.mainPy) {
-    const exists = formData.value.variantPy.some(item =>
-        item.pinyin && item.pinyin.trim() === formData.value.mainPy.trim())
-    if (!exists) formData.value.mainPy = ''
+watch(() => UpdateData.value.variantPy, () => {
+  if (UpdateData.value.mainPy) {
+    const exists = UpdateData.value.variantPy.some(item =>
+        item.pinyin && item.pinyin.trim() === UpdateData.value.mainPy.trim())
+    if (!exists) UpdateData.value.mainPy = ''
   }
 }, {deep: true})
 
 // 监听多拼音条目的拼音变化
-watch(() => formData.value.variantPy.map(item => item.pinyin), () => {
+watch(() => UpdateData.value.variantPy.map(item => item.pinyin), () => {
   // 当拼音内容变化时，检查当前选中的标准拼音是否还存在
-  if (formData.value.mainPy) {
-    const exists = formData.value.variantPy.some(item =>
-        item.pinyin && item.pinyin.trim() === formData.value.mainPy.trim()
+  if (UpdateData.value.mainPy) {
+    const exists = UpdateData.value.variantPy.some(item =>
+        item.pinyin && item.pinyin.trim() === UpdateData.value.mainPy.trim()
     )
     if (!exists) {
-      formData.value.mainPy = ''
+      UpdateData.value.mainPy = ''
     }
   }
 }, {deep: true})
@@ -343,17 +286,17 @@ onMounted(() => {
 
           <div class="form-field">
             <label>繁體字和简体字</label>
-            <AutoProofreadText
-                :disabled="!isNew"
-                v-model:traditionalText="formData.tc"
-                v-model:simplifiedText="formData.sc"
-                :layout="'small'"
+
+            <ScAndTcText :disabled="!isNew"
+                         v-model:traditionalText="UpdateData.hanzi.tc"
+                         v-model:simplifiedText="UpdateData.hanzi.sc"
+                         :layout="'small'" :dialect="dialect.toString()"
             />
           </div>
 
           <div class="form-field">
             <label>特殊性標記</label>
-            <select v-model="formData.special" class="short-input">
+            <select v-model="UpdateData.special" class="short-input">
               <option value="0">普通漢字</option>
               <option value="1">特殊方言字</option>
               <option value="2">占位字</option>
@@ -367,7 +310,7 @@ onMounted(() => {
         <div class="section-header">
           <h3>拼音</h3>
           <button class="dev-add-btn"
-                  @click="addArrayItem(formData.variantPy, { sc: '', tc: '', pinyin: '', sort: formData.variantPy.length + 1 })">
+                  @click="addArrayItem(UpdateData.variantPy, {tag:{sc: '', tc: ''} , pinyin: '', sort: UpdateData.variantPy.length + 1 })">
             添加
           </button>
         </div>
@@ -376,14 +319,14 @@ onMounted(() => {
         <div class="main-pinyin-selector">
           <span class="selector-label">主拼音：</span>
           <div class="radio-group">
-            <div v-for="(item, index) in formData.variantPy" :key="index" class="radio-item">
+            <div v-for="(item, index) in UpdateData.variantPy" :key="index" class="radio-item">
               <template v-if="item.pinyin && item.pinyin.trim()">
                 <input
                     type="radio"
                     :id="'mainPy-' + index"
                     :name="'mainPyRadio'"
                     :value="item.pinyin.trim()"
-                    v-model="formData.mainPy"
+                    v-model="UpdateData.mainPy"
                 />
                 <label :for="'mainPy-' + index">{{ item.pinyin.trim() }}</label>
               </template>
@@ -392,7 +335,7 @@ onMounted(() => {
         </div>
 
         <div
-            v-for="(item, index) in formData.variantPy"
+            v-for="(item, index) in UpdateData.variantPy"
             :key="index"
             class="array-item draggable-item"
             draggable="true"
@@ -403,9 +346,10 @@ onMounted(() => {
           <div class="drag-handle">⋮⋮</div>
 
           <label>排序顺序：{{ item.sort }}</label>
-          <AutoProofreadText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc" :layout="'small'"/>
+          <ScAndTcText v-model:traditionalText="item.tag.tc" v-model:simplifiedText="item.tag.sc"
+                       :layout="'small'" :dialect="dialect.toString()"/>
           <PinyinProofreadText v-model="item.pinyin" :placeholder="'拼音'"/>
-          <button @click="removeArrayItem(formData.variantPy, index)" class="dev-remove-btn">刪除</button>
+          <button @click="removeArrayItem(UpdateData.variantPy, index)" class="dev-remove-btn">刪除</button>
 
         </div>
       </div>
@@ -418,53 +362,44 @@ onMounted(() => {
                 type="checkbox"
                 :id="'mdr-' + option.info"
                 :value="option"
-                v-model="formData.mandarin"
+                v-model="UpdateData.mandarin"
             />
             <label :for="'mdr-' + option.info">{{ option.info }}</label>
           </div>
         </div>
         <div v-else class="no-results-low">
-          {{ formData.sc && formData.tc ? '暫無對應讀音' : '請先填寫簡繁體內容獲得讀音' }}
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="section-header">
-          <h3>國際音標</h3>
-          <button class="dev-add-btn" @click="addArrayItem(formData.ipa, { left: '', right: '' })">添加</button>
-        </div>
-        <div v-for="(item, index) in formData.ipa" :key="index" class="array-item">
-          <DictSelect :dialect="dialect.toString()" v-model="item.left" :placeholder="'请选择词典'"/>
-          <input v-model="item.right" placeholder="內容"/>
-
-          <button @click="removeArrayItem(formData.ipa, index)" class="dev-remove-btn">刪除</button>
+          {{
+            UpdateData.hanzi.sc && UpdateData.hanzi.tc ? `${UpdateData.hanzi.sc} / ${UpdateData.hanzi.tc}:暫無對應讀音` : '請先填寫簡繁體內容獲得讀音'
+          }}
         </div>
       </div>
 
       <div class="form-section">
         <div class="section-header">
           <h3>相似漢字</h3>
-          <button class="dev-add-btn" @click="addArrayItem(formData.similar, { sc: '', tc: '' })">添加</button>
+          <button class="dev-add-btn"
+                  @click="addArrayItem(UpdateData.similar, {id: null, text: { sc: '', tc: '' }})">添加
+          </button>
         </div>
-        <div v-for="(item, index) in formData.similar" :key="index" class="array-item">
-          <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
-          :layout="'small'" :dialect="dialect.toString()"/>
-          <button @click="removeArrayItem(formData.similar, index)" class="dev-remove-btn">刪除</button>
+        <div v-for="(item, index) in UpdateData.similar" :key="index" class="array-item">
+          <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
+                       :layout="'small'" :dialect="dialect.toString()"/>
+          <button @click="removeArrayItem(UpdateData.similar, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
 
       <div class="form-section">
         <div class="section-header">
           <h3>含義</h3>
-          <button class="dev-add-btn" @click="addArrayItem(formData.mean, { left: '', right: '' })">添加</button>
+          <button class="dev-add-btn" @click="addArrayItem(UpdateData.mean, { sc: '', tc: '' })">添加</button>
         </div>
-        <div v-for="(item, index) in formData.mean" :key="index" class="array-item complex-item">
+        <div v-for="(item, index) in UpdateData.mean" :key="index" class="array-item complex-item">
 
           <ScAndTcText
-              v-model:traditionalText="item.right" v-model:simplifiedText="item.left"
-              :layout="'large'" :dialect="dialect"/>
+              v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
+              :layout="'large'" :dialect="dialect.toString()"/>
 
-          <button @click="removeArrayItem(formData.mean, index)" class="dev-remove-btn">刪除</button>
+          <button @click="removeArrayItem(UpdateData.mean, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
 
@@ -472,20 +407,24 @@ onMounted(() => {
         <div class="section-header">
           <h3>註釋</h3>
           <button class="dev-add-btn"
-                  @click="addArrayItem(formData.note, { left: { left: '', right: '' }, right: { left: '', right: '' } })">
+                  @click="addArrayItem(UpdateData.note, { left: { sc: '', tc: '' }, right: { sc: '', tc: '' } })">
             添加
           </button>
         </div>
-        <div v-for="(item, index) in formData.note" :key="index" class="array-item complex-item">
+        <div v-for="(item, index) in UpdateData.note" :key="index" class="array-item complex-item">
 
           <ScAndTcText
-              v-model:traditionalText="item.right.left" v-model:simplifiedText="item.left.left"
-              :layout="'small'" :dialect="dialect.toString()"/>
+              v-model:traditionalText="item.left.tc"
+              v-model:simplifiedText="item.left.sc"
+              :layout="'small'" :dialect="dialect.toString()"
+          />
           <ScAndTcText
-              v-model:traditionalText="item.right.right" v-model:simplifiedText="item.left.right"
-              :layout="'large'" :dialect="dialect.toString()"/>
+              v-model:traditionalText="item.right.tc"
+              v-model:simplifiedText="item.right.sc"
+              :layout="'large'" :dialect="dialect.toString()"
+          />
 
-          <button @click="removeArrayItem(formData.note, index)" class="dev-remove-btn">刪除</button>
+          <button @click="removeArrayItem(UpdateData.note, index)" class="dev-remove-btn">刪除</button>
         </div>
       </div>
     </div>
@@ -497,13 +436,6 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 30px;
 }
 
 .save-message {
@@ -631,20 +563,6 @@ input[readonly] {
   align-items: stretch;
   gap: 8px;
 }
-
-.note-part {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.note-part label {
-  min-width: 40px;
-  font-weight: normal;
-  font-size: 12px;
-  color: #666;
-}
-
 
 .checkbox-group {
   display: grid;

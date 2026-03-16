@@ -1,8 +1,8 @@
 <script setup>
 import {ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import StatusDisplay from './Status/StatusDisplay.vue'
-import JumpButton from "./Button/JumpButton.vue";
+import StatusDisplay from '../../components/Status/StatusDisplay.vue'
+import JumpButton from "../../components/Button/JumpButton.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -123,10 +123,10 @@ const handleResultClick = (result) => {
 
       <!-- 通用搜索结果展示 -->
       <div v-else-if="results.length > 0" class="results-section">
-        <div class="results-header">
-          <h2 class="section-title">查询结果</h2>
-          <p class="results-count">找到 {{ results.length }} 个相关结果</p>
-        </div>
+<!--        <div class="results-header">-->
+<!--          <h2 class="section-title">查询结果</h2>-->
+<!--          <p class="results-count">找到 {{ results.length }} 个相关结果</p>-->
+<!--        </div>-->
 
         <div class="results-list">
           <div
@@ -137,11 +137,8 @@ const handleResultClick = (result) => {
           >
             <div class="result-content">
               <div class="result-main">
-                <h3 class="result-title">{{ result.title }}</h3>
-                <p class="result-explain">{{ result.explain }}</p>
-              </div>
-              <div class="result-meta">
-                <span class="result-tag">{{ result.tag }}</span>
+                <h3 class="result-title" v-formatted-text="result.title"/>
+                <p class="result-explain" v-formatted-text="result.explain"/>
               </div>
             </div>
           </div>
@@ -151,31 +148,15 @@ const handleResultClick = (result) => {
   </div>
 </template>
 
-<style scoped>
+<style>
 .search-results-page {
   min-height: 100vh;
-  background: var(--color-background);
 }
 
 .results-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 30px 20px;
-}
-
-.results-header {
-  margin-bottom: 30px;
-}
-
-.section-title {
-  font-size: 24px;
-  color: var(--color-text);
-  margin-bottom: 8px;
-}
-
-.results-count {
-  color: var(--color-text-light);
-  font-size: 14px;
 }
 
 .results-list {
@@ -185,7 +166,7 @@ const handleResultClick = (result) => {
 }
 
 .result-item {
-  background: white;
+  background: var(--card-bg-color);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
   overflow: hidden;
@@ -196,7 +177,6 @@ const handleResultClick = (result) => {
 .result-item:hover {
   border-color: var(--color-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
 }
 
 .result-content {
@@ -213,7 +193,7 @@ const handleResultClick = (result) => {
 .result-title {
   font-size: 24px;
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--color-text);
   margin-bottom: 8px;
 }
 
@@ -221,21 +201,5 @@ const handleResultClick = (result) => {
   color: var(--color-text-light);
   font-size: 14px;
   margin: 0;
-}
-
-.result-meta {
-  display: flex;
-  align-items: center;
-}
-
-.result-tag {
-  background: var(--color-background-alt);
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 </style>

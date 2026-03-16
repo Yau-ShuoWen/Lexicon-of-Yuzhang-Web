@@ -80,6 +80,7 @@ async function loadNearby() {
     left: page.value.frontSort,
     right: page.value.endSort
   }
+  console.log(requestBody)
   const response = await fetch(`/api/ref/get-nearby/${dictionary.value}`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},

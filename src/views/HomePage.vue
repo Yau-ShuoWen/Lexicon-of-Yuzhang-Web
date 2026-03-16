@@ -1,26 +1,24 @@
 <template>
-  <p class="page-subtitle" v-formatted-text="$t('message.welcome')"/>
-  <p class="page-subtitle" v-formatted-text="$t('message.welcome_nam')"/>
+  <SloganText/>
+
   <div class="selector-container">
     <LanguageSelector/>
     <DialectSelector/>
   </div>
+
   <SearchInput/>
 </template>
 
-<script>
-import { computed, defineComponent } from "vue";
-import SearchInput from "../components/SearchInput.vue";
-import LanguageSelector from "../components/Select/LanguageSelector.vue";
-import DialectSelector from "../components/Select/DialectSelector.vue";
-import { useRoute, useRouter } from "vue-router";
+<script setup>
+import { computed, ref } from "vue"
+import { useRoute } from "vue-router"
 
-export default defineComponent({
-  components: {DialectSelector, LanguageSelector, SearchInput}
-});
+import SearchInput from "./Search/SearchInput.vue"
+import LanguageSelector from "../components/Select/LanguageSelector.vue"
+import DialectSelector from "../components/Select/DialectSelector.vue"
+import SloganText from "./SloganText.vue";
 
 const route = useRoute()
-const router = useRouter()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)

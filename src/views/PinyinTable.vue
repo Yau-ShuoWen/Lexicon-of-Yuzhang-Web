@@ -1,21 +1,17 @@
+<!---->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatRichText } from '../utils/textFormatter.js'
-import { showError  } from '../services/ErrorService.js'
+import { showError } from '../services/ErrorService.js'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
 
 const route = useRoute()
+const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 const pinyinData = ref([])
 const loading = ref(true)
-
-// Grid 分类
-const initialGrid = computed(() => pinyinData.value.find(g => g.code === 'initial'))
-const lastGrid = computed(() => pinyinData.value.find(g => g.code === 'last'))
-const specialGrid = computed(() => pinyinData.value.find(g => g.code === 'special'))
-const toneGrid = computed(() => pinyinData.value.find(g => g.code === 'tone'))
 
 // 生命周期
 onMounted(fetchTable)
@@ -63,110 +59,62 @@ watch(dialect, fetchTable)
 
 
 <template>
-  <LoadingIcon v-if="loading"/>
+  <div class="pinyin-table-container">
+    <div v-if="loading">
+      <LoadingIcon/>
+    </div>
 
-  <div v-else>
+    <div v-else class="pinyin-container">
 
-    <!-- 声母 -->
-    <div v-if="initialGrid" class="attribute-group final-group">
-      <div class="group-header">
-        <h3>{{ initialGrid.name.left }}</h3>
-      </div>
+      <div
+          v-for="grid in pinyinData"
+          :key="grid.code"
+          class="attribute-group final-group"
+      >
 
-      <div v-for="line in initialGrid.line" class="pinyin-line">
-        <div v-for="group in line.group" class="pinyin-group">
-          <div class="items-grid">
+        <div class="group-header">
+          <h3>{{ grid.name[language] }}</h3>
+        </div>
 
-            <div v-for="item in group.item"
-                 class="item-box clickable"
-                 :class="{ invalid: !item.exist }"
-                 @click="handleItemClick(item)">
-              <div class="main-display" v-html="formatDisplay(item)"/>
+        <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
+          <div v-for="group in line.group" :key="group.id" class="pinyin-group">
+            <div class="items-grid">
+
+              <div
+                  v-for="item in group.item"
+                  :key="item.id"
+                  class="item-box clickable"
+                  :class="{ invalid: !item.exist }"
+                  @click="handleItemClick(item)"
+              >
+                <div
+                    class="main-display"
+                    v-html="formatDisplay(item)"
+                />
+              </div>
+
             </div>
-
           </div>
         </div>
       </div>
 
     </div>
-
-    <!-- 韵母 -->
-    <div v-if="lastGrid" class="attribute-group final-group">
-      <div class="group-header">
-        <h3>{{ lastGrid.name.left }}</h3>
-      </div>
-
-      <div v-for="line in lastGrid.line" class="pinyin-line">
-        <div v-for="group in line.group" class="pinyin-group">
-          <div class="items-grid">
-
-            <div v-for="item in group.item"
-                 class="item-box clickable"
-                 :class="{ invalid: !item.exist }"
-                 @click="handleItemClick(item)">
-              <div class="main-display" v-html="formatDisplay(item)"/>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="specialGrid" class="attribute-group final-group">
-      <div class="group-header">
-        <h3>{{ specialGrid.name.left }}</h3>
-      </div>
-
-      <div v-for="line in specialGrid.line" class="pinyin-line">
-        <div v-for="group in line.group" class="pinyin-group">
-          <div class="items-grid">
-
-            <div v-for="item in group.item"
-                 class="item-box clickable"
-                 :class="{ invalid: !item.exist }"
-                 @click="handleItemClick(item)">
-              <div class="main-display" v-html="formatDisplay(item)"/>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 声调 -->
-    <div v-if="toneGrid" class="attribute-group final-group">
-      <div class="group-header">
-        <h3>{{ toneGrid.name.left }}</h3>
-      </div>
-
-      <div v-for="line in toneGrid.line" class="pinyin-line">
-        <div v-for="group in line.group" class="pinyin-group">
-          <div class="items-grid">
-
-            <div v-for="item in group.item"
-                 class="item-box clickable"
-                 :class="{ invalid: !item.exist }"
-                 @click="handleItemClick(item)">
-              <div class="main-display" v-html="formatDisplay(item)"/>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </template>
 
 
 <style scoped>
+.pinyin-table-container{
+  max-width: 1000px;
+  margin: 0 auto;
+}
 /* ======== Attribute Block ======== */
 .attribute-group {
   margin-bottom: 34px; /* Line组之间距离 */
   background: #fff;
   border-radius: 12px;
   padding: 20px 18px;
-  border: 2px solid #cfe2ff;
+  border: 2px solid var(--color-primary-light);
 }
 
 /* ======== Header ======== */
@@ -209,35 +157,35 @@ watch(dialect, fetchTable)
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 70px;
-  gap: 8px; /* Group内部Item间距 */
+  gap: 5px; /* Group内部Item间距 */
 }
 
 /* ======== Item ======== */
 .item-box {
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
+  background: var(--card-bg-color);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+
   padding: 12px 8px;
   min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: 0.18s ease;
+
+  transition: all 0.3s ease;
 }
 
 /* ======== 可点击态 ======== */
 .item-box.clickable {
   cursor: pointer;
-  background: #e8f4fd;
-  border-color: #c1dbf2;
 }
 
-/* ⭐ invalid 不允许 hover 动画 */
+/* hover 效果与页面1一致 */
 .item-box.clickable:not(.invalid):hover {
-  background: #d4eaf9;
-  border-color: #4dabf7;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(77, 171, 247, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  transform: translateY(0px);
 }
 
 /* ======== invalid ======== */
@@ -245,7 +193,8 @@ watch(dialect, fetchTable)
   opacity: 0.5;
   background: #f8f9fa;
   border-color: #dee2e6;
-  pointer-events: none; /* 禁止点击 */
+
+  pointer-events: none;
   transform: none !important;
   box-shadow: none !important;
 }
@@ -258,8 +207,34 @@ watch(dialect, fetchTable)
 .main-display {
   font-size: 20px;
   text-align: center;
-  color: #495057;
+  color: var(--color-text);
   line-height: 1.25;
 }
 
+.pinyin-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* ======== Mobile Layout ======== */
+@media (max-width: 450px) {
+
+  /* 每行只有一个 group */
+  .pinyin-line {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .pinyin-group {
+    width: 100%;
+  }
+
+  /* item 平均分配宽度 */
+  .items-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+
+}
 </style>

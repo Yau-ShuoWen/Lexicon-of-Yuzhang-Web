@@ -20,6 +20,10 @@
 @import './utilities/_spacing.css';
 @import './utilities/_display.css';
 
+html {
+    overflow-y: scroll;
+}
+
 /* 全局样式 */
 #app {
     min-height: 100vh;

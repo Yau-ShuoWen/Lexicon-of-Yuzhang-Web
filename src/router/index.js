@@ -88,7 +88,7 @@ const routes = [
             {
                 path: 'search',
                 name: 'Search',
-                component: () => import('../components/SearchResult.vue')
+                component: () => import('../views/Search/SearchResult.vue')
             },
             {
                 path: 'h/:hanzi',

@@ -93,7 +93,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
         <input
             type="text"
             v-model="hanziInput"
-            placeholder="查询内容"
+            :placeholder="$t('search.hint')"
             @keyup.enter="handleSearch"
             class="form-control form-control-lg"
         />
@@ -114,8 +114,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <!-- 模糊识别 -->
 
       <div class="form-field">
-        <label v-formatted-text="$t('search.fuzzy_recognition')"/>
-        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-vague-explain"/>
+
+        <Info :dialect="dialect.toString()" :language="language.toString()"
+              textKey="search-vague-explain" :labelText="$t('search.fuzzy_recognition')"/>
+
         <select v-model="vague" @change="onConfigChange" class="form-control">
           <option :value="true" v-formatted-text="$t('common.open')"/>
           <option :value="false" v-formatted-text="$t('common.close')"/>
@@ -124,8 +126,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
       <!-- 拼音/IPA选择 -->
       <div class="form-field">
-        <label v-formatted-text="$t('linguistic.hint.how_to_mark')"/>
-        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-phonogram-explain"/>
+
+        <Info :dialect="dialect.toString()" :language="language.toString()"
+              textKey="search-phonogram-explain" :label-text="$t('linguistic.hint.how_to_mark')"/>
+
         <select v-model="phonogram" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
           <option :value="2" v-formatted-text="$t('linguistic.ipa.self')"/>
@@ -134,8 +138,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
       <!-- IPA样式 -->
       <div v-if="phonogram !== 1" class="form-field">
-        <label>{{ $t('linguistic.hint.ipa_style') }}</label>
-        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-ipa-style-explain"/>
+
+        <Info :dialect="dialect.toString()" :language="language.toString()"
+              textKey="search-ipa-style-explain" :label-text="$t('linguistic.hint.ipa_style')"/>
+
         <select v-model="syllable" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
           <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
@@ -144,8 +150,10 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 
       <!-- 声调样式 -->
       <div v-if="phonogram !== 1" class="form-field">
-        <label>{{ $t('linguistic.hint.tone_style') }}</label>
-        <Info :dialect="dialect.toString()" :language="language.toString()" textKey="search-tone-style-explain"/>
+
+        <Info :dialect="dialect.toString()" :language="language.toString()"
+              textKey="search-tone-style-explain" :label-text="$t('linguistic.hint.tone_style')"/>
+
         <select v-model="tone" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
           <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>

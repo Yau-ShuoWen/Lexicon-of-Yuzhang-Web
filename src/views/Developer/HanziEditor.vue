@@ -255,7 +255,7 @@ onMounted(() => {
       <button
           v-if="!isNew"
           :disabled="!prevId"
-          class="dev-nav-button dev-btn-small"
+          class="dev-nav-button dev-btn dev-btn-small"
           @click="shiftToOther(prevId)"
       >{{ prevId ? '上一条' : '第一条' }}
       </button>

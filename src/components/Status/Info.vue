@@ -1,15 +1,25 @@
 <template>
   <div class="info-wrapper">
 
-    <button
-        ref="buttonRef"
-        type="button"
-        class="btn btn-settings"
-        :class="{ active: visible }"
-        @click.stop="toggle"
-    >
-      <img src="../../assets/icons/information.svg" alt="信息" class="control-icon"/>
-    </button>
+    <div class="info-header">
+
+      <label
+          v-if="labelText"
+          class="info-label"
+          v-formatted-text="labelText"
+      ></label>
+
+      <button
+          ref="buttonRef"
+          type="button"
+          class="btn btn-settings"
+          :class="{ active: visible }"
+          @click.stop="toggle"
+      >
+        <img src="../../assets/icons/information.svg" alt="信息" class="control-icon"/>
+      </button>
+
+    </div>
 
     <div
         v-if="visible"
@@ -28,7 +38,8 @@ import { formatRichText } from "../../utils/textFormatter"
 const props = defineProps({
   dialect: { type: String, required: true },
   language: { type: String, required: true },
-  textKey: { type: String, required: true }
+  textKey: { type: String, required: true },
+  labelText: { type: String, default: "" }   // 新增
 })
 
 const visible = ref(false)
@@ -103,13 +114,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-
 .info-wrapper {
   position: relative;
   display: inline-block;
-
 }
 
+/* label + button 一行 */
+.info-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+}
+
+/* label 不换行 */
+.info-label {
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+/* popup 在下方 */
 .info-popup {
   position: absolute;
 
@@ -132,5 +156,4 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-base);
   line-height: 1.6;
 }
-
 </style>

@@ -27,18 +27,18 @@ export default {
     },
     message: {
         welcome: '方言是我们能听见的历史',
-        welcome_nam :'南昌方言：方言系我们听得到箇历史 \n [fòng iēn xỉ ngǒ lẹ̄n tiàng de̋k dāu go li̋k sǐ] ',
         noData: '暂无数据'
     },
     search: {
+        hint:'搜索内容',
         fuzzy_recognition: '模糊识别',
         noData: '暂无数据'
     },
     linguistic: {
         hint:{
             how_to_mark:'读音标注方法',
-            ipa_style:'自定义国际音标样式',
-            tone_style:'自定义音调样式'
+            ipa_style:'国际音标样式',
+            tone_style:'音调样式'
         },
 
         han_pinyin: {
@@ -51,8 +51,8 @@ export default {
 
         ipa: {
             self: '国际音标',
-            standard: '标准国际音标',
-            chinese: '汉语语言学通用符号',
+            standard: '通用国际音标',
+            chinese: '汉语语言学符号',
         },
 
         tone: {

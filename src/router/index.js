@@ -91,9 +91,9 @@ const routes = [
                 component: () => import('../views/Search/SearchResult.vue')
             },
             {
-                path: 'h/:hanzi',
+                path: 'h/:query',
                 name: 'HanziDetail',
-                component: () => import('../components/HanziDetail.vue'),
+                component: () => import('../views/Search/HanziDetail.vue'),
                 props: true
             },
             {

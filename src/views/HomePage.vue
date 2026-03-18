@@ -27,11 +27,12 @@ const dialect = computed(() => route.params.dialect)
 <style scoped>
 .selector-container {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   max-width: 350px;
   margin: 5px auto;
   font-size: 1.2rem;
-  padding: 10px 0;
+  padding: 10px;
+  gap: 20px; /* 元素之间的间距 */
 }
 </style>

@@ -7,7 +7,6 @@ import BackButton from "../../components/Button/BackButton.vue";
 const route = useRoute()
 const router = useRouter()
 
-/** 页面状态 */
 const loading = ref(false)
 const error = ref('')
 const data = ref(null)
@@ -15,10 +14,6 @@ const data = ref(null)
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
-
-/**
- * 当前状态
- */
 
 const currentStatus = computed(() => {
   if (loading.value) return 'loading'
@@ -182,25 +177,6 @@ watch(
             </div>
           </div>
 
-          <!--          &lt;!&ndash; 相似字 &ndash;&gt;-->
-          <!--          <div-->
-          <!--              v-if="info.similar && info.similar.length"-->
-          <!--              class="section"-->
-          <!--          >-->
-          <!--            <h3 class="section-title">-->
-          <!--              相似字-->
-          <!--            </h3>-->
-          <!--            <div class="similar-list">-->
-          <!--            <span-->
-          <!--                v-for="(s,i) in info.similar"-->
-          <!--                :key="i"-->
-          <!--                class="similar-item"-->
-          <!--            >-->
-          <!--              {{ s }}-->
-          <!--            </span>-->
-          <!--            </div>-->
-          <!--          </div>-->
-          <!-- 注释 -->
           <div
               v-if="info.note && info.note.length"
               class="section"
@@ -301,17 +277,6 @@ watch(
 
 .mdr-row {
   margin-bottom: 4px;
-}
-
-.similar-list {
-  display: flex;
-  gap: 10px;
-}
-
-.similar-item {
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--color-background-alt);
 }
 
 .note-row {

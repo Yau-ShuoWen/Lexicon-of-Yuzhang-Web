@@ -49,12 +49,6 @@ const props = defineProps({
     default: ''
   }
 });
-
-// 计算边框颜色
-const borderColor = computed(() => {
-  if (props.color) return props.color;
-  return 'var(--color-primary)';
-});
 </script>
 
 <style scoped>
@@ -78,13 +72,13 @@ const borderColor = computed(() => {
   display: block;
   border-style: solid;
   border-color: var(--color-border);
-  border-top-color: v-bind(borderColor);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 .loading-text {
-  color: v-bind(borderColor);
+  color: var(--color-primary);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }

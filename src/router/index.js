@@ -97,9 +97,9 @@ const routes = [
                 props: true
             },
             {
-                path: 'c/:ciyu',
+                path: 'c/:query',
                 name: 'CiyuDetail',
-                component: () => import('../components/CiyuDetail.vue'),
+                component: () => import('../views/Search/CiyuDetail.vue'),
                 props: true
             },
 

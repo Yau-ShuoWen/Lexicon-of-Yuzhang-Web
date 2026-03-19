@@ -1,8 +1,9 @@
 <script setup>
 import {ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import StatusDisplay from '../../components/Status/StatusDisplay.vue'
 import JumpButton from "../../components/Button/JumpButton.vue";
+import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import ErrorWindow from "../../components/Window/ErrorWindow.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -14,17 +15,12 @@ const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
 
-const language = computed(() => {return route.params.language})
-const dialect = computed(() => {return route.params.dialect})
+const language = computed(() => route.params.language)
+const dialect = computed(() => route.params.dialect)
 
-/**
- * 当前页面状态
- */
 const currentStatus = computed(() => {
   if (loading.value) return 'loading'
   if (error.value) return 'error'
-  if (searched.value && results.value.length === 0) return 'empty'
-  if (!searched.value) return 'initial'
   return null
 })
 
@@ -112,14 +108,18 @@ const handleResultClick = (result) => {
     <div class="results-container">
       <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
 
+
+ <!-- 状态显示 -->
+      <LoadingIcon v-if="currentStatus === 'loading'" size="40" :showText="false"/>
+      <ErrorWindow v-if="currentStatus === 'error'" />
       <!-- 状态显示组件 -->
-      <StatusDisplay
-          v-if="currentStatus"
-          :type="currentStatus"
-          :message="error"
-          :show-retry="currentStatus === 'error'"
-          @retry="handleRetry"
-      />
+<!--      <StatusDisplay-->
+<!--          v-if="currentStatus"-->
+<!--          :type="currentStatus"-->
+<!--          :message="error"-->
+<!--          :show-retry="currentStatus === 'error'"-->
+<!--          @retry="handleRetry"-->
+<!--      />-->
 
       <!-- 通用搜索结果展示 -->
       <div v-else-if="results.length > 0" class="results-section">

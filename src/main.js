@@ -6,7 +6,7 @@ import App from './App.vue'
 import router from './router'
 import { initializeAuth } from './utils/auth'
 import i18n from './internationalization.js'
-import formattedTextDirective from './directives/formattedText'
+import formattedTextDirective from './utils/formattedText.js'
 
 // 导入全局样式
 import './styles/main.css'

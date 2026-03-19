@@ -1,4 +1,4 @@
-import { formatRichText } from '../utils/textFormatter'
+import { formatRichText } from './textFormatter.js'
 
 export default {
     mounted(el, binding) {

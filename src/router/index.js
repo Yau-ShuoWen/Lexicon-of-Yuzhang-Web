@@ -41,7 +41,7 @@ const routes = [
             {
                 path: 'test',
                 name: 'Test',
-                component: () => import('../views/HelloWorld.vue')
+                component: () => import('../views/Test/TestPage.vue')
             },
             {
                 path: 'test/sc-tc',

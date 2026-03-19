@@ -7,6 +7,7 @@ import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../components/Text/ScAndTcText.vue";
+import DraggableList from "../../components/Layout/DraggableList.vue";
 
 // 路由
 const route = useRoute()
@@ -182,30 +183,6 @@ const removeArrayItem = (array, index) => {
   array.splice(index, 1)
 }
 
-// 多拼音拖拽排序方法
-const onVariantPyDragStart = (event, index) => {
-  event.dataTransfer.setData('text/plain', index)
-}
-
-const onVariantPyDragOver = (event) => {
-  event.preventDefault()
-}
-
-const onVariantPyDrop = (event, newIndex) => {
-  event.preventDefault()
-  const oldIndex = parseInt(event.dataTransfer.getData('text/plain'))
-
-  if (oldIndex !== newIndex) {
-    const item = UpdateData.value.variantPy.splice(oldIndex, 1)[0]
-    UpdateData.value.variantPy.splice(newIndex, 0, item)
-
-    // 重新计算排序序号
-    UpdateData.value.variantPy.forEach((item, index) => {
-      item.sort = index + 1
-    })
-  }
-}
-
 watch(
     [() => UpdateData.value.hanzi.sc, () => UpdateData.value.hanzi.tc],
     () => {
@@ -309,10 +286,6 @@ onMounted(() => {
       <div class="form-section">
         <div class="section-header">
           <h3>拼音</h3>
-          <button class="dev-add-btn"
-                  @click="addArrayItem(UpdateData.variantPy, {tag:{sc: '', tc: ''} , pinyin: '', sort: UpdateData.variantPy.length + 1 })">
-            添加
-          </button>
         </div>
 
         <!-- 主拼音单选按钮组 -->
@@ -334,25 +307,23 @@ onMounted(() => {
           </div>
         </div>
 
-        <div
-            v-for="(item, index) in UpdateData.variantPy"
-            :key="index"
-            class="array-item draggable-item"
-            draggable="true"
-            @dragstart="onVariantPyDragStart($event, index)"
-            @dragover="onVariantPyDragOver($event)"
-            @drop="onVariantPyDrop($event, index)"
+        <DraggableList
+            v-model="UpdateData.variantPy"
+            :createItem="() => ({tag:{sc:'', tc:''},pinyin:'',sort: UpdateData.variantPy.length + 1})"
         >
-          <div class="drag-handle">⋮⋮</div>
+          <template #default="{ item }">
 
-          <label>排序顺序：{{ item.sort }}</label>
-          <ScAndTcText v-model:traditionalText="item.tag.tc" v-model:simplifiedText="item.tag.sc"
-                       :layout="'small'" :dialect="dialect.toString()"/>
-          <PinyinProofreadText v-model="item.pinyin" :placeholder="'拼音'"/>
-          <button @click="removeArrayItem(UpdateData.variantPy, index)" class="dev-remove-btn">刪除</button>
+            <div class="array-item">
+              <span>{{ item.sort }}</span>
 
-        </div>
+              <ScAndTcText v-model:traditionalText="item.tag.tc" v-model:simplifiedText="item.tag.sc"
+                  :layout="'small'" :dialect="dialect.toString()"/>
+              <PinyinProofreadText v-model="item.pinyin"/>
+            </div>
+          </template>
+        </DraggableList>
       </div>
+
 
       <div class="form-section">
         <h3>普通話讀音對應</h3>

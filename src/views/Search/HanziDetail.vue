@@ -114,18 +114,14 @@ watch(
             :key="index"
             class="pronunciation-block"
         >
-          <!-- 拼音 -->
-          <div class="section">
-            <p class="special">{{ info.special }}</p>
-            <h2 class="pinyin"  v-formatted-text="$t(info.mainPy)"/>
-          </div>
+          <h2 class="pinyin" v-formatted-text="$t(info.mainPy)"/>
+
+          <p class="special">{{ info.special }}</p>
+
           <!-- 读音变体 -->
-          <div
-              v-if="info.variantPy && info.variantPy.length"
-              class="section"
-          >
+          <div v-if="info.variantPy && info.variantPy.length" class="section">
             <h3 class="section-title">
-              读音变体
+              异读
             </h3>
             <div
                 v-for="(v,i) in info.variantPy"
@@ -182,28 +178,28 @@ watch(
                 class="ipa-row"
             >
               <span class="ipa-dict">{{ ipa.left }}</span>
-              <span class="ipa-value"  v-formatted-text="$t(ipa.right)"/>
+              <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>
             </div>
           </div>
 
-<!--          &lt;!&ndash; 相似字 &ndash;&gt;-->
-<!--          <div-->
-<!--              v-if="info.similar && info.similar.length"-->
-<!--              class="section"-->
-<!--          >-->
-<!--            <h3 class="section-title">-->
-<!--              相似字-->
-<!--            </h3>-->
-<!--            <div class="similar-list">-->
-<!--            <span-->
-<!--                v-for="(s,i) in info.similar"-->
-<!--                :key="i"-->
-<!--                class="similar-item"-->
-<!--            >-->
-<!--              {{ s }}-->
-<!--            </span>-->
-<!--            </div>-->
-<!--          </div>-->
+          <!--          &lt;!&ndash; 相似字 &ndash;&gt;-->
+          <!--          <div-->
+          <!--              v-if="info.similar && info.similar.length"-->
+          <!--              class="section"-->
+          <!--          >-->
+          <!--            <h3 class="section-title">-->
+          <!--              相似字-->
+          <!--            </h3>-->
+          <!--            <div class="similar-list">-->
+          <!--            <span-->
+          <!--                v-for="(s,i) in info.similar"-->
+          <!--                :key="i"-->
+          <!--                class="similar-item"-->
+          <!--            >-->
+          <!--              {{ s }}-->
+          <!--            </span>-->
+          <!--            </div>-->
+          <!--          </div>-->
           <!-- 注释 -->
           <div
               v-if="info.note && info.note.length"

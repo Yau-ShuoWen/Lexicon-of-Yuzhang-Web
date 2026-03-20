@@ -59,7 +59,7 @@ onMounted(() => {
         <div class="text-box" v-formatted-text="result"></div>
 
         <div class="text-box contact-box">
-          <div class="contact-title">{{ '合规、开发和联系' }}</div>
+          <div class="contact-title">{{ '联系' }}</div>
 
           <div class="contact-list">
 
@@ -152,7 +152,7 @@ onMounted(() => {
 .contact-item {
   display: flex;
   align-items: center;
-  padding: 12px 6px;
+  padding: 5px 6px;
   color: #2C3E50;
   text-decoration: none;
   border-radius: 6px;
@@ -160,15 +160,9 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* 分割线 */
-.contact-item:not(:last-child) {
-  border-bottom: 1px solid var(--color-border);
-}
-
 /* hover效果 */
 .contact-item:hover {
   background: rgba(0, 0, 0, 0.04);
-  padding-left: 12px;
 }
 
 /* 图标 */

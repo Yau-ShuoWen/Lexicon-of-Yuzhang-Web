@@ -8,9 +8,12 @@
         borderWidth: borderSize + 'px'
       }"
     ></span>
-    <span v-if="showText && !inline" class="loading-text">
-      {{ text }}
-    </span>
+    <span
+        v-if="showText && !inline"
+        class="loading-text"
+        v-formatted-text="text || $t('common.loading')"
+    />
+
   </div>
 </template>
 
@@ -36,7 +39,7 @@ const props = defineProps({
   // 加载文字内容
   text: {
     type: String,
-    default: '加载中...'
+    default: ''
   },
   // 是否行内显示（不换行）
   inline: {

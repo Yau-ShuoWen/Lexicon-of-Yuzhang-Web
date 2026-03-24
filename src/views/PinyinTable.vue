@@ -1,10 +1,11 @@
-<!---->
+<!-- PinyinTable -->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatRichText } from '../utils/textFormatter.js'
 import { showError } from '../services/ErrorService.js'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
+import PinyinDetail from "./PinyinDetail.vue";
 
 const route = useRoute()
 const language = computed(() => route.params.language)
@@ -12,6 +13,8 @@ const dialect = computed(() => route.params.dialect)
 
 const pinyinData = ref([])
 const loading = ref(true)
+const showDetail = ref(false)
+const currentKey = ref('')
 
 // 生命周期
 onMounted(fetchTable)
@@ -36,7 +39,9 @@ async function fetchTable() {
 
 function handleItemClick(item) {
   if (!item.exist) return
-  console.log(item.id) // 未来查 audio 就用这个
+
+  currentKey.value = item.id
+  showDetail.value = true
 }
 
 /* 显示规则 */
@@ -60,9 +65,7 @@ watch(dialect, fetchTable)
 
 <template>
   <div class="pinyin-table-container">
-    <div v-if="loading">
-      <LoadingIcon/>
-    </div>
+      <LoadingIcon v-if="loading"/>
 
     <div v-else class="pinyin-container">
 
@@ -100,6 +103,13 @@ watch(dialect, fetchTable)
 
     </div>
   </div>
+  <PinyinDetail
+      :show="showDetail"
+      :dialect="dialect.toString()"
+      :language="language.toString()"
+      :pinyinKey="currentKey"
+      @close="showDetail = false"
+  />
 </template>
 
 

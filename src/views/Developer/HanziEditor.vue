@@ -47,7 +47,7 @@ const loadHanzi = async (id) => {
 
   isLoading.value = true
   try {
-    const response = await fetch(`/api/edit/${dialect.value}/hanzi/by-id?id=${id}`)
+    const response = await fetch(`/api/edit/hanzi/get-info/${dialect.value}?id=${id}`)
     if (!response.ok) throw new Error('加载失败')
     const apiResponse = await response.json()
     if (!apiResponse.success) throw new Error(apiResponse.message || '加载失败')
@@ -73,7 +73,7 @@ const loadHanzi = async (id) => {
 // 找到上一个和下一个词条
 const loadNearBy = async (id) => {
   try {
-    const res = await fetch(`/api/edit/${dialect.value}/get-nearby?id=${id}`)
+    const res = await fetch(`/api/edit/get-nearby?/${dialect.value}id=${id}`)
     if (!res.ok) throw new Error('加载上下文失败')
 
     const json = await res.json()
@@ -94,7 +94,7 @@ const loadMandarinOptions = async () => {
   if (!UpdateData.value.hanzi.sc && !UpdateData.value.hanzi.tc) return
 
   try {
-    const response = await fetch(`/api/edit/${dialect.value}/get-hanzi?sc=${UpdateData.value.hanzi.sc}&tc=${UpdateData.value.hanzi.tc}`)
+    const response = await fetch(`/api/edit/get-mandarin/${dialect.value}?sc=${UpdateData.value.hanzi.sc}&tc=${UpdateData.value.hanzi.tc}`)
     if (response.ok) {
       const options = await response.json()
       mandarinOptions.value = options
@@ -150,7 +150,7 @@ const saveData = async () => {
 
     console.log('准备保存的数据:', JSON.stringify(backendData, null, 2))
 
-    const response = await fetch(`/api/edit/${dialect.value}/edit`, {
+    const response = await fetch(`/api/edit/submit/${dialect.value}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json',},
       body: JSON.stringify(backendData)

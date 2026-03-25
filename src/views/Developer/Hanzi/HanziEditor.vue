@@ -3,11 +3,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
-import BackButton from "../../components/Button/BackButton.vue";
-import LoadingIcon from "../../components/Status/LoadingIcon.vue";
-import ScAndTcText from "../../components/Text/ScAndTcText.vue";
-import DraggableList from "../../components/Layout/DraggableList.vue";
+import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
+import BackButton from "../../../components/Button/BackButton.vue";
+import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
+import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
+import DraggableList from "../../../components/Layout/DraggableList.vue";
 
 // 路由
 const route = useRoute()
@@ -395,7 +395,7 @@ onMounted(() => {
               :layout="'large'" :dialect="dialect.toString()"
           />
 
-          <button @click="removeArrayItem(UpdateData.note, index)" class="dev-remove-btn">刪除</button>
+          <button @click="removeArrayItem(UpdateData.note, index)" class="dev-remove-btn dev-btn-small">刪除</button>
         </div>
       </div>
     </div>

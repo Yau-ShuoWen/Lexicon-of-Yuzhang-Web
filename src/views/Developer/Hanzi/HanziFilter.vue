@@ -3,7 +3,7 @@
 <script setup>
 import {computed, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import JumpButton from "../../components/Button/JumpButton.vue"
+import JumpButton from "../../../components/Button/JumpButton.vue"
 
 // 路由
 const router = useRouter()

@@ -167,11 +167,20 @@ button:disabled {
 }
 
 .dev-btn-small {
+
     padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
     height: 32px;
+
+    display: inline-flex;        /* 保持按鈕內容水平居中 */
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;/* 文字單行 */
+    width: fit-content; /* 自適應文字長度，不換行，也不截斷 */
+    max-width: fit-content;
+    min-width: fit-content;
 }
 
 .dev-btn-middle {

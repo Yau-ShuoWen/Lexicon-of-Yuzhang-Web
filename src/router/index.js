@@ -59,15 +59,29 @@ const routes = [
             {
                 path: 'hanzi-filter',
                 name: 'HanziFilter',
-                component: () => import('../views/Developer/HanziFilter.vue'),
+                component: () => import('../views/Developer/Hanzi/HanziFilter.vue'),
                 //meta: { requiresAuth: true }
             },
             {
                 path: 'hanzi-editor/:id?',
                 name: 'HanziEditor',
-                component: () => import('../views/Developer/HanziEditor.vue'),
+                component: () => import('../views/Developer/Hanzi/HanziEditor.vue'),
                 props: true,
                // meta: { requiresAuth: true }
+            },
+
+            {
+                path: 'ciyu-filter',
+                name: 'CiyuFilter',
+                component: () => import('../views/Developer/Ciyu/CiyuFilter.vue'),
+                //meta: { requiresAuth: true }
+            },
+            {
+                path: 'ciyu-editor/:id?',
+                name: 'CiyuEditor',
+                component: () => import('../views/Developer/Ciyu/CiyuEditor.vue'),
+                props: true,
+                // meta: { requiresAuth: true }
             },
 
 

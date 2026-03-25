@@ -1,40 +1,6 @@
-<template>
-  <div class="pinyin-proofread-row">
-    <!-- 拼音输入框 -->
-    <input
-        type="text"
-        class="form-control small-input"
-        :placeholder="placeholder"
-        :value="modelValue"
-        :maxlength="maxLength"
-        @input="onInput"
-        @blur="onBlur"
-        @keydown.enter.prevent="onEnter"
-    />
-
-    <!-- 状态消息（使用 v-html 显示格式化拼音） -->
-    <div v-if="statusMessage"
-         class="status-message" :class="statusType"
-         v-html="formattedStatusMessage">
-    </div>
-
-    <!-- 校正按钮（条件显示） -->
-    <button
-        v-if="showCorrectionButton"
-        class="dev-btn-small correction-btn"
-        @click="applyCorrection"
-        :disabled="isCorrecting">
-      {{ isCorrecting ? '校正中...' : '校正' }}
-    </button>
-
-    <!-- 清除按钮 -->
-    <button class="dev-btn-small dev-normal-button" @click="clearAll">清除</button>
-  </div>
-</template>
-
 <script setup>
-import {ref, computed, watch, onMounted} from 'vue'
-import {formatRichText} from '../../utils/textFormatter.js'
+import { ref, computed, watch, onMounted } from 'vue'
+import { formatRichText } from '../../utils/textFormatter.js'
 
 
 const props = defineProps({
@@ -144,7 +110,8 @@ async function checkPinyin() {
   } catch (error) {
     // 静默处理错误，保持原样
     console.error('拼音验证异常:', error)
-  } finally {
+  }
+  finally {
     isChecking.value = false
   }
 }
@@ -217,7 +184,8 @@ function applyCorrection() {
     setTimeout(() => {
       checkPinyin()
     }, 100)
-  } finally {
+  }
+  finally {
     isCorrecting.value = false
   }
 }
@@ -249,6 +217,40 @@ defineExpose({
   applyCorrection
 })
 </script>
+
+<template>
+  <div class="pinyin-proofread-row">
+    <!-- 拼音输入框 -->
+    <input
+        type="text"
+        class="form-control small-input"
+        :placeholder="placeholder"
+        :value="modelValue"
+        :maxlength="maxLength"
+        @input="onInput"
+        @blur="onBlur"
+        @keydown.enter.prevent="onEnter"
+    />
+
+    <!-- 状态消息（使用 v-html 显示格式化拼音） -->
+    <div v-if="statusMessage"
+         class="status-message" :class="statusType"
+         v-html="formattedStatusMessage">
+    </div>
+
+    <!-- 校正按钮（条件显示） -->
+    <button
+        v-if="showCorrectionButton"
+        class="dev-btn-small correction-btn"
+        @click="applyCorrection"
+        :disabled="isCorrecting">
+      {{ isCorrecting ? '校正中...' : '校正' }}
+    </button>
+
+    <!-- 清除按钮 -->
+    <button class="dev-btn-small dev-normal-button" @click="clearAll">清除</button>
+  </div>
+</template>
 
 <style>
 .pinyin-proofread-row {

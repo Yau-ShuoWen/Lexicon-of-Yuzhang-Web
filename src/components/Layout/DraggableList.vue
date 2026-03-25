@@ -31,7 +31,7 @@ const list = computed({
    ✅ 核心：WeakMap 存 ID
 ========================= */
 
-const idMap = new WeakMap()
+const idMap = new Map()  // 改为 Map
 let uid = 0
 
 const getId = (item) => {
@@ -92,7 +92,7 @@ const updateSort = () => {
   <div class="draggable-wrapper">
 
     <div v-if="showAdd" class="add-bar">
-      <button @click="addItem" class="dev-add-btn">
+      <button @click="addItem" class="dev-add-btn dev-btn-small">
         添加
       </button>
     </div>
@@ -148,6 +148,11 @@ const updateSort = () => {
   border: 1px dashed #ccc;
   border-radius: 6px;
   background: #fafafa;
+}
+
+.pinyin-proofread-row input,
+.short-input {
+  outline: none;
 }
 
 .draggable-item:hover {

@@ -57,6 +57,12 @@ const routes = [
             // 编辑
 
             {
+                path: 'hanzi-creator',
+                name: 'HanziCreator',
+                component: () => import('../views/Developer/Hanzi/HanziCreator.vue'),
+                //meta: { requiresAuth: true }
+            },
+            {
                 path: 'hanzi-filter',
                 name: 'HanziFilter',
                 component: () => import('../views/Developer/Hanzi/HanziFilter.vue'),

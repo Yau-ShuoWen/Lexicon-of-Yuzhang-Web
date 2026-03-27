@@ -1,8 +1,8 @@
 <!-- HanziFilter.vue -->
 
 <script setup>
-import {computed, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import JumpButton from "../../../components/Button/JumpButton.vue"
 
 // 路由
@@ -37,7 +37,8 @@ const performSearch = async () => {
   } catch (error) {
     errorMessage.value = '搜索失败：' + error.message
     searchResults.value = []
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -64,7 +65,10 @@ watch(searchText, (newValue) => {
           class="ordinary-input"
       />
       <button class="dev-btn-small dev-nav-button" @click="performSearch">查询</button>
-      <button class="dev-btn-small dev-add-btn" @click="router.push(getPath(`hanzi-editor/new`))">新增汉字</button>
+      <router-link :to="getPath(`hanzi-creator`)" target="_blank"
+                   class="dev-btn-small dev-add-btn">
+        新增汉字
+      </router-link>
     </div>
 
     <div v-if="errorMessage" class="error-message">
@@ -73,18 +77,16 @@ watch(searchText, (newValue) => {
 
     <div v-if="searchResults.length > 0" class="results-section">
       <h4>搜索结果（点击编辑）</h4>
-      <div class="results-list">
-        <div
-            v-for="item in searchResults"
-            :key="item.tag"
-            class="result-item"
-            @click="router.push(getPath(`hanzi-editor/${item.info.query}`))"
-        >
-          <div class="item-display">{{ item.title }}</div>
-          <div class="pinyin">{{ item.explain }}</div>
-<!--          <div class="tag">序号: {{ item.tag }}</div>-->
-        </div>
-      </div>
+      <router-link
+          v-for="item in searchResults"
+          :key="item.tag"
+          :to="getPath(`hanzi-editor/${item.info.query}`)"
+          class="result-item"
+          target="_blank"
+      >
+        <div class="item-display">{{ item.title }}</div>
+        <div class="pinyin">{{ item.explain }}</div>
+      </router-link>
     </div>
 
     <div v-else-if="hasSearched && !isLoading" class="no-results-high">

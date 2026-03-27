@@ -8,6 +8,8 @@ import BackButton from "../../../components/Button/BackButton.vue";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
+import { showError, showSuccess } from "../../../services/ErrorService.js";
+import { formatRichText } from "../../../utils/textFormatter.js";
 
 // 路由
 const route = useRoute()
@@ -31,7 +33,6 @@ const UpdateData = ref({
 const isNew = ref(!id || id === 'new')
 const isLoading = ref(false)
 const isSaving = ref(false)
-const saveMessage = ref('')
 
 // 加载词条详情
 const loadCiyu = async (id) => {
@@ -57,7 +58,7 @@ const loadCiyu = async (id) => {
     }
   } catch (err) {
     console.error(err)
-    saveMessage.value = '加载失败：' + err.message
+    showError('加载失败：' + err.message)
   }
   finally {
     isLoading.value = false
@@ -67,7 +68,7 @@ const loadCiyu = async (id) => {
 // 保存
 const saveData = async () => {
   isSaving.value = true
-  saveMessage.value = ''
+
   try {
     const payload = {
       ...UpdateData.value,
@@ -79,13 +80,20 @@ const saveData = async () => {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     })
-    if (!res.ok) throw new Error(`HTTP错误: ${res.status}`)
-    const json = await res.json()
+
+    // 👉 不管成功或失敗，先 parse JSON
+    const json = await res.json().catch(() => null)
+
+    if (!res.ok) throw new Error(json?.message || `HTTP错误: ${res.status}`)
+
     if (!json.success) throw new Error(json.message || '保存失败')
-    saveMessage.value = '保存成功！'
+
+    showSuccess('保存成功！')
+
+
   } catch (err) {
+    showError(err.message)
     console.error(err)
-    saveMessage.value = '保存失败：' + err.message
   }
   finally {
     isSaving.value = false
@@ -127,9 +135,7 @@ onMounted(() => {
       </button>
     </div>
 
-    <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
-      {{ saveMessage }}
-    </div>
+
 
     <LoadingIcon v-if="isLoading" :show-text="true"/>
 
@@ -244,19 +250,6 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.save-message {
-  padding: 10px;
-  margin-bottom: 20px;
-  border-radius: 4px;
-  background: #e8f5e8;
-  color: #2e7d32;
-}
-
-.save-message.error {
-  background: #ffebee;
-  color: #d32f2f;
 }
 
 .form-section {

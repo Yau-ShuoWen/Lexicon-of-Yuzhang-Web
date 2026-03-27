@@ -22,7 +22,7 @@ onMounted(fetchTable)
 async function fetchTable() {
   try {
     loading.value = true
-    const res = await fetch(`/api/pinyin/${dialect.value}/table`)
+    const res = await fetch(`/api/pinyin/table/${dialect.value}`)
     if (!res.ok) throw new Error(res.status)
 
     const data = await res.json()

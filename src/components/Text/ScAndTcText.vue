@@ -200,12 +200,7 @@ defineExpose({clearAll})
 
 
       <button v-if="!disabled" @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
-      <div v-if="!disabled">
-        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
-        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
-        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
-        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
-      </div>
+
 
 
     </div>

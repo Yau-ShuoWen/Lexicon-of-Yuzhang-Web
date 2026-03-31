@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
-import PinyinText from "../../components/Text/PinyinText.vue";
+
 
 
 const route = useRoute()

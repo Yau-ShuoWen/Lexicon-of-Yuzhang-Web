@@ -2,7 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
+import { showError } from "../services/ToastService.js";
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 
 const language = computed(() => route.params.language)
@@ -10,25 +13,23 @@ const dialect = computed(() => route.params.dialect)
 
 /** 数据状态 */
 const loading = ref(true)
-const error = ref('')
 const result = ref('')
 
 /** 获取 about 内容 */
 const fetchAbout = async () => {
   loading.value = true
-  error.value = ''
 
   try {
     const res = await fetch(
         `/api/info/get-text/${dialect.value}/${language.value}/website-about`
     )
 
-    if (!res.ok) throw new Error('加载失败')
+    if (!res.ok) throw new Error(t('common.loadingError'))
 
     result.value = await res.json()
   } catch (err) {
     console.error(err)
-    error.value = err.message || '加载失败'
+    showError(err.message);
   }
   finally {
     loading.value = false
@@ -47,11 +48,6 @@ onMounted(() => {
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-wrapper">
         <LoadingIcon/>
-      </div>
-
-      <!-- 错误状态 -->
-      <div v-else-if="error" class="error">
-        {{ error }}
       </div>
 
       <!-- 正文 -->
@@ -120,13 +116,6 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 40px 0;
-}
-
-/* 错误 */
-.error {
-  text-align: center;
-  color: red;
-  padding: 20px;
 }
 
 /* 联系区域 */

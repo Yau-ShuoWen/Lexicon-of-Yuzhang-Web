@@ -144,21 +144,6 @@ watch(
             />
           </div>
 
-          <!-- 释义 -->
-          <div
-              v-if="info.mean && info.mean.length"
-              class="section"
-          >
-            <h3 class="section-title">释义</h3>
-            <ul class="mean-list">
-              <li
-                  v-for="(m,i) in info.mean"
-                  :key="i"
-                  v-formatted-text="m"
-              />
-            </ul>
-          </div>
-
           <!-- IPA -->
           <div
               v-if="info.ipa && info.ipa.length"
@@ -247,10 +232,6 @@ watch(
 
 .special {
   color: var(--color-text-light);
-}
-
-.mean-list {
-  padding-left: 20px;
 }
 
 .variant-row {

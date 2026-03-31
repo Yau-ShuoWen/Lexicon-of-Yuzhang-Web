@@ -1,32 +1,20 @@
 <script setup>
-import {ref, computed, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
-import ErrorWindow from "../../components/Window/ErrorWindow.vue";
+import { showError, showWarning } from "../../services/ToastService.js";
 
 const route = useRoute()
 const router = useRouter()
 
-/** 状态 */
 const searchQuery = ref('')
 const results = ref([])
-const loading = ref(false)
-const error = ref('')
-const searched = ref(false)
+const loading = ref(true)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
-const currentStatus = computed(() => {
-  if (loading.value) return 'loading'
-  if (error.value) return 'error'
-  return null
-})
-
-/**
- * 搜索配置（仍使用 localStorage）
- */
 const getSearchConfig = () => {
   try {
     const cached = localStorage.getItem('search_page_config')
@@ -45,26 +33,26 @@ const searchAll = async (query) => {
   if (!query.trim()) return
 
   loading.value = true
-  error.value = ''
-  searched.value = true
   results.value = []
 
   try {
     const config = getSearchConfig()
 
     const params = new URLSearchParams({
-      query: query.trim(),
-      vague: config.vague
+      query: query.trim(), vague: config.vague
     })
 
     const res = await fetch(`/api/search/${language.value}/${dialect.value}/query?${params}`)
     if (!res.ok) throw new Error('查询失败，请稍后重试')
 
     results.value = await res.json()
+
+    if (results.value.length <= 0) showWarning('沒有查詢到結果')
   } catch (err) {
     console.error('查询失败:', err)
-    error.value = err.message || '查询失败，请检查网络'
-  } finally {
+    showError('查询失败，请稍後再試')
+  }
+  finally {
     loading.value = false
   }
 }
@@ -108,31 +96,14 @@ const handleResultClick = (result) => {
     <div class="results-container">
       <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
 
+      <LoadingIcon v-if="loading"/>
 
- <!-- 状态显示 -->
-      <LoadingIcon v-if="currentStatus === 'loading'" size="40" :showText="false"/>
-      <ErrorWindow v-if="currentStatus === 'error'" />
-      <!-- 状态显示组件 -->
-<!--      <StatusDisplay-->
-<!--          v-if="currentStatus"-->
-<!--          :type="currentStatus"-->
-<!--          :message="error"-->
-<!--          :show-retry="currentStatus === 'error'"-->
-<!--          @retry="handleRetry"-->
-<!--      />-->
-
-      <!-- 通用搜索结果展示 -->
-      <div v-else-if="results.length > 0" class="results-section">
-<!--        <div class="results-header">-->
-<!--          <h2 class="section-title">查询结果</h2>-->
-<!--          <p class="results-count">找到 {{ results.length }} 个相关结果</p>-->
-<!--        </div>-->
+      <div v-else class="results-section">
 
         <div class="results-list">
           <div
               v-for="(result, index) in results"
-              :key="index"
-              class="result-item"
+              :key="index" class="result-item"
               @click="handleResultClick(result)"
           >
             <div class="result-content">
@@ -143,6 +114,7 @@ const handleResultClick = (result) => {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>

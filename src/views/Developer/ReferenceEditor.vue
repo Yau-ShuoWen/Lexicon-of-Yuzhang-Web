@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { confirm } from "../../services/confirmService";
+import { showError, showSuccess } from "../../services/ToastService.js";
 
 // 路由
 const route = useRoute()
@@ -101,10 +102,10 @@ async function savePage() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(page.value)
     })
-    message.value = '已保存'
+    showSuccess('已保存')
   } catch (e) {
     console.error(e)
-    message.value = '保存失敗: ' + e.message
+    showError(e.message)
   }
   finally {
     saving.value = false
@@ -112,7 +113,6 @@ async function savePage() {
 }
 
 const shiftToOther = async (newId) => {
-  message.value = ''
   await router.replace(getPath(`${newId}`))
 }
 
@@ -128,7 +128,7 @@ async function insert(before) {
   )
   const json = await response.json()
   await shiftToOther(json.data.frontSort)
-  message.value = '页面创建成功'
+  showSuccess('页面创建成功')
 }
 
 async function deletePage() {
@@ -144,7 +144,7 @@ async function deletePage() {
     )
     const json = await response.json()
     await shiftToOther(json.data.frontSort)
-    message.value = '页面删除成功'
+    showSuccess( '页面删除成功')
   }
   finally {
     loading.value = false

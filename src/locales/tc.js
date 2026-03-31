@@ -7,6 +7,7 @@ export default {
         edit: '編輯',
         search: '搜尋',
         loading: '載入中……',
+        loadingError: '載入失敗',
         success: '成功',
         error: '錯誤',
         open: '開啟',

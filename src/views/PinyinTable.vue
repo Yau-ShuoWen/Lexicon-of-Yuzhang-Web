@@ -3,7 +3,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatRichText } from '../utils/textFormatter.js'
-import { showError } from '../services/ErrorService.js'
+import { showError } from '../services/ToastService.js'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
 
@@ -65,7 +65,7 @@ watch(dialect, fetchTable)
 
 <template>
   <div class="pinyin-table-container">
-      <LoadingIcon v-if="loading"/>
+    <LoadingIcon v-if="loading"/>
 
     <div v-else class="pinyin-container">
 
@@ -114,10 +114,11 @@ watch(dialect, fetchTable)
 
 
 <style scoped>
-.pinyin-table-container{
+.pinyin-table-container {
   max-width: 1000px;
   margin: 0 auto;
 }
+
 /* ======== Attribute Block ======== */
 .attribute-group {
   margin-bottom: 34px; /* Line组之间距离 */

@@ -4,12 +4,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
-import BackButton from "../../../components/Button/BackButton.vue";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
-import { showError, showSuccess } from "../../../services/ErrorService.js";
-import { formatRichText } from "../../../utils/textFormatter.js";
+import { showError, showSuccess } from "../../../services/ToastService.js";
 
 // 路由
 const route = useRoute()
@@ -20,7 +18,7 @@ const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 // 数据
-const UpdateData = ref({
+const updateData = ref({
   id: null,
   ciyu: {sc: '', tc: ''},
   special: 0,
@@ -47,7 +45,7 @@ const loadCiyu = async (id) => {
     const value = json.data.value
 
     // 直接使用后端对象
-    UpdateData.value = {
+    updateData.value = {
       id: value.id,
       ciyu: value.ciyu,
       special: value.special ?? 0,
@@ -71,25 +69,22 @@ const saveData = async () => {
 
   try {
     const payload = {
-      ...UpdateData.value,
-      id: isNew.value ? null : UpdateData.value.id
+      ...updateData.value,
+      id: isNew.value ? null : updateData.value.id
     }
 
-    const res = await fetch(`/api/edit/ciyu/submit/${dialect.value}`, {
+    const response = await fetch(`/api/edit/ciyu/submit/${dialect.value}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     })
 
-    // 👉 不管成功或失敗，先 parse JSON
-    const json = await res.json().catch(() => null)
+    const json = await response.json().catch(() => null)
 
-    if (!res.ok) throw new Error(json?.message || `HTTP错误: ${res.status}`)
-
+    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
     if (!json.success) throw new Error(json.message || '保存失败')
 
     showSuccess('保存成功！')
-
 
   } catch (err) {
     showError(err.message)
@@ -106,11 +101,11 @@ const removeArrayItem = (array, index) => array.splice(index, 1)
 
 // 新增 variantPy
 const addVariantPyItem = (idx) => {
-  if (!UpdateData.value.variantPy[idx]) {
-    UpdateData.value.variantPy[idx] = []
+  if (!updateData.value.variantPy[idx]) {
+    updateData.value.variantPy[idx] = []
   }
-  UpdateData.value.variantPy[idx].push({left: '', right: {sc: '', tc: ''}})
-  if (!UpdateData.value.mainPy[idx]) UpdateData.value.mainPy[idx] = ''
+  updateData.value.variantPy[idx].push({left: '', right: {sc: '', tc: ''}})
+  if (!updateData.value.mainPy[idx]) updateData.value.mainPy[idx] = ''
 }
 
 // 初始化
@@ -118,9 +113,9 @@ onMounted(() => {
   if (!isNew.value) loadCiyu(id)
   else {
     // 新建词条：每个字至少有一个空拼音对象
-    const chars = UpdateData.value.ciyu.sc.split('')
-    UpdateData.value.mainPy = chars.map(() => '')
-    UpdateData.value.variantPy = chars.map(() => [{left: '', right: {sc: '', tc: ''}}])
+    const chars = updateData.value.ciyu.sc.split('')
+    updateData.value.mainPy = chars.map(() => '')
+    updateData.value.variantPy = chars.map(() => [{left: '', right: {sc: '', tc: ''}}])
   }
 })
 </script>
@@ -129,12 +124,10 @@ onMounted(() => {
   <div class="edit-page">
 
     <div class="nav-buttons">
-      <BackButton buttonText="返回（不保存）" size="small"/>
       <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
         {{ isSaving ? '保存中...' : isNew ? '保存新增' : '保存修改' }}
       </button>
     </div>
-
 
 
     <LoadingIcon v-if="isLoading" :show-text="true"/>
@@ -145,16 +138,12 @@ onMounted(() => {
       <div class="form-section">
         <div class="form-grid">
           <div class="form-field">
-            <label>繁體字和简体字</label>
-            <ScAndTcText
-                v-model:traditionalText="UpdateData.ciyu.tc"
-                v-model:simplifiedText="UpdateData.ciyu.sc"
-                :layout="'small'" :dialect="dialect.toString()"
-            />
+            <h4>繁體：{{ updateData.ciyu.tc }}</h4>
+            <h4>簡體：{{ updateData.ciyu.sc }}</h4>
           </div>
           <div class="form-field">
             <label>特殊标记</label>
-            <select v-model="UpdateData.special" class="short-input">
+            <select v-model="updateData.special" class="short-input">
               <option value="0">普通词语</option>
               <option value="1">特殊词语</option>
               <option value="2">固定用法</option>
@@ -170,37 +159,38 @@ onMounted(() => {
         </div>
 
         <!-- 遍历每个汉字 -->
-        <div v-for="(char, idx) in Array.from(UpdateData.ciyu.sc)" :key="idx" class="char-pinyin-section">
+        <div v-for="(char, idx) in Array.from(updateData.ciyu.sc)" :key="idx" class="char-pinyin-section">
 
           <!-- 主拼音选择 -->
           <div class="main-pinyin-selector">
             <span class="selector-label">{{ char }}：主拼音：</span>
             <div class="radio-group">
-              <label v-for="(pyObj, i) in UpdateData.variantPy[idx]" :key="i">
+              <label v-for="(pyObj, i) in updateData.variantPy[idx]" :key="i">
                 <input type="radio"
                        :name="'mainPy-' + idx"
                        :value="pyObj.left"
-                       v-model="UpdateData.mainPy[idx]"/>
+                       v-model="updateData.mainPy[idx]"/>
                 {{ pyObj.left }}
               </label>
             </div>
           </div>
 
+
           <!-- 可拖拽拼音列表 -->
           <DraggableList
-              v-model="UpdateData.variantPy[idx]"
+              v-model="updateData.variantPy[idx]"
               :createItem="() => ({ left: '', right: { sc: '', tc: '' } })"
           >
             <template #default="{ item, index }">
-              <div class="draggable-item">
-                <PinyinProofreadText v-model="item.left" class="short-input"/>
-                <ScAndTcText
-                    v-model:traditionalText="item.right.tc"
-                    v-model:simplifiedText="item.right.sc"
-                    :layout="'large'"
-                    :dialect="dialect.toString()"
-                />
-              </div>
+
+              <PinyinProofreadText v-model="item.left"/>
+              <ScAndTcText
+                  v-model:traditionalText="item.right.tc"
+                  v-model:simplifiedText="item.right.sc"
+                  :layout="'middle'"
+                  :dialect="dialect.toString()"
+              />
+
             </template>
           </DraggableList>
 
@@ -212,11 +202,11 @@ onMounted(() => {
         <div class="section-header">
           <h3>相似词语</h3>
           <button class="dev-add-btn"
-                  @click="addArrayItem(UpdateData.similar, { id: null, text: { sc: '', tc: '' }, type: '1' })">
+                  @click="addArrayItem(updateData.similar, { id: null, text: { sc: '', tc: '' }, type: '1' })">
             添加
           </button>
         </div>
-        <div v-for="(item, index) in UpdateData.similar" :key="index" class="array-item complex-item">
+        <div v-for="(item, index) in updateData.similar" :key="index" class="array-item complex-item">
           <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
                        :layout="'small'" :dialect="dialect.toString()"/>
           <select v-model="item.type" class="short-input">
@@ -224,21 +214,20 @@ onMounted(() => {
             <option value="2">不展示</option>
             <option value="3">错误写法</option>
           </select>
-          <button @click="removeArrayItem(UpdateData.similar, index)" class="dev-remove-btn dev-btn-small">刪除</button>
+          <button @click="removeArrayItem(updateData.similar, index)" class="dev-remove-btn dev-btn-small">刪除</button>
         </div>
       </div>
 
-      <!-- 含义 -->
       <div class="form-section">
-        <div class="section-header">
-          <h3>含义</h3>
-          <button class="dev-add-btn" @click="addArrayItem(UpdateData.mean, { sc: '', tc: '' })">添加</button>
-        </div>
-        <div v-for="(item, index) in UpdateData.mean" :key="index" class="array-item complex-item">
-          <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
-                       :layout="'large'" :dialect="dialect.toString()"/>
-          <button @click="removeArrayItem(UpdateData.mean, index)" class="dev-remove-btn">刪除</button>
-        </div>
+        <h3>含義</h3>
+        <DraggableList v-model="updateData.mean" :createItem="() => ({ sc: '', tc: '' })">
+          <template #default="{ item, index }">
+
+              <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
+                           :layout="'large'" :dialect="dialect.toString()"/>
+
+          </template>
+        </DraggableList>
       </div>
 
     </div>
@@ -331,13 +320,6 @@ onMounted(() => {
   border: 1px dashed #ccc;
   border-radius: 4px;
   background: #fafafa;
-}
-
-.drag-handle {
-  cursor: move;
-  padding: 4px 8px;
-  color: #666;
-  user-select: none;
 }
 
 .complex-item {

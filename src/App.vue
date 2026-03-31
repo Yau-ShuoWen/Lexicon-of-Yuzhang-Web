@@ -4,7 +4,7 @@
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
 import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
-import ErrorWindow from "./components/Window/ErrorWindow.vue";
+import ToastWindow from "./components/Window/ToastWindow.vue";
 
 // 路由
 const route = useRoute()
@@ -28,7 +28,7 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
     <main class="page-container">
       <router-view/>
       <ConfirmWindow/>
-      <ErrorWindow/>
+      <ToastWindow/>
     </main>
   </div>
 </template>

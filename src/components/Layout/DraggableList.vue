@@ -2,22 +2,10 @@
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
-  modelValue: {
-    type: Array,
-    required: true
-  },
-  createItem: {
-    type: Function,
-    default: () => ({})
-  },
-  showAdd: {
-    type: Boolean,
-    default: true
-  },
-  autoSort: {
-    type: Boolean,
-    default: true
-  }
+  modelValue: {type: Array, required: true},
+  createItem: {type: Function, default: () => ({})},
+  autoSort: {type: Boolean, default: true},
+  draggable: {type: Boolean, default: true},
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -27,11 +15,7 @@ const list = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
-/* =========================
-   ✅ 核心：WeakMap 存 ID
-========================= */
-
-const idMap = new Map()  // 改为 Map
+const idMap = new Map()
 let uid = 0
 
 const getId = (item) => {
@@ -91,7 +75,7 @@ const updateSort = () => {
 <template>
   <div class="draggable-wrapper">
 
-    <div v-if="showAdd" class="add-bar">
+    <div class="add-bar">
       <button @click="addItem" class="dev-add-btn dev-btn-small">
         添加
       </button>
@@ -106,6 +90,7 @@ const updateSort = () => {
         @drop="onDrop(index)"
     >
       <div
+          v-if="draggable"
           class="drag-handle"
           draggable="true"
           @dragstart="(e) => onDragStart(e, index)"
@@ -123,7 +108,8 @@ const updateSort = () => {
       <button
           class="dev-remove-btn dev-btn-small"
           @click="removeItem(index)"
-      >删除</button>
+      >删除
+      </button>
     </div>
 
   </div>
@@ -150,16 +136,10 @@ const updateSort = () => {
   background: #fafafa;
 }
 
-.pinyin-proofread-row input,
-.short-input {
-  outline: none;
-}
-
 .draggable-item:hover {
   background: #f0f0f0;
 }
 
-/* 手柄 */
 .drag-handle {
   cursor: grab;
   padding: 6px 10px;

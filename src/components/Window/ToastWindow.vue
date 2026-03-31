@@ -1,5 +1,5 @@
 <script setup>
-import { useErrorState } from '../../services/ErrorService.js'
+import { useErrorState } from '../../services/ToastService.js'
 
 const {errors} = useErrorState()
 </script>
@@ -19,7 +19,7 @@ const {errors} = useErrorState()
 <style scoped>
 .error-container {
   position: fixed;
-  top: 50px;
+  top: 100px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;

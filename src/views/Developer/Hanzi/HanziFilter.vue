@@ -146,9 +146,4 @@ watch(searchText, (newValue) => {
   min-width: 120px;
   color: #2196f3;
 }
-
-.tag {
-  color: #999;
-  font-size: 14px;
-}
 </style>

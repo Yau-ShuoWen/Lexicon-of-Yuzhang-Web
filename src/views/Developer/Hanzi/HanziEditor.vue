@@ -7,6 +7,7 @@ import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vu
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
+import { showError, showSuccess } from "../../../services/ToastService.js";
 
 // 路由
 const route = useRoute()
@@ -26,7 +27,6 @@ const updateData = ref({
   similar: [],
   variantPy: [],
   mandarin: [],
-  mean: [],
   note: []
 })
 
@@ -35,7 +35,6 @@ const nextId = ref(null)       // 后一个的编号
 const mandarinOptions = ref([])// 普通话读音的选择
 const isLoading = ref(false)
 const isSaving = ref(false)
-const saveMessage = ref('')
 
 const originalMandarin = ref([])        // 保存从后端加载的原始 mandarin 数据
 
@@ -60,7 +59,7 @@ const loadHanzi = async (id) => {
     await loadNearBy(id)
   } catch (error) {
     console.error('加载汉字详情失败:', error)
-    saveMessage.value = '加载失败：' + error.message
+    showError('加载失败：' + err.message)
   }
   finally {
     isLoading.value = false
@@ -124,14 +123,12 @@ const setMandarinSelection = (options) => {
 
 // 切换到其他词条，清空保存的结果
 const shiftToOther = async (newId) => {
-  saveMessage.value = ''
   await router.replace(getPath(`${newId}`))
 }
 
 // 方法：保存数据
 const saveData = async () => {
   isSaving.value = true
-  saveMessage.value = ''
 
   try {
     // 转换数据格式以匹配后端
@@ -144,19 +141,15 @@ const saveData = async () => {
       headers: {'Content-Type': 'application/json',},
       body: JSON.stringify(backendData)
     })
+    const json = await response.json().catch(() => null)
 
-    console.log('响应状态:', response.status)
+    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
+    if (!json.success) throw new Error(json.message || '保存失败')
 
-    if (!response.ok) throw new Error(`HTTP错误: ${response.status}`)
-    const result = await response.json()
-    console.log('后端返回结果:', result)
-
-    if (result.success) saveMessage.value = '保存成功！'
-    else throw new Error(result.message || '保存失败')
-
+    showSuccess('保存成功！')
   } catch (error) {
+    showError(error.message)
     console.error('保存失败:', error)
-    saveMessage.value = '保存失败：' + error.message
   }
   finally {
     isSaving.value = false
@@ -204,7 +197,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="edit-page">
+  <div class="broaden-layout">
 
     <div class="nav-buttons">
 
@@ -225,11 +218,6 @@ onMounted(() => {
       <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
         {{ isSaving ? '保存中...' : '保存修改' }}
       </button>
-    </div>
-
-
-    <div v-if="saveMessage" class="save-message" :class="{ error: saveMessage.includes('失败') }">
-      {{ saveMessage }}
     </div>
 
     <LoadingIcon v-if="isLoading" :show-text="true"/>
@@ -302,7 +290,7 @@ onMounted(() => {
         <div v-if="mandarinOptions.length > 0" class="checkbox-group">
           <div v-for="option in mandarinOptions" :key="option.info" class="checkbox-item">
             <input type="checkbox" :id="'mdr-' + option.info" :value="option"
-                v-model="updateData.mandarin"/>
+                   v-model="updateData.mandarin"/>
             <label :for="'mdr-' + option.info">{{ option.info }}</label>
           </div>
         </div>
@@ -316,29 +304,13 @@ onMounted(() => {
         <DraggableList
             v-model="updateData.similar"
             :createItem="() => ({ text: { sc: '', tc: '' }})"
+            :draggable="false"
         >
           <template #default="{ item, index }">
             <div class="array-item">
 
               <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
-                  :layout="'small'" :dialect="dialect.toString()"/>
-
-            </div>
-          </template>
-        </DraggableList>
-      </div>
-
-      <div class="form-section">
-        <h3>含義</h3>
-        <DraggableList
-            v-model="updateData.mean"
-            :createItem="() => ({ sc: '', tc: '' })"
-        >
-          <template #default="{ item, index }">
-            <div class="array-item complex-item">
-
-              <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
-                  :layout="'large'" :dialect="dialect.toString()"/>
+                           :layout="'small'" :dialect="dialect.toString()"/>
 
             </div>
           </template>

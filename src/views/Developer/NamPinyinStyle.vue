@@ -90,7 +90,7 @@ const preview = async () => {
   error.value = '';
 
   try {
-    const response = await fetch('/api/pinyin/nam/preview', {
+    const response = await fetch('/api/pinyin/preview/nam', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -120,7 +120,7 @@ const reset1 = async () => {
   error.value = '';
 
   try {
-    const response = await fetch('/api/pinyin/nam/style-init?SchemeParam=1');
+    const response = await fetch('/api/pinyin/style-init/nam?SchemeParam=1');
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
@@ -146,7 +146,7 @@ const reset2 = async () => {
   error.value = '';
 
   try {
-    const response = await fetch('/api/pinyin/nam/style-init?SchemeParam=2');
+    const response = await fetch('/api/pinyin/style-init/nam?SchemeParam=2');
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 

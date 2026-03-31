@@ -15,10 +15,6 @@ const emit = defineEmits(['close'])
 const loading = ref(false)
 const detail = ref(null)
 
-function stringConnect(a, b) {
-  return a + " : " + b;
-}
-
 /* 載入資料 */
 async function fetchDetail() {
   if (!props.pinyinKey) return
@@ -56,7 +52,6 @@ watch(() => [props.pinyinKey, props.show], () => {
   <div v-if="show" class="overlay" @click.self="emit('close')">
     <div class="modal">
 
-      <!-- loading -->
       <LoadingIcon v-if="loading"/>
 
       <!-- content -->
@@ -64,12 +59,10 @@ watch(() => [props.pinyinKey, props.show], () => {
 
         <div v-for="item in detail.info" :key="item.key" class="block">
 
+          <h2 v-formatted-text="item.standard"/>
 
-          <h2 v-formatted-text="$t(item.standard)"/>
-
-          <!-- note -->
           <ul class="note">
-            <li v-for="(n, i) in item.note" :key="i" class="label"  v-formatted-text="$t(n)"/>
+            <li v-for="(n, i) in item.note" :key="i" class="label"  v-formatted-text="n"/>
           </ul>
 
 <!--          &lt;!&ndash; notation &ndash;&gt;-->
@@ -85,7 +78,7 @@ watch(() => [props.pinyinKey, props.show], () => {
           <table class="table">
             <tr v-for="(value, key) in item.notation" :key="key">
               <td class="pinyin-key">{{ key }}</td>
-              <td class="pinyin-value" v-formatted-text="$t(value)"/>
+              <td class="pinyin-value" v-formatted-text="value"/>
             </tr>
           </table>
 
@@ -94,7 +87,7 @@ watch(() => [props.pinyinKey, props.show], () => {
           <table class="table">
             <tr v-for="(value, key) in item.ipa" :key="key">
               <td class="ipa-key">{{ key }}</td>
-              <td class="ipa-value" v-html="formatRichText(value)"/>
+              <td class="ipa-value" v-formatted-text="value"/>
             </tr>
           </table>
 
@@ -153,9 +146,6 @@ watch(() => [props.pinyinKey, props.show], () => {
   justify-content: space-between;
   margin-bottom: 6px;
 }
-
-
-
 
 .table {
   width: 100%;

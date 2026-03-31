@@ -200,9 +200,35 @@ defineExpose({clearAll})
 
 
       <button v-if="!disabled" @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
+      <div v-if="!disabled">
+        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
+        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
+        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
+        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
+      </div>
 
 
+    </div>
 
+    <div v-else-if="layout === 'middle'" class="horizontal-group">
+
+      <div>
+        <input type="text" class="form-control middle-input" placeholder="繁體"
+               :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
+               @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
+
+        <input type="text" class="form-control middle-input" placeholder="簡體"
+               :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
+               @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+      </div>
+
+      <div v-if="!disabled" class="button-group">
+        <button @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
+        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
+        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
+        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
+        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
+      </div>
     </div>
 
     <div v-else class="horizontal-group">
@@ -248,6 +274,14 @@ defineExpose({clearAll})
 
 .small-input {
   width: 120px;
+  min-width: 100px;
+  height: 32px;
+  padding: 4px 8px;
+  line-height: 1.3;
+}
+
+.middle-input {
+  width: 100%;
   min-width: 100px;
   height: 32px;
   padding: 4px 8px;

@@ -7,6 +7,7 @@ export default {
         edit: '编辑',
         search: '搜索',
         loading: '加载中……',
+        loadingError: '加载失败',
         success: '成功',
         error: '错误',
         open: '开启',

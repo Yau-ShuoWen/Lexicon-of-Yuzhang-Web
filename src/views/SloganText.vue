@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { formatRichText } from "../utils/textFormatter"
+import { showError } from "../services/ToastService.js";
 
 const route = useRoute()
 
@@ -32,6 +33,7 @@ async function fetchText() {
     text.value = await res.json()
 
   } catch (e) {
+    showError("网络连接错误")
     console.error("info text fetch failed", e)
   }
 }

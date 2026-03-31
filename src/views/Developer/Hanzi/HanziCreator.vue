@@ -4,6 +4,7 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
+import { showError, showSuccess } from "../../../services/ToastService.js";
 
 const route = useRoute()
 const router = useRouter()
@@ -27,35 +28,31 @@ const submit = async () => {
 
     const data = await res.json()
 
-    if (data.success) {
-      alert("提交成功")
-      // 可以選擇跳轉
-      // router.push(...)
-    } else {
-      alert("失敗：" + data.message)
-    }
+    if (data.success) showSuccess("提交成功")
+    else showError("提交失敗：" + data.message)
+
   } catch (e) {
-    console.error(e)
-    alert("請求錯誤")
+    showError("請求失敗" + e.message)
   }
 }
 </script>
 
 <template>
+  <div class="narrow-layout">
+    <h3>读音</h3>
 
-  <ScAndTcText v-model:traditionalText="createData.text.tc"
-               v-model:simplifiedText="createData.text.sc"
-               :layout="'large'" :dialect="dialect.toString()"
-  />
+    <PinyinProofreadText :dialect="dialect.toString()" v-model="createData.pinyin"/>
 
-  <PinyinProofreadText :dialect="dialect.toString()"
-                       v-model="createData.pinyin"
-  />
 
-  <button @click="submit" class="dev-add-btn dev-btn-small">提交</button>
+    <ScAndTcText v-model:traditionalText="createData.text.tc" v-model:simplifiedText="createData.text.sc"
+                 :layout="'middle'" :dialect="dialect.toString()"/>
+
+    <button @click="submit" class="dev-add-btn dev-btn-small">提交</button>
+
+  </div>
 
 </template>
 
-<style scoped>
+<style>
 
 </style>

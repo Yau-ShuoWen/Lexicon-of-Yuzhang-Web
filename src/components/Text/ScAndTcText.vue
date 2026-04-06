@@ -106,7 +106,8 @@ async function onTraditionalUpdate(e) {
 
   try {
     const res = await fetch(
-        `/api/transfer/${props.dialect}/sc-tc-translate`,
+
+        `/api/proofread/sc-tc-translate/${props.dialect}`,
         {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -231,7 +232,7 @@ defineExpose({clearAll})
       </div>
     </div>
 
-    <div v-else class="horizontal-group">
+    <div v-else class="horizontal-group ">
 
       <textarea
           placeholder="繁體" class="form-control textarea" ref="tcBox"
@@ -283,6 +284,7 @@ defineExpose({clearAll})
 .middle-input {
   width: 100%;
   min-width: 100px;
+  max-width: 500px;
   height: 32px;
   padding: 4px 8px;
   line-height: 1.3;

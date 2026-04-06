@@ -1,32 +1,19 @@
-<!--  CiyuDetail.vue  -->
-
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import StatusDisplay from '../../components/Status/StatusDisplay.vue'
-import BackButton from "../../components/Button/BackButton.vue";
+import { useRoute } from 'vue-router'
+import BackButton from "../../components/Button/BackButton.vue"
+import LoadingIcon from "../../components/Status/LoadingIcon.vue"
+import { showError } from "../../services/ToastService.js"
 
 const route = useRoute()
-const router = useRouter()
 
 const loading = ref(false)
-const error = ref('')
 const data = ref(null)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 
-const currentStatus = computed(() => {
-  if (loading.value) return 'loading'
-  if (error.value) return 'error'
-  if (!data.value) return 'empty'
-  return null
-})
-
-/**
- * 读取搜索配置
- */
 const getSearchConfig = () => {
   try {
     const cached = localStorage.getItem('search_page_config')
@@ -41,43 +28,39 @@ const getSearchConfig = () => {
   }
 }
 
-/**
- * 获取词语详情
- */
 const fetchCiyu = async () => {
   loading.value = true
-  error.value = ''
   data.value = null
+
   try {
     const config = getSearchConfig()
+
     const params = new URLSearchParams({
       query: query.value,
       phonogram: config.phonogram,
       syllableStyle: config.syllableStyle,
       toneStyle: config.toneStyle
     })
+
     const res = await fetch(`/api/search/${language.value}/${dialect.value}/ciyu?${params}`)
     if (!res.ok) throw new Error('请求失败')
+
     const json = await res.json()
     if (!json.success) throw new Error(json.message || '查询失败')
+
     data.value = json.data
-  } catch (err) {
-    console.error(err)
-    error.value = err.message || '查询失败'
-  }
-  finally {
+  } catch (e) {
+    if (e.message.includes('not found')) {
+      showError('未找到词语资料')
+    } else {
+      console.error(e)
+      showError(e.message)
+    }
+  } finally {
     loading.value = false
   }
 }
 
-const mainPyStr = computed(() => {
-  if (!data.value?.mainPy) return ''
-  return data.value.mainPy.join('')  // 每个拼音用空格分隔
-})
-
-/**
- * 路由变化重新加载
- */
 watch(
     () => route.params.query,
     () => {
@@ -88,89 +71,101 @@ watch(
 </script>
 
 <template>
-  <div class="ciyu-detail-page">
-    <div class="detail-container">
-      <BackButton button-text="← 返回" size="middle"/>
+  <div class="middle-layout">
+    <BackButton button-text="← 返回" size="middle" />
 
-      <StatusDisplay
-          v-if="currentStatus"
-          :type="currentStatus"
-          :message="error"
-          :show-retry="currentStatus === 'error'"
-          @retry="fetchCiyu"
-      />
+    <LoadingIcon v-if="loading" />
 
-      <div v-else class="detail-content">
-        <!-- 词语标题 -->
-        <div class="ciyu-header">
-          <h1 class="ciyu-text">{{ data.ciyu }}</h1>
+    <div v-else-if="data" class="detail-content">
+
+      <!-- 词语标题 -->
+      <div class="hanzi-header">
+        <h1 class="hanzi-char" v-formatted-text="data.ciyu" />
+      </div>
+
+      <!-- 主块 -->
+      <div class="pronunciation-block">
+
+        <!-- 主拼音 -->
+        <div class="group-header">
+          <h2 class="pinyin-title" v-formatted-text="data.mainPy" />
         </div>
 
-        <!-- 每个主要读音 -->
-        <div class="pronunciation-block">
-          <h2 class="pinyin" v-formatted-text="$t(mainPyStr)"/>
+        <!-- special -->
+        <p class="special" v-formatted-text="data.special" />
 
+        <!-- variantPy -->
+        <div class="section" v-if="data.variantPy && data.variantPy.length">
+          <h3 class="section-title">其他读音</h3>
+          <table class="table">
+            <tr>
+              <td
+                  v-for="(v, i) in data.variantPy"
+                  :key="i"
+                  class="cell-value"
+                  v-formatted-text="v"
+              />
+            </tr>
+          </table>
+        </div>
 
-          <!-- 读音变体 -->
-          <div v-if="data.variantPy && data.variantPy.length" class="section">
-            <h3 class="section-title">异读</h3>
-            <div v-for="(row, i) in data.variantPy" :key="i" class="variant-row">
-              <span v-for="(v, j) in row" :key="j" v-formatted-text="$t(v)"/>
-            </div>
-          </div>
+        <!-- mean -->
+        <div class="section" v-if="data.mean && data.mean.length">
+          <h3 class="section-title">释义</h3>
+          <ul class="mean-list">
+            <li v-for="(m, i) in data.mean" :key="i" v-formatted-text="m" />
+          </ul>
+        </div>
 
-          <!-- 释义 -->
-          <div v-if="data.mean && data.mean.length" class="section">
-            <h3 class="section-title">释义</h3>
-            <ul class="mean-list">
-              <li v-for="(m, i) in data.mean" :key="i" v-formatted-text="m"/>
-            </ul>
-          </div>
-
-          <!-- 特殊标记 -->
-          <div v-if="data.special" class="section">
-            <h3 class="section-title">特殊标记</h3>
-            <span>{{ data.special }}</span>
-          </div>
-
-          <!-- 近似词 -->
-          <div v-if="data.similar && data.similar.length" class="section">
-            <h3 class="section-title">近似词</h3>
-            <div v-for="(s, i) in data.similar" :key="i">
-              <span v-formatted-text="s.left"/> ({{ s.right }})
-            </div>
-          </div>
+        <!-- similar -->
+        <div class="section" v-if="data.similar && data.similar.length">
+          <h3 class="section-title">相似词</h3>
+          <table class="table">
+            <tr v-for="(s, i) in data.similar" :key="i">
+              <td class="cell-label" v-formatted-text="s.left" />
+              <td class="cell-value" v-formatted-text="s.right" />
+            </tr>
+          </table>
         </div>
       </div>
+
+      <!-- ref 单独块 -->
+      <div
+          class="pronunciation-block"
+          v-if="data.ref && data.ref.length"
+      >
+        <div class="group-header">
+          <h3 class="pinyin-title">辞书</h3>
+        </div>
+
+        <div
+            v-for="(r, i) in data.ref"
+            :key="i"
+            class="ref-row"
+        >
+          <div class="ref-content" v-formatted-text="r.content" />
+          <div class="ref-source" v-formatted-text="r.source" />
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
 
 <style>
-.ciyu-detail-page {
-  min-height: 100vh;
-}
-
-.detail-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
-.ciyu-header {
+.hanzi-header {
   text-align: center;
   margin-bottom: 30px;
 }
 
-.ciyu-text {
-  font-size: 56px;
+.hanzi-char {
+  font-size: 72px;
   font-weight: 700;
-  color: var(--color-text);
 }
 
 .pronunciation-block {
-  background: var(--card-bg-color);
-  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  border: 2px solid var(--color-primary-light);
   border-radius: var(--border-radius-md);
   padding: 24px;
   margin-bottom: 20px;
@@ -186,18 +181,49 @@ watch(
   margin-bottom: 8px;
 }
 
-.pinyin {
+.pinyin-title {
   font-size: 26px;
   font-weight: 700;
-  margin-bottom: 6px;
+}
+
+.special {
+  color: var(--color-text-light);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+}
+
+.cell-label {
+  background: #f7f7f7;
+  width: 50%;
+}
+
+.cell-value {
+  width: 50%;
 }
 
 .mean-list {
   padding-left: 20px;
 }
 
-.variant-row {
-  display: flex;
-  gap: 10px;
+.ref-row {
+  margin-bottom: 12px;
+}
+
+.ref-content {
+  margin-bottom: 4px;
+}
+
+.ref-source {
+  font-size: 12px;
+  color: var(--color-text-light);
 }
 </style>

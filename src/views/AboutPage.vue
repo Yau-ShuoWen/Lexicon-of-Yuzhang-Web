@@ -4,6 +4,9 @@ import { useRoute } from 'vue-router'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
 import { showError } from "../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
+import DialectSelector from "../components/Select/DialectSelector.vue";
+import LanguageSelector from "../components/Select/LanguageSelector.vue";
+import SloganText from "./SloganText.vue";
 
 const { t } = useI18n()
 const route = useRoute()
@@ -44,6 +47,13 @@ onMounted(() => {
 <template>
   <div class="about-page">
     <div class="container">
+
+
+
+      <div class="selector-container">
+        <LanguageSelector/>
+        <DialectSelector/>
+      </div>
 
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-wrapper">
@@ -159,5 +169,16 @@ onMounted(() => {
   width: 20px;
   height: 20px;
   margin-right: 10px;
+}
+
+.selector-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 350px;
+  margin: 5px auto;
+  font-size: 1.2rem;
+  padding: 10px;
+  gap: 20px; /* 元素之间的间距 */
 }
 </style>

@@ -94,13 +94,13 @@ const routes = [
             {
                 path: 'ref-filter',
                 name: 'ReferenceFilter',
-                component: () => import('../views/Developer/ReferenceFilter.vue'),
+                component: () => import('../views/Developer/Ref/ReferenceFilter.vue'),
               //  meta: { requiresAuth: true }
             },
             {
                 path: 'ref-editor/:dictionary/:sort?',
                 name: 'ReferenceEditor',
-                component: () => import('../views/Developer/ReferenceEditor.vue'),
+                component: () => import('../views/Developer/Ref/ReferenceEditor.vue'),
                 //  meta: { requiresAuth: true }
             },
 

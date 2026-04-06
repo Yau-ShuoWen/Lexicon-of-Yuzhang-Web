@@ -3,10 +3,12 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
+import RichText from "../../components/Text/RichText.vue";
 
 
 
 const route = useRoute()
+const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 </script>
 
@@ -21,7 +23,7 @@ const dialect = computed(() => route.params.dialect)
     </div>
     <div class="card">
       <div class="card-body">
-        <PinyinText/>
+
       </div>
     </div>
 

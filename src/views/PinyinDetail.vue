@@ -105,7 +105,7 @@ watch(() => [props.pinyinKey, props.show], () => {
 </template>
 
 
-<style scoped>
+<style>
 /* 遮罩 */
 .overlay {
   position: fixed;

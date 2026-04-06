@@ -8,6 +8,7 @@ import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
+import RichText from "../../../components/Text/RichText.vue";
 
 // 路由
 const route = useRoute()
@@ -27,7 +28,8 @@ const updateData = ref({
   similar: [],
   variantPy: [],
   mandarin: [],
-  note: []
+  note: [],
+  status: 1
 })
 
 const prevId = ref(null)   // 前一个的编号
@@ -37,6 +39,18 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 
 const originalMandarin = ref([])        // 保存从后端加载的原始 mandarin 数据
+
+const tagOptions = [
+  {sc: "待定", tc: "待定"},
+  {sc: "文读", tc: "文讀"},
+  {sc: "白读", tc: "白讀"},
+  {sc: "老派", tc: "老派"},
+  {sc: "新派", tc: "新派"},
+  {sc: "普化音", tc: "普化音"},
+  {sc: "理论读音", tc: "理論讀音"},
+  {sc: "连读音", tc: "連讀音"},
+  {sc: "语流音变", tc: "語流音變"}
+]
 
 // 方法：加载汉字详情
 const loadHanzi = async (id) => {
@@ -168,27 +182,22 @@ watch(() => route.params.id, (newId) => {
   if (newId) loadHanzi(newId)
 })
 
-// 监听多拼音数组的变化，更新标准拼音选项，检查当前选中的标准拼音是否还存在
-watch(() => updateData.value.variantPy, () => {
-  if (updateData.value.mainPy) {
-    const exists = updateData.value.variantPy.some(item =>
-        item.pinyin && item.pinyin.trim() === updateData.value.mainPy.trim())
-    if (!exists) updateData.value.mainPy = ''
-  }
-}, {deep: true})
+watch(
+    () => updateData.value.variantPy.map(item => item.pinyin?.trim()),
+    (newList) => {
+      const validList = newList.filter(p => p)
 
-// 监听多拼音条目的拼音变化
-watch(() => updateData.value.variantPy.map(item => item.pinyin), () => {
-  // 当拼音内容变化时，检查当前选中的标准拼音是否还存在
-  if (updateData.value.mainPy) {
-    const exists = updateData.value.variantPy.some(item =>
-        item.pinyin && item.pinyin.trim() === updateData.value.mainPy.trim()
-    )
-    if (!exists) {
-      updateData.value.mainPy = ''
-    }
-  }
-}, {deep: true})
+      const current = updateData.value.mainPy?.trim()
+
+      // 当前 mainPy 仍然有效 → 不动
+      if (current && validList.includes(current)) return
+
+      // 自动修正 mainPy
+      if (validList.length > 0) updateData.value.mainPy = validList[0]
+      else updateData.value.mainPy = ''
+    },
+    {deep: true, immediate: true}
+)
 
 // 初始化
 onMounted(() => {
@@ -236,8 +245,19 @@ onMounted(() => {
             <select v-model="updateData.special" class="short-input">
               <option value="0">普通漢字</option>
               <option value="1">特殊方言字</option>
-              <option value="2">占位字</option>
+              <option value="2">罕見漢字</option>
               <option value="3">不使用漢字</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label>词条状态</label>
+            <select v-model="updateData.status" class="short-input">
+
+              <option value="1">刚刚创建词条</option>
+              <option value="2">需要补充内容</option>
+              <option value="3">基本完成</option>
+              <option value="4">存疑</option>
             </select>
           </div>
         </div>
@@ -254,12 +274,9 @@ onMounted(() => {
           <div class="radio-group">
             <div v-for="(item, index) in updateData.variantPy" :key="index" class="radio-item">
               <template v-if="item.pinyin && item.pinyin.trim()">
-                <input
-                    type="radio"
-                    :id="'mainPy-' + index"
-                    :name="'mainPyRadio'"
-                    :value="item.pinyin.trim()"
-                    v-model="updateData.mainPy"
+                <input type="radio" :id="'mainPy-' + index"
+                    :name="'mainPyRadio'" :value="item.pinyin.trim()"
+                    class="big-check" v-model="updateData.mainPy"
                 />
                 <label :for="'mainPy-' + index">{{ item.pinyin.trim() }}</label>
               </template>
@@ -269,16 +286,23 @@ onMounted(() => {
 
         <DraggableList
             v-model="updateData.variantPy"
-            :createItem="() => ({tag:{sc:'', tc:''},pinyin:'',sort: updateData.variantPy.length + 1})"
+            :createItem="() => ({tag: { sc: '待定', tc: '待定' },pinyin:'',sort: updateData.variantPy.length + 1})"
         >
           <template #default="{ item }">
 
             <div class="array-item">
               <span>{{ item.sort }}</span>
 
-              <ScAndTcText v-model:traditionalText="item.tag.tc" v-model:simplifiedText="item.tag.sc"
-                           :layout="'small'" :dialect="dialect.toString()"/>
-              <PinyinProofreadText :dialect="dialect.toString()" v-model="item.pinyin"/>
+              <select
+                  class="form-control small-input" :value="JSON.stringify(item.tag)"
+                  @change="e => item.tag = JSON.parse(e.target.value)"
+              >
+                <option v-for="opt in tagOptions" :key="opt.sc" :value="JSON.stringify(opt)" v-text="opt.tc"/>
+              </select>
+
+              <input class="form-control small-input" type="text" v-model="item.pinyin">
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
+                        :model-value="item.pinyin"/>
             </div>
           </template>
         </DraggableList>
@@ -290,8 +314,8 @@ onMounted(() => {
         <div v-if="mandarinOptions.length > 0" class="checkbox-group">
           <div v-for="option in mandarinOptions" :key="option.info" class="checkbox-item">
             <input type="checkbox" :id="'mdr-' + option.info" :value="option"
-                   v-model="updateData.mandarin"/>
-            <label :for="'mdr-' + option.info">{{ option.info }}</label>
+                   v-model="updateData.mandarin" class="big-check"/>
+            <label :for="'mdr-' + option.info" v-formatted-text="option.info"/>
           </div>
         </div>
         <div v-else class="no-results-low">
@@ -331,6 +355,11 @@ onMounted(() => {
               <ScAndTcText v-model:traditionalText="item.right.tc" v-model:simplifiedText="item.right.sc"
                            :layout="'large'" :dialect="dialect.toString()"/>
 
+              <h4>预览</h4>
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                        :model-value="item.right.tc"/>
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                        :model-value="item.right.sc"/>
             </div>
           </template>
         </DraggableList>
@@ -340,32 +369,6 @@ onMounted(() => {
 </template>
 
 <style>
-.edit-page {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.save-message {
-  padding: 10px;
-  margin-bottom: 20px;
-  border-radius: 4px;
-  background: #e8f5e8;
-  color: #2e7d32;
-}
-
-.save-message.error {
-  background: #ffebee;
-  color: #d32f2f;
-}
-
-.form-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  border: 1px solid #bababa;
-  border-radius: 8px;
-}
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -450,6 +453,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
+}
+
+.big-check
+{
+  transform: scale(1.5);  /* 调整大小，比如 1.2 / 1.5 / 1.8 */
+  margin-right: 6px;      /* 防止放大后贴太近 */
+  cursor: pointer;
 }
 
 .checkbox-item {

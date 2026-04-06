@@ -116,7 +116,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <div class="form-field">
 
         <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="search-vague-explain" :labelText="$t('search.fuzzy_recognition')"/>
+              textKey="explain-search-vague" :labelText="$t('search.fuzzy_recognition')"/>
 
         <select v-model="vague" @change="onConfigChange" class="form-control">
           <option :value="true" v-formatted-text="$t('common.open')"/>
@@ -128,7 +128,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <div class="form-field">
 
         <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="search-phonogram-explain" :label-text="$t('linguistic.hint.how_to_mark')"/>
+              textKey="explain-search-phonogram" :label-text="$t('linguistic.hint.how_to_mark')"/>
 
         <select v-model="phonogram" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
@@ -140,7 +140,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <div v-if="phonogram !== 1" class="form-field">
 
         <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="search-ipa-style-explain" :label-text="$t('linguistic.hint.ipa_style')"/>
+              textKey="explain-search-ipa-style" :label-text="$t('linguistic.hint.ipa_style')"/>
 
         <select v-model="syllable" @change="onConfigChange" class="form-control">
           <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
@@ -152,11 +152,11 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
       <div v-if="phonogram !== 1" class="form-field">
 
         <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="search-tone-style-explain" :label-text="$t('linguistic.hint.tone_style')"/>
+              textKey="explain-search-tone-style" :label-text="$t('linguistic.hint.tone_style')"/>
 
         <select v-model="tone" @change="onConfigChange" class="form-control">
-          <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
-          <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
+          <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
+          <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
           <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')"/>
         </select>
       </div>

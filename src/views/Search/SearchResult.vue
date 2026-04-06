@@ -92,52 +92,41 @@ const handleResultClick = (result) => {
 </script>
 
 <template>
-  <div class="search-results-page">
-    <div class="results-container">
-      <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
+  <div class="narrow-layout">
 
-      <LoadingIcon v-if="loading"/>
+    <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
 
-      <div v-else class="results-section">
+    <LoadingIcon v-if="loading"/>
 
-        <div class="results-list">
-          <div
-              v-for="(result, index) in results"
-              :key="index" class="result-item"
-              @click="handleResultClick(result)"
-          >
-            <div class="result-content">
-              <div class="result-main">
-                <h3 class="result-title" v-formatted-text="result.title"/>
-                <p class="result-explain" v-formatted-text="result.explain"/>
-              </div>
+    <div v-else class="results-section">
+
+      <div class="results-list">
+        <div
+            v-for="(result, index) in results"
+            :key="index" class="search-result-item"
+            @click="handleResultClick(result)"
+        >
+          <div class="result-content">
+            <div class="result-main">
+              <h3 class="result-title" v-formatted-text="result.title"/>
+              <p class="result-explain" v-formatted-text="result.explain"/>
             </div>
           </div>
         </div>
-
       </div>
+
     </div>
   </div>
 </template>
 
 <style>
-.search-results-page {
-  min-height: 100vh;
-}
-
-.results-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
 .results-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.result-item {
+.search-result-item {
   background: var(--card-bg-color);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
@@ -146,7 +135,7 @@ const handleResultClick = (result) => {
   cursor: pointer;
 }
 
-.result-item:hover {
+.search-result-item:hover {
   border-color: var(--color-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }

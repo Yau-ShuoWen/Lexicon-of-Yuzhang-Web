@@ -4,6 +4,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import JumpButton from "../../../components/Button/JumpButton.vue"
+import { showError } from "../../../services/ToastService.js";
 
 // 路由
 const router = useRouter()
@@ -18,7 +19,6 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 const searchText = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
-const errorMessage = ref('')
 const hasSearched = ref(false)
 
 // 方法：执行搜索
@@ -27,7 +27,6 @@ const performSearch = async () => {
 
   hasSearched.value = true
   isLoading.value = true
-  errorMessage.value = ''
 
   try {
     const response = await fetch(`/api/edit/hanzi/filter/${dialect.value}?hanzi=${encodeURIComponent(searchText.value)}`)
@@ -35,7 +34,7 @@ const performSearch = async () => {
 
     searchResults.value = await response.json()
   } catch (error) {
-    errorMessage.value = '搜索失败：' + error.message
+    showError('搜索失败：' + error.message)
     searchResults.value = []
   }
   finally {
@@ -46,7 +45,6 @@ const performSearch = async () => {
 watch(searchText, (newValue) => {
   if (!newValue.trim()) {
     searchResults.value = []
-    errorMessage.value = ''
     hasSearched.value = false
   }
 })
@@ -71,22 +69,21 @@ watch(searchText, (newValue) => {
       </router-link>
     </div>
 
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
-    </div>
-
     <div v-if="searchResults.length > 0" class="results-section">
       <h4>搜索结果（点击编辑）</h4>
-      <router-link
-          v-for="item in searchResults"
-          :key="item.tag"
-          :to="getPath(`hanzi-editor/${item.info.query}`)"
-          class="result-item"
-          target="_blank"
-      >
-        <div class="item-display">{{ item.title }}</div>
-        <div class="pinyin">{{ item.explain }}</div>
-      </router-link>
+      <div class="results-list">
+        <router-link
+            v-for="item in searchResults"
+            :key="item.tag"
+            :to="getPath(`hanzi-editor/${item.info.query}`)"
+            class="result-item"
+            target="_blank"
+        >
+          <div class="item-display">{{ item.title }}</div>
+          <div class="item-display">{{ item.explain }}</div>
+        </router-link>
+      </div>
+
     </div>
 
     <div v-else-if="hasSearched && !isLoading" class="no-results-high">
@@ -102,48 +99,31 @@ watch(searchText, (newValue) => {
   margin-bottom: 20px;
 }
 
-.error-message {
-  color: #d32f2f;
-  background: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-}
-
-.results-section h3 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
 .results-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+
 .result-item {
   display: flex;
   align-items: center;
   gap: 20px;
   padding: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #bababa;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.1s;
 }
 
 .result-item:hover {
-  background-color: #f5f5f5;
+  background-color: #ffffff;
 }
 
 .item-display {
   min-width: 100px;
   font-size: 18px;
   font-weight: bold;
-}
-
-.pinyin {
-  min-width: 120px;
-  color: #2196f3;
 }
 </style>

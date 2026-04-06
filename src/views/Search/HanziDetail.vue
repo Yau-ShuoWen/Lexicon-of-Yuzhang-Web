@@ -1,31 +1,22 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import StatusDisplay from '../../components/Status/StatusDisplay.vue'
 import BackButton from "../../components/Button/BackButton.vue";
+import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import { showError } from "../../services/ToastService.js";
+import Info from "../../components/Status/Info.vue";
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const error = ref('')
 const data = ref(null)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 
-const currentStatus = computed(() => {
-  if (loading.value) return 'loading'
-  if (error.value) return 'error'
-  if (!data.value) return 'empty'
-  return null
-})
-
-/**
- * 读取搜索配置
- */
-
+// 读取搜索配置
 const getSearchConfig = () => {
   try {
     const cached = localStorage.getItem('search_page_config')
@@ -45,7 +36,7 @@ const getSearchConfig = () => {
  */
 const fetchHanzi = async () => {
   loading.value = true
-  error.value = ''
+
   data.value = null
   try {
     const config = getSearchConfig()
@@ -60,9 +51,15 @@ const fetchHanzi = async () => {
     const json = await res.json()
     if (!json.success) throw new Error(json.message || '查询失败')
     data.value = json.data
-  } catch (err) {
-    console.error(err)
-    error.value = err.message || '查询失败'
+
+  } catch (e) {
+    loading.value = false
+    if (e.message.includes("not found")) {
+      showError('未找到资料，请确认是否是从结果页正确跳转的')
+    } else {
+      console.error(e)
+      showError(e.message)
+    }
   }
   finally {
     loading.value = false
@@ -80,121 +77,111 @@ watch(
 )
 </script>
 <template>
-  <div class="hanzi-detail-page">
-    <div class="detail-container">
-      <BackButton
-          button-text="← 返回"
-          size="middle"
-      />
+  <div class="middle-layout">
+    <BackButton button-text="← 返回" size="middle"/>
 
-      <StatusDisplay
-          v-if="currentStatus"
-          :type="currentStatus"
-          :message="error"
-          :show-retry="currentStatus === 'error'"
-          @retry="fetchHanzi"
-      />
+    <LoadingIcon v-if="loading"></LoadingIcon>
 
-      <div v-else class="detail-content">
-        <!-- 汉字标题 -->
-        <div class="hanzi-header">
-          <h1 class="hanzi-char">
-            {{ data.hanzi }}
-          </h1>
+    <div v-else class="detail-content">
+      <div class="hanzi-header">
+        <h1 class="hanzi-char">{{ data.hanzi }}</h1>
+      </div>
+
+      <!-- 每个读音 -->
+      <div
+          v-for="(info,index) in data.info"
+          :key="index"
+          class="pronunciation-block"
+      >
+        <div class="group-header">
+          <h2 class="pinyin-title" v-formatted-text="$t(info.mainPy)"/>
         </div>
 
-        <!-- 每个读音 -->
-        <div
-            v-for="(info,index) in data.info"
-            :key="index"
-            class="pronunciation-block"
-        >
-          <h2 class="pinyin" v-formatted-text="$t(info.mainPy)"/>
+        <p class="special">{{ info.special }}</p>
 
-          <p class="special">{{ info.special }}</p>
+        <div class="detail-grid">
 
-          <!-- 读音变体 -->
-          <div v-if="info.variantPy && info.variantPy.length" class="section">
-            <h3 class="section-title">
-              异读
-            </h3>
-            <div
-                v-for="(v,i) in info.variantPy"
-                :key="i"
-                class="variant-row"
+          <div class="left-block">
+            <h3 class="section-title">所有讀音</h3>
+            <table
+                v-if="info.variantPy && info.variantPy.length"
+                class="table"
             >
-              <span v-formatted-text="v.left"/>
-              <span class="variant-py" v-formatted-text="$t(v.right)"/>
-            </div>
+              <tr v-for="(v,i) in info.variantPy" :key="'v'+i">
+                <td class="cell-label" v-formatted-text="v.left"/>
+                <td class="cell-value" v-formatted-text="v.right"/>
+              </tr>
+            </table>
           </div>
 
-          <!-- 普通话参考 -->
           <div
               v-if="info.mdrInfo && info.mdrInfo.length"
-              class="section"
+              class="right-block"
           >
-            <h3 class="section-title">
-              普通话讀音對應
-            </h3>
-            <div
-                v-for="(m,i) in info.mdrInfo"
-                :key="i"
-                class="mdr-row"
-                v-formatted-text="$t(m)"
-            />
-          </div>
-
-          <!-- IPA -->
-          <div
-              v-if="info.ipa && info.ipa.length"
-              class="section"
-          >
-            <h3 class="section-title">
-              国际音标
-            </h3>
-            <div
-                v-for="(ipa,i) in info.ipa"
-                :key="i"
-                class="ipa-row"
-            >
-              <span class="ipa-dict">{{ ipa.left }}</span>
-              <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>
-            </div>
-          </div>
-
-          <div
-              v-if="info.note && info.note.length"
-              class="section"
-          >
-            <h3 class="section-title">
-              注释
-            </h3>
-            <div
-                v-for="(n,i) in info.note"
-                :key="i"
-                class="note-row"
-            >
-              <strong v-formatted-text="n.left"/>
-              <span v-formatted-text="n.right"/>
-            </div>
+            <h3 class="section-title">对应普通话</h3>
+            <table class="table">
+              <tr v-for="(m,i) in info.mdrInfo" :key="'m'+i">
+                <td class="cell-equal" v-formatted-text="$t(m.left)"/>
+                <td class="cell-equal" v-formatted-text="$t(m.right)"/>
+              </tr>
+            </table>
           </div>
         </div>
+
+        <!-- IPA -->
+        <div
+            v-if="info.ipa && info.ipa.length"
+            class="section"
+        >
+          <h3 class="section-title">
+            国际音标
+          </h3>
+          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">
+            <span class="ipa-dict">{{ ipa.left }}</span>
+            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>
+          </div>
+        </div>
+
+        <div
+            v-if="info.note && info.note.length"
+            class="section"
+        >
+          <h3 class="section-title">
+            注释
+          </h3>
+          <div
+              v-for="(n,i) in info.note"
+              :key="i"
+              class="note-row"
+          >
+            <strong v-formatted-text="n.left"/>
+            <span v-formatted-text="n.right"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+        class="pronunciation-block"
+        v-if="data.ref && data.ref.length"
+    >
+      <div class="group-header">
+        <h3 class="pinyin-title">辞书</h3>
+      </div>
+
+      <div
+          v-for="(r, i) in data.ref"
+          :key="i"
+          class="ref-row"
+      >
+        <div class="ref-content" v-formatted-text="r.content"/>
+        <div class="ref-source" v-formatted-text="r.source"/>
       </div>
     </div>
   </div>
 </template>
 
 <style>
-.hanzi-detail-page {
-  min-height: 100vh;
-}
-
-.detail-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
 .hanzi-header {
   text-align: center;
   margin-bottom: 30px;
@@ -207,8 +194,8 @@ watch(
 }
 
 .pronunciation-block {
-  background: var(--card-bg-color);
-  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  border: 2px solid var(--color-primary-light);
   border-radius: var(--border-radius-md);
   padding: 24px;
   margin-bottom: 20px;
@@ -224,23 +211,70 @@ watch(
   margin-bottom: 8px;
 }
 
-.pinyin {
+.pinyin-title {
   font-size: 26px;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-left: 5px;
+  margin-bottom: 0;
 }
 
 .special {
   color: var(--color-text-light);
 }
 
-.variant-row {
-  display: flex;
-  gap: 10px;
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  table-layout: fixed;
 }
 
-.variant-py {
-  font-weight: 600;
+.table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+}
+
+/* variantPy 左侧标签 */
+.cell-label {
+  background: #f7f7f7;
+  width: 50%;
+  font-weight: 500;
+}
+
+/* variantPy 右侧拼音 */
+.cell-value {
+  width: 50%;
+}
+
+/* mdrInfo 两边等宽 */
+.cell-equal {
+  width: 50%;
+}
+
+/* 横向布局 */
+.detail-grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.detail-grid {
+  display: grid;
+
+  /* 关键：10等分布局 */
+  grid-template-columns: 3fr 1fr 3fr 3fr;
+
+  align-items: start;
+}
+
+/* 左块占第1列 */
+.left-block {
+  grid-column: 1;
+}
+
+/* 右块占第3列 */
+.right-block {
+  grid-column: 3;
 }
 
 .ipa-row {
@@ -256,12 +290,31 @@ watch(
   font-family: monospace;
 }
 
-.mdr-row {
-  margin-bottom: 4px;
-}
-
 .note-row {
   display: flex;
   gap: 8px;
+}
+
+.ref-row {
+  margin-bottom: 12px;
+}
+
+.ref-content {
+  margin-bottom: 4px;
+}
+
+.ref-source {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    display: block; /* 直接取消 grid */
+  }
+
+  .table {
+    width: 70%;
+  }
 }
 </style>

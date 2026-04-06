@@ -64,7 +64,7 @@ watch(dialect, fetchTable)
 
 
 <template>
-  <div class="pinyin-table-container">
+  <div class="broaden-layout">
     <LoadingIcon v-if="loading"/>
 
     <div v-else class="pinyin-container">
@@ -113,12 +113,7 @@ watch(dialect, fetchTable)
 </template>
 
 
-<style scoped>
-.pinyin-table-container {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
+<style>
 /* ======== Attribute Block ======== */
 .attribute-group {
   margin-bottom: 34px; /* Line组之间距离 */
@@ -126,13 +121,6 @@ watch(dialect, fetchTable)
   border-radius: 12px;
   padding: 20px 18px;
   border: 2px solid var(--color-primary-light);
-}
-
-/* ======== Header ======== */
-.group-header {
-  margin-bottom: 18px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e8e8e8;
 }
 
 .group-header h3 {

@@ -1,7 +1,7 @@
 <script setup>
 
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
@@ -16,6 +16,23 @@ const createData = ref({
   pinyin: ''
 })
 
+const searchPinyin = ref('')
+const characterList = ref([])
+
+const searchCharacter = async () => {
+  if (!searchPinyin.value.trim()) return
+
+  characterList.value = null
+
+  try {
+    const res = await fetch(`/api/edit/hanzi/get-character/${dialect.value}?pinyin=${encodeURIComponent(searchPinyin.value)}`)
+
+    characterList.value = await res.json()
+  } catch (e) {
+    showError("查询失败：" + e.message)
+  }
+}
+
 const submit = async () => {
   try {
     const res = await fetch(`/api/edit/hanzi/create/${dialect.value}`, {
@@ -29,30 +46,60 @@ const submit = async () => {
     const data = await res.json()
 
     if (data.success) showSuccess("提交成功")
-    else showError("提交失敗：" + data.message)
+    else showError("提交失败：" + data.message)
 
   } catch (e) {
-    showError("請求失敗" + e.message)
+    showError("请求失败" + e.message)
   }
 }
 </script>
 
 <template>
   <div class="narrow-layout">
-    <h3>读音</h3>
 
-    <PinyinProofreadText :dialect="dialect.toString()" v-model="createData.pinyin"/>
+    <div class="form-section">
+      <h3 class="section-header">添加汉字 / 批量添加同音字</h3>
+
+      <PinyinProofreadText
+          :dialect="dialect.toString()"
+          v-model="createData.pinyin"
+      />
+
+      <ScAndTcText
+          v-model:traditionalText="createData.text.tc"
+          v-model:simplifiedText="createData.text.sc"
+          :layout="'middle'"
+          :dialect="dialect.toString()"
+      />
+
+      <button @click="submit" class="dev-add-btn dev-btn-small">提交</button>
+
+    </div>
 
 
-    <ScAndTcText v-model:traditionalText="createData.text.tc" v-model:simplifiedText="createData.text.sc"
-                 :layout="'middle'" :dialect="dialect.toString()"/>
+    <div class="form-section">
+      <h3 class="section-header">普通话同音字查询</h3>
 
-    <button @click="submit" class="dev-add-btn dev-btn-small">提交</button>
+
+      <input
+          v-model="searchPinyin"
+          @keydown.enter.prevent="searchCharacter"
+          placeholder="漢語拼音"
+          class="form-control small-input"
+      />
+
+
+      <ul v-if="characterList.length">
+        <li v-for="(char, index) in characterList" :key="index">
+          {{ char }}
+        </li>
+      </ul>
+
+    </div>
+
 
   </div>
-
 </template>
 
 <style>
-
 </style>

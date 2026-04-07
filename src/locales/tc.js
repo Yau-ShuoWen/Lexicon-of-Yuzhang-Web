@@ -16,7 +16,9 @@ export default {
     nav: {
         home: '首頁',
         pinyin: "拼音",
+        search:'查詢',
         about: '關於',
+        primer: '入門',
         contact: '聯繫',
         settings: '設定'
     },
@@ -33,6 +35,7 @@ export default {
     search: {
         hint: '搜索內容',
         fuzzy_recognition: '模糊識別',
+        noData: '暂无数据',
         pronunciation_choose: '讀音標註'
     },
     linguistic: {

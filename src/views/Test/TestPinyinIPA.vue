@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 import PinyinProofreadText from "../../components/Text/PinyinProofreadText.vue";
 import RichText from "../../components/Text/RichText.vue";
+import ScAndTcText from "../../components/Text/ScAndTcText.vue";
 
-
+const text=ref('');
+const t2=ref('')
 
 const route = useRoute()
 const language = computed(() => route.params.language)
@@ -23,7 +25,12 @@ const dialect = computed(() => route.params.dialect)
     </div>
     <div class="card">
       <div class="card-body">
-
+        <ScAndTcText v-model:traditionalText="text" v-model:simplifiedText="t2"
+                     :layout="'large'" :dialect="dialect.toString()"/>
+        <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                  :model-value="text"/>
+        <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                  :model-value="t2"/>
       </div>
     </div>
 

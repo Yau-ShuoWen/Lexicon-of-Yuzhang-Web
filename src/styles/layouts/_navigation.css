@@ -1,11 +1,11 @@
 /* _navigation.css */
 .main-nav {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-sm);
     background: var(--color-background-alt);
     width: 100%;
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-xl);
+    gap: var(--spacing-lg);
     justify-content: center;
     align-items: center;
     box-shadow: var(--shadow-sm);

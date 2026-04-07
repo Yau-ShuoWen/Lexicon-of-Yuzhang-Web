@@ -1,6 +1,6 @@
 // index.js
 
-import {createRouter, createWebHistory} from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
@@ -23,6 +23,11 @@ const routes = [
                 path: 'pinyin',
                 name: 'PinyinTable',
                 component: () => import('../views/PinyinTable.vue')
+            },
+            {
+                path: 'primer',
+                name: 'Primer',
+                component: () => import('../views/Primer.vue')
             },
             {
                 path: 'about',
@@ -73,7 +78,7 @@ const routes = [
                 name: 'HanziEditor',
                 component: () => import('../views/Developer/Hanzi/HanziEditor.vue'),
                 props: true,
-               // meta: { requiresAuth: true }
+                // meta: { requiresAuth: true }
             },
 
             {
@@ -95,7 +100,7 @@ const routes = [
                 path: 'ref-filter',
                 name: 'ReferenceFilter',
                 component: () => import('../views/Developer/Ref/ReferenceFilter.vue'),
-              //  meta: { requiresAuth: true }
+                //  meta: { requiresAuth: true }
             },
             {
                 path: 'ref-editor/:dictionary/:sort?',
@@ -134,7 +139,7 @@ const routes = [
                 path: 'profile',
                 name: 'Profile',
                 component: () => import('../views/Developer/Profile.vue'),
-                meta: { requiresAuth: true }
+                meta: {requiresAuth: true}
             },
 
         ]
@@ -206,7 +211,7 @@ router.beforeEach(async (to, from, next) => {
         // 2.2 向后端校验 token
         try {
             const res = await axios.get('/api/check-auth', {
-                params: { t: token }
+                params: {t: token}
             })
 
             if (res.data.success) {

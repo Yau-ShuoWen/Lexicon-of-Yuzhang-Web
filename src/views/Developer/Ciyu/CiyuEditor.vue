@@ -134,6 +134,7 @@ onMounted(() => {
 
     <div v-else class="edit-form">
 
+
       <!-- 繁简字 & special -->
       <div class="form-section">
         <div class="form-grid">
@@ -155,9 +156,9 @@ onMounted(() => {
       <div class="form-section">
         <h3>拼音</h3>
         <div class="array-item">
+          <input class="form-control small-middle-input" type="text" v-model="updateData.mainPy">
           <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
-                    :model-value="updateData.mainPy"/>
-          <input class="form-control middle-input" type="text" v-model="updateData.mainPy">
+                    :model-value="updateData.mainPy.toString()"/>
         </div>
 
         <h3>拼音說明</h3>

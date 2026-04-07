@@ -16,7 +16,9 @@ export default {
     nav: {
         home: '首页',
         pinyin: "拼音",
+        search:'查询',
         about: '关于',
+        primer: '入门',
         contact: '联系',
         settings: '设置'
     },
@@ -31,19 +33,20 @@ export default {
         noData: '暂无数据'
     },
     search: {
-        hint:'搜索内容',
+        hint: '搜索内容',
         fuzzy_recognition: '模糊识别',
-        noData: '暂无数据'
+        noData: '暂无数据',
+        pronunciation_choose: '讀音標註'
     },
     linguistic: {
-        hint:{
-            how_to_mark:'读音标注方法',
-            ipa_style:'国际音标样式',
-            tone_style:'音调样式'
+        hint: {
+            how_to_mark: '读音标注方法',
+            ipa_style: '国际音标样式',
+            tone_style: '音调样式'
         },
 
         han_pinyin: {
-            self:"汉语拼音"
+            self: "汉语拼音"
         },
 
         pinyin: {

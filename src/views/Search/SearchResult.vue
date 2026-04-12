@@ -86,8 +86,16 @@ const handleResultClick = (result) => {
     return
   }
 
-  if (result.tag === 'hanzi') router.push(`/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`)
-  if (result.tag === 'ciyu') router.push(`/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`)
+  let path = ''
+
+  if (result.tag === 'hanzi') path = `/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`
+  if (result.tag === 'ciyu') path = `/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`
+
+
+  if (path) {
+    const routeData = router.resolve(path)
+    window.open(routeData.href, '_blank')
+  }
 }
 </script>
 

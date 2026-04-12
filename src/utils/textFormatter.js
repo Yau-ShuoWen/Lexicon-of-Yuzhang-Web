@@ -2,9 +2,9 @@ export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
     // --- 1) 先处理 {} 特殊格式 ---------------------------------------
-    text = text.replace(/\{b\s+([^}]+)\}/g, (m, p1) => `<b>${p1}</b>`);
-    text = text.replace(/\{z\s+([^}]+)\}/g, (m, p1) => `<small style="color: gray;">${p1}</small>`);
-    text = text.replace(/\{t\s+([^}]+)\}/g, (m, p1) => `${p1}`);
+    text = text.replace(/\{b\s+([^}]+)}/g, (m, p1) => `<b>${p1}</b>`);
+    text = text.replace(/\{z\s+([^}]+)}/g, (m, p1) => `<small style="color: gray;">${p1}</small>`);
+    text = text.replace(/\{t\s+([^}]+)}/g, (m, p1) => `${p1}`);
 
     // --- 新增 处理列表 -----------------------------------------------
     // 先按行分割
@@ -52,13 +52,13 @@ export function formatRichText(text) {
         if (inner.includes("-")) {
             const [pre, tone] = inner.split("-");
             return (
-                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif;  ">[${pre}` + `</span>` +
+                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif; font-size: 1.1em ">[${pre}` + `</span>` +
                 `<span style="font-family: 'Charis SIL', 'Microsoft YaHei', sans-serif; ">${tone}]</span>`
             );
         }
 
         // 否则视为普通拼音
-        return `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif;">[${inner}]</span>`;
+        return `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif; font-size: 1.1em">[${inner}]</span>`;
     });
 
     // --- 3) 处理换行 ------------------------------------------------------

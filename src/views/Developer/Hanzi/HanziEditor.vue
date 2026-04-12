@@ -3,7 +3,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";

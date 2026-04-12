@@ -1,5 +1,6 @@
 <template>
   <div
+      v-if="result"
       class="result"
       :class="isValid ? 'valid' : 'invalid'"
       v-formatted-text="result"
@@ -10,10 +11,11 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps({
-  modelValue: {type: String, required: true}, // v-model
-  language: {type: String, required: true},
-  dialect: {type: String, required: true},
-  allPinyin: {type: Boolean, default: false}
+  modelValue: { type: String, required: true },
+  language: { type: String, required: true },
+  dialect: { type: String, required: true },
+  allPinyin: { type: Boolean, default: false },
+  dict: { type: String, default: null }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -40,7 +42,20 @@ const check = async () => {
   }
 
   try {
-    const res = await fetch(`/api/proofread/check/${props.language}/${props.dialect}?text=${encodeURIComponent(buildText())}`)
+    const params = new URLSearchParams()
+    params.append('text', buildText())
+
+    if (props.dict) params.append('dict', props.dict)
+
+
+    const res = await fetch(
+        `/api/proofread/check/${props.language}/${props.dialect}`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: params
+        }
+    )
 
     const data = await res.json()
 

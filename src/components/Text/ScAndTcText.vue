@@ -27,6 +27,13 @@ const newSc = ref('')
 const isTcDirty = ref(false)
 const isScDirty = ref(false)
 
+const hint = computed(() => {
+  if (isScDirty.value && isTcDirty.value)  return {icon: '❌', title: '错误状态，请刷新页面'};
+  if (!isScDirty.value && !isTcDirty.value) return {icon: '✅', title: '简繁对应状态正确'};
+  if (isScDirty.value) return {icon: '简', title: '校对简体中，按下Ctrl+Enter保存，字数需要相等'};
+  if (isTcDirty.value) return {icon: '繁', title: '编辑繁体中，按下Ctrl+Enter自动翻译简体'};
+})
+
 const isSubmitting = ref(false)
 
 const tcLocked = computed(() => isScDirty.value)
@@ -106,7 +113,6 @@ async function onTraditionalUpdate(e) {
 
   try {
     const res = await fetch(
-
         `/api/proofread/sc-tc-translate/${props.dialect}`,
         {
           method: 'POST',
@@ -201,12 +207,7 @@ defineExpose({clearAll})
 
 
       <button v-if="!disabled" @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
-      <div v-if="!disabled">
-        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
-        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
-        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
-        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
-      </div>
+      <div v-if="!disabled" class="dev-btn-small" :title="hint.title">{{ hint.icon }}</div>
 
 
     </div>
@@ -225,10 +226,7 @@ defineExpose({clearAll})
 
       <div v-if="!disabled" class="button-group">
         <button @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
-        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
-        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
-        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
-        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
+        <div class="dev-btn-small" :title="hint.title">{{ hint.icon }}</div>
       </div>
     </div>
 
@@ -246,10 +244,7 @@ defineExpose({clearAll})
 
       <div v-if="!disabled" class="button-group">
         <button @click="clearAll" class="dev-btn-small dev-normal-button">清除</button>
-        <div class="dev-btn-small" v-if="isScDirty&&isTcDirty" title="错误状态，请刷新页面">❌</div>
-        <div class="dev-btn-small" v-if="!isScDirty&&!isTcDirty" title="简繁对应状态正确">✅</div>
-        <div class="dev-btn-small" v-if="isScDirty" title="校对简体中，按下Ctrl+Enter保存，字数需要相等">⌨️简</div>
-        <div class="dev-btn-small" v-if="isTcDirty" title="编辑繁体中，按下Ctrl+Enter自动翻译简体">⌨️繁</div>
+        <div class="dev-btn-small" :title="hint.title">{{ hint.icon }}</div>
       </div>
     </div>
 

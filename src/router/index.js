@@ -142,6 +142,12 @@ const routes = [
                 meta: {requiresAuth: true}
             },
 
+
+            {
+                path:'ysw',
+                name:'EasterEgg',
+                component: () => import('../views/EasterEgg.vue')
+            }
         ]
     },
 

@@ -78,7 +78,7 @@ watch(
 </script>
 <template>
   <div class="middle-layout">
-    <BackButton button-text="← 返回" size="middle"/>
+<!--    <BackButton button-text="← 返回" size="middle"/>-->
 
     <LoadingIcon v-if="loading"></LoadingIcon>
 

@@ -3,8 +3,8 @@
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import PinyinProofreadText from "../../../components/Text/PinyinProofreadText.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
+import RichText from "../../../components/Text/RichText.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -58,12 +58,14 @@ const submit = async () => {
   <div class="narrow-layout">
 
     <div class="form-section">
-      <h3 class="section-header">添加汉字 / 批量添加同音字</h3>
+      <h3 class="section-header">添加漢字 / 批量添加同音字</h3>
 
-      <PinyinProofreadText
-          :dialect="dialect.toString()"
-          v-model="createData.pinyin"
-      />
+      <div class="horizontal-group">
+        <input v-model="createData.pinyin" class="form-control small-input" placeholder="輸入拼音">
+
+        <RichText :dialect="dialect.toString()" :language="language.toString()"
+                  :model-value="createData.pinyin" :allPinyin="true" class="small-input"/>
+      </div>
 
       <ScAndTcText
           v-model:traditionalText="createData.text.tc"
@@ -90,9 +92,7 @@ const submit = async () => {
 
 
       <ul v-if="characterList.length">
-        <li v-for="(char, index) in characterList" :key="index">
-          {{ char }}
-        </li>
+        <li v-for="(char, index) in characterList" :key="index" v-formatted-text="char"/>
       </ul>
 
     </div>

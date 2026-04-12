@@ -1,3 +1,5 @@
+<!--src/components/Layout/DraggableList.vue-->
+
 <script setup>
 import { computed, ref, watch } from 'vue'
 

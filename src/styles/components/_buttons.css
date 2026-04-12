@@ -166,6 +166,26 @@ button:disabled {
     opacity: 0.75;                         /* 稍高不透明度保持可读性 */
 }
 
+/* 警告/War 按钮 */
+.dev-war-btn {
+    border: #ffb100;          /* 金黄色边框 */
+    background: #ffb100;      /* 金黄色背景 */
+    cursor: pointer;
+}
+
+.dev-war-btn:hover {
+    background: #e69900;      /* 深一点的黄色/橙色 */
+}
+
+/* 禁用状态 */
+.dev-war-btn:disabled {
+    border-color: #adb5bd !important;
+    background-color: #dee2e6 !important;
+    color: #495057 !important;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
 .dev-btn-small {
 
     padding: 6px 12px;

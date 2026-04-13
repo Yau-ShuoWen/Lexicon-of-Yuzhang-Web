@@ -1,12 +1,3 @@
-<template>
-  <div
-      v-if="result"
-      class="result"
-      :class="isValid ? 'valid' : 'invalid'"
-      v-formatted-text="result"
-  ></div>
-</template>
-
 <script setup>
 import { ref, watch } from 'vue'
 
@@ -79,6 +70,15 @@ watch(
 )
 </script>
 
+<template>
+  <div
+      v-if="result"
+      class="result"
+      :class="isValid ? 'valid' : 'invalid'"
+      v-formatted-text="result"
+  ></div>
+</template>
+
 <style scoped>
 .result {
   padding: 5px 20px;
@@ -88,7 +88,7 @@ watch(
 }
 
 .valid {
-  background-color: #e6ffed;
+  background-color: #f3fff7;
   border: 1px solid #39cd51;
 }
 

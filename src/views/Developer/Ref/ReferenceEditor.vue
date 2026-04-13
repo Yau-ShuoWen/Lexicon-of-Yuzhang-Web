@@ -310,6 +310,36 @@ watch(() => route.params.sort, () => {
   }
   loadPage()
 }, {immediate: true})
+
+// ==================== Proof 模式弹窗相关 ====================
+const currentEditingItem = ref(null)
+
+function openProofEditor(item) {
+  // 确保只有一个弹窗打开
+  if (currentEditingItem.value) {
+    currentEditingItem.value = null
+  }
+  currentEditingItem.value = item   // 直接引用同一个 item 对象
+}
+
+function closeProofEditor() {
+  currentEditingItem.value = null
+}
+
+// 可选：支持 ESC 键关闭
+watch(currentEditingItem, (newVal) => {
+  if (newVal) {
+    document.addEventListener('keydown', handleEscClose)
+  } else {
+    document.removeEventListener('keydown', handleEscClose)
+  }
+})
+
+function handleEscClose(e) {
+  if (e.key === 'Escape' && currentEditingItem.value) {
+    closeProofEditor()
+  }
+}
 </script>
 
 <template>
@@ -371,40 +401,114 @@ watch(() => route.params.sort, () => {
             :createItem="() => ({ id: null, source: '', text: { sc: '', tc: '' }, note: { sc: '', tc: '' } })"
         >
           <template #default="{ item }">
-            <div class="proof-item">
-              <div class="source-section">
+            <!-- 缩略预览卡片 -->
+            <div class="proof-item-compact">
+              <div
+                  class="preview-source"
+                  @click="openProofEditor(item)"
+              >
                 <h4>原始文本</h4>
-                <textarea v-model="item.source" class="source-textarea form-control" rows="2"/>
-                <RichText :dialect="dialect.toString()" :language="language.toString()"
-                          :dict="dictionary.toString()" :model-value="item.source"/>
+                <RichText
+                    :dialect="dialect.toString()"
+                    :language="language.toString()"
+                    :dict="dictionary.toString()"
+                    :model-value="item.source"
+                />
               </div>
 
-              <div class="sc-tc-section">
-                <h4>正文</h4>
-                <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
-                             layout="large" :rows="5" :dialect="dialect.toString()"/>
-
-                <RichText :dialect="dialect.toString()" :language="language.toString()"
-                          :model-value="item.text.tc" :dict="dictionary.toString()"/>
-                <RichText :dialect="dialect.toString()" :language="language.toString()"
-                          :model-value="item.text.sc" :dict="dictionary.toString()"/>
+              <div
+                  class="preview-note"
+                  @click="openProofEditor(item)"
+              >
+                <h4>注释（繁体）</h4>
+                <RichText
+                    :dialect="dialect.toString()"
+                    :language="language.toString()"
+                    :dict="dictionary.toString()"
+                    :model-value="item.note.tc"
+                />
               </div>
 
+            </div>
 
-              <div class="note-section">
-                <h4>注释</h4>
-                <ScAndTcText v-model:traditionalText="item.note.tc" v-model:simplifiedText="item.note.sc"
-                             layout="large" :rows="3" :dialect="dialect.toString()"/>
-                <RichText :dialect="dialect.toString()" :language="language.toString()"
-                          :model-value="item.note.tc" :dict="dictionary.toString()"/>
-                <RichText :dialect="dialect.toString()" :language="language.toString()"
-                          :model-value="item.note.sc" :dict="dictionary.toString()"/>
+            <!-- ==================== 专属弹窗（v-show 关键！） ==================== -->
+            <div
+                v-show="currentEditingItem === item"
+                class="proof-editor-modal"
+            >
+              <!-- 遮罩层 -->
+              <div
+                  class="modal-overlay"
+                  @click="closeProofEditor"
+              ></div>
 
+              <!-- 弹窗内容 -->
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3>编辑条目</h3>
+                  <button class="close-btn" @click="closeProofEditor">×</button>
+                </div>
+
+                <!-- 这里完整搬过来你原来的 proof-item 内容 -->
+                <div class="proof-item">
+                  <div class="source-section">
+                    <h4>原始文本</h4>
+                    <textarea
+                        v-model="item.source"
+                        class="source-textarea form-control"
+                        rows="4"
+                    />
+                    <RichText
+                        :dialect="dialect.toString()"
+                        :language="language.toString()"
+                        :dict="dictionary.toString()"
+                        :model-value="item.source"
+                    />
+                  </div>
+
+                  <!-- text 部分（你原来注释说留给未来扩展，先保留） -->
+                  <div class="text-section" v-if="item.text">
+                    <!-- 如果以后要加 text.sc / text.tc 可以在这里扩展 -->
+                  </div>
+
+                  <div class="note-section">
+                    <h4>注释</h4>
+                    <ScAndTcText
+                        v-model:traditionalText="item.note.tc"
+                        v-model:simplifiedText="item.note.sc"
+                        layout="large"
+                        :rows="5"
+                        :dialect="dialect.toString()"
+                    />
+
+                    <RichText
+                        :dialect="dialect.toString()"
+                        :language="language.toString()"
+                        :dict="dictionary.toString()"
+                        :model-value="item.note.tc"
+                    />
+
+                    <RichText
+                        :dialect="dialect.toString()"
+                        :language="language.toString()"
+                        :dict="dictionary.toString()"
+                        :model-value="item.note.sc"
+                    />
+                  </div>
+                </div>
+
+                <div class="modal-footer">
+                  <button class="dev-btn-small dev-normal-button" @click="closeProofEditor">
+                    关闭
+                  </button>
+                  <!-- 如果需要可以在这里加“保存”按钮，但因为实时绑定，通常不需要 -->
+                </div>
               </div>
             </div>
           </template>
         </DraggableList>
       </div>
+
     </div>
   </div>
 </template>
@@ -468,5 +572,105 @@ watch(() => route.params.sort, () => {
   border: 1px solid #bbb;
   border-radius: 4px;
   font-size: 16px;
+}
+
+.proof-item-compact {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: #fff;
+  margin-bottom: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.proof-item-compact:hover {
+  border-color: #aaa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.preview-source, .preview-note {
+  margin-bottom: 12px;
+}
+
+.preview-source h4,
+.preview-note h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.drag-handle {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 20px;
+  color: #ccc;
+  cursor: grab;
+  user-select: none;
+}
+
+/* ==================== 弹窗样式 ==================== */
+.proof-editor-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1;
+}
+
+.modal-content {
+  position: relative;
+  z-index: 2;
+  background: white;
+  width: 90%;
+  max-width: 960px;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: #999;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-footer {
+  margin-top: 20px;
+  text-align: right;
 }
 </style>

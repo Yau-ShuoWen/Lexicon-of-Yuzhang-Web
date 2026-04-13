@@ -29,7 +29,7 @@ const getSearchConfig = () => {
 /**
  * 执行搜索
  */
-const searchAll = async (query) => {
+const handleSearch = async (query) => {
   if (!query.trim()) return
 
   loading.value = true
@@ -65,7 +65,7 @@ watch(
     ([newQuery]) => {
       if (newQuery) {
         searchQuery.value = newQuery
-        searchAll(newQuery)
+        handleSearch(newQuery)
       }
     },
     {immediate: true}
@@ -76,8 +76,20 @@ watch(
  */
 const handleRetry = () => {
   if (searchQuery.value.trim()) {
-    searchAll(searchQuery.value)
+    handleSearch(searchQuery.value)
   }
+}
+
+const getResultLink = (result) => {
+  if (!result?.tag || !result?.info) {
+    console.error('搜索结果结构异常:', result)
+    return '/'
+  }
+
+  if (result.tag === 'hanzi') return `/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`
+  if (result.tag === 'ciyu') return `/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`
+
+  return '/'
 }
 
 const handleResultClick = (result) => {
@@ -109,17 +121,20 @@ const handleResultClick = (result) => {
     <div v-else class="results-section">
 
       <div class="results-list">
-        <div
-            v-for="(result, index) in results"
-            :key="index" class="search-result-item"
-            @click="handleResultClick(result)"
-        >
-          <div class="result-content">
-            <div class="result-main">
-              <h3 class="result-title" v-formatted-text="result.title"/>
-              <p class="result-explain" v-formatted-text="result.explain"/>
+        <div class="results-list">
+          <router-link
+              v-for="(result, index) in results"
+              :key="index"
+              class="search-result-item"
+              :to="getResultLink(result)"
+          >
+            <div class="result-content">
+              <div class="result-main">
+                <h3 class="result-title" v-formatted-text="result.title"/>
+                <p class="result-explain" v-formatted-text="result.explain"/>
+              </div>
             </div>
-          </div>
+          </router-link>
         </div>
       </div>
 

@@ -1,19 +1,41 @@
+// =========================
+// 主入口（保持原流程顺序）
+// =========================
 export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
-    // --- 1) 先处理 {} 特殊格式 ---------------------------------------
+    text = processCurlySyntax(text);     // 1)
+    text = processList(text);            // 新增列表
+    text = processBracketPhonetic(text); // 2)
+    text = processLineBreak(text);       // 3)
+    text = stripBracket(text);           // []
+    text = processSpaces(text);          // 空格
+
+    return text;
+}
+
+
+// =========================
+// 模块1：处理 {} 特殊格式
+// =========================
+function processCurlySyntax(text) {
     text = text.replace(/\{b\s+([^}]+)}/g, (m, p1) => `<b>${p1}</b>`);
     text = text.replace(/\{z\s+([^}]+)}/g, (m, p1) => `<small style="color: gray;">${p1}</small>`);
     text = text.replace(/\{t\s+([^}]+)}/g, (m, p1) => `${p1}`);
+    return text;
+}
 
-    // --- 新增 处理列表 -----------------------------------------------
-    // 先按行分割
+
+// =========================
+// 模块2：处理列表
+// =========================
+function processList(text) {
     const lines = text.split(/\r?\n/);
     let inUl = false;
     let inOl = false;
     const result = [];
 
-    lines.forEach((line, idx) => {
+    lines.forEach((line) => {
         if (line.startsWith("- ")) {
             if (!inUl) {
                 result.push("<ul>");
@@ -39,33 +61,51 @@ export function formatRichText(text) {
         }
     });
 
-    // 结束列表
     if (inUl) result.push("</ul>");
     if (inOl) result.push("</ol>");
 
-    text = result.join("\n");
+    return result.join("\n");
+}
 
-    // --- 2) 处理 [] 拼音、IPA 字体 ---------------------------------------
-    text = text.replace(/\[([^\]]+)\]/g, (m, inner) => {
 
-        // 如果含有“横杠 - ”，需要做 IPA 分段
-        if (inner.includes("-")) {
-            const [pre, tone] = inner.split("-");
+// =========================
+// 模块3：处理 [] 拼音 / IPA
+// =========================
+function processBracketPhonetic(text) {
+    return text.replace(/\[([^\]]+)\]/g, (m, inner) => {
+
+        if (inner.includes("_")) {
+            const [pre, tone] = inner.split("_");
             return (
-                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif; font-size: 1.1em ">[${pre}` + `</span>` +
+                `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif; font-size: 1.1em ">[${pre}</span>` +
                 `<span style="font-family: 'Charis SIL', 'Microsoft YaHei', sans-serif; ">${tone}]</span>`
             );
         }
 
-        // 否则视为普通拼音
         return `<span style="font-family: 'Cambria', 'Cambria Math', 'Microsoft YaHei', serif; font-size: 1.1em">[${inner}]</span>`;
     });
+}
 
-    // --- 3) 处理换行 ------------------------------------------------------
-    text = text.replace(/\r/g, "").replace(/\n/g, "<br>");
 
-    text = text.replace(/\[(.*?)\]/g, '$1');
+// =========================
+// 模块4：处理换行
+// =========================
+function processLineBreak(text) {
+    return text.replace(/\r/g, "").replace(/\n/g, "<br>");
+}
 
-    text = text.replace(/ {2,}/g, (spaces) => "&nbsp;".repeat(spaces.length));
-    return text;
+
+// =========================
+// 模块5：去掉 []
+// =========================
+function stripBracket(text) {
+    return text.replace(/\[(.*?)\]/g, '$1');
+}
+
+
+// =========================
+// 模块6：处理空格
+// =========================
+function processSpaces(text) {
+    return text.replace(/ {2,}/g, (spaces) => "&nbsp;".repeat(spaces.length));
 }

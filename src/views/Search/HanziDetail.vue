@@ -1,10 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import BackButton from "../../components/Button/BackButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError } from "../../services/ToastService.js";
-import Info from "../../components/Status/Info.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -46,12 +44,13 @@ const fetchHanzi = async () => {
       syllableStyle: config.syllableStyle,
       toneStyle: config.toneStyle
     })
-    const res = await fetch(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`)
-    if (!res.ok) throw new Error('请求失败')
-    const json = await res.json()
-    if (!json.success) throw new Error(json.message || '查询失败')
-    data.value = json.data
+    const response = await fetch(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`)
+    const json = await response.json().catch(() => null)
 
+    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
+    if (!json.success) throw new Error(json.message || '查询失败')
+
+    data.value = json.data
   } catch (e) {
     loading.value = false
     if (e.message.includes("not found")) {
@@ -78,11 +77,10 @@ watch(
 </script>
 <template>
   <div class="middle-layout">
-<!--    <BackButton button-text="← 返回" size="middle"/>-->
 
-    <LoadingIcon v-if="loading"></LoadingIcon>
+    <LoadingIcon v-if="loading"/>
 
-    <div v-else class="detail-content">
+    <div v-else-if="data" class="detail-content">
       <div class="hanzi-header">
         <h1 class="hanzi-char">{{ data.hanzi }}</h1>
       </div>
@@ -159,23 +157,23 @@ watch(
           </div>
         </div>
       </div>
-    </div>
-
-    <div
-        class="pronunciation-block"
-        v-if="data.ref && data.ref.length"
-    >
-      <div class="group-header">
-        <h3 class="pinyin-title">辞书</h3>
-      </div>
 
       <div
-          v-for="(r, i) in data.ref"
-          :key="i"
-          class="ref-row"
+          class="pronunciation-block"
+          v-if="data.ref && data.ref.length"
       >
-        <div class="ref-content" v-formatted-text="r.content"/>
-        <div class="ref-source" v-formatted-text="r.source"/>
+        <div class="group-header">
+          <h3 class="pinyin-title">辞书</h3>
+        </div>
+
+        <div
+            v-for="(r, i) in data.ref"
+            :key="i"
+            class="ref-row"
+        >
+          <div class="ref-content" v-formatted-text="r.content"/>
+          <div class="ref-source" v-formatted-text="r.source"/>
+        </div>
       </div>
     </div>
   </div>

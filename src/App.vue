@@ -21,7 +21,7 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 
     <nav class="main-nav">
       <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
-      <router-link :to="getPath(`primer`)" class="nav-link" v-formatted-text="$t('nav.primer')"/>
+      <router-link :to="getPath(`tutorial`)" class="nav-link" v-formatted-text="$t('nav.tutorial')"/>
       <router-link :to="getPath(`pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
       <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
     </nav>

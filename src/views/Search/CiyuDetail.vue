@@ -42,10 +42,10 @@ const fetchCiyu = async () => {
       toneStyle: config.toneStyle
     })
 
-    const res = await fetch(`/api/search/${language.value}/${dialect.value}/ciyu?${params}`)
-    if (!res.ok) throw new Error('请求失败')
+    const response = await fetch(`/api/search/${language.value}/${dialect.value}/ciyu?${params}`)
+    const json = await response.json().catch(() => null)
 
-    const json = await res.json()
+    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
     if (!json.success) throw new Error(json.message || '查询失败')
 
     data.value = json.data
@@ -56,7 +56,8 @@ const fetchCiyu = async () => {
       console.error(e)
       showError(e.message)
     }
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -66,21 +67,20 @@ watch(
     () => {
       fetchCiyu()
     },
-    { immediate: true }
+    {immediate: true}
 )
 </script>
 
 <template>
   <div class="middle-layout">
-    <BackButton button-text="← 返回" size="middle" />
 
-    <LoadingIcon v-if="loading" />
+    <LoadingIcon v-if="loading"/>
 
     <div v-else-if="data" class="detail-content">
 
       <!-- 词语标题 -->
       <div class="hanzi-header">
-        <h1 class="hanzi-char" v-formatted-text="data.ciyu" />
+        <h1 class="hanzi-char" v-formatted-text="data.ciyu"/>
       </div>
 
       <!-- 主块 -->
@@ -88,11 +88,11 @@ watch(
 
         <!-- 主拼音 -->
         <div class="group-header">
-          <h2 class="pinyin-title" v-formatted-text="data.mainPy" />
+          <h2 class="pinyin-title" v-formatted-text="data.mainPy"/>
         </div>
 
         <!-- special -->
-        <p class="special" v-formatted-text="data.special" />
+        <p class="special" v-formatted-text="data.special"/>
 
         <!-- variantPy -->
         <div class="section" v-if="data.variantPy && data.variantPy.length">
@@ -113,7 +113,7 @@ watch(
         <div class="section" v-if="data.mean && data.mean.length">
           <h3 class="section-title">释义</h3>
           <ul class="mean-list">
-            <li v-for="(m, i) in data.mean" :key="i" v-formatted-text="m" />
+            <li v-for="(m, i) in data.mean" :key="i" v-formatted-text="m"/>
           </ul>
         </div>
 
@@ -122,8 +122,8 @@ watch(
           <h3 class="section-title">相似词</h3>
           <table class="table">
             <tr v-for="(s, i) in data.similar" :key="i">
-              <td class="cell-label" v-formatted-text="s.left" />
-              <td class="cell-value" v-formatted-text="s.right" />
+              <td class="cell-label" v-formatted-text="s.left"/>
+              <td class="cell-value" v-formatted-text="s.right"/>
             </tr>
           </table>
         </div>
@@ -143,8 +143,8 @@ watch(
             :key="i"
             class="ref-row"
         >
-          <div class="ref-content" v-formatted-text="r.content" />
-          <div class="ref-source" v-formatted-text="r.source" />
+          <div class="ref-content" v-formatted-text="r.content"/>
+          <div class="ref-source" v-formatted-text="r.source"/>
         </div>
       </div>
 

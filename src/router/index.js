@@ -25,9 +25,9 @@ const routes = [
                 component: () => import('../views/PinyinTable.vue')
             },
             {
-                path: 'primer',
-                name: 'Primer',
-                component: () => import('../views/Primer.vue')
+                path: 'tutorial',
+                name: 'Tutorial',
+                component: () => import('../views/TutorialHome.vue')
             },
             {
                 path: 'about',

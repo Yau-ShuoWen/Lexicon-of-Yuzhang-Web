@@ -69,6 +69,8 @@ watch(dialect, fetchTable)
 
     <div v-else class="pinyin-container">
 
+      <div class="no-results-low" v-formatted-text="$t('pinyin_table.hint')"/>
+
       <div
           v-for="grid in pinyinData"
           :key="grid.code"

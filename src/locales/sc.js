@@ -16,9 +16,9 @@ export default {
     nav: {
         home: '首页',
         pinyin: "拼音",
-        search:'查询',
+        search: '查询',
         about: '关于',
-        primer: '入门',
+        tutorial: '教程',
         contact: '联系',
         settings: '设置'
     },
@@ -68,9 +68,11 @@ export default {
             four_corners: "四角符号"
         }
     },
-    about:
-        {
-            developer_mode: "开发者模式",
-            github_project: "Github 项目"
-        }
+    about: {
+        developer_mode: "开发者模式",
+        github_project: "Github 项目"
+    },
+    pinyin_table: {
+        hint:"提示：点击方格查看详细信息"
+    }
 }

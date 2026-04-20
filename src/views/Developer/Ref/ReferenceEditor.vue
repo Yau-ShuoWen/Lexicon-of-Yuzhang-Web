@@ -402,10 +402,10 @@ function handleEscClose(e) {
         >
           <template #default="{ item }">
             <!-- 缩略预览卡片 -->
-            <div class="proof-item-compact">
+            <div class="proof-item-compact" @click="openProofEditor(item)">
               <div
                   class="preview-source"
-                  @click="openProofEditor(item)"
+
               >
                 <h4>原始文本</h4>
                 <RichText
@@ -416,10 +416,7 @@ function handleEscClose(e) {
                 />
               </div>
 
-              <div
-                  class="preview-note"
-                  @click="openProofEditor(item)"
-              >
+              <div class="preview-note" v-if="item.note.tc">
                 <h4>注释（繁体）</h4>
                 <RichText
                     :dialect="dialect.toString()"

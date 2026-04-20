@@ -2,9 +2,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { formatRichText } from '../utils/textFormatter.js'
-import { showError } from '../services/ToastService.js'
-import LoadingIcon from "../components/Status/LoadingIcon.vue";
+import { formatRichText } from '../../utils/textFormatter.js'
+import { showError } from '../../services/ToastService.js'
+import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
 
 const route = useRoute()

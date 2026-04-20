@@ -20,7 +20,8 @@ export default {
         about: '关于',
         tutorial: '教程',
         contact: '联系',
-        settings: '设置'
+        settings: '设置',
+        thanks:'致谢'
     },
     user: {
         login: '登录',

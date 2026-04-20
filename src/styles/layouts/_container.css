@@ -11,7 +11,8 @@
 }
 
 .page-container {
-    padding: var(--spacing-xl) 0;
+    padding: var(--spacing-sm) 0;
+    padding-top: 0;
     max-width: 1200px;
     min-height: auto;
     margin: 0 auto;
@@ -72,4 +73,12 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
+}
+
+.pronunciation-block {
+    background: var(--color-background);
+    border: 2px solid var(--color-primary-light);
+    border-radius: var(--border-radius-md);
+    padding: 24px;
+    margin-bottom: 20px;
 }

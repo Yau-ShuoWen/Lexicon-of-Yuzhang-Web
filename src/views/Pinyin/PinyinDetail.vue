@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { formatRichText } from "../utils/textFormatter.js";
-import LoadingIcon from "../components/Status/LoadingIcon.vue";
+import { formatRichText } from "../../utils/textFormatter.js";
+import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 
 const props = defineProps({
   show: Boolean,
@@ -61,6 +61,7 @@ watch(() => [props.pinyinKey, props.show], () => {
 
           <h2 v-formatted-text="item.standard"/>
 
+
           <ul class="note">
             <li v-for="(n, i) in item.note" :key="i" class="label"  v-formatted-text="n"/>
           </ul>
@@ -75,6 +76,8 @@ watch(() => [props.pinyinKey, props.show], () => {
 <!--            </div>-->
 <!--          </div>-->
 
+          写法
+
           <table class="table">
             <tr v-for="(value, key) in item.notation" :key="key">
               <td class="pinyin-key">{{ key }}</td>
@@ -82,7 +85,7 @@ watch(() => [props.pinyinKey, props.show], () => {
             </tr>
           </table>
 
-
+          辞书国际音标
           <!-- ipa -->
           <table class="table">
             <tr v-for="(value, key) in item.ipa" :key="key">

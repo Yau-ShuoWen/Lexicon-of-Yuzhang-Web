@@ -11,7 +11,6 @@ import JumpButton from "../../components/Button/JumpButton.vue";
     <div class="d-flex flex-column gap-5">
 
       <section>
-        <JumpButton size="middle" button-text="← 返回" to="/about"/>
         <JumpButton to="/login" button-text="登陆" size="middle"/>
         <JumpButton to="/profile" button-text="管理" size="middle"/>
       </section>

@@ -22,18 +22,26 @@ const routes = [
             {
                 path: 'pinyin',
                 name: 'PinyinTable',
-                component: () => import('../views/PinyinTable.vue')
-            },
-            {
-                path: 'tutorial',
-                name: 'Tutorial',
-                component: () => import('../views/TutorialHome.vue')
+                component: () => import('../views/Pinyin/PinyinTable.vue')
             },
             {
                 path: 'about',
                 name: 'About',
                 component: () => import('../views/AboutPage.vue')
             },
+
+            // 教程
+            {
+                path: 'tutorial',
+                name: 'Tutorial',
+                component: () => import('../views/Tutorial/TutorialHome.vue')
+            },
+            {
+                path: 'article/:id?',
+                name: 'Article',
+                component: () => import('../views/Tutorial/ArticlePage.vue')
+            },
+
 
             // 开发者模式
             {

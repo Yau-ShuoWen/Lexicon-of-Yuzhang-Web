@@ -6,26 +6,21 @@ import { showError } from "../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import DialectSelector from "../components/Select/DialectSelector.vue";
 import LanguageSelector from "../components/Select/LanguageSelector.vue";
-import SloganText from "./SloganText.vue";
 
-const { t } = useI18n()
+const {t} = useI18n()
 const route = useRoute()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
-/** 数据状态 */
 const loading = ref(true)
 const result = ref('')
 
-/** 获取 about 内容 */
 const fetchAbout = async () => {
   loading.value = true
 
   try {
-    const res = await fetch(
-        `/api/info/get-text/${dialect.value}/${language.value}/website-about`
-    )
+    const res = await fetch(`/api/info/about-page-text/${dialect.value}`)
 
     if (!res.ok) throw new Error(t('common.loadingError'))
 
@@ -45,59 +40,63 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="about-page">
-    <div class="container">
+  <div class="middle-layout">
 
+    <div class="selector-container">
+      <LanguageSelector/>
+      <DialectSelector/>
+    </div>
 
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-wrapper">
+      <LoadingIcon/>
+    </div>
 
-      <div class="selector-container">
-        <LanguageSelector/>
-        <DialectSelector/>
+    <div v-else class="about-content">
+
+      <!--    关于    -->
+      <div class="text-box contact-box">
+        <div class="contact-title" v-formatted-text="$t('nav.about')"/>
+        <div v-formatted-text="result.left[language]"></div>
       </div>
 
-      <!-- 加载状态 -->
-      <div v-if="loading" class="loading-wrapper">
-        <LoadingIcon/>
-      </div>
+<!--   在完工之前還是不要拿出來丟人現眼了   -->
 
-      <!-- 正文 -->
-      <div v-else class="about-content">
-        <div class="text-box" v-formatted-text="result"></div>
+<!--      &lt;!&ndash;    致谢    &ndash;&gt;-->
+<!--      <div class="text-box contact-box">-->
+<!--        <div class="contact-title" v-formatted-text="$t('nav.thanks')"/>-->
+<!--        <div v-formatted-text="result.right[language]"></div>-->
+<!--      </div>-->
 
-        <div class="text-box contact-box">
-          <div class="contact-title">{{ '联系' }}</div>
+      <!--    联系    -->
+      <div class="text-box contact-box">
+        <div class="contact-title" v-formatted-text="$t('nav.contact')"/>
 
-          <div class="contact-list">
+        <div class="contact-list">
 
-            <router-link
-                :to="{ name: 'DeveloperHome', params: { language: language } }"
-                class="contact-item"
-            >
-              <img src="../assets/icons/developer.svg" class="icon"/>
-              {{ $t('about.developer_mode') }}
-            </router-link>
+          <a href="https://github.com/Yau-ShuoWen" target="_blank" class="contact-item">
+            <img src="../assets/icons/github.svg" class="icon"/>
+            {{ $t('about.github_project') }}
+          </a>
 
-            <a href="https://github.com/Yau-ShuoWen" target="_blank" class="contact-item">
-              <img src="../assets/icons/github.svg" class="icon"/>
-              {{ $t('about.github_project') }}
-            </a>
-
-            <div class="contact-item">
-              <img src="../assets/icons/qq.svg" class="icon"/>
-              QQ交流群：496423006
-            </div>
-
-            <a href="https://beian.miit.gov.cn" target="_blank" class="contact-item">
-              <img src="../assets/icons/icp.svg" class="icon"/>
-              蜀ICP备 2026005399号
-            </a>
-
+          <div class="contact-item">
+            <img src="../assets/icons/qq.svg" class="icon"/>
+            QQ交流群：496423006
           </div>
+
+          <a href="https://beian.miit.gov.cn" target="_blank" class="contact-item">
+            <img src="../assets/icons/icp.svg" class="icon"/>
+            蜀ICP备 2026005399号
+          </a>
+
         </div>
       </div>
 
+
     </div>
+
   </div>
+
 </template>
 
 <style scoped>
@@ -130,7 +129,7 @@ onMounted(() => {
 
 /* 联系区域 */
 .contact-box {
-  margin-top: 30px;
+  margin-bottom: 30px;
 }
 
 /* 标题 */

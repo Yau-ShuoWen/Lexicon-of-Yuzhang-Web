@@ -107,58 +107,57 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
             <img src="../../assets/icons/set.svg" alt="设置" class="control-icon"/>
           </button>
         </div>
-      </div>
-    </div>
+        <div v-if="showSettings" class="search-params">
+          <!-- 模糊识别 -->
 
-    <div v-if="showSettings" class="search-params">
-      <!-- 模糊识别 -->
+          <div class="form-field">
 
-      <div class="form-field">
+            <Info :dialect="dialect.toString()" :language="language.toString()"
+                  textKey="explain-search-vague" :labelText="$t('search.fuzzy_recognition')"/>
 
-        <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="explain-search-vague" :labelText="$t('search.fuzzy_recognition')"/>
+            <select v-model="vague" @change="onConfigChange" class="form-control">
+              <option :value="true" v-formatted-text="$t('common.open')"/>
+              <option :value="false" v-formatted-text="$t('common.close')"/>
+            </select>
+          </div>
 
-        <select v-model="vague" @change="onConfigChange" class="form-control">
-          <option :value="true" v-formatted-text="$t('common.open')"/>
-          <option :value="false" v-formatted-text="$t('common.close')"/>
-        </select>
-      </div>
+          <!-- 拼音/IPA选择 -->
+          <div class="form-field">
 
-      <!-- 拼音/IPA选择 -->
-      <div class="form-field">
+            <Info :dialect="dialect.toString()" :language="language.toString()"
+                  textKey="explain-search-phonogram" :label-text="$t('linguistic.hint.how_to_mark')"/>
 
-        <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="explain-search-phonogram" :label-text="$t('linguistic.hint.how_to_mark')"/>
+            <select v-model="phonogram" @change="onConfigChange" class="form-control">
+              <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
+              <option :value="2" v-formatted-text="$t('linguistic.ipa.self')"/>
+            </select>
+          </div>
 
-        <select v-model="phonogram" @change="onConfigChange" class="form-control">
-          <option :value="1" v-formatted-text="$t('linguistic.pinyin.self')"/>
-          <option :value="2" v-formatted-text="$t('linguistic.ipa.self')"/>
-        </select>
-      </div>
+          <!-- IPA样式 -->
+          <div v-if="phonogram !== 1" class="form-field">
 
-      <!-- IPA样式 -->
-      <div v-if="phonogram !== 1" class="form-field">
+            <Info :dialect="dialect.toString()" :language="language.toString()"
+                  textKey="explain-search-ipa-style" :label-text="$t('linguistic.hint.ipa_style')"/>
 
-        <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="explain-search-ipa-style" :label-text="$t('linguistic.hint.ipa_style')"/>
+            <select v-model="syllable" @change="onConfigChange" class="form-control">
+              <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
+              <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
+            </select>
+          </div>
 
-        <select v-model="syllable" @change="onConfigChange" class="form-control">
-          <option :value="1" v-formatted-text="$t('linguistic.ipa.chinese')"/>
-          <option :value="2" v-formatted-text="$t('linguistic.ipa.standard')"/>
-        </select>
-      </div>
+          <!-- 声调样式 -->
+          <div v-if="phonogram !== 1" class="form-field">
 
-      <!-- 声调样式 -->
-      <div v-if="phonogram !== 1" class="form-field">
+            <Info :dialect="dialect.toString()" :language="language.toString()"
+                  textKey="explain-search-tone-style" :label-text="$t('linguistic.hint.tone_style')"/>
 
-        <Info :dialect="dialect.toString()" :language="language.toString()"
-              textKey="explain-search-tone-style" :label-text="$t('linguistic.hint.tone_style')"/>
-
-        <select v-model="tone" @change="onConfigChange" class="form-control">
-          <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
-          <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
-          <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')"/>
-        </select>
+            <select v-model="tone" @change="onConfigChange" class="form-control">
+              <option :value="1" v-formatted-text="$t('linguistic.tone.five_degree.symbol')"/>
+              <option :value="2" v-formatted-text="$t('linguistic.tone.five_degree.number')"/>
+              <option :value="3" v-formatted-text="$t('linguistic.tone.four_corners')"/>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -175,6 +174,7 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
   width: 100%; /* 小屏自适应 */
   margin: 0 auto; /* 水平居中 */
   padding: 0 var(--spacing-md); /* 防止贴边（可选） */
+  position: relative;
 }
 
 .search-main {
@@ -207,6 +207,12 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
 }
 
 .search-params {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-lg);
@@ -214,7 +220,9 @@ watch([phonogram, tone, syllable, vague], () => onConfigChange())
   background: var(--color-background-alt);
   border-radius: var(--border-radius-md);
   border: 1px solid var(--color-border);
-  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* 悬浮感 */
+
+  animation: slideDown 0.2s ease-out;
 }
 
 @keyframes slideDown {

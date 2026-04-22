@@ -153,7 +153,8 @@ onBeforeUnmount(() => {
 
   z-index: 1000;
 
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
+  transform: translateY(6px);
 }
 </style>

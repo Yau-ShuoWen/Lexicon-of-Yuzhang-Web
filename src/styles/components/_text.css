@@ -12,8 +12,7 @@
 
 /* 普通输入框 */
 
-.ordinary-input
-{
+.ordinary-input {
     flex: 1;
     padding: 8px 12px;
     border: 1px solid #ccc;
@@ -25,4 +24,37 @@
     text-align: center;
     font-size: var(--font-size-base);
     margin: 15px 0;
+}
+
+.rt-note {
+    position: relative;
+    display: inline-block;
+}
+
+.rt-note-trigger {
+    font-size: 0.8em;
+    color: #1a73e8;
+    cursor: pointer;
+    margin-left: 2px;
+    vertical-align: top;
+}
+
+.rt-note-popup {
+    position: absolute;
+    bottom: 1.6em;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    font-size: 0.85em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    display: none;
+    white-space: nowrap;
+    word-break: normal;
+    z-index: 999;
+}
+
+.rt-note:hover .rt-note-popup {
+    display: block;
 }

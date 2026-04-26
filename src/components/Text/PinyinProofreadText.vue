@@ -6,7 +6,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '输入拼音' },
   maxLength: { type: Number, default: 50 },
-  dialect: { type: String, default: 'nam' }
+  dialect: { type: String,required:true }
 })
 
 const emit = defineEmits([

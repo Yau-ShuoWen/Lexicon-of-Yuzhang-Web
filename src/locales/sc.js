@@ -11,7 +11,8 @@ export default {
         success: '成功',
         error: '错误',
         open: '开启',
-        close: '关闭'
+        close: '关闭',
+        copy:'复制',
     },
     nav: {
         home: '首页',

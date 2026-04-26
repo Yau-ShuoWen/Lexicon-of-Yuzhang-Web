@@ -205,8 +205,8 @@ button:disabled {
 
 .dev-btn-middle {
     padding: 10px 20px;
-    margin: 16px 0;
-    border-radius: 4px;
+    margin: 6px 6px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 14px;
 }

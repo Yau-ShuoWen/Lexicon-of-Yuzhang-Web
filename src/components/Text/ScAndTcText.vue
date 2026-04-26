@@ -9,7 +9,7 @@ const props = defineProps({
   layout: {type: String, default: 'large'},
   maxLength: {type: Number, default: 20000},
   rows: {type: Number, default: 4},
-  dialect: {type: String, default: 'nam'},
+  dialect: {type: String, required:true},
   disabled: {type: Boolean, default: false}
 })
 

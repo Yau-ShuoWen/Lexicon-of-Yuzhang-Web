@@ -34,28 +34,12 @@ export default {
      * 规则：默认继承 language + dialect
      */
     resolvedTo() {
-      const {language = 'sc', dialect = 'nam'} = this.$route.params
+      const {language, dialect} = this.$route.params
 
-      // 1️⃣ 已经是完整新结构：/sc/nam/xxx
-      if (this.to.startsWith(`/${language}/${dialect}/`)) {
+      // 已经是完整新结构
+      if (this.to.startsWith(`/${language}/${dialect}/`))
         return this.to
-      }
-
-      // 2️⃣ 明确指定了 language（但没指定 dialect）
-      if (
-          this.to.startsWith('/sc/') ||
-          this.to.startsWith('/tc/')
-      ) {
-        return this.to
-      }
-
-      // 3️⃣ 相对路径（about / test / xxx）
-      if (!this.to.startsWith('/')) {
-        return `/${language}/${dialect}/${this.to}`
-      }
-
-      // 4️⃣ 裸路径：/about → /sc/nam/about
-      return `/${language}/${dialect}${this.to}`
+      else return '/'
     }
   },
 

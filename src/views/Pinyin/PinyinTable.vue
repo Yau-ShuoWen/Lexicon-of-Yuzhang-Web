@@ -6,6 +6,8 @@ import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
+import RichText from "../../components/Text/RichText.vue";
+import CopyButton from "../../components/Button/CopyButton.vue";
 
 const route = useRoute()
 const language = computed(() => route.params.language)
@@ -15,6 +17,9 @@ const pinyinData = ref([])
 const loading = ref(true)
 const showDetail = ref(false)
 const currentKey = ref('')
+
+const pinyinInput = ref('')
+const pinyinOutput = ref('')
 
 // 生命周期
 onMounted(fetchTable)
@@ -65,11 +70,41 @@ watch(dialect, fetchTable)
 
 <template>
   <div class="broaden-layout">
+
     <LoadingIcon v-if="loading"/>
 
     <div v-else class="pinyin-container">
 
-      <div class="no-results-low" v-formatted-text="$t('pinyin_table.hint')"/>
+
+      <div class="attribute-group">
+
+        <div class="group-header">
+          <h3>方言拼音生成器</h3>
+        </div>
+
+        <div class="severable-group">
+          <div style="font-family: MingLiUCustom; font-size:40px">
+            ABC 你好 𠀀
+          </div>
+          ABC 你好 𠀀
+          
+          <input type="text"  inputmode="" pattern="[A-Za-z0-9]*"
+                 maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"
+                 class="form-control middle-input pinyin-input-text"/>
+
+          <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
+                    :model-value="pinyinInput" v-model:outputValue="pinyinOutput"
+                    class="pinyin-input-text"/>
+
+          <CopyButton v-if="pinyinOutput" class="dev-btn-middle dev-normal-button" :text="pinyinOutput"/>
+
+
+        </div>
+
+
+      </div>
+
+      <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
 
       <div
           v-for="grid in pinyinData"
@@ -218,6 +253,16 @@ watch(dialect, fetchTable)
   gap: 5px;
 }
 
+.severable-group {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pinyin-input-text {
+  margin:2px 0 ;
+  width: 60%;
+}
+
 /* ======== Mobile Layout ======== */
 @media (max-width: 450px) {
 
@@ -235,6 +280,10 @@ watch(dialect, fetchTable)
   .items-grid {
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
+  }
+
+  .pinyin-input-text {
+    width: 100%;
   }
 
 }

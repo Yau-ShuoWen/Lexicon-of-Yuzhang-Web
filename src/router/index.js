@@ -159,19 +159,6 @@ const routes = [
         ]
     },
 
-    // 特殊路由，未来会根据方言的不同完全更换界面
-    {
-        path: '/:language(sc|tc)/nam',
-        component: () => import('../layouts/LayoutWithLD.vue'),
-        children: [
-            {
-                path: 'style',
-                name: 'PinyinStyle',
-                component: () => import('../views/Developer/NamPinyinStyle.vue')
-            },
-        ]
-    },
-
     {
         path: '/',
         name: 'Root'

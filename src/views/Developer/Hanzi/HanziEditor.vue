@@ -317,7 +317,7 @@ onMounted(() => {
             <label :for="'mdr-' + option.info" v-formatted-text="option.info"/>
           </div>
         </div>
-        <div v-else class="no-results-low">
+        <div v-else class="gray-text">
           {{ `${updateData.hanzi.sc} / ${updateData.hanzi.tc}:暫無對應讀音` }}
         </div>
       </div>

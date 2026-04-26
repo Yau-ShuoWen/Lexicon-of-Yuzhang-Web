@@ -1,12 +1,14 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: String, required: true },
-  language: { type: String, required: true },
-  dialect: { type: String, required: true },
-  allPinyin: { type: Boolean, default: false },
-  dict: { type: String, default: null }
+  modelValue: {type: String, required: true},
+  outputValue: { type: String }, // 只為了 v-model 語法存在
+  language: {type: String, required: true},
+  dialect: {type: String, required: true},
+  allPinyin: {type: Boolean, default: false},
+  dict: {type: String, default: null},
+  copyable: {type: Boolean, default: false}
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -15,6 +17,12 @@ const result = ref('')
 const isValid = ref(true)
 
 let timer = null
+
+// ⭐ 關鍵：只負責「往外輸出」，不接受外部控制
+const outputValueProxy = computed({
+  get: () => '', // 不使用 props.outputValue
+  set: (val) => emit('update:outputValue', val)
+})
 
 // 构造发送内容
 const buildText = () => {
@@ -52,6 +60,8 @@ const check = async () => {
 
     isValid.value = data.left
     result.value = data.right
+    outputValueProxy.value = result.value.replace(/[\[\]]/g, '')
+
   } catch (e) {
     console.error(e)
     isValid.value = false
@@ -89,11 +99,11 @@ watch(
 
 .valid {
   background-color: #f3fff7;
-  border: 1px solid #39cd51;
+  border: 2px solid #39cd51;
 }
 
 .invalid {
   background-color: #fff1f0;
-  border: 1px solid #bc4c47;
+  border: 2px solid #bc4c47;
 }
 </style>

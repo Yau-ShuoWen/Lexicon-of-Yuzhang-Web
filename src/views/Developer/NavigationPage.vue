@@ -3,12 +3,15 @@
 
 <script setup>
 import JumpButton from "../../components/Button/JumpButton.vue";
+import DevDialectSelector from "../../components/Select/DevDialectSelector.vue";
 </script>
 
 <template>
   <div class="narrow-layout">
 
     <div class="d-flex flex-column gap-5">
+
+      <DevDialectSelector/>
 
       <section>
         <JumpButton to="/login" button-text="登陆" size="middle"/>

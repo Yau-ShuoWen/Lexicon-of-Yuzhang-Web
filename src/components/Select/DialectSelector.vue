@@ -3,12 +3,14 @@ import {useRoute, useRouter} from 'vue-router'
 import DropdownSelector from './DropdownSelector.vue'
 import transferIcon from '../../assets/icons/LanguageAndDialect/transfer_dialect.svg'
 import namIcon from '../../assets/icons/LanguageAndDialect/lancong_rc.png'
+import { useI18n } from "vue-i18n";
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 
 const dialects = [
-  {value: 'nam', label: '南昌话', icon: namIcon},
+  {value: 'nam', label: t('dialect.lac'), icon: namIcon},
 ]
 
 const currentDialectInRoute = () => {

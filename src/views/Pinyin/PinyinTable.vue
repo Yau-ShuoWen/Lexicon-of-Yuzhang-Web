@@ -83,11 +83,7 @@ watch(dialect, fetchTable)
         </div>
 
         <div class="severable-group">
-          <div style="font-family: MingLiUCustom; font-size:40px">
-            ABC 你好 𠀀
-          </div>
-          ABC 你好 𠀀
-          
+
           <input type="text"  inputmode="" pattern="[A-Za-z0-9]*"
                  maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"
                  class="form-control middle-input pinyin-input-text"/>

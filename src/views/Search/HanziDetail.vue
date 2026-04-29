@@ -182,12 +182,12 @@ watch(
 <style>
 .hanzi-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin: 30px;
 }
 
 .hanzi-char {
-  font-size: 72px;
-  font-weight: 700;
+  font-size: 60px;
+  font-weight: 500;
   color: var(--color-text);
 }
 

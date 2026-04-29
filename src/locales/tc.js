@@ -24,6 +24,10 @@ export default {
         settings: '設定',
         thanks:'致謝'
     },
+    dialect: {
+        "lac":'南昌話',
+        "ced":'成都話',
+    },
     user: {
         login: '登入',
         logout: '登出',

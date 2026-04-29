@@ -12,7 +12,7 @@ export default {
         error: '错误',
         open: '开启',
         close: '关闭',
-        copy:'复制',
+        copy: '复制',
     },
     nav: {
         home: '首页',
@@ -22,7 +22,11 @@ export default {
         tutorial: '教程',
         contact: '联系',
         settings: '设置',
-        thanks:'致谢'
+        thanks: '致谢'
+    },
+    dialect: {
+        "lac":'南昌话',
+        "ced":'成都话',
     },
     user: {
         login: '登录',
@@ -75,6 +79,6 @@ export default {
         github_project: "Github 项目"
     },
     pinyin_table: {
-        hint:"提示：点击方格查看详细信息"
+        hint: "提示：点击方格查看详细信息"
     }
 }

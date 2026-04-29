@@ -39,7 +39,12 @@ export default {
       // 已经是完整新结构
       if (this.to.startsWith(`/${language}/${dialect}/`))
         return this.to
-      else return '/'
+
+
+      if (!this.to.startsWith('/'))
+        return `/${language}/${dialect}/${this.to}`
+
+      return `/${language}/${dialect}${this.to}`
     }
   },
 

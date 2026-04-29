@@ -16,10 +16,20 @@
 }
 
 /**/
+/*
 @font-face {
-    font-family: 'MingLiUCustom';
-    src: url('../../assets/fonts/MingLiU-ExtB.ttf') format('truetype');
+    font-family: 'HanaMinA';
+    src: url('../../assets/fonts/HanaMinA.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
+    unicode-range: U+20000-2A6DF;
+}*/
+@font-face {
+    font-family: 'HanaMinB';
+    src: url('../../assets/fonts/hanamin_subset.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+20000-3347F;
 }

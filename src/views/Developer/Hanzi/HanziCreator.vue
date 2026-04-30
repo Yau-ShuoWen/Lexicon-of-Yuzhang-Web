@@ -1,3 +1,5 @@
+<!-- src/views/Developer/Hanzi/HanziCreator.vue -->
+
 <script setup>
 
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";

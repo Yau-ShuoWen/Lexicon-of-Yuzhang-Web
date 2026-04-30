@@ -90,6 +90,12 @@ const routes = [
             },
 
             {
+                path: 'ciyu-creator',
+                name: 'CiyuCreator',
+                component: () => import('../views/Developer/Ciyu/CiyuCreator.vue'),
+                //meta: { requiresAuth: true }
+            },
+            {
                 path: 'ciyu-filter',
                 name: 'CiyuFilter',
                 component: () => import('../views/Developer/Ciyu/CiyuFilter.vue'),

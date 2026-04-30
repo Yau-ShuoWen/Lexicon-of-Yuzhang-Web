@@ -29,8 +29,8 @@ const dialect = computed(() => route.params.dialect)
 
 <style scoped>
 .slogan {
-  padding-top: var(--spacing-2xl);
-  padding-bottom: var(--spacing-2xl);
+  padding-top: var(--spacing-xl);
+  padding-bottom: var(--spacing-xl);
 }
 
 .logo {
@@ -54,8 +54,8 @@ const dialect = computed(() => route.params.dialect)
 
 @media (max-width: 480px) {
   .slogan{
-    padding-top: var(--spacing-lg);
-    padding-bottom: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
   }
 
   .logo img {

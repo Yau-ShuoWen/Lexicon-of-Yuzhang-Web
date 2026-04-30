@@ -3,7 +3,8 @@ import { ref } from 'vue'
 import { showError, showSuccess } from "../../services/ToastService.js";
 
 const props = defineProps({
-  text: {type: String, required: true}
+  text: {type: String, required: true},
+  hint: {type: String, default: '複製'},
 })
 
 const copied = ref(false)
@@ -25,5 +26,5 @@ const copyText = async () => {
 </script>
 
 <template>
-  <button @click="copyText">複製</button>
+  <button @click="copyText">{{hint}}</button>
 </template>

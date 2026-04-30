@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {type: String, required: true},
-  outputValue: { type: String }, // 只為了 v-model 語法存在
+  outputValue: {type: String}, // 只為了 v-model 語法存在
   language: {type: String, required: true},
   dialect: {type: String, required: true},
   allPinyin: {type: Boolean, default: false},
@@ -26,10 +26,14 @@ const outputValueProxy = computed({
 
 // 构造发送内容
 const buildText = () => {
-  if (props.allPinyin) {
+  const text = props.modelValue;
+
+  if (!props.allPinyin) return text;
+
+  if (text.includes('\n'))
+    return text.split('\n').map(line => `[${line.trim()}]`).join('\n')
+  else
     return `[${props.modelValue.trim()}]`
-  }
-  return props.modelValue
 }
 
 // 核心检查逻辑

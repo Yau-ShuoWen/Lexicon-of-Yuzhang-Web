@@ -126,25 +126,30 @@ watch(
           </div>
         </div>
 
-        <!-- IPA -->
-        <div
-            v-if="info.ipa && info.ipa.length"
-            class="section"
-        >
-          <h3 class="section-title">
-            国际音标
-          </h3>
-          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">
-            <span class="ipa-dict">{{ ipa.left }}</span>
-            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>
-          </div>
-        </div>
+<!--        &lt;!&ndash; IPA &ndash;&gt;-->
+<!--        <div-->
+<!--            v-if="info.ipa && info.ipa.length"-->
+<!--            class="section"-->
+<!--        >-->
+<!--          <h3 class="section-title">-->
+<!--            国际音标-->
+<!--          </h3>-->
+<!--          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">-->
+<!--            <span class="ipa-dict">{{ ipa.left }}</span>-->
+<!--            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>-->
+<!--          </div>-->
+<!--        </div>-->
+
+
 
         <div
             v-if="info.note && info.note.length"
             class="section"
         >
-          <h3 class="section-title">
+          <div class="group-header">
+
+          </div>
+          <h3 class="pinyin-title">
             注释
           </h3>
           <div
@@ -152,8 +157,8 @@ watch(
               :key="i"
               class="note-row"
           >
-            <strong v-formatted-text="n.left"/>
-            <span v-formatted-text="n.right"/>
+            <div class="note-title" v-formatted-text="n.left"/>
+            <div class="note-content" v-formatted-text="n.right"/>
           </div>
         </div>
       </div>
@@ -182,12 +187,12 @@ watch(
 <style>
 .hanzi-header {
   text-align: center;
-  margin: 30px;
+  margin: 20px;
 }
 
 .hanzi-char {
   font-size: 60px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--color-text);
 }
 
@@ -289,8 +294,16 @@ watch(
 }
 
 .note-row {
-  display: flex;
-  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.note-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.note-content {
+  line-height: 1.5;
 }
 
 .ref-row {

@@ -80,8 +80,8 @@ watch(
   width: 100%;
   max-width: 500px;
   height: 100px;
-  margin: 0 auto 20px auto;
-  overflow: hidden;
+  margin: 15px auto 5px auto;
+  overflow: visible;
   padding: 10px 0;
   box-sizing: border-box;
   cursor: pointer;

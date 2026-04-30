@@ -9,6 +9,7 @@ import { showError, showSuccess } from "../../../services/ToastService.js"
 import DraggableList from "../../../components/Layout/DraggableList.vue"
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue"
 import RichText from "../../../components/Text/RichText.vue"
+import KeywordEnhancer from "./KeywordEnhancer.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -400,7 +401,16 @@ function handleEscClose(e) {
             v-model="page.contents"
             :createItem="() => ({ id: null, source: '', text: { sc: '', tc: '' }, note: { sc: '', tc: '' } })"
         >
+
           <template #default="{ item }">
+
+            <KeywordEnhancer
+                :source="item.source"
+                :note="item.note.tc"
+                :dialect="dialect.toString()"
+                :language="language.toString()"
+                :dict="dictionary.toString()"
+            />
             <!-- 缩略预览卡片 -->
             <div class="proof-item-compact" @click="openProofEditor(item)">
               <div
@@ -449,6 +459,7 @@ function handleEscClose(e) {
                 <!-- 这里完整搬过来你原来的 proof-item 内容 -->
                 <div class="proof-item">
                   <div class="source-section">
+
                     <h4>原始文本</h4>
                     <textarea
                         v-model="item.source"

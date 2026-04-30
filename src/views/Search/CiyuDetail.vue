@@ -155,12 +155,13 @@ watch(
 <style>
 .hanzi-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin: 20px;
 }
 
 .hanzi-char {
-  font-size: 72px;
-  font-weight: 700;
+  font-size: 60px;
+  font-weight: 400;
+  color: var(--color-text);
 }
 
 .pronunciation-block {

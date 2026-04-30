@@ -13,20 +13,23 @@ import DevDialectSelector from "../../components/Select/DevDialectSelector.vue";
 
       <DevDialectSelector/>
 
-      <section>
-        <JumpButton to="/login" button-text="登陆" size="middle"/>
-        <JumpButton to="/profile" button-text="管理" size="middle"/>
-      </section>
+<!--      <section>-->
+<!--        <JumpButton to="/login" button-text="登陆" size="middle"/>-->
+<!--        <JumpButton to="/profile" button-text="管理" size="middle"/>-->
+<!--      </section>-->
 
 
       <section>
-        <h4>用前须知</h4>
+        <h4>工具</h4>
         <div class="d-flex flex-wrap gap-3">
-          <JumpButton to="/test/sc-tc" button-text="繁转简自动转换框" size="middle"/>
-          <JumpButton to="/test/pinyin-ipa" button-text="拼音转换框" size="middle"/>
-
+          <JumpButton to="/test/sc-tc" button-text="繁體轉簡體" size="middle"/>
+          <JumpButton to="/test/pinyin-ipa" button-text="富文本展示框" size="middle"/>
+          <JumpButton to="/tool/special-symbol" button-text="特殊符號複製" size="middle"/>
         </div>
       </section>
+
+
+
 
       <section>
         <h4>方言漢字、詞語、句子</h4>

@@ -67,6 +67,12 @@ const routes = [
                 component: () => import('../views/Test/TestPinyinIPA.vue')
             },
 
+            {
+                path: 'tool/special-symbol',
+                name: 'specialSymbol',
+                component: () => import('../views/Developer/SpecialSymbol.vue')
+            },
+
             // 编辑
 
             {

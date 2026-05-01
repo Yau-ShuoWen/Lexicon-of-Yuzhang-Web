@@ -7,7 +7,7 @@ const route = useRoute()
 const { locale } = useI18n()
 
 const VALID_LANGUAGES = ['sc', 'tc']
-const VALID_DIALECTS = ['nam','ced']
+const VALID_DIALECTS = ['lac','ced']
 
 watch(
     () => route.params.language,

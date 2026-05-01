@@ -2,7 +2,7 @@
 import {useRoute, useRouter} from 'vue-router'
 import DropdownSelector from './DropdownSelector.vue'
 import transferIcon from '../../assets/icons/LanguageAndDialect/transfer_dialect.svg'
-import namIcon from '../../assets/icons/LanguageAndDialect/lancong_rc.png'
+import lacIcon from '../../assets/icons/LanguageAndDialect/lancong_rc.png'
 import cedIcon from '../../assets/icons/LanguageAndDialect/cendu_rc.png'
 import { useI18n } from "vue-i18n";
 
@@ -13,7 +13,7 @@ const {t} = useI18n()
 
 
 const dialects = [
-  {value: 'nam', label: t('dialect.lac'), icon: namIcon},
+  {value: 'lac', label: t('dialect.lac'), icon: lacIcon},
   {value: 'ced', label: t('dialect.ced'), icon: cedIcon},
 ]
 

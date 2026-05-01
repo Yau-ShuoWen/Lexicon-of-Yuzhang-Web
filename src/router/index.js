@@ -4,14 +4,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
-const VALID_DIALECTS = ['nam',"ced"]       // 一门方言：南昌话
+const VALID_DIALECTS = ['lac',"ced"]       // 一门方言：南昌话
 
 const DEFAULT_LANGUAGE = 'sc'
-const DEFAULT_DIALECT = 'nam'
+const DEFAULT_DIALECT = 'lac'
 
 const routes = [
     {
-        path: '/:language(sc|tc)/:dialect(nam|ced)',
+        path: '/:language(sc|tc)/:dialect(lac|ced)',
         component: () => import('../layouts/LayoutWithLD.vue'),
         children: [
             {

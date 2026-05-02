@@ -8,10 +8,15 @@ import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
 import RichText from "../../components/Text/RichText.vue";
 import CopyButton from "../../components/Button/CopyButton.vue";
+import { useHead } from '@vueuse/head'
+import { useI18n } from "vue-i18n";
+
 
 const route = useRoute()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
+
+const {t} = useI18n()
 
 const pinyinData = ref([])
 const loading = ref(true)
@@ -20,6 +25,11 @@ const currentKey = ref('')
 
 const pinyinInput = ref('')
 const pinyinOutput = ref('')
+
+useHead({
+  title: () => `${t('dialect_about.pinyin_table.' + dialect.value)}`
+})
+
 
 // 生命周期
 onMounted(fetchTable)
@@ -84,7 +94,7 @@ watch(dialect, fetchTable)
 
         <div class="severable-group">
 
-          <input type="text"  inputmode="" pattern="[A-Za-z0-9]*"
+          <input type="text" inputmode="" pattern="[A-Za-z0-9]*"
                  maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"
                  class="form-control middle-input pinyin-input-text"/>
 
@@ -255,7 +265,7 @@ watch(dialect, fetchTable)
 }
 
 .pinyin-input-text {
-  margin:2px 0 ;
+  margin: 2px 0;
   width: 60%;
 }
 

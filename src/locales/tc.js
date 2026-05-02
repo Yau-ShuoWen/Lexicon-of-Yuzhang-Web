@@ -12,21 +12,33 @@ export default {
         error: '錯誤',
         open: '開啟',
         close: '關閉',
-        copy:'複製',
+        copy: '複製',
     },
     nav: {
         home: '首頁',
         pinyin: "拼音",
         search: '查詢',
         about: '關於',
+        about_us:'關於我們',
         tutorial: '教程',
         contact: '聯繫',
         settings: '設定',
-        thanks:'致謝'
+        thanks: '致謝'
     },
     dialect: {
-        "lac":'南昌話',
-        "ced":'成都話',
+        "lac": '南昌話',
+        "ced": '成都話',
+    },
+    dialect_about: {
+        website_title: {
+            lac: '豫章詞 - 秋水共長天一色',
+            ced: '豫章詞 - 花重錦官城',
+        },
+        pinyin_table: {
+            lac: '南昌話拼音表',
+            ced: '成都話拼音表'
+        }
+
     },
     user: {
         login: '登入',
@@ -72,13 +84,16 @@ export default {
                     symbol: "五度標記法：符號"
                 },
             four_corners: "四角符號"
-        }
+        },
+
+        hanzi: '漢字',
+        ciyu: '詞語',
     },
     about: {
         developer_mode: "開發者模式",
         github_project: "Github 專案"
     },
     pinyin_table: {
-        hint:"提示：點擊方格查看詳細信息"
+        hint: "提示：點擊方格查看詳細信息"
     }
 }

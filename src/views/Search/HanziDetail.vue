@@ -3,6 +3,10 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError } from "../../services/ToastService.js";
+import { useI18n } from 'vue-i18n'
+import { useHead } from '@vueuse/head'
+
+const {t} = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +17,14 @@ const data = ref(null)
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
+
+useHead({
+  title: () =>
+  {
+    if(data.value) return `${t('linguistic.hanzi')}：${data.value.hanzi}`;
+    else if(loading.value) return `${t('common.loading')}`
+  }
+})
 
 // 读取搜索配置
 const getSearchConfig = () => {
@@ -126,20 +138,19 @@ watch(
           </div>
         </div>
 
-<!--        &lt;!&ndash; IPA &ndash;&gt;-->
-<!--        <div-->
-<!--            v-if="info.ipa && info.ipa.length"-->
-<!--            class="section"-->
-<!--        >-->
-<!--          <h3 class="section-title">-->
-<!--            国际音标-->
-<!--          </h3>-->
-<!--          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">-->
-<!--            <span class="ipa-dict">{{ ipa.left }}</span>-->
-<!--            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>-->
-<!--          </div>-->
-<!--        </div>-->
-
+        <!--        &lt;!&ndash; IPA &ndash;&gt;-->
+        <!--        <div-->
+        <!--            v-if="info.ipa && info.ipa.length"-->
+        <!--            class="section"-->
+        <!--        >-->
+        <!--          <h3 class="section-title">-->
+        <!--            国际音标-->
+        <!--          </h3>-->
+        <!--          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">-->
+        <!--            <span class="ipa-dict">{{ ipa.left }}</span>-->
+        <!--            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>-->
+        <!--          </div>-->
+        <!--        </div>-->
 
 
         <div

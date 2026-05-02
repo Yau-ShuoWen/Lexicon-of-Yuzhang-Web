@@ -7,15 +7,16 @@ import router from './router'
 import { initializeAuth } from './utils/auth'
 import i18n from './internationalization.js'
 import formattedTextDirective from './utils/formattedText.js'
+import { createHead } from '@vueuse/head'
 
 // 导入全局样式
 import './styles/main.css'
 
 const app = createApp(App)
 
-// 注册 Element Plus
 app.use(ElementPlus)
-app.use(i18n)   // 添加这一行
+app.use(i18n)
+app.use(createHead())
 app.directive('formatted-text', formattedTextDirective)
 
 // 注册所有图标

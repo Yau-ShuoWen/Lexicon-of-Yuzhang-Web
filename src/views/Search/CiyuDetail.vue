@@ -4,7 +4,10 @@ import { useRoute } from 'vue-router'
 import BackButton from "../../components/Button/BackButton.vue"
 import LoadingIcon from "../../components/Status/LoadingIcon.vue"
 import { showError } from "../../services/ToastService.js"
+import { useI18n } from 'vue-i18n'
+import { useHead } from '@vueuse/head'
 
+const {t} = useI18n()
 const route = useRoute()
 
 const loading = ref(false)
@@ -13,6 +16,14 @@ const data = ref(null)
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
+
+useHead({
+  title: () =>
+  {
+    if(data.value) return `${t('linguistic.ciyu')}：${data.value.ciyu}`;
+    else if(loading.value) return `${t('common.loading')}`
+  }
+})
 
 const getSearchConfig = () => {
   try {

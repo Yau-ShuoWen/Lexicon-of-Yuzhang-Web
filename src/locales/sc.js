@@ -19,14 +19,25 @@ export default {
         pinyin: "拼音",
         search: '查询',
         about: '关于',
+        about_us: '关于我们',
         tutorial: '教程',
         contact: '联系',
         settings: '设置',
         thanks: '致谢'
     },
     dialect: {
-        "lac":'南昌话',
-        "ced":'成都话',
+        "lac": '南昌话',
+        "ced": '成都话',
+    },
+    dialect_about: {
+        website_title: {
+            lac: '豫章词 - 秋水共长天一色',
+            ced: '豫章词 - 花重锦官城',
+        },
+        pinyin_table: {
+            lac: '南昌话拼音表',
+            ced: '成都话拼音表'
+        }
     },
     user: {
         login: '登录',
@@ -72,7 +83,10 @@ export default {
                     symbol: "五度标记法：符号"
                 },
             four_corners: "四角符号"
-        }
+        },
+
+        hanzi: '汉字',
+        ciyu: '词语',
     },
     about: {
         developer_mode: "开发者模式",

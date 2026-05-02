@@ -6,6 +6,7 @@ import { showError } from "../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import DialectSelector from "../components/Select/DialectSelector.vue";
 import LanguageSelector from "../components/Select/LanguageSelector.vue";
+import { useHead } from '@vueuse/head'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -16,6 +17,9 @@ const dialect = computed(() => route.params.dialect)
 const loading = ref(true)
 const result = ref('')
 
+useHead({
+  title: () => `${t('nav.about_us')}`
+})
 const fetchAbout = async () => {
   loading.value = true
 

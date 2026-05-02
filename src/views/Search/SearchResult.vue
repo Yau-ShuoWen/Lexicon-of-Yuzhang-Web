@@ -4,6 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import JumpButton from "../../components/Button/JumpButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError, showWarning } from "../../services/ToastService.js";
+import { useI18n } from 'vue-i18n'
+import { useHead } from '@vueuse/head'
+
+const {t} = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +18,14 @@ const loading = ref(true)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
+
+useHead({
+  title: () =>
+  {
+    if(searchQuery.value) return `${t('common.search')}：${searchQuery.value}`;
+    else if(loading.value) return `${t('common.loading')}`
+  }
+})
 
 const getSearchConfig = () => {
   try {
@@ -131,7 +143,7 @@ const handleResultClick = (result) => {
             <div class="result-content">
               <div class="result-main">
                 <h3 class="result-title" v-formatted-text="result.title"/>
-                <p class="result-explain" v-formatted-text="result.explain"/>
+                <p class="result-explain" v-formatted-text="`{b ${result.explain}}`"/>
               </div>
             </div>
           </router-link>
@@ -183,7 +195,7 @@ const handleResultClick = (result) => {
 
 .result-explain {
   color: var(--color-text-light);
-  font-size: 14px;
+  font-size: 18px;
   margin: 0;
 }
 </style>

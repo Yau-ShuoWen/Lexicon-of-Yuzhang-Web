@@ -19,15 +19,15 @@ export default {
         pinyin: "拼音",
         search: '查詢',
         about: '關於',
-        about_us:'關於我們',
+        about_us: '關於我們',
         tutorial: '教程',
         contact: '聯繫',
         settings: '設定',
         thanks: '致謝'
     },
     dialect: {
-        "lac": '南昌話',
-        "ced": '成都話',
+        lac: '南昌話',
+        ced: '成都話',
     },
     dialect_about: {
         website_title: {
@@ -38,7 +38,6 @@ export default {
             lac: '南昌話拼音表',
             ced: '成都話拼音表'
         }
-
     },
     user: {
         login: '登入',
@@ -88,9 +87,21 @@ export default {
 
         hanzi: '漢字',
         ciyu: '詞語',
+
+        special: {
+            l0: "這個{type}在{dialect}中用法和普通話基本相同，僅做簡要說明。如有需要可參考普通話詞典。",
+            l1: "這個{type}在{dialect}中是一個獨特的詞彙，將會詳細說明內容。篇幅可能較長，可自行跳轉對應部分。",
+            l2: "這個{type}在{dialect}中用法相對於普通話大部分縮減。本頁將會詳細說明限制使用的範圍。",
+            l3: "這個{type}在{dialect}中不會使用，僅用於普通話視角的補充說明。",
+            l4: "這是一篇和方言環境相關的百科，將會把中心放在相關內容而不是詞語本身上。"
+        },
+
+        pronun: {
+            pronun_and_type: '讀音和類型',
+            correspond_mdr:'對應普通話讀音'
+        },
     },
     about: {
-        developer_mode: "開發者模式",
         github_project: "Github 專案"
     },
     pinyin_table: {

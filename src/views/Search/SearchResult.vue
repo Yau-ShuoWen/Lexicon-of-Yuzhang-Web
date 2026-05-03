@@ -6,6 +6,7 @@ import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError, showWarning } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
+import ideaIcon from "../../assets/icons/special/idea.svg"
 
 const {t} = useI18n()
 
@@ -145,6 +146,14 @@ const handleResultClick = (result) => {
                 <h3 class="result-title" v-formatted-text="result.title"/>
                 <p class="result-explain" v-formatted-text="`{b ${result.explain}}`"/>
               </div>
+
+              <!-- ✅ 新增：右侧图片 -->
+              <img
+                  v-if="result.special === true"
+                  :src="ideaIcon"
+                  class="result-icon"
+                  alt="special"
+              />
             </div>
           </router-link>
         </div>
@@ -197,5 +206,19 @@ const handleResultClick = (result) => {
   color: var(--color-text-light);
   font-size: 18px;
   margin: 0;
+}
+
+.result-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.result-icon {
+  width: 28px;
+  height: 28px;
+  margin-left: 16px;
+  opacity: 0.8;
 }
 </style>

@@ -5,6 +5,7 @@ import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
+import SpecialTag from "../../components/Status/SpecialTag.vue";
 
 const {t} = useI18n()
 
@@ -19,10 +20,9 @@ const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 
 useHead({
-  title: () =>
-  {
-    if(data.value) return `${t('linguistic.hanzi')}：${data.value.hanzi}`;
-    else if(loading.value) return `${t('common.loading')}`
+  title: () => {
+    if (data.value) return `${t('linguistic.hanzi')}：${data.value.hanzi}`;
+    else if (loading.value) return `${t('common.loading')}`
   }
 })
 
@@ -103,16 +103,14 @@ watch(
           :key="index"
           class="pronunciation-block"
       >
-        <div class="group-header">
-          <h2 class="pinyin-title" v-formatted-text="$t(info.mainPy)"/>
-        </div>
+        <SpecialTag :special="info.special" type="hanzi" :dialect="dialect"/>
 
-        <p class="special">{{ info.special }}</p>
+        <h2 class="pinyin-title" v-formatted-text="$t(info.mainPy)"/>
 
         <div class="detail-grid">
 
           <div class="left-block">
-            <h3 class="section-title">所有讀音</h3>
+            <h3 class="section-title" v-text="$t('linguistic.pronun.pronun_and_type')"/>
             <table
                 v-if="info.variantPy && info.variantPy.length"
                 class="table"
@@ -128,7 +126,7 @@ watch(
               v-if="info.mdrInfo && info.mdrInfo.length"
               class="right-block"
           >
-            <h3 class="section-title">对应普通话</h3>
+            <h3 class="section-title" v-text="$t('linguistic.pronun.correspond_mdr')"/>
             <table class="table">
               <tr v-for="(m,i) in info.mdrInfo" :key="'m'+i">
                 <td class="cell-equal" v-formatted-text="$t(m.left)"/>
@@ -137,21 +135,6 @@ watch(
             </table>
           </div>
         </div>
-
-        <!--        &lt;!&ndash; IPA &ndash;&gt;-->
-        <!--        <div-->
-        <!--            v-if="info.ipa && info.ipa.length"-->
-        <!--            class="section"-->
-        <!--        >-->
-        <!--          <h3 class="section-title">-->
-        <!--            国际音标-->
-        <!--          </h3>-->
-        <!--          <div v-for="(ipa,i) in info.ipa" :key="i" class="ipa-row">-->
-        <!--            <span class="ipa-dict">{{ ipa.left }}</span>-->
-        <!--            <span class="ipa-value" v-formatted-text="$t(ipa.right)"/>-->
-        <!--          </div>-->
-        <!--        </div>-->
-
 
         <div
             v-if="info.note && info.note.length"
@@ -178,17 +161,19 @@ watch(
           class="pronunciation-block"
           v-if="data.ref && data.ref.length"
       >
-        <div class="group-header">
-          <h3 class="pinyin-title">辞书</h3>
-        </div>
+
+        <h3 class="pinyin-title">辞书</h3>
+
 
         <div
             v-for="(r, i) in data.ref"
             :key="i"
             class="ref-row"
         >
+          <div class="ref-content" v-formatted-text="r.source"/>
           <div class="ref-content" v-formatted-text="r.content"/>
-          <div class="ref-source" v-formatted-text="r.source"/>
+          <div class="ref-content" v-formatted-text="r.note"/>
+
         </div>
       </div>
     </div>
@@ -209,7 +194,7 @@ watch(
 
 .pronunciation-block {
   background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
+  border: 1.5px solid var(--color-primary-light);
   border-radius: var(--border-radius-md);
   padding: 24px;
   margin-bottom: 20px;
@@ -229,7 +214,7 @@ watch(
   font-size: 26px;
   font-weight: 700;
   margin-left: 5px;
-  margin-bottom: 0;
+  margin-bottom: 20px;
 }
 
 .special {

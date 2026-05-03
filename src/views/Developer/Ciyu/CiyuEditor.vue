@@ -145,9 +145,10 @@ onMounted(() => {
           <div class="form-field">
             <label>特殊标记</label>
             <select v-model="updateData.special" class="short-input">
-              <option value="0">普通词语</option>
-              <option value="1">特殊词语</option>
+              <option value="0">普通詞語</option>
+              <option value="1">特殊詞語</option>
               <option value="2">固定用法</option>
+              <option value="4">百科</option>
             </select>
           </div>
         </div>

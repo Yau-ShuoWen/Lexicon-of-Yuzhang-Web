@@ -26,8 +26,8 @@ export default {
         thanks: '致谢'
     },
     dialect: {
-        "lac": '南昌话',
-        "ced": '成都话',
+        lac: '南昌话',
+        ced: '成都话',
     },
     dialect_about: {
         website_title: {
@@ -87,9 +87,21 @@ export default {
 
         hanzi: '汉字',
         ciyu: '词语',
+
+        special: {
+            l0: "这个{type}在{dialect}中用法和普通话基本相同，仅做简要说明。如有需要可参考普通话词典。",
+            l1: "这个{type}在{dialect}中是一个独特的词汇，将会详细说明内容。篇幅可能较长，可自行跳转对应部分。",
+            l2: "这个{type}在{dialect}中用法相对于普通话大部分缩减。本页将会详细说明限制使用的范围。",
+            l3: "这个{type}在{dialect}中不会使用，仅用于普通话视角的补充说明。",
+            l4: "这是一篇和方言环境相关的百科，将会把中心放在相关内容而不是词语本身上。"
+        },
+
+        pronun: {
+            pronun_and_type: '读音和类型',
+            correspond_mdr:'对应普通话读音'
+        },
     },
     about: {
-        developer_mode: "开发者模式",
         github_project: "Github 项目"
     },
     pinyin_table: {

@@ -6,6 +6,7 @@ import LoadingIcon from "../../components/Status/LoadingIcon.vue"
 import { showError } from "../../services/ToastService.js"
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
+import SpecialTag from "../../components/Status/SpecialTag.vue";
 
 const {t} = useI18n()
 const route = useRoute()
@@ -18,10 +19,9 @@ const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 
 useHead({
-  title: () =>
-  {
-    if(data.value) return `${t('linguistic.ciyu')}：${data.value.ciyu}`;
-    else if(loading.value) return `${t('common.loading')}`
+  title: () => {
+    if (data.value) return `${t('linguistic.ciyu')}：${data.value.ciyu}`;
+    else if (loading.value) return `${t('common.loading')}`
   }
 })
 
@@ -94,18 +94,11 @@ watch(
         <h1 class="hanzi-char" v-formatted-text="data.ciyu"/>
       </div>
 
-      <!-- 主块 -->
       <div class="pronunciation-block">
+        <SpecialTag :special="data.special" type="ciyu" :dialect="dialect"/>
 
-        <!-- 主拼音 -->
-        <div class="group-header">
-          <h2 class="pinyin-title" v-formatted-text="data.mainPy"/>
-        </div>
+        <h2 class="pinyin-title" v-formatted-text="data.mainPy"/>
 
-        <!-- special -->
-        <p class="special" v-formatted-text="data.special"/>
-
-        <!-- variantPy -->
         <div class="section" v-if="data.variantPy && data.variantPy.length">
           <h3 class="section-title">其他读音</h3>
           <table class="table">
@@ -119,10 +112,14 @@ watch(
             </tr>
           </table>
         </div>
+      </div>
+
+      <!-- 主块 -->
+      <div class="pronunciation-block">
 
         <!-- mean -->
         <div class="section" v-if="data.mean && data.mean.length">
-          <h3 class="section-title">释义</h3>
+          <h2 class="section-title pinyin-title">释义</h2>
           <ul class="mean-list">
             <li v-for="(m, i) in data.mean" :key="i" v-formatted-text="m"/>
           </ul>

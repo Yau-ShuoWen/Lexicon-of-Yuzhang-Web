@@ -1,10 +1,10 @@
 /* _typography.css */
 *{
-    font-family:system_ui,"Cambria",/*"HanaMinA",*/"HanaMinB",monospace;
+    font-family: system_ui, /*"Cambria",*//*"HanaMinA",*/ "HanaMinB"/*,monospace*/;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: "Cambria",/*"HanaMinA",*/"HanaMinB",monospace;
+    font-family: /*"Cambria",*//*"HanaMinA",*/"HanaMinB"/*,monospace*/;
     font-weight: 600;
     line-height: 1.2;
     margin-bottom: var(--spacing-md);

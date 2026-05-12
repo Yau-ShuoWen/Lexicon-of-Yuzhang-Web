@@ -3,6 +3,7 @@ export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
     text = processCurlySyntax(text);
+    text = processTable(text);
     text = processList(text);
     text = processBracketPhonetic(text);
     text = processLineBreak(text);
@@ -11,31 +12,335 @@ export function formatRichText(text) {
     return text;
 }
 
-// 处理 {} 特殊格式
+// 处理 {} 特殊格式（支持有限嵌套）
 function processCurlySyntax(text) {
     const segments = window.location.pathname.split('/').filter(Boolean);
     const language = segments[0];
     const dialect = segments[1];
 
-    // {b 粗体}
-    text = text.replace(/\{b\s+([^}]+)}/g, (m, p1) => `<b>${p1}</b>`);
+    return parseCurly(text);
 
-    // {c 词语链接}
-    text = text.replace(/\{c\s+([^}]+)}/g, (m, p1) => {
-        return `<a href="/${language}/${dialect}/c/${encodeURIComponent(p1)}" target="_blank" style="color: #1a73e8;">${p1}</a>`;
-    });
+    // 遞歸解析
+    function parseCurly(input, insideTag = false) {
+        let result = "";
+        let i = 0;
 
-    // {n 註釋}
-    text = text.replace(/\{n\s+([^}]+)}/g, (m, p1) => {
-        const safe = p1.replace(/"/g, "&quot;");
-        return `<span class="rt-note"><span class="rt-note-trigger">※</span><span class="rt-note-popup">${safe}</span></span>`;
-    });
-    // text = text.replace(/\{z\s+([^}]+)}/g, (m, p1) => `<small style="color: gray;">${p1}</small>`);
-    //text = text.replace(/\{t\s+([^}]+)}/g, (m, p1) => `${p1}`);
+        while (i < input.length) {
 
-    return text;
+            // 找到 {
+            if (input[i] === "{") {
+
+                // 嘗試匹配 tag 類型
+                const tagMatch = input.slice(i).match(/^\{([a-z])\s/);
+
+                if (!tagMatch) {
+                    result += input[i];
+                    i++;
+                    continue;
+                }
+
+                const tag = tagMatch[1];
+
+                // 找到內容開始位置
+                const contentStart = i + 3; // {x␠
+
+                // 找對應 }
+                const end = findMatchingBrace(input, i);
+
+                // 找不到匹配，當普通文本
+                if (end === -1) {
+                    result += input[i];
+                    i++;
+                    continue;
+                }
+
+                const inner = input.slice(contentStart, end);
+
+                // render
+                result += renderTag(tag, inner, insideTag);
+
+                i = end + 1;
+                continue;
+            }
+
+            result += input[i];
+            i++;
+        }
+
+        return result;
+    }
+
+    function splitDisplayTarget(text, requireTarget = false) {
+
+        const separatorIndex = text.indexOf("|");
+
+        // 去掉簡單格式 tag，用於 target
+        const stripTags = (str) =>
+            str.replace(/\{[a-z]\s+([^{}]+)\}/g, "$1").trim();
+
+        // 沒有 |
+        if (separatorIndex === -1) {
+
+            if (requireTarget) {
+                return null;
+            }
+
+            return {
+                display: text.trim(),
+                target: stripTags(text)
+            };
+        }
+
+        const display = text.slice(0, separatorIndex).trim();
+        const target = text.slice(separatorIndex + 1).trim();
+
+        if (!display || !target) {
+            return null;
+        }
+
+        return {
+            display,
+            target
+        };
+    }
+
+    // render 各種 tag
+    function renderTag(tag, inner, insideTag) {
+
+        switch (tag) {
+
+            case "b":
+                return `<b>${inner}</b>`;
+            case "i":
+                return `<i>${inner}</i>`;
+            case "d":
+                return `<del>${inner}</del>`;
+
+            case "c": {
+
+                const parsedData = splitDisplayTarget(inner);
+
+                if (!parsedData) {
+                    return `{c ${inner}}`;
+                }
+
+                const {display, target} = parsedData;
+
+                // 只解析 display
+                const displayHtml = parseCurly(display, true);
+
+                return `<a href="/${language}/${dialect}/c/${encodeURIComponent(target)}" target="_blank" style="color: #1a73e8;">${displayHtml}</a>`;
+            }
+
+            case "n":
+
+                // note 必須在最外層
+                if (insideTag) return `{n ${inner}}`;
+
+
+                const parsed = parseCurly(inner, true);
+                const safe = parsed.replace(/"/g, "&quot;");
+
+                return `<span class="rt-note"><span class="rt-note-trigger">※</span><span class="rt-note-popup">${safe}</span></span>`;
+
+            case "l": {
+
+                const parsedData = splitDisplayTarget(inner, true);
+
+                if (!parsedData) {
+                    return `{l ${inner}}`;
+                }
+
+                const {display, target} = parsedData;
+
+                // 只解析 display
+                const displayHtml = parseCurly(display, true);
+
+                return `<a href="${target}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8;">${displayHtml}</a>`;
+            }
+
+            case "h":
+                return `<h3>${inner}</h3>`;
+
+            case "s":
+                return "";// 不出現在前端
+
+
+            // ===== 預留 =====
+
+
+
+            case "a":
+                // TODO: audio
+                return inner;
+
+            case "p":
+                // TODO: picture
+                return inner;
+
+            case "v":
+                // TODO: video
+                return inner;
+
+            default:
+                return `{${tag} ${inner}}`;
+        }
+    }
+
+    // 找匹配的大括號
+    function findMatchingBrace(str, start) {
+        let depth = 0;
+
+        for (let i = start; i < str.length; i++) {
+
+            if (str[i] === "{") {
+                depth++;
+            } else if (str[i] === "}") {
+                depth--;
+
+                if (depth === 0) {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
+    }
 }
 
+// 處理 markdown table
+function processTable(text) {
+
+    const lines = text.split(/\r?\n/);
+    const result = [];
+
+    let i = 0;
+
+    while (i < lines.length) {
+
+        // 至少要有 header + align 行
+        if (
+            i + 1 < lines.length &&
+            isTableRow(lines[i]) &&
+            isAlignRow(lines[i + 1])
+        ) {
+
+            const headerLine = lines[i];
+            const alignLine = lines[i + 1];
+
+            const headers = splitTableRow(headerLine);
+            const aligns = parseAlignments(alignLine);
+
+            const rows = [];
+
+            i += 2;
+
+            // 收集 body
+            while (i < lines.length && isTableRow(lines[i])) {
+                rows.push(splitTableRow(lines[i]));
+                i++;
+            }
+
+            // render
+            let html = `<table class="rt-table">`;
+
+            // thead
+            html += `<thead><tr>`;
+
+            headers.forEach((cell, idx) => {
+
+                const align = aligns[idx] || "left";
+
+                html += `<th style="text-align:${align}">${cell}</th>`;
+            });
+
+            html += `</tr></thead>`;
+
+            // tbody
+            if (rows.length > 0) {
+
+                html += `<tbody>`;
+
+                rows.forEach(row => {
+
+                    html += `<tr>`;
+
+                    headers.forEach((_, idx) => {
+
+                        const align = aligns[idx] || "left";
+                        const cell = row[idx] || "";
+
+                        html += `<td style="text-align:${align}">${cell}</td>`;
+                    });
+
+                    html += `</tr>`;
+                });
+
+                html += `</tbody>`;
+            }
+
+            html += `</table>`;
+
+            result.push(html);
+
+            continue;
+        }
+
+        result.push(lines[i]);
+        i++;
+    }
+
+    return result.join("\n");
+
+    // ---------- helpers ----------
+
+    function isTableRow(line) {
+        return /^\s*\|(.+)\|\s*$/.test(line);
+    }
+
+    function isAlignRow(line) {
+
+        if (!isTableRow(line)) {
+            return false;
+        }
+
+        const cells = splitTableRow(line);
+
+        return cells.every(cell =>
+            /^:?-{3,}:?$/.test(cell.trim())
+        );
+    }
+
+    function splitTableRow(line) {
+
+        return line
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map(cell => cell.trim());
+    }
+
+    function parseAlignments(line) {
+
+        const cells = splitTableRow(line);
+
+        return cells.map(cell => {
+
+            const c = cell.trim();
+
+            if (c.startsWith(":") && c.endsWith(":")) {
+                return "center";
+            }
+
+            if (c.endsWith(":")) {
+                return "right";
+            }
+
+            return "left";
+        });
+    }
+}
 
 // 处理列表
 function processList(text) {

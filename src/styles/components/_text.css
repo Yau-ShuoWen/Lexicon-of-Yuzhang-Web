@@ -58,3 +58,21 @@
 .rt-note:hover .rt-note-popup {
     display: block;
 }
+
+/*富文本表格*/
+
+.rt-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+.rt-table th,
+.rt-table td {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+}
+
+.rt-table th {
+    background: #f5f5f5;
+}

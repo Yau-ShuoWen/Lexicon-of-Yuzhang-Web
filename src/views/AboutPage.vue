@@ -56,7 +56,7 @@ onMounted(() => {
       <LoadingIcon/>
     </div>
 
-    <div v-else class="about-content">
+    <div v-else>
 
       <!--    关于    -->
       <div class="text-box contact-box">
@@ -64,19 +64,20 @@ onMounted(() => {
         <div v-formatted-text="result.left[language]"></div>
       </div>
 
-<!--   在完工之前還是不要拿出來丟人現眼了   -->
+      <!--   在完工之前還是不要拿出來丟人現眼了   -->
 
-<!--      &lt;!&ndash;    致谢    &ndash;&gt;-->
-<!--      <div class="text-box contact-box">-->
-<!--        <div class="contact-title" v-formatted-text="$t('nav.thanks')"/>-->
-<!--        <div v-formatted-text="result.right[language]"></div>-->
-<!--      </div>-->
+      <!--      &lt;!&ndash;    致谢    &ndash;&gt;-->
+      <!--      <div class="text-box contact-box">-->
+      <!--        <div class="contact-title" v-formatted-text="$t('nav.thanks')"/>-->
+      <!--        <div v-formatted-text="result.right[language]"></div>-->
+      <!--      </div>-->
 
       <!--    联系    -->
       <div class="text-box contact-box">
         <div class="contact-title" v-formatted-text="$t('nav.contact')"/>
 
         <div class="contact-list">
+
 
           <a href="https://github.com/Yau-ShuoWen" target="_blank" class="contact-item">
             <img src="../assets/icons/github.svg" class="icon"/>
@@ -93,6 +94,15 @@ onMounted(() => {
             蜀ICP备 2026005399号
           </a>
 
+          <router-link
+              :to="{ name: 'YswHome', params: { language: language } }"
+              class="contact-item"
+          >
+            <img src="../assets/icons/developer.svg" class="icon"/>
+            {{ `說文的屋里（彩蛋）` }}
+          </router-link>
+
+
         </div>
       </div>
 
@@ -104,16 +114,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.about-page {
-  min-height: 100vh;
-}
-
-.container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
 /* 内容区域 */
 .text-box {
   background: var(--card-bg-color);

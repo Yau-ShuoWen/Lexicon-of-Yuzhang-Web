@@ -33,7 +33,7 @@ html {
 
 /* 全局样式 */
 #app {
-    min-height: 100vh;
+    min-height: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -47,26 +47,5 @@ html {
         --spacing-md: 0.75rem;
         --spacing-lg: 1rem;
         --spacing-xl: 1.5rem;
-    }
-
-    .main-nav {
-        gap: var(--spacing-lg);
-        padding: var(--spacing-md);
-    }
-
-    .page-container {
-        padding: var(--spacing-lg) 0;
-        padding-top: 0;
-    }
-}
-
-@media (max-width: 480px) {
-    .main-nav {
-       /* flex-direction: column;*/
-        gap: var(--spacing-md);
-    }
-
-    .container {
-        padding: 0 var(--spacing-sm);
     }
 }

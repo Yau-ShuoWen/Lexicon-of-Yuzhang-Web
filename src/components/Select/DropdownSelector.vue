@@ -84,7 +84,8 @@ onUnmounted(() => {
   padding: 8px 12px;
   cursor: pointer;
   border-radius: 8px;
-  background: #f6f8fa;
+  border: 1px solid var(--color-text-lighter);
+  background:#ffffff;
   transition: background 0.2s;
 }
 
@@ -103,6 +104,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   background: #fff;
+  border: 1px solid var(--color-text-lighter);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   padding: 6px 0;

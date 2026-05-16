@@ -1,15 +1,16 @@
 <template>
 
+  <div class="broaden-layout padding-top-reset">
+    <div class="slogan">
+      <SloganText/>
+    </div>
 
-  <div class="slogan">
-    <SloganText/>
-  </div>
 
+    <SearchInput/>
 
-  <SearchInput/>
-
-  <div class="logo">
-    <img src="../assets/images/yuzhangci.svg" draggable="false"/>
+    <div class="logo">
+      <img src="../assets/images/yuzhangci.svg" draggable="false"/>
+    </div>
   </div>
 
 </template>
@@ -35,7 +36,7 @@ useHead({
 
 <style scoped>
 .slogan {
-  padding-top: var(--spacing-xl);
+  padding-top: var(--spacing-md);
   padding-bottom: var(--spacing-xl);
 }
 

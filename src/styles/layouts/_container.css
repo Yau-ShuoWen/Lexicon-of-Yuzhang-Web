@@ -5,18 +5,31 @@
     padding: 0 var(--spacing-md);
 }
 
+@media (max-width: 480px) {
+    .container {
+        padding: 0 var(--spacing-sm);
+    }
+}
+
 .container-fluid {
     width: 100%;
     padding: 0 var(--spacing-md);
 }
 
 .page-container {
-    padding: var(--spacing-sm) 0;
-    padding-top: 0;
+    padding: 0;
     max-width: 1200px;
     min-height: auto;
     margin: 0 auto;
 }
+
+@media (max-width: 480px) {
+
+    .page-container {
+        padding: 0;
+    }
+}
+
 .page-header {
     text-align: center;
     margin-bottom: var(--spacing-2xl);
@@ -41,23 +54,43 @@
 
 /* 窄布局 */
 .narrow-layout {
-    padding: 10px;
+    padding: 40px 10px 10px 10px;
     max-width: 800px;
-    margin: 0 auto;
+    margin: 0 auto 0;
 }
 
-/* 中等布局，给拼音表格用 */
+/* 中等布局 */
 .middle-layout {
-    padding: 10px;
+    padding: 40px 10px 10px 10px;
     max-width: 1000px;
-    margin: 0 auto;
+    margin: 0 auto 0;
 }
 
 /* 宽布局 */
 .broaden-layout {
-    padding: 10px;
+    padding: 40px 10px 10px 10px;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 0 auto 0;
+}
+
+.padding-top-reset {
+    padding-top: 10px !important;
+}
+
+.white-background {
+    padding: 30px;
+    margin: 10px;
+    background: var(--color-background);
+    border: 1.5px solid var(--color-text-lighter);
+    border-radius: var(--border-radius-lg);
+}
+
+@media (max-width: 480px) {
+
+    .white-background {
+        padding: 20px 10px;
+        margin: 0;
+    }
 }
 
 /*  */

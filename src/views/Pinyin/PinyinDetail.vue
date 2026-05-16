@@ -117,7 +117,7 @@ watch(() => [props.pinyinKey, props.show], () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 1100;
 }
 
 /* 彈窗 */

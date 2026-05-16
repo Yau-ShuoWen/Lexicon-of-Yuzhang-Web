@@ -1,14 +1,36 @@
 /* _navigation.css */
 .main-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height:  var(--header-height);
+    z-index: 1000;
+
     padding: var(--spacing-sm);
-    background: var(--color-background-alt);
-    width: 100%;
+
+    background: #f3f3f3;
+
     display: flex;
-    flex-wrap: wrap;
     gap: var(--spacing-lg);
     justify-content: center;
     align-items: center;
+
     box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+    .main-nav {
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .main-nav {
+        gap: var(--spacing-xs);
+    }
 }
 
 .nav-link {

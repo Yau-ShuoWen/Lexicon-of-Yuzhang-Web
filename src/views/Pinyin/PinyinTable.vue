@@ -83,62 +83,65 @@ watch(dialect, fetchTable)
 
     <LoadingIcon v-if="loading"/>
 
-    <div v-else class="pinyin-container">
+    <div v-else class="white-background">
+
+      <div  class="pinyin-container">
 
 
-      <div class="attribute-group">
+<!--        <div class="attribute-group">-->
 
-        <div class="group-header">
-          <h3>方言拼音生成器</h3>
-        </div>
+<!--          <div class="group-header">-->
+<!--            <h3>方言拼音生成器</h3>-->
+<!--          </div>-->
 
-        <div class="severable-group">
+<!--          <div class="severable-group">-->
 
-          <input type="text" inputmode="" pattern="[A-Za-z0-9]*"
-                 maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"
-                 class="form-control middle-input pinyin-input-text"/>
+<!--            <input type="text" inputmode="" pattern="[A-Za-z0-9]*"-->
+<!--                   maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"-->
+<!--                   class="form-control middle-input pinyin-input-text"/>-->
 
-          <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
-                    :model-value="pinyinInput" v-model:outputValue="pinyinOutput"
-                    class="pinyin-input-text"/>
+<!--            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"-->
+<!--                      :model-value="pinyinInput" v-model:outputValue="pinyinOutput"-->
+<!--                      class="pinyin-input-text"/>-->
 
-          <CopyButton v-if="pinyinOutput" class="dev-btn-middle dev-normal-button" :text="pinyinOutput"/>
-
-
-        </div>
+<!--            <CopyButton v-if="pinyinOutput" class="dev-btn-middle dev-normal-button" :text="pinyinOutput"/>-->
 
 
-      </div>
+<!--          </div>-->
 
-      <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
 
-      <div
-          v-for="grid in pinyinData"
-          :key="grid.code"
-          class="attribute-group final-group"
-      >
+<!--        </div>-->
 
-        <div class="group-header">
-          <h3>{{ grid.name[language] }}</h3>
-        </div>
+        <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
 
-        <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
-          <div v-for="group in line.group" :key="group.id" class="pinyin-group">
-            <div class="items-grid">
+        <div
+            v-for="grid in pinyinData"
+            :key="grid.code"
+            class="attribute-group"
+        >
 
-              <div
-                  v-for="item in group.item"
-                  :key="item.id"
-                  class="item-box clickable"
-                  :class="{ invalid: !item.exist }"
-                  @click="handleItemClick(item)"
-              >
+          <div class="group-header">
+            <h3>{{ grid.name[language] }}</h3>
+          </div>
+
+          <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
+            <div v-for="group in line.group" :key="group.id" class="pinyin-group">
+              <div class="items-grid">
+
                 <div
-                    class="main-display"
-                    v-html="formatDisplay(item)"
-                />
-              </div>
+                    v-for="item in group.item"
+                    :key="item.id"
+                    class="item-box clickable"
+                    :class="{ invalid: !item.exist }"
+                    @click="handleItemClick(item)"
+                >
+                  <div
+                      class="main-display"
+                      v-html="formatDisplay(item)"
+                  />
+                </div>
 
+              </div>
             </div>
           </div>
         </div>
@@ -159,11 +162,11 @@ watch(dialect, fetchTable)
 <style>
 /* ======== Attribute Block ======== */
 .attribute-group {
-  margin-bottom: 34px; /* Line组之间距离 */
+
   background: #fff;
   border-radius: 12px;
   padding: 20px 18px;
-  border: 2px solid var(--color-primary-light);
+  /*border: 2px solid var(--color-primary-light);*/
 }
 
 .group-header h3 {

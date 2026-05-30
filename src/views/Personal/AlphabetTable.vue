@@ -1,82 +1,83 @@
-<!-- PinyinTable -->
+<!-- PinyinTable.vue -->
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 
-const langOptions = ref([])
-const selectedRight = computed({
-  get: () => route.params.right || '',
-  set: (val) => {
-    router.push({
-      path: `/${language.value}/${dialect.value}/ysw/alphabet/${val}`
-    })
-  }
-})
-const hasSelection = computed(() => !!selectedRight.value)
-const currentOption = computed(() => langOptions.value.find(v => v.code === selectedRight.value))
-const enableTransfer = computed(() => currentOption.value?.transfer === true)
-
 const route = useRoute()
-const router = useRouter()
+
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 const {t} = useI18n()
 
+const currentAlphabet = ref(null)
 const pinyinData = ref([])
+const introduce = ref('')
+
 const loading = ref(false)
+
 const showDetail = ref(false)
 const currentKey = ref('')
 
-const pinyinInput = ref('')
-const pinyinOutput = ref('')
+/**
+ * 每个转换器一个输入框
+ */
+const transferData = ref([])
 
 useHead({
   title: () => `${t('personal.alphabet_table.title')}`
 })
 
+/* ======== computed ======== */
 
-// 生命周期
-onMounted(fetchTable)
-
-async function fetchList() {
-  try {
-    const res = await fetch(`/api/personal/alphabet/list`)
-    if (!res.ok) throw new Error(res.status)
-
-    langOptions.value = await res.json()
-
-  } catch (e) {
-    console.error(e)
-    showError('加载语言列表失败')
-  }
-}
+const transferList = computed(() =>
+    currentAlphabet.value?.trans || []
+)
 
 async function fetchTable() {
-  if (!selectedRight.value) return
+
+  const code = route.params.code
 
   try {
     loading.value = true
+    const res = await fetch(`/api/personal/alphabet/table/${code}/${language.value}`)
 
-    const res = await fetch(`/api/personal/alphabet/table/${selectedRight.value}`)
     if (!res.ok) throw new Error(res.status)
 
     const data = await res.json()
-    pinyinData.value = data.table
+
+    introduce.value = data.middle
+    currentAlphabet.value = data.left
+    pinyinData.value = data.right.table
+
+    /**
+     * 初始化每个转换框
+     */
+    transferData.value = transferList.value.map(i => ({
+      name: i.left,
+      funName: i.right,
+      input: '',
+      output: '',
+      timer: null
+    }))
 
   } catch (e) {
+
     console.error(e)
     showError('加载拼音表失败')
   }
   finally {
+
     loading.value = false
   }
 }
+
+/* ======== item ======== */
 
 function handleItemClick(item) {
   if (!item.exist) return
@@ -85,11 +86,10 @@ function handleItemClick(item) {
   showDetail.value = true
 }
 
-/* 显示规则 */
+/* ======== display ======== */
+
 function formatDisplay(item) {
-
   if (!item.exist) return ''
-
   const s = item.standard?.trim() || ''
 
   try {
@@ -99,161 +99,181 @@ function formatDisplay(item) {
   }
 }
 
-let transferTimer = null
+/* ======== transfer ======== */
 
-async function transferText() {
+async function transferText(item) {
 
-  if (!pinyinInput.value.trim()) {
-    pinyinOutput.value = ''
+  if (!item.input.trim()) {
+
+    item.output = ''
     return
   }
 
   try {
-
+    const code = route.params.code
     const res = await fetch(
-        `/api/personal/alphabet/transfer/${selectedRight.value}?s=${encodeURIComponent(pinyinInput.value)}`
+        `/api/personal/alphabet/transfer/${code}/${language.value}` +
+        `?funName=${encodeURIComponent(item.funName)}` +
+        `&s=${encodeURIComponent(item.input)}`
     )
 
     if (!res.ok) throw new Error(res.status)
-
-    pinyinOutput.value = await res.text()
+    item.output = await res.text()
 
   } catch (e) {
-
     console.error(e)
-    pinyinOutput.value = '转换失败'
+    item.output = '转换失败'
   }
 }
 
-watch(
-    () => route.params.right,
-    async (val) => {
-      if (!val) {
-        pinyinData.value = []
-        return
-      }
+function handleTransferInput(item) {
+  clearTimeout(item.timer)
+  item.timer = setTimeout(async () => {
+    await transferText(item)
+  }, 250)
+}
 
+/* ======== watch ======== */
+
+watch(
+    () => route.params.code,
+    async () => {
       await fetchTable()
     },
     {immediate: true}
 )
 
-watch(pinyinInput, () => {
-
-  clearTimeout(transferTimer)
-
-  if (!enableTransfer.value) return
-
-  transferTimer = setTimeout(() => {
-    transferText()
-  }, 250)
+watch(language, async () => {
+  await fetchTable()
 })
 
-watch(selectedRight, () => {
-
-  pinyinInput.value = ''
-  pinyinOutput.value = ''
-})
+/* ======== mounted ======== */
 
 onMounted(async () => {
-  await fetchList()
   await fetchTable()
 })
 </script>
 
-
 <template>
+
   <div class="broaden-layout">
-
-    <div class="contact-title" v-formatted-text="$t('personal.alphabet_table.sigh')"/>
-
-    <div>
-      <select v-model="selectedRight" class="form-control">
-        <option
-            v-for="opt in langOptions"
-            :key="opt.code"
-            :value="opt.code"
-        >
-          {{ opt.name[language] }}
-        </option>
-      </select>
-    </div>
 
     <LoadingIcon v-if="loading"/>
 
-    <div v-else-if="!hasSelection" class="empty-placeholder">
-      请先选择一种方案
-    </div>
-
     <div v-else class="pinyin-container">
 
+      <div v-if="introduce?.length" v-formatted-text="introduce" class="text-box"/>
+
+      <!-- ======== transfer ======== -->
+
       <div
-          v-if="enableTransfer"
+          v-if="transferData.length"
           class="transfer-box"
       >
 
-        <textarea
-            v-model="pinyinInput"
-            class="form-control pinyin-input-text"
-            rows="5"
-            placeholder="请输入内容"
-        />
+        <div
+            v-for="item in transferData"
+            :key="item.funName"
+            class="transfer-item"
+        >
 
-        <div v-if="pinyinOutput" class="transfer-output" v-formatted-text="pinyinOutput"/>
-      </div>
+          <div class="transfer-title">
+            {{ item.name }}
+          </div>
 
-      <div
-          v-for="grid in pinyinData"
-          :key="grid.code"
-          class="attribute-group final-group"
-      >
+          <textarea
+              v-model="item.input"
+              class="form-control pinyin-input-text"
+              rows="5"
+              placeholder="请输入内容"
+              @input="handleTransferInput(item)"
+          />
 
-        <div class="group-header">
-          <h3>{{ grid.name[language] }}</h3>
+          <div
+              v-if="item.output"
+              class="transfer-output"
+              v-formatted-text="item.output"
+          />
+
         </div>
 
-        <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
-          <div v-for="group in line.group" :key="group.id" class="pinyin-group">
-            <div class="items-grid">
+      </div>
 
-              <div
-                  v-for="item in group.item"
-                  :key="item.id"
-                  class="item-box clickable"
-                  :class="{ invalid: !item.exist }"
-                  @click="handleItemClick(item)"
-              >
+      <!-- ======== table ======== -->
+
+      <div class="table-block">
+
+
+        <div
+            v-for="grid in pinyinData"
+            :key="grid.code"
+            class="attribute-group"
+        >
+
+          <div class="group-header">
+            <h3>{{ grid.name }}</h3>
+          </div>
+
+          <div
+              v-for="line in grid.line"
+              :key="line.id"
+              class="pinyin-line"
+          >
+
+            <div
+                v-for="group in line.group"
+                :key="group.id"
+                class="pinyin-group"
+            >
+
+              <div class="items-grid">
+
                 <div
-                    class="main-display"
-                    v-html="formatDisplay(item)"
-                />
+                    v-for="item in group.item"
+                    :key="item.id"
+                    class="item-box clickable"
+                    :class="{ invalid: !item.exist }"
+                    @click="handleItemClick(item)"
+                >
+
+                  <div class="main-display" v-html="formatDisplay(item)"/>
+
+                </div>
+
               </div>
 
             </div>
+
           </div>
+
         </div>
       </div>
 
     </div>
+
   </div>
-  <!--  <PinyinDetail-->
-  <!--      :show="showDetail"-->
-  <!--      :dialect="dialect.toString()"-->
-  <!--      :language="language.toString()"-->
-  <!--      :pinyinKey="currentKey"-->
-  <!--      @close="showDetail = false"-->
-  <!--  />-->
+
 </template>
 
-
 <style>
-/* ======== Attribute Block ======== */
+/* ======== text ======== */
+
+.text-box {
+  background: var(--color-background);
+  border: 2px solid var(--color-primary-light);
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+/* ======== group ======== */
 .attribute-group {
-  margin-bottom: 34px; /* Line组之间距离 */
+
   background: #fff;
   border-radius: 12px;
   padding: 20px 18px;
-  border: 2px solid var(--color-primary-light);
+  /*border: 2px solid var(--color-primary-light);*/
 }
 
 .group-header h3 {
@@ -263,69 +283,62 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-/* ======== Line（跨Group容器）======= */
-/* 这一层决定：不同Line绝不混排 */
+
+/* ======== line ======== */
 .pinyin-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 30px; /* Group之间横向距离 */
-  margin-bottom: 26px; /* Line之间纵向距离 */
+  gap: 30px;
+  margin-bottom: 26px;
 }
 
 .pinyin-line:last-child {
   margin-bottom: 0;
 }
 
-/* ======== Group（不可拆单位）======= */
-/* 这一层决定：Group内部不会被压缩拆开 */
+/* ======== group ======== */
+
 .pinyin-group {
   flex: 0 0 auto;
   display: inline-block;
 }
 
-/* ======== Group内部Item排列 ======== */
-/* 这一层决定：Group内部更紧凑 */
+/* ======== grid ======== */
+
 .items-grid {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 70px;
-  gap: 5px; /* Group内部Item间距 */
+  gap: 5px;
 }
 
-/* ======== Item ======== */
+/* ======== item ======== */
+
 .item-box {
   background: var(--card-bg-color);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
-
   padding: 12px 8px;
   min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-
   transition: all 0.3s ease;
 }
 
-/* ======== 可点击态 ======== */
 .item-box.clickable {
   cursor: pointer;
 }
 
-/* hover 效果与页面1一致 */
 .item-box.clickable:not(.invalid):hover {
   border-color: var(--color-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-
-  transform: translateY(0px);
 }
 
-/* ======== invalid ======== */
 .item-box.invalid {
   opacity: 0.5;
   background: #f8f9fa;
   border-color: #dee2e6;
-
   pointer-events: none;
   transform: none !important;
   box-shadow: none !important;
@@ -335,7 +348,8 @@ onMounted(async () => {
   color: #adb5bd;
 }
 
-/* ======== 文字 ======== */
+/* ======== display ======== */
+
 .main-display {
   font-size: 20px;
   text-align: center;
@@ -343,22 +357,35 @@ onMounted(async () => {
   line-height: 1.25;
 }
 
+/* ======== container ======== */
+
 .pinyin-container {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.severable-group {
-  flex-direction: column;
-  gap: 10px;
+/* ======== transfer ======== */
+
+.transfer-box {
+  margin-bottom: 20px;
+}
+
+.transfer-item {
+  margin-bottom: 24px;
+}
+
+.transfer-title {
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .pinyin-input-text {
-  margin: 2px 0;
+  margin: 2px 0 10px 0;
   width: 100%;
 }
-
 
 .transfer-output {
   min-height: 60px;
@@ -370,10 +397,9 @@ onMounted(async () => {
   white-space: pre-wrap;
 }
 
-/* ======== Mobile Layout ======== */
-@media (max-width: 450px) {
+/* ======== mobile ======== */
 
-  /* 每行只有一个 group */
+@media (max-width: 450px) {
   .pinyin-line {
     flex-direction: column;
     gap: 14px;
@@ -383,7 +409,6 @@ onMounted(async () => {
     width: 100%;
   }
 
-  /* item 平均分配宽度 */
   .items-grid {
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
@@ -392,6 +417,6 @@ onMounted(async () => {
   .pinyin-input-text {
     width: 100%;
   }
-
 }
+
 </style>

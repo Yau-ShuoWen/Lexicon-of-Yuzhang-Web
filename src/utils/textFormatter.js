@@ -5,6 +5,7 @@ export function formatRichText(text) {
     text = processCurlySyntax(text);
     text = processTable(text);
     text = processList(text);
+    text = processHorizontalRule(text);
     text = processBracketPhonetic(text);
     text = processLineBreak(text);
     text = processSpaces(text);
@@ -72,7 +73,7 @@ function processCurlySyntax(text) {
 
     function splitDisplayTarget(text, requireTarget = false) {
 
-        const separatorIndex = text.indexOf("|");
+        const separatorIndex = text.indexOf("=>");
 
         // 去掉簡單格式 tag，用於 target
         const stripTags = (str) =>
@@ -92,7 +93,7 @@ function processCurlySyntax(text) {
         }
 
         const display = text.slice(0, separatorIndex).trim();
-        const target = text.slice(separatorIndex + 1).trim();
+        const target = text.slice(separatorIndex + 2).trim();
 
         if (!display || !target) {
             return null;
@@ -132,6 +133,22 @@ function processCurlySyntax(text) {
                 return `<a href="/${language}/${dialect}/c/${encodeURIComponent(target)}" target="_blank" style="color: #1a73e8;">${displayHtml}</a>`;
             }
 
+            case "z": {
+
+                const parsedData = splitDisplayTarget(inner);
+
+                if (!parsedData) {
+                    return `{z ${inner}}`;
+                }
+
+                const {display, target} = parsedData;
+
+                // 只解析 display
+                const displayHtml = parseCurly(display, true);
+
+                return `<a href="/${language}/${dialect}/h/${encodeURIComponent(target)}" target="_blank" style="color: #1a73e8;">${displayHtml}</a>`;
+            }
+
             case "n":
 
                 // note 必須在最外層
@@ -141,7 +158,7 @@ function processCurlySyntax(text) {
                 const parsed = parseCurly(inner, true);
                 const safe = parsed.replace(/"/g, "&quot;");
 
-                return `<span class="rt-note"><span class="rt-note-trigger">※</span><span class="rt-note-popup">${safe}</span></span>`;
+                return `<span class="rt-note" data-note="${encodeURIComponent(safe)}"><span class="rt-note-trigger">※</span></span>`;
 
             case "l": {
 
@@ -156,18 +173,40 @@ function processCurlySyntax(text) {
                 // 只解析 display
                 const displayHtml = parseCurly(display, true);
 
+                // target 必须 / 开头
+                const normalizedTarget = target.startsWith("/")
+                    ? target
+                    : "/" + target;
+
+                const href = `/${language}/${dialect}${normalizedTarget}`;
+
+                return `<a href="${href}" style="color: #1a73e8;">${displayHtml}</a>`;
+            }
+
+
+            case "u": {
+
+                const parsedData = splitDisplayTarget(inner, true);
+
+                if (!parsedData) {
+                    return `{u ${inner}}`;
+                }
+
+                const {display, target} = parsedData;
+
+                // 只解析 display
+                const displayHtml = parseCurly(display, true);
+
                 return `<a href="${target}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8;">${displayHtml}</a>`;
             }
 
             case "h":
-                return `<h3>${inner}</h3>`;
+                return `<span class="rt-h">${inner}</span>`;
 
             case "s":
-                return "";// 不出現在前端
-
+                return `${inner}`;
 
             // ===== 預留 =====
-
 
 
             case "a":
@@ -218,33 +257,52 @@ function processTable(text) {
 
     while (i < lines.length) {
 
-        // 至少要有 header + align 行
+        let headers = null;
+        let aligns = null;
+        let rows = [];
+
+        // ===== 模式1：有 header =====
         if (
             i + 1 < lines.length &&
             isTableRow(lines[i]) &&
             isAlignRow(lines[i + 1])
         ) {
 
-            const headerLine = lines[i];
-            const alignLine = lines[i + 1];
-
-            const headers = splitTableRow(headerLine);
-            const aligns = parseAlignments(alignLine);
-
-            const rows = [];
+            headers = splitTableRow(lines[i]);
+            aligns = parseAlignments(lines[i + 1]);
 
             i += 2;
+        }
 
-            // 收集 body
-            while (i < lines.length && isTableRow(lines[i])) {
-                rows.push(splitTableRow(lines[i]));
-                i++;
-            }
+        // ===== 模式2：無 header =====
+        else if (
+            isAlignRow(lines[i])
+        ) {
 
-            // render
-            let html = `<table class="rt-table">`;
+            aligns = parseAlignments(lines[i]);
 
-            // thead
+            i += 1;
+        }
+
+        // 不是 table
+        else {
+            result.push(lines[i]);
+            i++;
+            continue;
+        }
+
+        // 收集 body
+        while (i < lines.length && isTableRow(lines[i])) {
+            rows.push(splitTableRow(lines[i]));
+            i++;
+        }
+
+        // render
+        let html = `<table class="rt-table">`;
+
+        // 有 header 才 render thead
+        if (headers) {
+
             html += `<thead><tr>`;
 
             headers.forEach((cell, idx) => {
@@ -255,39 +313,38 @@ function processTable(text) {
             });
 
             html += `</tr></thead>`;
-
-            // tbody
-            if (rows.length > 0) {
-
-                html += `<tbody>`;
-
-                rows.forEach(row => {
-
-                    html += `<tr>`;
-
-                    headers.forEach((_, idx) => {
-
-                        const align = aligns[idx] || "left";
-                        const cell = row[idx] || "";
-
-                        html += `<td style="text-align:${align}">${cell}</td>`;
-                    });
-
-                    html += `</tr>`;
-                });
-
-                html += `</tbody>`;
-            }
-
-            html += `</table>`;
-
-            result.push(html);
-
-            continue;
         }
 
-        result.push(lines[i]);
-        i++;
+        // tbody
+        if (rows.length > 0) {
+
+            html += `<tbody>`;
+
+            rows.forEach(row => {
+
+                html += `<tr>`;
+
+                const colCount = headers
+                    ? headers.length
+                    : row.length;
+
+                for (let idx = 0; idx < colCount; idx++) {
+
+                    const align = aligns[idx] || "left";
+                    const cell = row[idx] || "";
+
+                    html += `<td style="text-align:${align}">${cell}</td>`;
+                }
+
+                html += `</tr>`;
+            });
+
+            html += `</tbody>`;
+        }
+
+        html += `</table>`;
+
+        result.push(html);
     }
 
     return result.join("\n");
@@ -380,6 +437,15 @@ function processList(text) {
     return result.join("\n");
 }
 
+// 處理橫線分割
+function processHorizontalRule(text) {
+
+    return text.replace(
+        /^[ \t]*-{5,}[ \t]*\r?\n?/gm,
+        '<hr class="rt-hr">'
+    );
+}
+
 // 处理 [] 拼音 / IPA
 function processBracketPhonetic(text) {
     text = text.replace(/\[([^\]]+)]/g, (m, inner) => {
@@ -399,7 +465,15 @@ function processBracketPhonetic(text) {
 
 // 处理换行
 function processLineBreak(text) {
-    return text.replace(/\r/g, "").replace(/\n/g, "<br>");
+    text = text.replace(/\r/g, "");
+
+    // 先處理兩個以上換行
+    text = text.replace(/\n{2,}/g, (match) => {
+        const count = match.length - 1; // 空行數
+        return "<br>" + `<span class="rt-empty-line" style="height:${count * 0.8}em"></span>`;
+    });
+
+    return text.replace(/\n/g, "<br>");
 }
 
 // 处理空格

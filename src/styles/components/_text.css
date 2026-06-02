@@ -10,6 +10,19 @@
     padding: 10px;
 }
 
+/* 通用链接 */
+
+.normal-link {
+    color: var(--color-secondary-dark);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.normal-link:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
 /* 普通输入框 */
 
 .ordinary-input {
@@ -19,6 +32,16 @@
     border-radius: 4px;
 }
 
+.mid-input {
+    flex: 1;
+    padding: 10px 20px;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
 /* 副标题 */
 .page-subtitle {
     text-align: center;
@@ -26,53 +49,144 @@
     margin: 15px 0;
 }
 
+.rt-h {
+    margin: 0;
+    padding: 0;
+
+    font-size: 1.4em;
+    font-weight: 700;
+
+    display: inline;
+}
+
+.rt-empty-line {
+    display: block;
+    height: 0.8em;
+}
+
 .rt-note {
-    position: relative;
     display: inline-block;
 }
 
 .rt-note-trigger {
-    font-size: 0.8em;
-    color: #1a73e8;
-    cursor: pointer;
-    margin-left: 2px;
-    vertical-align: top;
-}
-
-.rt-note-popup {
-    position: absolute;
-    bottom: 1.6em;
-    left: 0;
-    background: #fff;
-    border: 1px solid #ccc;
-    padding: 6px 8px;
     font-size: 0.85em;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
+    color: #2d7be3;
+    cursor: pointer;
+    user-select: none;
+}
+
+.rt-note-tooltip {
+    position: fixed;
     display: none;
-    white-space: nowrap;
-    word-break: normal;
-    z-index: 999;
+    width: fit-content;
+
+    max-width: min(300px, calc(100vw - 24px));
+
+    background: #fff;
+
+    border: 1.5px solid #b1b6bc;
+
+    border-radius: 5px;
+
+    box-shadow:
+            0 4px 12px rgba(0,0,0,.08),
+            0 8px 24px rgba(0,0,0,.08);
+
+    padding: 6px 14px;
+
+    line-height: 1.6;
+    font-size: 0.92rem;
+
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+
+    z-index: 9999;
+
+    animation: rt-note-pop .12s ease-out;
 }
 
-.rt-note:hover .rt-note-popup {
-    display: block;
+.rt-note-tooltip::before {
+    content: "";
+
+    position: absolute;
+
+    top: -6px;
+
+    left: var(--arrow-left, 20px);
+
+    width : 8.5px;
+    height: 8.5px;
+
+    background: white;
+
+    border-left: 1.5px solid #b1b6bc;
+    border-top: 1.5px solid #b1b6bc;
+
+    transform: rotate(45deg);
 }
 
-/*富文本表格*/
+@media (pointer: coarse) {
+
+    .rt-note-tooltip {
+        width: fit-content;
+
+        max-width: min(420px, calc(100vw - 30px));
+    }
+
+    .rt-note-tooltip::before {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .rt-note-trigger {
+        font-size: 1em;
+    }
+
+}
+
+@keyframes rt-note-pop {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rt-hr {
+    border: none;
+    border-top: 2px solid #9f9f9f;
+    margin: 16px 0;
+}
+
+/* ========================富文本表格====================== */
 
 .rt-table {
     border-collapse: collapse;
-    width: 100%;
-    margin: 1em 0;
+
+    width: max-content;
+    max-width: 100%;
 }
 
 .rt-table th,
 .rt-table td {
     border: 1px solid #ccc;
     padding: 8px 12px;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .rt-table th {
     background: #f5f5f5;
+}
+
+/* 多列表格第一列不换行 */
+.rt-table tr > :first-child:not(:last-child) {
+    white-space: nowrap;
 }

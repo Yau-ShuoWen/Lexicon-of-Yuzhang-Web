@@ -166,11 +166,15 @@
 
 /* ========================富文本表格====================== */
 
+.rt-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* 共通 */
+
 .rt-table {
     border-collapse: collapse;
-
-    width: max-content;
-    max-width: 100%;
 }
 
 .rt-table th,
@@ -178,15 +182,58 @@
     border: 1px solid #ccc;
     padding: 8px 12px;
 
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
 }
 
 .rt-table th {
     background: #f5f5f5;
 }
 
-/* 多列表格第一列不换行 */
-.rt-table tr > :first-child:not(:last-child) {
+/* 表格模式 */
+
+/* 全部都是 ! */
+
+.rt-table-compact {
+    width: max-content;
+}
+
+/* 一般表格 */
+
+.rt-table-auto {
+    width: auto;
+}
+
+/* 存在 * */
+
+.rt-table-fill {
+    width: 100%;
+}
+
+/* 欄位類型 */
+
+.rt-col-nowrap {
     white-space: nowrap;
+    width: 1%;
+}
+
+.rt-col-normal {
+    min-width: 120px;
+}
+
+.rt-col-long {
+    min-width: 280px;
+}
+
+/* 手機 */
+
+@media (max-width: 768px) {
+
+    .rt-col-normal {
+        min-width: 100px;
+    }
+
+    .rt-col-long {
+        min-width: 300px;
+    }
 }

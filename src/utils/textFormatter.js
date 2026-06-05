@@ -2,11 +2,11 @@
 export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
+    text = processBracketPhonetic(text);
     text = processCurlySyntax(text);
     text = processTable(text);
     text = processList(text);
     text = processHorizontalRule(text);
-    text = processBracketPhonetic(text);
     text = processLineBreak(text);
     text = processSpaces(text);
 
@@ -156,9 +156,8 @@ function processCurlySyntax(text) {
 
 
                 const parsed = parseCurly(inner, true);
-                const safe = parsed.replace(/"/g, "&quot;");
 
-                return `<span class="rt-note" data-note="${encodeURIComponent(safe)}"><span class="rt-note-trigger">※</span></span>`;
+                return `<span class="rt-note" data-note="${encodeURIComponent(parsed)}"><span class="rt-note-trigger">※</span></span>`;
 
             case "l": {
 
@@ -247,7 +246,7 @@ function processCurlySyntax(text) {
     }
 }
 
-// 處理 markdown table
+// 處理表格
 function processTable(text) {
 
     const lines = text.split(/\r?\n/);
@@ -300,16 +299,16 @@ function processTable(text) {
         // render
         let html = `<table class="rt-table">`;
 
-        // 有 header 才 render thead
+        // thead
         if (headers) {
 
             html += `<thead><tr>`;
 
             headers.forEach((cell, idx) => {
 
-                const align = aligns[idx] || "left";
+                const info = aligns[idx] || {};
 
-                html += `<th style="text-align:${align}">${cell}</th>`;
+                html += `<th class="${getColumnClass(info)}"style="text-align:${info.align || "left"}">${cell}</th>`;
             });
 
             html += `</tr></thead>`;
@@ -330,10 +329,10 @@ function processTable(text) {
 
                 for (let idx = 0; idx < colCount; idx++) {
 
-                    const align = aligns[idx] || "left";
+                    const info = aligns[idx] || {};
                     const cell = row[idx] || "";
 
-                    html += `<td style="text-align:${align}">${cell}</td>`;
+                    html += `<td class="${getColumnClass(info)}"style="text-align:${info.align || "left"}">${cell}</td>`;
                 }
 
                 html += `</tr>`;
@@ -343,6 +342,8 @@ function processTable(text) {
         }
 
         html += `</table>`;
+
+        html = `<div class="rt-table-wrap">${html}</div>`;
 
         result.push(html);
     }
@@ -364,7 +365,8 @@ function processTable(text) {
         const cells = splitTableRow(line);
 
         return cells.every(cell =>
-            /^:?-{3,}:?$/.test(cell.trim())
+            /^:?-{2,}[!*]?:?$/.test(cell.trim()) ||
+            /^:?-{2,}:?[!*]?$/.test(cell.trim())
         );
     }
 
@@ -386,16 +388,37 @@ function processTable(text) {
 
             const c = cell.trim();
 
+            let align = "left";
+
             if (c.startsWith(":") && c.endsWith(":")) {
-                return "center";
+                align = "center";
+            } else if (c.endsWith(":")) {
+                align = "right";
             }
 
-            if (c.endsWith(":")) {
-                return "right";
-            }
+            let widthType = "normal";
 
-            return "left";
+            if (c.includes("!")) widthType = "nowrap";
+            else if (c.includes("*")) widthType = "long";
+
+
+            return {
+                align,
+                widthType
+            };
         });
+    }
+
+    function getColumnClass(info) {
+
+        switch (info?.widthType) {
+            case "nowrap":
+                return "rt-col-nowrap";
+            case "long":
+                return "rt-col-long";
+            default:
+                return "rt-col-normal";
+        }
     }
 }
 
@@ -466,6 +489,8 @@ function processBracketPhonetic(text) {
 // 处理换行
 function processLineBreak(text) {
     text = text.replace(/\r/g, "");
+
+    text = text.replace(/(<\/table>)\n/g, "$1");
 
     // 先處理兩個以上換行
     text = text.replace(/\n{2,}/g, (match) => {

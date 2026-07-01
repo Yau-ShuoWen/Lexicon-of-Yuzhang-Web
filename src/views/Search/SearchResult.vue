@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import JumpButton from "../../components/Button/JumpButton.vue";
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import { showError, showWarning } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
@@ -17,42 +16,41 @@ const searchQuery = ref('')
 const results = ref([])
 const loading = ref(true)
 
+const extraVisibleCount = ref(0)
+
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
+const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+
+const isRandom = computed(() => searchQuery.value === 'random')
+
+const visibleExtraResults = computed(() => {
+  return results.value?.[1]?.slice(0, extraVisibleCount.value) || []
+})
+
+const hasMoreExtraResults = computed(() => {
+  const total = results.value?.[1]?.length || 0
+  return extraVisibleCount.value < total
+})
 
 useHead({
-  title: () =>
-  {
-    if(searchQuery.value) return `${t('common.search')}：${searchQuery.value}`;
-    else if(loading.value) return `${t('common.loading')}`
+  title: () => {
+    if(isRandom) return `${t('common.search')}`
+    if (searchQuery.value) return `${t('common.search')}：${searchQuery.value}`;
+    else if (loading.value) return `${t('common.loading')}`
   }
 })
 
-const getSearchConfig = () => {
-  try {
-    const cached = localStorage.getItem('search_page_config')
-    if (cached) return JSON.parse(cached)
-  } catch (e) {
-    console.error('读取搜索配置失败:', e)
-  }
-
-  return {vague: false}
-}
-
-/**
- * 执行搜索
- */
 const handleSearch = async (query) => {
   if (!query.trim()) return
 
   loading.value = true
   results.value = []
+  extraVisibleCount.value = 0
 
   try {
-    const config = getSearchConfig()
-
     const params = new URLSearchParams({
-      query: query.trim(), vague: config.vague
+      query: query.trim()
     })
 
     const res = await fetch(`/api/search/${language.value}/${dialect.value}/query?${params}`)
@@ -60,7 +58,12 @@ const handleSearch = async (query) => {
 
     results.value = await res.json()
 
-    if (results.value.length <= 0) showWarning('沒有查詢到結果')
+    const mainCount = results.value?.[0]?.length || 0
+    const extraCount = results.value?.[1]?.length || 0
+
+    if (mainCount + extraCount <= 0) {
+      showWarning('沒有查詢到結果')
+    }
   } catch (err) {
     console.error('查询失败:', err)
     showError('查询失败，请稍後再試')
@@ -69,6 +72,15 @@ const handleSearch = async (query) => {
     loading.value = false
   }
 }
+
+const shouldShowEndTip = computed(() => {
+  const mainCount = results.value?.[0]?.length || 0
+  const extraCount = results.value?.[1]?.length || 0
+  if (mainCount + extraCount <= 0) return false
+  if (extraCount > 0 && hasMoreExtraResults.value) return false
+
+  return true
+})
 
 /**
  * 路由变化驱动搜索
@@ -83,6 +95,13 @@ watch(
     },
     {immediate: true}
 )
+
+/**
+ * 加载更多补充结果
+ */
+const loadMoreExtraResults = () => {
+  extraVisibleCount.value += 10
+}
 
 /**
  * 重试
@@ -104,59 +123,89 @@ const getResultLink = (result) => {
 
   return '/'
 }
-
-const handleResultClick = (result) => {
-  if (!result?.tag || !result?.info) {
-    console.error('搜索结果结构异常:', result)
-    return
-  }
-
-  let path = ''
-
-  if (result.tag === 'hanzi') path = `/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`
-  if (result.tag === 'ciyu') path = `/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`
-
-
-  if (path) {
-    const routeData = router.resolve(path)
-    window.open(routeData.href, '_blank')
-  }
-}
 </script>
 
 <template>
   <div class="narrow-layout">
 
-    <JumpButton to="/home" button-text="← 返回首页" size="middle"/>
+    <div class="nav-button-wrapper">
+      <router-link class="dev-normal-button dev-btn-middle router-middle" :to="getPath('home')"
+                   v-formatted-text="$t('search_result.back_to_home')"/>
+
+      <button v-if="isRandom" @click="handleRetry"
+              class="dev-btn-middle dev-add-btn"
+              v-formatted-text="$t('search_result.random_again')"
+      />
+    </div>
+
 
     <LoadingIcon v-if="loading"/>
 
     <div v-else class="results-section">
 
-      <div class="results-list">
+      <!-- 主结果 -->
+      <div v-if="results[0]?.length" class="results-group">
+
         <div class="results-list">
           <router-link
-              v-for="(result, index) in results"
-              :key="index"
-              class="search-result-item"
+              v-for="(result, index) in results[0]"
+              :key="`main-${index}`"
+              :class="['search-result-item', result.tag === 'hanzi'? 'hanzi-item': 'ciyu-item']"
               :to="getResultLink(result)"
           >
             <div class="result-content">
+
               <div class="result-main">
                 <h3 class="result-title" v-formatted-text="result.title"/>
-                <p class="result-explain" v-formatted-text="`{b ${result.explain}}`"/>
+                <p class="result-explain" v-formatted-text="result.explain"/>
               </div>
 
-              <!-- ✅ 新增：右侧图片 -->
-              <img
-                  v-if="result.special === true"
-                  :src="ideaIcon"
-                  class="result-icon"
-                  alt="special"
-              />
+              <img v-if="result.special === true" :src="ideaIcon" class="result-icon" alt="special"/>
+
             </div>
           </router-link>
         </div>
+      </div>
+
+      <!-- 补充结果 -->
+      <div v-if="results[1]?.length" class="results-group extra-group">
+
+        <div v-if="visibleExtraResults.length" class="results-list">
+          <router-link
+              v-for="(result, index) in visibleExtraResults"
+              :key="`extra-${index}`"
+              class="search-result-item extra-item"
+              :to="getResultLink(result)"
+          >
+            <div class="result-content">
+
+              <div class="result-main">
+                <h3 class="result-title" v-formatted-text="result.title"/>
+                <p class="result-explain" v-formatted-text="result.explain"/>
+              </div>
+
+              <img v-if="result.special === true"
+                   :src="ideaIcon" class="result-icon" alt="special"
+              />
+
+            </div>
+          </router-link>
+        </div>
+
+        <button
+            v-if="hasMoreExtraResults"
+            class="dev-btn-middle dev-nav-button load-more-btn"
+            @click="loadMoreExtraResults"
+            v-formatted-text="$t('search_result.more_result')"
+        />
+
+      </div>
+      <div v-if="shouldShowEndTip&&!isRandom" class="search-end-tip">
+        <div v-formatted-text="$t('search_result.no_more')"></div>
+
+        <router-link class="normal-link" :to="getPath(`search?q=random`)"
+                     v-formatted-text="$t('search_result.try_random')"/>
+        <!--            还是和我们反馈  v-formatted-text="$t('search_result.try_feedback')-->
       </div>
 
     </div>
@@ -164,6 +213,11 @@ const handleResultClick = (result) => {
 </template>
 
 <style>
+
+.nav-button-wrapper {
+  margin-bottom: 20px;
+}
+
 .results-list {
   display: flex;
   flex-direction: column;
@@ -171,7 +225,6 @@ const handleResultClick = (result) => {
 }
 
 .search-result-item {
-  background: var(--card-bg-color);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
   overflow: hidden;
@@ -180,9 +233,60 @@ const handleResultClick = (result) => {
 }
 
 .search-result-item:hover {
-  border-color: var(--color-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+
+.hanzi-item {
+  background: #b7d397; /*c8dfa6*/
+}
+
+.hanzi-item:hover {
+  border-color: #889f60;
+}
+
+.ciyu-item {
+  background: var(--card-bg-color);
+}
+
+.ciyu-item:hover {
+  border-color: var(--color-primary);
+}
+
+.extra-item {
+  background: #e4e4e4;
+  border: 1px solid #b6b6b6;
+}
+
+.extra-item:hover {
+  border-color: #999999;
+}
+
+.results-section {
+  padding-bottom: 100px;
+}
+
+.extra-group {
+  padding-top: 12px;
+  margin-top: 50px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.load-more-btn {
+  align-self: center;
+  min-width: 180px;
+}
+
+.load-more-btn {
+  align-self: center;
+  margin-top: 4px;
+}
+
+/* =========================
+   内容
+========================= */
 
 .result-content {
   display: flex;
@@ -197,7 +301,7 @@ const handleResultClick = (result) => {
 
 .result-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-text);
   margin-bottom: 8px;
 }
@@ -220,5 +324,12 @@ const handleResultClick = (result) => {
   height: 28px;
   margin-left: 16px;
   opacity: 0.8;
+}
+
+.search-end-tip {
+  text-align: center;
+  margin-top: 50px;
+  color: var(--color-text-light);
+  line-height: 1.8;
 }
 </style>

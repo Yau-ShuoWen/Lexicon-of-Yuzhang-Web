@@ -103,7 +103,7 @@ watch(
           :key="index"
           class="pronunciation-block"
       >
-        <SpecialTag :special="info.special" type="hanzi" :dialect="dialect"/>
+
 
         <h2 class="pinyin-title" v-formatted-text="$t(info.mainPy)"/>
 
@@ -135,6 +135,8 @@ watch(
             </table>
           </div>
         </div>
+
+        <SpecialTag :special="info.special" type="hanzi" :dialect="dialect"/>
 
         <div
             v-if="info.note && info.note.length"
@@ -170,9 +172,9 @@ watch(
             :key="i"
             class="ref-row"
         >
-          <div class="ref-content" v-formatted-text="r.source"/>
-          <div class="ref-content" v-formatted-text="r.content"/>
-          <div class="ref-content" v-formatted-text="r.note"/>
+          <div class="ref-content" v-if="r.content" v-formatted-text="r.content"/>
+          <div class="ref-source " v-if="r.source " v-formatted-text="r.source "/>
+          <div class="ref-content" v-if="r.note   " v-formatted-text="r.note   "/>
 
         </div>
       </div>
@@ -194,7 +196,7 @@ watch(
 
 .pronunciation-block {
   background: var(--color-background);
-  border: 1.5px solid var(--color-primary-light);
+  border: 2px solid var(--color-primary-light);
   border-radius: var(--border-radius-md);
   padding: 24px;
   margin-bottom: 20px;
@@ -215,10 +217,6 @@ watch(
   font-weight: 700;
   margin-left: 5px;
   margin-bottom: 20px;
-}
-
-.special {
-  color: var(--color-text-light);
 }
 
 .table {
@@ -276,19 +274,6 @@ watch(
   grid-column: 3;
 }
 
-.ipa-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.ipa-dict {
-  color: var(--color-text-light);
-}
-
-.ipa-value {
-  font-family: monospace;
-}
-
 .note-row {
   margin-bottom: 10px;
 }
@@ -311,7 +296,6 @@ watch(
 }
 
 .ref-source {
-  font-size: 12px;
   color: var(--color-text-light);
 }
 

@@ -22,7 +22,7 @@ useHead({
   title: () => {
     if (data.value) return `${t('linguistic.ciyu')}：${data.value.ciyu}`;
     else if (loading.value) return `${t('common.loading')}`
-    else if(notFound.value) return `aaa`
+    else if(notFound.value) return `${t('linguistic.ciyu')}（未找到）`
   }
 })
 
@@ -92,26 +92,11 @@ watch(
 
     <div v-else-if="data" class="detail-content">
 
-<!--      &lt;!&ndash; 词语标题 &ndash;&gt;-->
-<!--      <div class="hanzi-header">-->
-
-<!--      </div>-->
-
       <div class="block-pinyin">
         <div class="hanzi-char" v-formatted-text="data.ciyu"/>
         <div class="pinyin-title" v-formatted-text="data.mainPy"/>
 
         <SpecialTag :special="data.special" type="ciyu" :dialect="dialect"/>
-
-<!--        <div class="section" v-if="data.similar && data.similar.length">-->
-<!--          <h3 class="section-title">相似词</h3>-->
-<!--          <table class="table mean-list">-->
-<!--            <tr v-for="(s, i) in data.similar" :key="i">-->
-<!--              <td class="cell-label" v-formatted-text="s.left"/>-->
-<!--              <td class="cell-value" v-formatted-text="s.right"/>-->
-<!--            </tr>-->
-<!--          </table>-->
-<!--        </div>-->
       </div>
 
       <div v-if="data.mean?.length" class="block-mean">
@@ -149,10 +134,6 @@ watch(
 
     <div v-else-if="notFound" class="detail-content">
 
-<!--      <div class="hanzi-header">-->
-<!--        <h1 class="hanzi-char"></h1>-->
-<!--      </div>-->
-
       <div class="block-pinyin">
         <div class="section">
           <h2 class="pinyin-title">
@@ -181,15 +162,6 @@ watch(
 </template>
 
 <style>
-.hanzi-header {
-  text-align: center;
-  margin: 30px 0 24px;
-  padding: 32px 20px;
-  background: #90d393;
-  border-radius: var(--border-radius-xl);
-  box-shadow: var(--shadow-md);
-}
-
 .hanzi-char {
   font-size: 56px;
   font-weight: 400;
@@ -269,30 +241,9 @@ watch(
   background: #2c98a8;
 }
 
-.table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin: 14px 0;
-  border-radius: var(--border-radius-md);
-  overflow: hidden;
-}
-
 .table td {
   border: 1px solid var(--color-border);
   padding: 12px 16px;
-}
-
-.cell-label {
-  background: var(--color-background-alt);
-  width: 50%;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.cell-value {
-  width: 50%;
-  background: var(--color-background);
 }
 
 .mean-list {

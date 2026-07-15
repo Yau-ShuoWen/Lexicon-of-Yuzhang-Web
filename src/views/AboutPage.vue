@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted,watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingIcon from "../components/Status/LoadingIcon.vue";
 import { showError } from "../services/ToastService.js";
@@ -23,10 +23,15 @@ useHead({
 const fetchAbout = async () => {
   loading.value = true
 
+
   try {
-    const res = await fetch(`/api/info/about-page/${dialect.value}`)
+    const start = Date.now();
+
+    const res = await fetch(`/api/info/about-page/${dialect.value}/${language.value}`)
     if (!res.ok) throw new Error(t('common.loadingError'))
     result.value = await res.json()
+    
+    console.log('SQL耗时:', Date.now() - start, 'ms');
 
   } catch (err) {
     console.error(err)
@@ -40,6 +45,10 @@ const fetchAbout = async () => {
 onMounted(() => {
   fetchAbout()
 })
+
+watch([language, dialect], () => {
+  fetchAbout()
+}, { immediate: true })
 </script>
 
 <template>
@@ -54,9 +63,9 @@ onMounted(() => {
       <div class="left-column">
 
         <!-- 關於 -->
-        <div class="about-box contact-box">
-          <div class="contact-title" v-formatted-text="$t('nav.about')"/>
-          <div v-formatted-text="result.about[language]"></div>
+        <div class="about-box margin-bottom-box">
+          <div class="contact-title" v-formatted-text="$t('about_page.about')"/>
+          <div v-formatted-text="result.about"></div>
         </div>
 
         <div class="selector-container">
@@ -69,35 +78,38 @@ onMounted(() => {
       <!-- 右側 -->
       <div class="right-column">
 
+
+
+
         <!-- 統計 -->
-        <div class="text-box contact-box">
-          <div class="contact-title" v-formatted-text="$t('nav.statistic')"/>
-          <div v-formatted-text="result.statistic[language]"></div>
+        <div class="right-box margin-bottom">
+          <div class="contact-title" v-formatted-text="$t('about_page.statistic')"/>
+          <div v-formatted-text="result.statistic"></div>
         </div>
 
-<!--        &lt;!&ndash; 致謝 &ndash;&gt;-->
-<!--        <div class="text-box contact-box">-->
-<!--          <div class="contact-title" v-formatted-text="$t('nav.thanks')"/>-->
-<!--          <div v-formatted-text="result.thanks[language]"></div>-->
-<!--        </div>-->
+        <!-- 致謝 -->
+        <div class="right-box margin-bottom">
+          <div class="contact-title" v-formatted-text="$t('about_page.thanks')"/>
+          <div v-formatted-text="result.thanks"></div>
+        </div>
 
-        <div class="text-box">
-          <div class="contact-title" v-formatted-text="$t('nav.contact')"/>
+        <div class="right-box">
+          <div class="contact-title" v-formatted-text="$t('about_page.contact')"/>
 
           <div class="contact-list">
 
             <a href="https://github.com/Yau-ShuoWen" target="_blank" class="contact-item">
-              <img src="../assets/icons/github.svg" class="icon"/>
+              <img src="../assets/icons/github.svg" class="icon-clickable"/>
               {{ $t('about.github_project') }}
             </a>
 
             <div class="contact-item">
-              <img src="../assets/icons/qq.svg" class="icon"/>
+              <img src="../assets/icons/qq.svg" class="icon-clickable"/>
               QQ交流群：496423006
             </div>
 
             <a href="https://beian.miit.gov.cn" target="_blank" class="contact-item">
-              <img src="../assets/icons/icp.svg" class="icon"/>
+              <img src="../assets/icons/icp.svg" class="icon-clickable"/>
               蜀ICP备 2026005399号
             </a>
 
@@ -105,7 +117,7 @@ onMounted(() => {
                 :to="{ name: 'YswHome', params: { language: language } }"
                 class="contact-item"
             >
-              <img src="../assets/icons/developer.svg" class="icon"/>
+              <img src="../assets/icons/developer.svg" class="icon-clickable"/>
               {{ `說文的屋里（彩蛋）` }}
             </router-link>
 
@@ -128,11 +140,15 @@ onMounted(() => {
   padding: 20px;
   line-height: 1.7;
   color: var(--color-text);
+  margin-bottom: 30px;
 }
 
+.margin-bottom {
+  margin-bottom: 30px;
+}
 
 /* 内容区域 */
-.text-box {
+.right-box {
   background: var(--app-bg-color);
   border: 1.5px solid var(--color-primary);
   border-radius: var(--border-radius-md);
@@ -174,7 +190,7 @@ onMounted(() => {
 }
 
 /* 图标 */
-.icon {
+.icon-clickable {
   width: 20px;
   height: 20px;
   margin-right: 10px;

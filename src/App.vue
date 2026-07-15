@@ -7,8 +7,6 @@ import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
 import ToastWindow from "./components/Window/ToastWindow.vue";
 import { initNoteTooltip } from "./utils/noteTooltip.js";
 
-
-
 // 路由
 const route = useRoute()
 
@@ -52,7 +50,10 @@ const statue = computed(() => {
       <router-link :to="getPath(`ysw/alphabet`)" class="nav-link"
                    v-formatted-text="$t('personal.alphabet_table.title_short')"
       />
-      <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="`词典↗`"/>
+      <router-link :to="getPath(`ysw/diary`)" class="nav-link"
+                   v-formatted-text="language === 'tc' ? '日記' : '日记'"
+      />
+      <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="`词典↗`"  target="_blank"/>
     </nav>
 
     <main class="page-container">

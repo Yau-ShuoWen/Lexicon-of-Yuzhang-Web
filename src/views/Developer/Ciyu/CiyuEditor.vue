@@ -8,6 +8,8 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
+import { useHead } from '@vueuse/head'
+import CopyButton from "../../../components/Button/CopyButton.vue";
 
 // 路由
 const route = useRoute()
@@ -23,10 +25,27 @@ const updateData = ref({
   ciyu: {sc: '', tc: ''},
   special: 0,
   mainPy: [],
-  variantPy: [],
   similar: [],
-  mean: []
+  note: [],
+  mean: [],
+  status: 1
 })
+
+useHead({
+  title: () => {
+    if (updateData.value) return `${updateData.value.ciyu.tc}：編輯詞語`;
+    else if (loading.value) return `編輯詞語`
+  }
+})
+
+const noteTags = [
+  {code: 'usage', name: '用法說明'},
+  {code: 'pronun', name: '讀音說明'},
+  {code: 'struct', name: '詞語結構'},
+  {code: 'source', name: '字源考證'},
+  {code: 'history', name: '歷史演變'},
+  {code: 'proverb', name: '相關俗語'}
+]
 
 const isNew = ref(!id || id === 'new')
 const isLoading = ref(false)
@@ -42,18 +61,7 @@ const loadCiyu = async (id) => {
     const json = await res.json()
     if (!json.success || json.data.empty) throw new Error('未找到数据')
 
-    const value = json.data.value
-
-    // 直接使用后端对象
-    updateData.value = {
-      id: value.id,
-      ciyu: value.ciyu,
-      special: value.special,
-      mainPy: value.mainPy,
-      variantPy: value.variantPy,
-      similar: value.similar,
-      mean: value.mean
-    }
+    updateData.value = json.data.value
   } catch (err) {
     console.error(err)
     showError('加载失败：' + err.message)
@@ -95,28 +103,8 @@ const saveData = async () => {
   }
 }
 
-// 数组操作
-const addArrayItem = (array, template = {}) => array.push({...template})
-const removeArrayItem = (array, index) => array.splice(index, 1)
-
-// 新增 variantPy
-const addVariantPyItem = (idx) => {
-  if (!updateData.value.variantPy[idx]) {
-    updateData.value.variantPy[idx] = []
-  }
-  updateData.value.variantPy[idx].push({left: '', right: {sc: '', tc: ''}})
-  if (!updateData.value.mainPy[idx]) updateData.value.mainPy[idx] = ''
-}
-
-// 初始化
 onMounted(() => {
-  if (!isNew.value) loadCiyu(id)
-  else {
-    // 新建词条：每个字至少有一个空拼音对象
-    const chars = updateData.value.ciyu.sc.split('')
-    updateData.value.mainPy = chars.map(() => '')
-    updateData.value.variantPy = chars.map(() => [{left: '', right: {sc: '', tc: ''}}])
-  }
+  loadCiyu(id)
 })
 </script>
 
@@ -139,8 +127,25 @@ onMounted(() => {
       <div class="form-section">
         <div class="form-grid">
           <div class="form-field">
-            <h4>繁體：{{ updateData.ciyu.tc }}</h4>
-            <h4>簡體：{{ updateData.ciyu.sc }}</h4>
+            <h4>
+              繁體：
+              <router-link
+                  :to="`/tc/${dialect}/c/${updateData.ciyu.tc}`"
+                  class="word-link" target="_blank"
+              >
+                {{ updateData.ciyu.tc }}
+              </router-link>
+            </h4>
+
+            <h4>
+              簡體：
+              <router-link
+                  :to="`/sc/${dialect}/c/${updateData.ciyu.sc}`"
+                  class="word-link" target="_blank"
+              >
+                {{ updateData.ciyu.sc }}
+              </router-link>
+            </h4>
           </div>
           <div class="form-field">
             <label>特殊标记</label>
@@ -150,6 +155,18 @@ onMounted(() => {
               <option value="2">固定用法</option>
               <option value="4">百科</option>
             </select>
+          </div>
+
+          <div class="form-field">
+            <label>词条状态</label>
+            <select v-model="updateData.status" class="short-input">
+
+              <option value="0">不需要補充</option>
+              <option value="1">需要补充内容</option>
+              <option value="2">存疑</option>
+              <option value="3">完成</option>
+            </select>
+
           </div>
         </div>
       </div>
@@ -161,43 +178,26 @@ onMounted(() => {
           <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
                     :model-value="updateData.mainPy.toString()"/>
         </div>
-
-        <h3>拼音說明</h3>
-        <DraggableList
-            v-model="updateData.variantPy"
-            :createItem="() => ({ text: { sc: '', tc: '' }})"
-        >
-          <template #default="{ item, index }">
-            <div class="array-item complex-item">
-
-              <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
-                           :layout="'large'" :dialect="dialect.toString()"/>
-
-            </div>
-          </template>
-        </DraggableList>
       </div>
 
       <!-- 相似词语 -->
       <div class="form-section">
         <div class="section-header">
           <h3>相似词语</h3>
-          <button class="dev-add-btn"
-                  @click="addArrayItem(updateData.similar, { id: null, text: { sc: '', tc: '' }, type: '1' })">
-            添加
-          </button>
         </div>
         <DraggableList
             v-model="updateData.similar"
-            :createItem="() => ({ text: { sc: '', tc: '' }})"
+            :createItem="() => ({type:1, text: { sc: '', tc: '' }})"
         >
           <template #default="{ item, index }">
             <div class="array-item">
 
-              <select v-model="item.type" class="short-input">
-                <option value="1">同義詞</option>
-                <option value="2">不展示</option>
-                <option value="3">错误写法</option>
+              <select v-model="item.type" class="middle-input">
+                <option value="4">方言同義詞</option>
+                <option value="5">方言相關詞彙</option>
+                <option value="1">普通話對應詞</option>
+                <option value="2">搜索優化詞語</option>
+                <option value="3">常用错误写法</option>
               </select>
               <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
                            :layout="'small'" :dialect="dialect.toString()"/>
@@ -208,16 +208,123 @@ onMounted(() => {
       </div>
 
       <div class="form-section">
+        <h3>註釋</h3>
+
+        <CopyButton text="__既可以读作[]（__音），也可以读作[]（__音），原因是___。" hint="多個讀音的說明模板"
+                    class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- 新派的南昌話除了少數漢字，大部分陽入（第七聲[at7]）都可以讀作陰入（第六聲[at6]）"
+                    hint="南昌話入聲混用的說明模板" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="「」單獨讀作[]，這裡讀作[]。
+變調規則：兩個3聲{n 上聲}連讀的時候，前一個字變為第2聲{n 陽平}，這個特點和普通話類似。"
+                    hint="3 3變調" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="「」單獨讀作[]，這裡讀作[]。
+變調規則：3聲{n 上聲}、5聲{n 陽去}連讀的時候，前一個字變為第2聲{n 陽平}"
+                    hint="3 5變調" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="「」單獨讀作[]，這裡讀作[]。
+變調規則：3聲{n 上聲}、7聲{n 陽去}連讀的時候，前一個字變為第2聲{n 陽平}"
+                    hint="3 7變調" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="書既可以读作[_]（老派音），也可以读作[_]（新派音），原因是新派更接近普通話
+相關的規則是：一部分漢字老派讀作[jyu qyu xyu]的時候，新派讀作[zu cu su]，比如：
+|字|老派音|新派音|
+|---!|---!|---!|
+|豬|[jyu1]|[zu1]|
+|主|[jyu3]|[zu3]|
+|處|[qyu3]|[cu3]|
+|住|[qyu3]|[cu3]|
+|書|[xyu1]|[su1]|
+|樹|[xyu5]|[su5]|
+{b 本字典作為當下的方言詞典，以現代讀法（新派音）為主。}" hint="zcs jqx新老派" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="
+「___」是同音替代/自創__字，本字待考。
+- 選擇的理由是：
+- 不符合的部分：
+其他相關研究：
+|寫法|理由|
+|---|---|
+|||
+|||
+|||
+" hint="特殊漢字說明模板" class="dev-normal-button dev-btn-middle"/>
+
+
+        <DraggableList
+            v-model="updateData.note"
+            :createItem="() => ({ left: 'usage', right: { sc: '', tc: '' }})"
+        >
+          <template #default="{ item, index }">
+            <div class="array-item complex-item">
+
+              <select v-model="item.left" class="short-input">
+                <option
+                    v-for="tag in noteTags"
+                    :key="tag.code"
+                    :value="tag.code"
+                >
+                  {{ tag.name }}
+                </option>
+              </select>
+
+              <ScAndTcText v-model:traditionalText="item.right.tc" v-model:simplifiedText="item.right.sc"
+                           :layout="'large'" :dialect="dialect.toString()"/>
+
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                        :model-value="item.right.tc"/>
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                        :model-value="item.right.sc"/>
+            </div>
+          </template>
+        </DraggableList>
+      </div>
+
+
+      <div class="form-section">
         <h3>含義</h3>
+
+
+        <CopyButton text="用法對應普通話的「」" hint="普通話同義詞的模板" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="南昌話里自然的口語表達里不會出現「」這個詞語，而是用這個詞代替。" hint="南昌話不會這麼表達的模板" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="|---!|---*|
+|例句||
+|說法||
+|直譯||
+|讀音||
+相關詞彙：
+- {c }：[] （）
+- {c }：[] （）
+- {c }：[] （）" hint="例句表格" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="這個詞條的重點在讀音上，內容不做詳細講解。" hint="重點在讀音上的模板" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="- {c }：[] （）" hint="例句相關詞彙的模板" class="dev-normal-button dev-btn-middle"/>
+
+        <CopyButton text="- {c 箇}：[go3] （這）" hint="箇" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 嗰}：[go0] （的）" hint="嗰" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 許}：[he3]/[e3] （那，兩個讀音都可以）" hint="許" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 係}：[xi5] （是）" hint="係" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 噶}：[gak6] （這下）" hint="噶" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 渠}：[jie2] （他、她、它）" hint="渠" class="dev-normal-button dev-btn-middle"/>
+
+
         <DraggableList v-model="updateData.mean" :createItem="() => ({ sc: '', tc: '' })">
           <template #default="{ item, index }">
 
             <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
                          :layout="'large'" :dialect="dialect.toString()"/>
 
+            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                      :model-value="item.tc"/>
+            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
+                      :model-value="item.sc"/>
+
           </template>
         </DraggableList>
       </div>
+
 
     </div>
   </div>
@@ -233,7 +340,7 @@ onMounted(() => {
 .form-section {
   margin-bottom: 30px;
   padding: 20px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-text-lighter);
   border-radius: 8px;
 }
 
@@ -296,6 +403,14 @@ onMounted(() => {
   min-width: 120px;
 }
 
+.middle-input {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 180px;
+  min-width: 120px;
+}
+
 .array-item {
   display: flex;
   gap: 8px;
@@ -322,5 +437,14 @@ button {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+}
+
+.word-link {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.word-link:hover {
+  text-decoration: underline;
 }
 </style>

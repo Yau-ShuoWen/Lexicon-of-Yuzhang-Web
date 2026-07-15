@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import DraggableList from "../../components/Layout/DraggableList.vue";
+import DraggableList from "../../../components/Layout/DraggableList.vue";
 
 
 // 测试数据

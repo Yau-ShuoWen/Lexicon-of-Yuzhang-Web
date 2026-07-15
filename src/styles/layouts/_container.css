@@ -79,17 +79,17 @@
 
 .white-background {
     padding: 30px;
-    margin: 10px;
+    margin: 30px;
     background: var(--color-background);
     border: 1.5px solid var(--color-text-lighter);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--border-radius-md);
 }
 
 @media (max-width: 480px) {
 
     .white-background {
         padding: 20px 10px;
-        margin: 0;
+        margin: 0 0 20px;
     }
 }
 
@@ -108,10 +108,30 @@
     margin-bottom: 15px;
 }
 
+
+
 .pronunciation-block {
     background: var(--color-background);
     border: 2px solid var(--color-primary-light);
     border-radius: var(--border-radius-md);
     padding: 24px;
+    margin-bottom: 20px;
+}
+
+.text-box {
+    background: var(--color-background);
+    border: 2px solid var(--color-primary-light);
+    border-radius: var(--border-radius-md);
+    padding: 20px;
+    line-height: 1.7;
+    color: var(--color-text);
+    margin-bottom: 20px;
+}
+
+.table-block {
+    background: var(--color-background);
+    border: 2px solid var(--color-primary-light);
+    border-radius: var(--border-radius-md);
+    padding: 10px 5px;
     margin-bottom: 20px;
 }

@@ -1,12 +1,10 @@
 <script setup>
 
-import CopyButton from "../../components/Button/CopyButton.vue";
-import JumpButton from "../../components/Button/JumpButton.vue";
+import CopyButton from "../../../components/Button/CopyButton.vue";
+import JumpButton from "../../../components/Button/JumpButton.vue";
 </script>
 
 <template>
-
-  <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
 
   <div>
     <CopyButton text="˥" hint="˥" class="dev-normal-button dev-btn-middle"/>

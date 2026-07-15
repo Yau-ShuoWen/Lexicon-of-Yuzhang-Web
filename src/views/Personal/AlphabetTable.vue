@@ -214,17 +214,8 @@ onMounted(async () => {
             <h3>{{ grid.name }}</h3>
           </div>
 
-          <div
-              v-for="line in grid.line"
-              :key="line.id"
-              class="pinyin-line"
-          >
-
-            <div
-                v-for="group in line.group"
-                :key="group.id"
-                class="pinyin-group"
-            >
+          <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
+            <div v-for="group in line.group" :key="group.id" class="pinyin-group">
 
               <div class="items-grid">
 
@@ -278,7 +269,7 @@ onMounted(async () => {
 
 .group-header h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 20px;
   color: #34495e;
   font-weight: 600;
 }

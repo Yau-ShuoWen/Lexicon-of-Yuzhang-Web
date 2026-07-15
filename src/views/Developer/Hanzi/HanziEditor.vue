@@ -17,7 +17,7 @@ const id = route.params.id
 // 语言、方言和路径
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (id) => `/${language.value}/${dialect.value}/hanzi-editor/${id}`
+const getPath = (id) => `/${language.value}/${dialect.value}/dev/hanzi-editor/${id}`
 
 const updateData = ref({
   id: null,

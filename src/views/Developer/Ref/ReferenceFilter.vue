@@ -85,7 +85,7 @@ const fetchPageOptions = async () => {
 
 watch(selectedPage, async (val) => {
   if (!val || !selectedDictionary.value) return
-  window.open(getPath(`ref-editor/${selectedDictionary.value}/${val}`), '_blank')
+  window.open(getPath(`dev/ref-editor/${selectedDictionary.value}/${val}`), '_blank')
 })
 
 
@@ -165,7 +165,7 @@ watch(selectedDictionary, () => {
         <router-link
             v-for="item in searchResults"
             :key="item.tag"
-            :to="getPath(`ref-editor/${item.info.dict}/${item.info.sort}`)"
+            :to="getPath(`dev/ref-editor/${item.info.dict}/${item.info.sort}`)"
             class="result-item"
             target="_blank"
         >

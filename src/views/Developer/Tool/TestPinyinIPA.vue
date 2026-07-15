@@ -1,9 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import JumpButton from "../../components/Button/JumpButton.vue";
-import RichText from "../../components/Text/RichText.vue";
-import ScAndTcText from "../../components/Text/ScAndTcText.vue";
+import RichText from "../../../components/Text/RichText.vue";
+import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 
 const tc=ref('');
 const sc=ref('')
@@ -15,7 +14,7 @@ const dialect = computed(() => route.params.dialect)
 
 <template>
   <div class="container">
-    <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
+
     <div class="card">
       <div class="card-body">
         <ScAndTcText v-model:traditionalText="tc" v-model:simplifiedText="sc"

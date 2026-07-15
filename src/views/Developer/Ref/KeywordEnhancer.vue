@@ -141,7 +141,7 @@ async function submit() {
     >
       <template v-if="keywordMap.get(k.word)?.id">
         <a
-            :href="`/${language}/${dialect}/ciyu-editor/${keywordMap.get(k.word).id}`"
+            :href="`/${language}/${dialect}/dev/ciyu-editor/${keywordMap.get(k.word).id}`"
             target="_blank"
             class="keyword-link"
         >

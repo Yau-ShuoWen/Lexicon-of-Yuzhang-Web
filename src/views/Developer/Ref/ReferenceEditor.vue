@@ -19,7 +19,7 @@ const dialect = computed(() => route.params.dialect)
 const dictionary = computed(() => route.params.dictionary)
 const sortParam = computed(() => route.params.sort)
 
-const getPath = (newSort) => `/${language.value}/${dialect.value}/ref-editor/${dictionary.value}/${newSort}`
+const getPath = (newSort) => `/${language.value}/${dialect.value}/dev/ref-editor/${dictionary.value}/${newSort}`
 
 const page = ref(null)
 const backupPage = ref(null)     // 用于检测是否有未保存修改

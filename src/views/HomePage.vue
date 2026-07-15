@@ -5,8 +5,7 @@
       <SloganText/>
     </div>
 
-
-    <SearchInput/>
+    <SearchBar/>
 
     <div class="logo">
       <img src="../assets/images/yuzhangci.svg" draggable="false"/>
@@ -19,9 +18,9 @@
 import { computed, ref } from "vue"
 import { useRoute } from "vue-router"
 import { useI18n } from 'vue-i18n'
-import SearchInput from "./Search/SearchInput.vue"
 import SloganText from "./SloganText.vue";
 import { useHead } from '@vueuse/head'
+import SearchBar from "./Search/SearchBar.vue";
 
 const route = useRoute()
 const {t} = useI18n()
@@ -36,7 +35,7 @@ useHead({
 
 <style scoped>
 .slogan {
-  padding-top: var(--spacing-md);
+  padding-top: var(--spacing-xl);
   padding-bottom: var(--spacing-xl);
 }
 

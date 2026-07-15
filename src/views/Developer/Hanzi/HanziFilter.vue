@@ -3,17 +3,19 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import JumpButton from "../../../components/Button/JumpButton.vue"
 import { showError } from "../../../services/ToastService.js";
+import { useHead } from "@vueuse/head";
 
 // 路由
 const router = useRouter()
 const route = useRoute()
 
+useHead({title: () => `漢字編輯器：查找`})
+
 // 语言、方言和路径
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const getPath = (path) => `/${language.value}/${dialect.value}/dev/${path}`
 
 // 响应式数据
 const searchText = ref('')
@@ -30,11 +32,11 @@ const performSearch = async () => {
 
   try {
     const response = await fetch(`/api/edit/hanzi/filter/${dialect.value}?hanzi=${encodeURIComponent(searchText.value)}`)
-    if (!response.ok) throw new Error('网络请求失败')
+    if (!response.ok) throw new Error('網絡請求失敗')
 
     searchResults.value = await response.json()
   } catch (error) {
-    showError('搜索失败：' + error.message)
+    showError('搜索失敗：' + error.message)
     searchResults.value = []
   }
   finally {
@@ -52,38 +54,34 @@ watch(searchText, (newValue) => {
 
 <template>
   <div class="narrow-layout">
-    <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
-    <h4>筛选需要编辑的内容、回车搜索</h4>
+
     <div class="search-section">
       <input
           v-model="searchText"
           type="text"
-          placeholder="按下回车键搜索"
+          placeholder="篩選需要編輯的內容、回車搜索"
           @keyup.enter="performSearch"
-          class="ordinary-input"
+          class="mid-input"
       />
-      <button class="dev-btn-small dev-nav-button" @click="performSearch">查询</button>
+      <button class="dev-btn-middle dev-nav-button" @click="performSearch">查询</button>
       <router-link :to="getPath(`hanzi-creator`)" target="_blank"
-                   class="dev-btn-small dev-add-btn">
-        新增汉字
+                   class="dev-btn-middle dev-add-btn">
+        新增漢字
       </router-link>
     </div>
 
     <div v-if="searchResults.length > 0" class="results-section">
       <h4>搜索结果（点击编辑）</h4>
-      <div class="results-list">
-        <router-link
-            v-for="item in searchResults"
-            :key="item.tag"
-            :to="getPath(`hanzi-editor/${item.info.query}`)"
-            class="result-item"
-            target="_blank"
-        >
-          <div class="item-display">{{ item.title }}</div>
-          <div class="item-display">{{ item.explain }}</div>
-        </router-link>
-      </div>
-
+      <router-link
+          v-for="item in searchResults"
+          :key="item.tag"
+          :to="getPath(`hanzi-editor/${item.info.query}`)"
+          class="result-item"
+          target="_blank"
+      >
+        <div class="item-display">{{ item.title }}</div>
+        <div class="item-display">{{ item.explain }}</div>
+      </router-link>
     </div>
 
     <div v-else-if="hasSearched && !isLoading" class="no-results-high">
@@ -96,34 +94,33 @@ watch(searchText, (newValue) => {
 .search-section {
   display: flex;
   gap: 10px;
+  margin-top: 40px;
   margin-bottom: 20px;
 }
 
-.results-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.results-section h3 {
+  margin-bottom: 15px;
+  color: #333;
 }
-
 
 .result-item {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 12px;
-  border: 1px solid #bababa;
+  padding: 10px 20px;
+  border: 1px solid var(--color-text-lighter);
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.1s;
+  transition: background-color 0.2s;
 }
 
 .result-item:hover {
-  background-color: #ffffff;
+  background-color: #d3dfd5;
 }
 
 .item-display {
   min-width: 100px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
 }
 </style>

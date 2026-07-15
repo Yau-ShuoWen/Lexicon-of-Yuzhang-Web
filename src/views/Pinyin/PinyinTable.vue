@@ -6,7 +6,6 @@ import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
-import RichText from "../../components/Text/RichText.vue";
 import CopyButton from "../../components/Button/CopyButton.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
@@ -22,9 +21,6 @@ const pinyinData = ref([])
 const loading = ref(true)
 const showDetail = ref(false)
 const currentKey = ref('')
-
-const pinyinInput = ref('')
-const pinyinOutput = ref('')
 
 useHead({
   title: () => `${t('dialect_about.pinyin_table.' + dialect.value)}`
@@ -73,8 +69,43 @@ function formatDisplay(item) {
   }
 }
 
+const pinyinInput = ref('')
+const pinyinOutput = ref('')
+
+async function previewPinyin() {
+
+  if (!pinyinInput.value.trim()) {
+    pinyinOutput.value = ''
+    return
+  }
+
+  try {
+    const params = new URLSearchParams({
+      pinyin: pinyinInput.value
+    })
+
+    const res = await fetch(
+        `/api/pinyin/preview/${dialect.value}/${language.value}?${params}`
+    )
+
+    if (!res.ok) throw new Error(res.status)
+
+    // UString 序列化就是 String
+    pinyinOutput.value = await res.json()
+
+  } catch (e) {
+    console.error(e)
+    pinyinOutput.value = ''
+  }
+}
+
 /* ---------- 监听路由变化 ---------- */
 watch(dialect, fetchTable)
+
+watch(
+    [pinyinInput, dialect, language],
+    previewPinyin
+)
 </script>
 
 
@@ -83,37 +114,36 @@ watch(dialect, fetchTable)
 
     <LoadingIcon v-if="loading"/>
 
-    <div v-else class="white-background">
 
-      <div  class="pinyin-container">
-
-
-<!--        <div class="attribute-group">-->
-
-<!--          <div class="group-header">-->
-<!--            <h3>方言拼音生成器</h3>-->
-<!--          </div>-->
-
-<!--          <div class="severable-group">-->
-
-<!--            <input type="text" inputmode="" pattern="[A-Za-z0-9]*"-->
-<!--                   maxlength="50" placeholder="輸入拼音字母" v-model="pinyinInput"-->
-<!--                   class="form-control middle-input pinyin-input-text"/>-->
-
-<!--            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"-->
-<!--                      :model-value="pinyinInput" v-model:outputValue="pinyinOutput"-->
-<!--                      class="pinyin-input-text"/>-->
-
-<!--            <CopyButton v-if="pinyinOutput" class="dev-btn-middle dev-normal-button" :text="pinyinOutput"/>-->
+    <div v-else class="pinyin-container">
 
 
-<!--          </div>-->
+              <div class="attribute-group">
+
+                <div class="group-header">
+                  <h3>方言拼音生成器</h3>
+                </div>
+
+                <div class="severable-group">
+
+                  <input type="text" inputmode="" pattern="[A-Za-z0-9]*"
+                         maxlength="100" placeholder="輸入拼音字母" v-model="pinyinInput"
+                         class="form-control middle-input pinyin-input-text"/>
+
+                  <div
+                      v-if="pinyinOutput"
+                      class="pinyin-input-text preview-box"
+                      v-formatted-text="pinyinOutput"
+                  />
+
+                </div>
 
 
-<!--        </div>-->
+              </div>
 
-        <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
+      <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
 
+      <div class="table-block">
         <div
             v-for="grid in pinyinData"
             :key="grid.code"
@@ -147,6 +177,7 @@ watch(dialect, fetchTable)
         </div>
       </div>
 
+
     </div>
   </div>
   <PinyinDetail
@@ -171,7 +202,7 @@ watch(dialect, fetchTable)
 
 .group-header h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 20px;
   color: #34495e;
   font-weight: 600;
 }
@@ -269,7 +300,14 @@ watch(dialect, fetchTable)
 
 .pinyin-input-text {
   margin: 2px 0;
-  width: 60%;
+  width: 100%;
+}
+
+.preview-box {
+  min-height: 42px;
+  padding: 10px 12px;
+  width: 100%;
+  background: white;
 }
 
 /* ======== Mobile Layout ======== */

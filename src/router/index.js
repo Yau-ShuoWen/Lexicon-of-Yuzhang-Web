@@ -4,7 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
-const VALID_DIALECTS = ['lac',"ced"]       // 一门方言：南昌话
+const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
 
 const DEFAULT_LANGUAGE = 'sc'
 const DEFAULT_DIALECT = 'lac'
@@ -13,6 +13,9 @@ const routes = [
     {
         path: '/:language(sc|tc)/:dialect(lac|ced)',
         component: () => import('../layouts/LayoutWithLD.vue'),
+        redirect: to => {
+            return {path: `/${to.params.language}/${to.params.dialect}/home`}
+        },
         children: [
             {
                 path: 'home',
@@ -42,91 +45,123 @@ const routes = [
                 component: () => import('../views/Tutorial/ArticlePage.vue')
             },
 
-
             // 开发者模式
             {
-                path: 'developer-home',
-                name: 'DeveloperHome',
-                component: () => import('../views/Developer/NavigationPage.vue')
-            },
+                path: 'dev',
+                name: 'developer',
+                component: () => import('../views/Personal/LayoutBlog.vue'),
+                redirect: to => {
+                    return {path: `/${to.params.language}/${to.params.dialect}/dev/home`}
+                },
+                children: [
+                    // 登陆
+                    {
+                        path: 'login',
+                        name: 'Login',
+                        component: () => import('../views/Developer/Login.vue')
+                    },
+                    {
+                        path: 'profile',
+                        name: 'Profile',
+                        component: () => import('../views/Developer/Profile.vue'),
+                        meta: {requiresAuth: true}
+                    },
 
-            // 测试
-            {
-                path: 'test',
-                name: 'Test',
-                component: () => import('../views/Test/TestPage.vue')
-            },
-            {
-                path: 'test/sc-tc',
-                name: 'TestSimplifiedAndTraditional',
-                component: () => import('../views/Test/TestScTc.vue')
-            },
-            {
-                path: 'test/pinyin-ipa',
-                name: 'TestPinyinAndIPA',
-                component: () => import('../views/Test/TestPinyinIPA.vue')
-            },
+                    {
+                        path: 'home',
+                        name: 'DevHome',
+                        component: () => import('../views/Developer/DevHome.vue'),
+                        meta: {requiresAuth: true}
+                    },
 
-            {
-                path: 'tool/special-symbol',
-                name: 'specialSymbol',
-                component: () => import('../views/Developer/SpecialSymbol.vue')
-            },
+                    // 测试
+                    {
+                        path: 'test',
+                        name: 'Test',
+                        component: () => import('../views/Developer/Tool/TestPage.vue')
+                    },
+                    {
+                        path: 'test/sc-tc',
+                        name: 'TestSimplifiedAndTraditional',
+                        component: () => import('../views/Developer/Tool/TestScTc.vue')
+                    },
+                    {
+                        path: 'test/pinyin-ipa',
+                        name: 'TestPinyinAndIPA',
+                        component: () => import('../views/Developer/Tool/TestPinyinIPA.vue')
+                    },
+                    {
+                        path: 'test/audio',
+                        name: 'TestAudio',
+                        component: () => import('../views/Developer/Tool/TestAudio.vue')
+                    },
 
-            // 编辑
+                    {
+                        path: 'tool/special-symbol',
+                        name: 'specialSymbol',
+                        component: () => import('../views/Developer/Tool/SpecialSymbol.vue')
+                    },
 
-            {
-                path: 'hanzi-creator',
-                name: 'HanziCreator',
-                component: () => import('../views/Developer/Hanzi/HanziCreator.vue'),
-                //meta: { requiresAuth: true }
-            },
-            {
-                path: 'hanzi-filter',
-                name: 'HanziFilter',
-                component: () => import('../views/Developer/Hanzi/HanziFilter.vue'),
-                //meta: { requiresAuth: true }
-            },
-            {
-                path: 'hanzi-editor/:id?',
-                name: 'HanziEditor',
-                component: () => import('../views/Developer/Hanzi/HanziEditor.vue'),
-                props: true,
-                // meta: { requiresAuth: true }
-            },
+                    // 漢字
+                    {
+                        path: 'hanzi-creator',
+                        name: 'HanziCreator',
+                        component: () => import('../views/Developer/Hanzi/HanziCreator.vue'),
+                        //meta: { requiresAuth: true }
+                    },
+                    {
+                        path: 'hanzi-filter',
+                        name: 'HanziFilter',
+                        component: () => import('../views/Developer/Hanzi/HanziFilter.vue'),
+                        //meta: { requiresAuth: true }
+                    },
+                    {
+                        path: 'hanzi-editor/:id?',
+                        name: 'HanziEditor',
+                        component: () => import('../views/Developer/Hanzi/HanziEditor.vue'),
+                        props: true,
+                        // meta: { requiresAuth: true }
+                    },
 
-            {
-                path: 'ciyu-creator',
-                name: 'CiyuCreator',
-                component: () => import('../views/Developer/Ciyu/CiyuCreator.vue'),
-                //meta: { requiresAuth: true }
-            },
-            {
-                path: 'ciyu-filter',
-                name: 'CiyuFilter',
-                component: () => import('../views/Developer/Ciyu/CiyuFilter.vue'),
-                //meta: { requiresAuth: true }
-            },
-            {
-                path: 'ciyu-editor/:id?',
-                name: 'CiyuEditor',
-                component: () => import('../views/Developer/Ciyu/CiyuEditor.vue'),
-                props: true,
-                // meta: { requiresAuth: true }
-            },
+                    {
+                        path: 'ciyu-creator',
+                        name: 'CiyuCreator',
+                        component: () => import('../views/Developer/Ciyu/CiyuCreator.vue'),
+                        //meta: { requiresAuth: true }
+                    },
+                    {
+                        path: 'ciyu-filter',
+                        name: 'CiyuFilter',
+                        component: () => import('../views/Developer/Ciyu/CiyuFilter.vue'),
+                        //meta: { requiresAuth: true }
+                    },
+                    {
+                        path: 'ciyu-editor/:id?',
+                        name: 'CiyuEditor',
+                        component: () => import('../views/Developer/Ciyu/CiyuEditor.vue'),
+                        props: true,
+                        // meta: { requiresAuth: true }
+                    },
 
+                    {
+                        path: 'pinyin-editor',
+                        name: 'PinyinEditor',
+                        component: () => import('../views/Developer/Pinyin/PinyinNoteEditor.vue'),
+                    },
 
-            {
-                path: 'ref-filter',
-                name: 'ReferenceFilter',
-                component: () => import('../views/Developer/Ref/ReferenceFilter.vue'),
-                //  meta: { requiresAuth: true }
-            },
-            {
-                path: 'ref-editor/:dictionary/:sort?',
-                name: 'ReferenceEditor',
-                component: () => import('../views/Developer/Ref/ReferenceEditor.vue'),
-                //  meta: { requiresAuth: true }
+                    {
+                        path: 'ref-filter',
+                        name: 'ReferenceFilter',
+                        component: () => import('../views/Developer/Ref/ReferenceFilter.vue'),
+                        //  meta: { requiresAuth: true }
+                    },
+                    {
+                        path: 'ref-editor/:dictionary/:sort?',
+                        name: 'ReferenceEditor',
+                        component: () => import('../views/Developer/Ref/ReferenceEditor.vue'),
+                        //  meta: { requiresAuth: true }
+                    },
+                ]
             },
 
             // 查询
@@ -148,25 +183,41 @@ const routes = [
                 props: true
             },
 
-            // 登陆
-
             {
-                path: 'login',
-                name: 'Login',
-                component: () => import('../views/Developer/Login.vue')
-            },
-            {
-                path: 'profile',
-                name: 'Profile',
-                component: () => import('../views/Developer/Profile.vue'),
-                meta: {requiresAuth: true}
-            },
+                path: 'ysw',
+                name: 'Blog',
+                component: () => import('../views/Personal/LayoutBlog.vue'),
+                redirect: to => {
+                    return {path: `/${to.params.language}/${to.params.dialect}/ysw/alphabet`}
+                },
+                children: [
 
-
-            {
-                path:'ysw',
-                name:'EasterEgg',
-                component: () => import('../views/EasterEgg.vue')
+                    {
+                        path: 'home',
+                        name: 'YswHome',
+                        component: () => import('../views/Personal/YswHome.vue'),
+                    },
+                    {
+                        path: 'alphabet',
+                        name: 'AlphabetCatalog',
+                        component: () => import('../views/Personal/AlphabetCatalog.vue')
+                    },
+                    {
+                        path: 'alphabet/:code',
+                        name: 'Alphabet',
+                        component: () => import('../views/Personal/AlphabetTable.vue'),
+                    },
+                    {
+                        path: 'diary',
+                        name: 'DiaryHome',
+                        component: () => import('../views/Diary/DiaryHome.vue')
+                    },
+                    {
+                        path: 'diary/:id(\\d+)',
+                        name: 'DiaryDetail',
+                        component: () => import('../views/Diary/DiaryDetail.vue')
+                    }
+                ]
             }
         ]
     },
@@ -208,41 +259,62 @@ router.beforeEach(async (to, from, next) => {
         return next(`/${language}/${dialect}/home`)
     }
 
-    // ===== 2. 鉴权路由处理，暂时真正使用 =====
-    if (to.meta.requiresAuth) {
-        const token = localStorage.getItem('auth-token')
-
-        // 2.1 本地没 token
-        if (!token) {
-            alert('无权限，请先登录')
-            return next({
-                name: 'DeveloperHome',
-                params: to.params
-            })
-        }
-
-        // 2.2 向后端校验 token
-        try {
-            const res = await axios.get('/api/check-auth', {
-                params: {t: token}
-            })
-
-            if (res.data.success) {
-                return next()
-            } else {
-                throw new Error('invalid token')
-            }
-        } catch (e) {
-            localStorage.removeItem('auth-token')
-            alert('登录已失效，请重新登录')
-
-            return next({
-                name: 'DeveloperHome',
-                params: to.params
-            })
-        }
+    // ==============================
+    // ❗关键修复：排除 login 页面
+    // ==============================
+    if (to.name === 'Login') {
+        return next()
     }
-    next()
+
+    // ===== 2. 只保护 dev 下非 login =====
+    const isDevRoute = to.path.includes('/dev/')
+
+    if (!isDevRoute) {
+        return next()
+    }
+
+    // ===== 3. dev 模块统一鉴权 =====
+    const token = localStorage.getItem('auth-token')
+
+    // ❌ 没 token → 直接去 login（关键修复点）
+    if (!token) {
+
+        return next({
+            name: 'Login',
+            params: {
+                language: to.params.language,
+                dialect: to.params.dialect
+            }
+        })
+    }
+
+    // ===== 4. 校验 token =====
+    try {
+
+        const res = await axios.get('/api/user/check-auth', {
+            params: { t: token }
+        })
+
+        if (res.data.success) {
+
+            // ✅ 放行
+            return next()
+        }
+
+    } catch (e) {
+        console.error(e)
+    }
+
+    // ===== 5. token 失效处理 =====
+    localStorage.removeItem('auth-token')
+
+    return next({
+        name: 'Login',
+        params: {
+            language: to.params.language,
+            dialect: to.params.dialect
+        }
+    })
 })
 
 

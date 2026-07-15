@@ -2,7 +2,8 @@
 import {useRoute, useRouter} from 'vue-router'
 import DropdownSelector from './DropdownSelector.vue'
 import transferIcon from '../../assets/icons/LanguageAndDialect/transfer_dialect.svg'
-import lacIcon from '../../assets/icons/LanguageAndDialect/lancong_rc.png'
+import lacIcon from '../../assets/icons/LanguageAndDialect/lac_mipmap.png'
+import cedIcon from '../../assets/icons/LanguageAndDialect/ced_mipmap.png'
 import { useI18n } from "vue-i18n";
 
 const route = useRoute()
@@ -11,6 +12,7 @@ const {t} = useI18n()
 
 const dialects = [
   {value: 'lac', label: t('dialect.lac'), icon: lacIcon},
+  {value: 'ced', label: t('dialect.ced'), icon: cedIcon},
 ]
 
 const currentDialectInRoute = () => {

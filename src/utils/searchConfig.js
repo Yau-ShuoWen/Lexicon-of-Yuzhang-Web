@@ -12,7 +12,7 @@ export function getValidatedSearchConfig() {
             const config = JSON.parse(cached)
 
             const validated = {
-                phonogram: [1, 2, 3].includes(config.phonogram) ? config.phonogram : 1,
+                phonogram: [0, 1, 2].includes(config.phonogram) ? config.phonogram : 1,
                 toneStyle: [1, 2, 3].includes(config.toneStyle) ? config.toneStyle : 1,
                 syllableStyle: [1, 2].includes(config.syllableStyle) ? config.syllableStyle : 1,
                 vague: typeof config.vague === 'boolean' ? config.vague : true

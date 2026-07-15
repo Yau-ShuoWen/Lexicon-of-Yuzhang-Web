@@ -249,7 +249,7 @@ watch(
 .mean-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
 }
 
 .list-item {

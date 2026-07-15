@@ -13,7 +13,8 @@
 /* 通用链接 */
 
 .normal-link {
-    color: var(--color-secondary-dark);
+    color: var(--color-secondary);
+    font-weight: bold;
     text-decoration: none;
     transition: opacity 0.2s ease;
 }
@@ -164,11 +165,27 @@
     margin: 16px 0;
 }
 
+/* ========================富文本 blockquote====================== */
+
+.rt-blockquote {
+    padding: 12px 14px;
+    margin: 16px 0;
+
+    border: 1px solid #e0e0e0;
+    border-left: 4px solid #2196f3;
+    border-radius: 6px;
+
+    background-color: #f4f8fd;
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
 /* ========================富文本表格====================== */
 
 .rt-table-wrap {
     overflow-x: auto;
     max-width: 100%;
+    padding-bottom: 10px;
 }
 
 /* 共通 */
@@ -214,7 +231,6 @@
 
 .rt-col-nowrap {
     white-space: nowrap;
-    width: 1%;
 }
 
 .rt-col-normal {

@@ -7,6 +7,7 @@ export function formatRichText(text) {
     text = processTable(text);
     text = processList(text);
     text = processHorizontalRule(text);
+    text = processBlockquote(text);
     text = processLineBreak(text);
     text = processSpaces(text);
 
@@ -130,7 +131,7 @@ function processCurlySyntax(text) {
                 // 只解析 display
                 const displayHtml = parseCurly(display, true);
 
-                return `<a href="/${language}/${dialect}/c/${encodeURIComponent(target)}" target="_blank" style="color: #1a73e8;">${displayHtml}</a>`;
+                return `<a href="/${language}/${dialect}/c/${encodeURIComponent(target)}" target="_blank" class="normal-link">${displayHtml}</a>`;
             }
 
             case "z": {
@@ -146,7 +147,7 @@ function processCurlySyntax(text) {
                 // 只解析 display
                 const displayHtml = parseCurly(display, true);
 
-                return `<a href="/${language}/${dialect}/h/${encodeURIComponent(target)}" target="_blank" style="color: #1a73e8;">${displayHtml}</a>`;
+                return `<a href="/${language}/${dialect}/h/${encodeURIComponent(target)}" target="_blank" class="normal-link">${displayHtml}</a>`;
             }
 
             case "n":
@@ -244,6 +245,18 @@ function processCurlySyntax(text) {
 
         return -1;
     }
+}
+
+// 處理 ```blockquote```
+function processBlockquote(text) {
+    return text.replace(/```([\s\S]*?)```/g, (match, inner) => {
+        const content = inner
+            .trim()              // 去除首尾空白（包括换行）
+            .split('\n')
+            .map(line => line.trim())
+            .join('<br>');
+        return `<blockquote class="rt-blockquote">${content}</blockquote>`;
+    });
 }
 
 // 處理表格
@@ -490,7 +503,11 @@ function processBracketPhonetic(text) {
 function processLineBreak(text) {
     text = text.replace(/\r/g, "");
 
-    text = text.replace(/(<\/table>)\n/g, "$1");
+    // table / blockquote 后面的换行不要转成 <br>
+    text = text.replace(/(<\/table><\/div>)\n/g, "$1");
+    text = text.replace(/(<\/blockquote>)\n/g, "$1");
+
+    text = text.replace(/\\\\/g, "<br>");
 
     // 先處理兩個以上換行
     text = text.replace(/\n{2,}/g, (match) => {

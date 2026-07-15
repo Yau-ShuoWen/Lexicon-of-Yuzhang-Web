@@ -11,6 +11,7 @@
 @import './components/_forms.css';
 @import './components/_cards.css';
 @import "./components/_text.css";
+@import './components/_icon.css';
 
 /* 导入布局样式 */
 @import './layouts/_container.css';

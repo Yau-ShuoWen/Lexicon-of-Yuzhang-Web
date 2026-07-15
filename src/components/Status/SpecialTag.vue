@@ -47,7 +47,7 @@ const text = computed(() => {
 <template>
   <div class="special-box" :data-type="key">
     <div class="icon-wrapper">
-      <img :src="iconSrc" class="icon" />
+      <img :src="iconSrc" class="icon-clickable" />
     </div>
     <div class="content">
       <span class="text" v-formatted-text="text" />
@@ -55,7 +55,7 @@ const text = computed(() => {
   </div>
 </template>
 <style scoped>
-.icon {
+.icon-clickable {
   width: 32px;
   height: 32px;
   margin-top: 2px;
@@ -85,7 +85,7 @@ const text = computed(() => {
   justify-content: center;
 }
 
-.icon {
+.icon-clickable {
   width: 24px;
   height: 24px;
 }

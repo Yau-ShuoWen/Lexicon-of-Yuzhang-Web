@@ -54,7 +54,7 @@ onMounted(() => {
 
     <div v-else>
 
-      <div class="text-box contact-box">
+      <div class="text-box">
         <div class="contact-title" v-formatted-text="$t('nav.about')"/>
         <div v-formatted-text="result[language]"></div>
       </div>
@@ -79,11 +79,6 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 40px 0;
-}
-
-/* 联系区域 */
-.contact-box {
-  margin-bottom: 30px;
 }
 
 /* 标题 */

@@ -3,22 +3,24 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import JumpButton from "../../../components/Button/JumpButton.vue"
+import { showError } from "../../../services/ToastService.js";
+import { useHead } from "@vueuse/head";
 
 // 路由
 const router = useRouter()
 const route = useRoute()
 
+useHead({title: () => `詞語編輯器：查找`})
+
 // 语言、方言和路径
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const getPath = (path) => `/${language.value}/${dialect.value}/dev/${path}`
 
 // 响应式数据
 const searchText = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
-const errorMessage = ref('')
 const hasSearched = ref(false)
 
 // 方法：执行搜索
@@ -27,15 +29,14 @@ const performSearch = async () => {
 
   hasSearched.value = true
   isLoading.value = true
-  errorMessage.value = ''
 
   try {
     const response = await fetch(`/api/edit/ciyu/filter/${dialect.value}?query=${encodeURIComponent(searchText.value)}`)
-    if (!response.ok) throw new Error('网络请求失败')
+    if (!response.ok) throw new Error('網絡請求失敗')
 
     searchResults.value = await response.json()
   } catch (error) {
-    errorMessage.value = '搜索失败：' + error.message
+    showError('搜索失敗：' + error.message)
     searchResults.value = []
   }
   finally {
@@ -46,7 +47,7 @@ const performSearch = async () => {
 watch(searchText, (newValue) => {
   if (!newValue.trim()) {
     searchResults.value = []
-    errorMessage.value = ''
+
     hasSearched.value = false
   }
 })
@@ -54,25 +55,20 @@ watch(searchText, (newValue) => {
 
 <template>
   <div class="narrow-layout">
-    <JumpButton to="/developer-home" buttonText="←返回导航" size="middle"/>
-    <h4>筛选需要编辑的内容、回车搜索</h4>
+
     <div class="search-section">
       <input
           v-model="searchText"
           type="text"
-          placeholder="按下回车键搜索"
+          placeholder="篩選需要編輯的內容、回車搜索"
           @keyup.enter="performSearch"
-          class="ordinary-input"
+          class="mid-input"
       />
-      <button class="dev-btn-small dev-nav-button" @click="performSearch">查询</button>
+      <button class="dev-btn-middle dev-nav-button" @click="performSearch">查询</button>
       <router-link :to="getPath(`ciyu-creator`)" target="_blank"
-                   class="dev-btn-small dev-add-btn">
-        新增词语
+                   class="dev-btn-middle dev-add-btn">
+        新增詞語
       </router-link>
-    </div>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
     </div>
 
     <div v-if="searchResults.length > 0" class="results-section">
@@ -85,7 +81,6 @@ watch(searchText, (newValue) => {
           target="_blank"
       >
         <div class="item-display">{{ item.title }}</div>
-        <div class="pinyin">{{ item.explain }}</div>
       </router-link>
     </div>
 
@@ -99,15 +94,8 @@ watch(searchText, (newValue) => {
 .search-section {
   display: flex;
   gap: 10px;
+  margin-top: 40px;
   margin-bottom: 20px;
-}
-
-.error-message {
-  color: #d32f2f;
-  background: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 15px;
 }
 
 .results-section h3 {
@@ -115,35 +103,24 @@ watch(searchText, (newValue) => {
   color: #333;
 }
 
-.results-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .result-item {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
+  padding: 10px 20px;
+  border: 1px solid var(--color-text-lighter);
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .result-item:hover {
-  background-color: #f5f5f5;
+  background-color: #d3dfd5;
 }
 
 .item-display {
   min-width: 100px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
-}
-
-.pinyin {
-  min-width: 120px;
-  color: #2196f3;
 }
 </style>

@@ -70,12 +70,16 @@ onMounted(fetchCatalog)
 
       <div class="alphabet-grid">
 
-        <div v-for="item in group.right" :key="item.url"
-            class="alphabet-card" @click="openAlphabet(item)">
+        <router-link
+            v-for="item in group.right"
+            :key="item.url"
+            class="alphabet-card"
+            :to="`/${language}/${dialect}/ysw/alphabet/${item.url}`"
+        >
 
           <div class="alphabet-example" v-formatted-text="item.example"/>
           <div class="alphabet-name" v-formatted-text="item.name"/>
-        </div>
+        </router-link>
       </div>
 
     </section>
@@ -146,7 +150,7 @@ onMounted(fetchCatalog)
 /* ===== name ===== */
 
 .alphabet-name {
-  font-size: 15px;
+  font-size: 16px;
   color: #333333;
   text-align: center;
   line-height: 1.4;

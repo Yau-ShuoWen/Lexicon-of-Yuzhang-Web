@@ -8,7 +8,8 @@ import { showError } from '../../services/ToastService.js'
 import {
   formatDateLabel,
   formatDateTimeLabel,
-  getDiaryById
+  getDiaryById,
+  getNearbyDiaries
 } from './diaryApi.js'
 
 const route = useRoute()
@@ -30,7 +31,9 @@ const text = computed(() => (
       startDate: '開始寫作',
       finalizeDate: '完成時間',
       createdTime: '建立時間',
-      updatedTime: '最後更新'
+      updatedTime: '最後更新',
+      prev: '上一篇',
+      next: '下一篇'
     }
     : {
       title: '日记详情',
@@ -43,12 +46,27 @@ const text = computed(() => (
       startDate: '开始写作',
       finalizeDate: '完成时间',
       createdTime: '创建时间',
-      updatedTime: '最后更新'
+      updatedTime: '最后更新',
+      prev: '上一篇',
+      next: '下一篇'
     }
 ))
 
 const loading = ref(true)
 const diary = ref(null)
+const nearby = ref({ prev: null, next: null })
+
+function diaryLink(id) {
+  return {
+    name: 'DiaryDetail',
+    params: {
+      language: language.value,
+      dialect: dialect.value,
+      id: String(id)
+    },
+    query: route.query
+  }
+}
 
 const backQuery = computed(() => {
   const query = {}
@@ -79,10 +97,14 @@ async function loadDiary() {
     diary.value = diaryId.value
       ? await getDiaryById(language.value, diaryId.value)
       : null
+    nearby.value = diaryId.value
+      ? await getNearbyDiaries(diaryId.value)
+      : { prev: null, next: null }
   } catch (error) {
     console.error(error)
     showError(error.message || '加载详情失败')
     diary.value = null
+    nearby.value = { prev: null, next: null }
   } finally {
     loading.value = false
   }
@@ -97,6 +119,26 @@ watch(
 
 <template>
   <div class="broaden-layout diary-detail">
+
+    <nav v-if="nearby.prev || nearby.next" class="detail-nav">
+      <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn">
+        <span class="nav-btn__dir">{{ text.prev }}</span>
+        <span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span>
+      </router-link>
+      <span v-else class="nav-btn nav-btn--disabled">
+          <span class="nav-btn__dir">{{ text.prev }}</span>
+        </span>
+
+      <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right">
+        <span class="nav-btn__dir">{{ text.next }}</span>
+        <span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span>
+
+      </router-link>
+      <span v-else class="nav-btn nav-btn--disabled nav-btn--right">
+          <span class="nav-btn__dir">{{ text.next }}</span>
+        </span>
+    </nav>
+
     <div class="detail-header">
       <router-link :to="backToList" class="back-link">
         {{ text.back }}
@@ -130,9 +172,12 @@ watch(
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent" />
       </section>
+
+
     </div>
 
     <div v-else class="empty-box panel" v-formatted-text="text.notFound" />
+
   </div>
 </template>
 
@@ -200,5 +245,68 @@ watch(
 .empty-box {
   color: var(--color-text-light);
   line-height: 1.8;
+}
+
+.detail-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 26px;
+  padding-top: 18px;
+  /*border-top: 2px solid var(--color-primary-light);*/
+}
+
+.nav-btn {
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 45%;
+  padding: 10px 14px;
+  border: 2px solid var(--color-primary-light);
+  border-radius: var(--border-radius-md);
+  color: var(--color-primary-dark);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.nav-btn:hover {
+  background: var(--app-bg-color);
+}
+
+.nav-btn--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.nav-btn--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.nav-btn__dir {
+  font-weight: 600;
+}
+
+.nav-btn__date {
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+/*
+@media (max-width: 480px) {
+  .nav-btn__date {
+    display: none;
+  }
+}
+*/
+@media (max-width: 480px) {
+  .panel {
+    padding: 15px;
+  }
+
+  .detail-meta {
+    gap: 0 20px;
+  }
+
 }
 </style>

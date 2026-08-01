@@ -129,6 +129,31 @@ export async function getDiaryById(language, id) {
   return normalizeDiaryText(data, language)
 }
 
+function normalizeNearbyEntity(value) {
+  const unwrapped = unwrapMaybe(value)
+  if (!unwrapped) return null
+
+  return {
+    id: unwrapped.id ?? null,
+    date: unwrapped.date ?? '',
+    sort: unwrapped.sort ?? ''
+  }
+}
+
+export function normalizeNearby(payload) {
+  if (!payload) return { prev: null, next: null }
+
+  return {
+    prev: normalizeNearbyEntity(payload.left),
+    next: normalizeNearbyEntity(payload.right)
+  }
+}
+
+export async function getNearbyDiaries(id) {
+  const data = await fetchJson(`/api/diary/item/nearby/${id}`)
+  return normalizeNearby(data)
+}
+
 export function formatDateLabel(value) {
   if (!value) return ''
   return String(value).slice(0, 10)

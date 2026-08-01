@@ -340,6 +340,47 @@
     line-height: 1.6;
 }
 
+/* ---- 带标签的新式引用块（颜色由内联 CSS 变量驱动） ---- */
+
+.rt-blockquote-tag {
+    padding: 0;
+    overflow: hidden;
+
+    border: 1px solid color-mix(in srgb, var(--bq-accent) 35%, transparent);
+    border-left: 4px solid var(--bq-accent);
+    background-color: var(--bq-bg);
+}
+
+.rt-blockquote-tag .rt-blockquote__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 10px 14px;
+
+    color: var(--bq-accent);
+    font-weight: 600;
+
+    background: color-mix(in srgb, var(--bq-accent) 8%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--bq-accent) 15%, transparent);
+}
+
+.rt-blockquote-tag .rt-blockquote__icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    padding: 2px;
+    box-sizing: content-box;
+
+    background: rgba(0, 0, 0, 0.06);
+    background: color-mix(in srgb, var(--bq-accent) 15%, transparent);
+    border-radius: 20%;
+}
+
+.rt-blockquote-tag .rt-blockquote__body {
+    padding: 10px 14px 12px;
+}
+
 /* ========================富文本表格====================== */
 
 .rt-table-wrap {

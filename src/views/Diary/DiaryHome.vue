@@ -23,7 +23,7 @@ const text = computed(() => (
   language.value === 'tc'
     ? {
       title: '日記',
-      subtitle: '按月份歸檔、按條件篩選，並直接查看最近更新。',
+      subtitle: '非正常人類研究中心',
       recent: '最近更新',
       archive: '目錄歸檔',
       filters: '篩選列表',
@@ -48,7 +48,7 @@ const text = computed(() => (
     }
     : {
       title: '日记',
-      subtitle: '按月份归档、按条件筛选，并直接查看最近更新。',
+      subtitle: '非正常人类研究中心',
       recent: '最近更新',
       archive: '目录归档',
       filters: '筛选列表',
@@ -191,7 +191,7 @@ function getDetailHref(item) {
       dialect: dialect.value,
       id: String(item.id)
     },
-    query: currentQuery.value
+    //query: currentQuery.value
   }).href
 }
 
@@ -227,120 +227,19 @@ watch(
 
 <template>
   <div class="broaden-layout diary-page">
-    <div class="diary-page__header">
-      <div>
-        <h1 class="diary-title" v-formatted-text="text.title" />
-        <p class="diary-subtitle" v-formatted-text="text.subtitle" />
-      </div>
-      <LanguageSelector />
-    </div>
+<!--    <div class="diary-page__header">-->
+<!--      <div>-->
+<!--        <h1 class="diary-title" v-formatted-text="text.title" />-->
+<!--        <p class="diary-subtitle" v-formatted-text="text.subtitle" />-->
+<!--      </div>-->
+<!--&lt;!&ndash;      <LanguageSelector />&ndash;&gt;-->
+<!--    </div>-->
 
     <div class="diary-layout">
-      <aside class="sidebar">
-<!--        <section class="panel">-->
-<!--          <div class="panel-title" v-formatted-text="text.recent" />-->
-<!--          <LoadingIcon v-if="loadingRecent" />-->
 
-<!--          <div v-else-if="recentItems.length" class="recent-list">-->
-<!--            <button-->
-<!--              v-for="item in recentItems"-->
-<!--              :key="`recent-${item.id ?? item.date}`"-->
-<!--              class="recent-item"-->
-<!--              type="button"-->
-<!--              @click="openDetail(item)"-->
-<!--            >-->
-<!--              <div class="recent-item__title" v-formatted-text="item.abridge || item.date || text.noSummary" />-->
-<!--              <div class="recent-item__date">{{ formatDateLabel(item.date) }}</div>-->
-<!--            </button>-->
-<!--          </div>-->
-
-<!--          <div v-else class="empty-box" v-formatted-text="text.noRecent" />-->
-<!--        </section>-->
-
-        <section class="panel">
-          <div class="panel-title" v-formatted-text="text.archive" />
-          <LoadingIcon v-if="loadingCatalog" />
-
-          <div v-else-if="catalog.length" class="archive-list">
-            <div
-              v-for="yearItem in catalog"
-              :key="`year-${yearItem.year}`"
-              class="archive-year"
-            >
-              <div class="archive-year__title">
-                <span>{{ yearItem.year }}</span>
-                <span>{{ yearItem.total }}{{ text.countSuffix }}</span>
-              </div>
-
-              <div class="archive-months">
-                <button
-                  v-for="monthItem in yearItem.months"
-                  :key="`month-${yearItem.year}-${monthItem.month}`"
-                  type="button"
-                  class="archive-month"
-                  @click="applyArchive(yearItem.year, monthItem.month)"
-                >
-                  <span>{{ monthItem.month }}{{ text.monthSuffix }}：{{ monthItem.total }}{{ text.countSuffix }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="empty-box" v-formatted-text="text.noArchive" />
-        </section>
-      </aside>
 
       <section class="content">
-        <section class="panel">
-          <div class="panel-title" v-formatted-text="text.filters" />
 
-          <div class="filter-grid">
-            <label class="field">
-              <span>{{ text.year }}</span>
-              <select v-model="filters.year" class="field-input">
-                <option value="">{{ text.all }}</option>
-                <option v-for="year in availableYears" :key="year" :value="String(year)">{{ year }}</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>{{ text.month }}</span>
-              <select v-model="filters.month" class="field-input">
-                <option value="">{{ text.all }}</option>
-                <option v-for="month in 12" :key="month" :value="String(month)">{{ month }}</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>{{ text.startDate }}</span>
-              <input v-model="filters.startDate" class="field-input" type="date">
-            </label>
-
-            <label class="field">
-              <span>{{ text.endDate }}</span>
-              <input v-model="filters.endDate" class="field-input" type="date">
-            </label>
-
-            <label class="field">
-              <span>{{ text.limit }}</span>
-              <select v-model="filters.limit" class="field-input">
-                <option :value="10">10</option>
-                <option :value="20">20</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="filter-actions">
-            <button type="button" class="action-button action-button--muted" @click="resetFilters">
-              {{ text.reset }}
-            </button>
-            <button type="button" class="action-button" @click="loadList">
-              {{ text.query }}
-            </button>
-          </div>
-        </section>
 
         <section class="panel">
           <div class="panel-title" v-formatted-text="text.list" />
@@ -363,7 +262,7 @@ watch(
               >
                 <div class="diary-card__top">
                   <div
-                      class="rt-blockquote diary-card__summary"
+                      class="diary-card__summary"
                       v-formatted-text="item.abridge || text.noSummary"
                   />
 
@@ -378,12 +277,118 @@ watch(
           <div v-else class="empty-box" v-formatted-text="text.noData" />
         </section>
       </section>
+
+      <aside class="sidebar">
+        <!--        <section class="panel">-->
+        <!--          <div class="panel-title" v-formatted-text="text.recent" />-->
+        <!--          <LoadingIcon v-if="loadingRecent" />-->
+
+        <!--          <div v-else-if="recentItems.length" class="recent-list">-->
+        <!--            <button-->
+        <!--              v-for="item in recentItems"-->
+        <!--              :key="`recent-${item.id ?? item.date}`"-->
+        <!--              class="recent-item"-->
+        <!--              type="button"-->
+        <!--              @click="openDetail(item)"-->
+        <!--            >-->
+        <!--              <div class="recent-item__title" v-formatted-text="item.abridge || item.date || text.noSummary" />-->
+        <!--              <div class="recent-item__date">{{ formatDateLabel(item.date) }}</div>-->
+        <!--            </button>-->
+        <!--          </div>-->
+
+        <!--          <div v-else class="empty-box" v-formatted-text="text.noRecent" />-->
+        <!--        </section>-->
+
+        <section class="panel">
+          <div class="panel-title" v-formatted-text="text.archive" />
+          <LoadingIcon v-if="loadingCatalog" />
+
+          <div v-else-if="catalog.length" class="archive-list">
+            <div
+                v-for="yearItem in catalog"
+                :key="`year-${yearItem.year}`"
+                class="archive-year"
+            >
+              <div class="archive-year__title">
+                <span>{{ yearItem.year }}</span>
+                <span>{{ yearItem.total }}{{ text.countSuffix }}</span>
+              </div>
+
+              <div class="archive-months">
+                <button
+                    v-for="monthItem in yearItem.months"
+                    :key="`month-${yearItem.year}-${monthItem.month}`"
+                    type="button"
+                    class="archive-month"
+                    @click="applyArchive(yearItem.year, monthItem.month)"
+                >
+                  <span>{{ monthItem.month }}{{ text.monthSuffix }}：{{ monthItem.total }}{{ text.countSuffix }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="empty-box" v-formatted-text="text.noArchive" />
+        </section>
+
+<!--        <section class="panel">-->
+<!--          <div class="panel-title" v-formatted-text="text.filters" />-->
+
+<!--          <div class="filter-grid">-->
+<!--            <label class="field">-->
+<!--              <span>{{ text.year }}</span>-->
+<!--              <select v-model="filters.year" class="field-input">-->
+<!--                <option value="">{{ text.all }}</option>-->
+<!--                <option v-for="year in availableYears" :key="year" :value="String(year)">{{ year }}</option>-->
+<!--              </select>-->
+<!--            </label>-->
+
+<!--            <label class="field">-->
+<!--              <span>{{ text.month }}</span>-->
+<!--              <select v-model="filters.month" class="field-input">-->
+<!--                <option value="">{{ text.all }}</option>-->
+<!--                <option v-for="month in 12" :key="month" :value="String(month)">{{ month }}</option>-->
+<!--              </select>-->
+<!--            </label>-->
+
+<!--            <label class="field">-->
+<!--              <span>{{ text.startDate }}</span>-->
+<!--              <input v-model="filters.startDate" class="field-input" type="date">-->
+<!--            </label>-->
+
+<!--            <label class="field">-->
+<!--              <span>{{ text.endDate }}</span>-->
+<!--              <input v-model="filters.endDate" class="field-input" type="date">-->
+<!--            </label>-->
+
+<!--            <label class="field">-->
+<!--              <span>{{ text.limit }}</span>-->
+<!--              <select v-model="filters.limit" class="field-input">-->
+<!--                <option :value="10">10</option>-->
+<!--                <option :value="20">20</option>-->
+<!--                <option :value="50">50</option>-->
+<!--                <option :value="100">100</option>-->
+<!--              </select>-->
+<!--            </label>-->
+<!--          </div>-->
+
+<!--          <div class="filter-actions">-->
+<!--            <button type="button" class="action-button action-button&#45;&#45;muted" @click="resetFilters">-->
+<!--              {{ text.reset }}-->
+<!--            </button>-->
+<!--            <button type="button" class="action-button" @click="loadList">-->
+<!--              {{ text.query }}-->
+<!--            </button>-->
+<!--          </div>-->
+<!--        </section>-->
+      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
 .diary-page {
+ /* padding-top: 10px;*/
   padding-bottom: 32px;
 }
 
@@ -409,7 +414,7 @@ watch(
 
 .diary-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 300px ;
   gap: 18px;
 }
 
@@ -504,14 +509,15 @@ watch(
   border: 1px solid var(--color-border);
   background: #ffffff;
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 6px;
   cursor: pointer;
+  font-size: 12px;
   color: var(--color-text);
 }
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
@@ -557,10 +563,10 @@ watch(
 }
 
 .diary-card {
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--border-radius-md);
   padding: 16px;
-  background: #fcfffb;
+  background: #f7ffff;
 }
 
 .diary-card__top {

@@ -1,3 +1,5 @@
+import { BLOCKQUOTE_TAG_MAP } from "./blockquote.js";
+
 // 主入口
 export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
@@ -295,13 +297,32 @@ function processCurlySyntax(text) {
 }
 
 // 處理 ```blockquote```
+// 支持带标签格式：```标签\n标题\n文本
+// 首行标签命中 BLOCKQUOTE_TAG_MAP 时，渲染为带「图标 + 标题」头部的新式引用块
 function processBlockquote(text) {
     return text.replace(/```([\s\S]*?)```/g, (match, inner) => {
-        const content = inner
+        const lines = inner
             .trim()              // 去除首尾空白（包括换行）
             .split('\n')
-            .map(line => line.trim())
-            .join('<br>');
+            .map(line => line.trim());
+
+        // 识别首行是否为标签（独立的小写字母/数字单词）
+        const firstLine = lines[0] || '';
+        const tagName = /^[a-z][a-z0-9]*$/.test(firstLine) ? firstLine : null;
+        const tagConfig = tagName ? BLOCKQUOTE_TAG_MAP[tagName] : null;
+
+        // 命中映射且至少有一行标题 → 新式引用块
+        if (tagConfig && lines.length >= 2) {
+            const title = lines[1];
+            const body = lines.slice(2).join('<br>');
+
+            // 单行输出，避免被后续 processLineBreak / processSpaces 污染
+            return `<blockquote class="rt-blockquote rt-blockquote-tag" style="--bq-accent:${tagConfig.accent};--bq-bg:${tagConfig.bg}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagConfig.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`;
+        }
+
+        // 未命中标签 → 回退为普通引用块（标签行作为普通文本显示）
+        const content = lines.join('<br>');
+
         return `<blockquote class="rt-blockquote">${content}</blockquote>`;
     });
 }

@@ -281,7 +281,7 @@ watch(
 
 .ref-content {
   margin-bottom: 8px;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.6;
 }
 

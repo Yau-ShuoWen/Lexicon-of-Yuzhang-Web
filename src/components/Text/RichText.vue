@@ -99,11 +99,12 @@ watch(
   border-radius: 6px;
   min-height: 10px;
   transition: 0.2s;
+  margin: 5px 0 5px 0;
 }
 
 .valid {
-  background-color: #f3fff7;
-  border: 2px solid #39cd51;
+  background-color: white;
+  border: 1px solid #39cd51;
 }
 
 .invalid {

@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router'
 import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
 import ToastWindow from "./components/Window/ToastWindow.vue";
 import { initNoteTooltip } from "./utils/noteTooltip.js";
+import { initPinyinBlock } from "./utils/pinyinBlock.js";
 
 // 路由
 const route = useRoute()
@@ -17,6 +18,7 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 
 onMounted(() => {
   initNoteTooltip();
+  initPinyinBlock();
 });
 
 const statue = computed(() => {

@@ -2,6 +2,7 @@
 export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
+    text = processPinyinBlock(text);
     text = processBracketPhonetic(text);
     text = processCurlySyntax(text);
     text = processTable(text);
@@ -12,6 +13,52 @@ export function formatRichText(text) {
     text = processSpaces(text);
 
     return text;
+}
+
+// 处理 ▕▏ 拼音块（用 renderBracketContent 处理 [] 内容）
+// 结构：▕触发文本│标题1┆值1│标题2┆值2▏
+function processPinyinBlock(text) {
+    return text.replace(/▕(.+?)▏/g, (match, content) => {
+        // 第一个 │ 之前的是 trigger（折叠口），之后是 title┆value 对
+        const firstPipe = content.indexOf('│');
+
+        let triggerRaw, afterTrigger;
+
+        if (firstPipe === -1) {
+            // 没有 │，整个内容就是 trigger
+            triggerRaw = content.trim();
+            afterTrigger = '';
+        } else {
+            triggerRaw = content.slice(0, firstPipe).trim();
+            afterTrigger = content.slice(firstPipe);
+        }
+
+        // 解析 │title┆value 对
+        const pairs = [];
+        const pairParts = afterTrigger.split('│').filter(Boolean);
+
+        for (const part of pairParts) {
+            const sepIndex = part.indexOf('┆');
+            if (sepIndex === -1) continue;
+
+            const label = part.slice(0, sepIndex).trim();
+            const value = part.slice(sepIndex + 1).trim();
+
+            // 检测是否为国际音标（用 _ 分割）
+            const isIPA = /\[[^\]]+_/.test(value);
+
+            const valueHtml = processBracketPhonetic(value);
+            pairs.push({label, valueHtml, isIPA});
+        }
+
+        // 处理 trigger（若有 [] 则加拼音样式，否则原样显示）
+        const triggerHtml = processBracketPhonetic(triggerRaw);
+
+        // 序列化后用 encodeURIComponent 安全传递
+        const jsonData = JSON.stringify({trigger: triggerHtml, pairs});
+
+        return `<span class="rt-pinyin-block"><span class="rt-pinyin-trigger" data-pinyin-data="${encodeURIComponent(jsonData)}">${triggerHtml}<span class="rt-pinyin-arrow">&#x25BE;</span></span></span>`;
+    });
 }
 
 // 处理 {} 特殊格式（支持有限嵌套）
@@ -445,7 +492,7 @@ function processList(text) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // 👉 無序列表（永遠單獨處理，不影響上下文）
+        // 無序列表
         if (line.startsWith("- ")) {
             orderedIndex = 0; // 打斷有序列表
             result.push("○  " + line.slice(2));
@@ -465,7 +512,7 @@ function processList(text) {
             continue;
         }
 
-        // 👉 其他行（包括空行）
+        // 其他行（包括空行）
         orderedIndex = 0; // 中斷有序列表
         result.push(line);
     }
@@ -475,28 +522,21 @@ function processList(text) {
 
 // 處理橫線分割
 function processHorizontalRule(text) {
-
-    return text.replace(
-        /^[ \t]*-{5,}[ \t]*\r?\n?/gm,
-        '<hr class="rt-hr">'
-    );
+    return text.replace(/^[ \t]*-{5,}[ \t]*\r?\n?/gm, '<hr class="rt-hr">');
 }
 
-// 处理 [] 拼音 / IPA
+// 处理拼音
 function processBracketPhonetic(text) {
-    text = text.replace(/\[([^\]]+)]/g, (m, inner) => {
-
+    return text.replace(/\[([^\]]+)]/g, (m, inner) => {
         if (inner.includes("_")) {
             const [pre, tone] = inner.split("_");
             return (
-                `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em ">[${pre}</span>` +
-                `<span style="font-family: 'Charis SIL', serif ">${tone}]</span>`
+                `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em ">${pre}</span>` +
+                `<span style="font-family: 'Charis SIL', serif; font-size: 1.1em">${tone}</span>`
             );
         }
-
-        return `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em">[${inner}]</span>`;
+        return `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em">${inner}</span>`;
     });
-    return text.replace(/\[(.*?)]/g, '$1');
 }
 
 // 处理换行

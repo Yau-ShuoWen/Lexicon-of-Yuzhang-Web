@@ -1,0 +1,415 @@
+
+.rt-h {
+    margin: 0;
+    padding: 0;
+
+    font-size: 1.4em;
+    font-weight: 700;
+
+    display: inline;
+}
+
+.rt-empty-line {
+    display: block;
+    height: 0.8em;
+}
+
+.rt-note {
+    display: inline-block;
+}
+
+.rt-note-trigger {
+    font-size: 0.85em;
+    color: #2d7be3;
+    cursor: pointer;
+    user-select: none;
+}
+
+.rt-note-tooltip {
+    position: fixed;
+    display: none;
+    width: fit-content;
+
+    max-width: min(300px, calc(100vw - 24px));
+
+    background: #fff;
+
+    border: 1.5px solid #b1b6bc;
+
+    border-radius: 5px;
+
+    box-shadow:
+            0 4px 12px rgba(0,0,0,.08),
+            0 8px 24px rgba(0,0,0,.08);
+
+    padding: 6px 14px;
+
+    line-height: 1.6;
+    font-size: 0.92rem;
+
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+
+    z-index: 1000;
+
+    animation: rt-note-pop .12s ease-out;
+}
+
+.rt-note-tooltip::before {
+    content: "";
+
+    position: absolute;
+
+    top: -6px;
+
+    left: var(--arrow-left, 20px);
+
+    width : 8.5px;
+    height: 8.5px;
+
+    background: white;
+
+    border-left: 1.5px solid #b1b6bc;
+    border-top: 1.5px solid #b1b6bc;
+
+    transform: rotate(45deg);
+}
+
+@media (pointer: coarse) {
+
+    .rt-note-tooltip {
+        width: fit-content;
+
+        max-width: min(420px, calc(100vw - 30px));
+    }
+
+    .rt-note-tooltip::before {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .rt-note-trigger {
+        font-size: 1em;
+    }
+
+}
+
+/* ========================富文本拼音块====================== */
+
+.rt-pinyin-block {
+    display: inline;
+}
+
+.rt-pinyin-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+
+    padding: 1px 6px 1px 8px;
+
+    font-size: 1.0em;
+    font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+
+    color: #07428e;
+    background: #eef3fc;
+    border: 1px solid #c8d8f0;
+    border-radius: 4px;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition: background 0.15s;
+}
+
+.rt-pinyin-trigger:hover {
+    background: #dce8fa;
+}
+
+.rt-pinyin-key {
+    font-weight: 500;
+}
+
+.rt-pinyin-arrow {
+    font-size: 0.7em;
+    line-height: 1;
+    color: #7a9ed4;
+    transition: transform 0.2s;
+}
+
+.rt-pinyin-trigger.active .rt-pinyin-arrow {
+    transform: rotate(180deg);
+}
+
+/* 拼音块弹窗 */
+.rt-pinyin-popup {
+    display: none;
+    position: fixed;
+
+    z-index: 1000;
+
+    background: #fff;
+    border: 1.5px solid #b1b6bc;
+    border-radius: 8px;
+
+    box-shadow:
+            0 4px 16px rgba(0,0,0,.1),
+            0 8px 28px rgba(0,0,0,.08);
+
+    overflow: hidden;
+
+    animation: rt-pinyin-pop .12s ease-out;
+}
+
+.rt-pinyin-popup-inner {
+    padding: 8px 0;
+}
+
+.rt-pinyin-popup-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    padding: 0 16px;
+
+    line-height: 1.6;
+}
+
+.rt-pinyin-popup-label {
+    white-space: nowrap;
+    color: #666;
+    font-size: 0.88em;
+    flex-shrink: 0;
+}
+
+.rt-pinyin-popup-value {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+/*
+.rt-pinyin-popup::before {
+    content: "";
+
+    position: absolute;
+
+    top: -6px;
+
+    width : 8.5px;
+    height: 8.5px;
+
+    background: white;
+
+    border-left: 1.5px solid #b1b6bc;
+    border-top: 1.5px solid #b1b6bc;
+
+    transform: rotate(45deg);
+}*/
+
+/* 弹窗表格布局（桌面和移动端一致） */
+.rt-pinyin-popup {
+    width: auto;
+    min-width: 180px;
+    max-width: min(360px, calc(100vw - 30px));
+}
+
+.rt-pinyin-popup::before {
+    content: "";
+
+    position: absolute;
+
+    top: -6px;
+
+    width : 8.5px;
+    height: 8.5px;
+
+    background: white;
+
+    border-left: 1.5px solid #b1b6bc;
+    border-top: 1.5px solid #b1b6bc;
+
+    transform: rotate(45deg);
+}
+
+.rt-pinyin-popup-inner {
+    display: table;
+    border-collapse: collapse;
+    width: 100%;
+    padding: 0;
+}
+
+.rt-pinyin-popup-row {
+    display: table-row;
+}
+
+.rt-pinyin-popup-row:not(:last-child) .rt-pinyin-popup-label,
+.rt-pinyin-popup-row:not(:last-child) .rt-pinyin-popup-value,
+.rt-pinyin-popup-row:not(:last-child) .rt-pinyin-copy-btn {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.rt-pinyin-popup-label {
+    display: table-cell;
+    white-space: nowrap;
+    color: #666;
+    font-size: 0.88em;
+    padding: 8px 12px;
+    border-right: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+
+.rt-pinyin-popup-value {
+    display: table-cell;
+    font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+    font-size: 1.05em;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: middle;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* 值和复制按钮视为一体：hover 值联动复制按钮变色 */
+.rt-pinyin-popup-value:hover + .rt-pinyin-copy-btn {
+    color: #2d7be3;
+}
+
+.rt-pinyin-copy-btn {
+    display: table-cell;
+
+    width: 28px;
+    padding: 8px 4px;
+
+    color: #aaa;
+    cursor: pointer;
+
+    vertical-align: middle;
+    text-align: center;
+
+    transition: color 0.15s;
+}
+
+.rt-pinyin-copy-btn:hover {
+    color: #2d7be3;
+}
+
+@keyframes rt-pinyin-pop {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes rt-note-pop {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rt-hr {
+    border: none;
+    border-top: 2px solid #9f9f9f;
+    margin: 16px 0;
+}
+
+/* ========================富文本 blockquote====================== */
+
+.rt-blockquote {
+    padding: 12px 14px;
+    margin: 16px 0;
+
+    border: 1px solid #e0e0e0;
+    border-left: 4px solid #2196f3;
+    border-radius: 6px;
+
+    background-color: #f4f8fd;
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
+/* ========================富文本表格====================== */
+
+.rt-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 10px;
+}
+
+/* 共通 */
+
+.rt-table {
+    border-collapse: collapse;
+}
+
+.rt-table th,
+.rt-table td {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+
+.rt-table th {
+    background: #f5f5f5;
+}
+
+/* 表格模式 */
+
+/* 全部都是 ! */
+
+.rt-table-compact {
+    width: max-content;
+}
+
+/* 一般表格 */
+
+.rt-table-auto {
+    width: auto;
+}
+
+/* 存在 * */
+
+.rt-table-fill {
+    width: 100%;
+}
+
+/* 欄位類型 */
+
+.rt-col-nowrap {
+    white-space: nowrap;
+}
+
+.rt-col-normal {
+    min-width: 120px;
+}
+
+.rt-col-long {
+    min-width: 280px;
+}
+
+/* 手機 */
+
+@media (max-width: 768px) {
+
+    .rt-col-normal {
+        min-width: 100px;
+    }
+
+    .rt-col-long {
+        min-width: 300px;
+    }
+}

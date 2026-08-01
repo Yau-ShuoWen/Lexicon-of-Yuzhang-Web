@@ -12,59 +12,45 @@ const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 const loading = ref(false)
-
 const catalog = ref([])
 
 async function fetchCatalog() {
 
   try {
-
     loading.value = true
+    const res = await fetch(`/api/personal/alphabet/catalog/${language.value}`)
 
-    const res = await fetch(
-        `/api/personal/alphabet/catalog/${language.value}`
-    )
-
-    if (!res.ok) {
-      throw new Error(res.status)
-    }
-
+    if (!res.ok) throw new Error(res.status)
     catalog.value = await res.json()
 
   } catch (e) {
-
     console.error(e)
-
     showError("加载目录失败")
   }
   finally {
-
     loading.value = false
   }
-}
-
-function openAlphabet(item) {
-
-  router.push(
-      `/${language.value}/${dialect.value}/ysw/alphabet/${item.url}`
-  )
 }
 
 watch(language, fetchCatalog)
 
 onMounted(fetchCatalog)
-
 </script>
 
 <template>
 
   <div class="broaden-layout">
 
+    <div class="title-block">
+      <div class="big-title" v-formatted-text="`我会几十门语言`"></div>
+      <div class="small-title" v-formatted-text="`的字母`"></div>
+    </div>
+
+
+
     <LoadingIcon v-if="loading"/>
 
-    <section v-for="group in catalog" :key="group.left"
-        class="catalog-group"
-    >
+    <section v-for="group in catalog" :key="group.left" class="catalog-group">
 
       <h2 class="catalog-title" v-formatted-text="group.left"/>
 
@@ -89,6 +75,29 @@ onMounted(fetchCatalog)
 </template>
 
 <style scoped>
+.title-block {
+  place-items: center;
+  padding: 12px 14px;
+  margin: 16px auto;
+  width: fit-content;
+
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+
+  background-color: #eef6ee;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.big-title {
+  text-align: center;
+  font-size: 3rem;
+}
+
+.small-title {
+  text-align: center;
+  font-size: 1rem;
+}
 
 /* ===== group ===== */
 

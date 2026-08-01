@@ -362,14 +362,14 @@ watch(
                   class="diary-card__link"
               >
                 <div class="diary-card__top">
+                  <div
+                      class="rt-blockquote diary-card__summary"
+                      v-formatted-text="item.abridge || text.noSummary"
+                  />
+
                   <div class="diary-card__date">
                     {{ formatDateLabel(item.date) }}
                   </div>
-
-                  <div
-                      class="diary-card__summary"
-                      v-formatted-text="item.abridge || text.noSummary"
-                  />
                 </div>
               </a>
             </article>
@@ -568,7 +568,8 @@ watch(
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .diary-card__date {
@@ -595,6 +596,7 @@ watch(
 }
 
 .diary-card__summary {
+  margin:  0;
   color: var(--color-text);
   font-weight: bold;
   line-height: 1.8;

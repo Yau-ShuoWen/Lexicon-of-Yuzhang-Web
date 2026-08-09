@@ -36,6 +36,8 @@ useHead({
                        v-formatted-text="`繁體轉簡體`"/>
           <router-link :to="getPath(`test/pinyin-ipa`)" class="dev-btn-middle dev-normal-button"
                        v-formatted-text="`富文本展示框`"/>
+          <router-link :to="getPath(`test/oss`)" class="dev-btn-middle dev-normal-button"
+                       v-formatted-text="`OSS / 音頻上傳測試`"/>
           <router-link :to="getPath(`tool/special-symbol`)" class="dev-btn-middle dev-normal-button"
                        v-formatted-text="`特殊符號複製`"/>
 

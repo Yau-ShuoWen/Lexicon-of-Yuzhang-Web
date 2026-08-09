@@ -1,6 +1,7 @@
 // 标签引用块配置（可编程映射）
 // 键 = 引用块首行的标签名，如 ```warn 中的 warn
 // 新增标签只需在此处添加一项：icon 图标 + accent 主题色 + bg 背景色
+// 可选：text 单独指定标题文字颜色（不配置则默认使用 accent 主题色）
 export const BLOCKQUOTE_TAG_MAP = {
     // 蓝色系：朋友圈
     pyq: {
@@ -15,7 +16,7 @@ export const BLOCKQUOTE_TAG_MAP = {
         bg: '#fff7ed'
     },
     // 紫色系：人工智能 思考
-    ai: {
+    sl: {
         icon: new URL('../assets/icons/blockquoteTag/ChatGPT.svg', import.meta.url).href,
         accent: '#7F72EA',
         bg: '#e5e5ff'
@@ -28,14 +29,24 @@ export const BLOCKQUOTE_TAG_MAP = {
     },
     yl: {
         icon: new URL('../assets/icons/blockquoteTag/医疗.svg', import.meta.url).href,
-        accent: '#dab30c',
-        bg: '#fffce7',
+        accent: '#5da8d1',
+        bg: '#e8f6ff'
     },
     bc: {
         icon: new URL('../assets/icons/blockquoteTag/补充.svg', import.meta.url).href,
         accent: '#29aaa2',
         bg: '#e4fffd',
     },
-
+    gd: {
+        icon: new URL('../assets/icons/blockquoteTag/观点.svg', import.meta.url).href,
+        accent: '#f8d750',
+        bg: '#fbf5e9',
+        text: '#bc953d',   // 黄色主题太浅，单独加深标题文字色保证清晰
+    },
+    lt: {
+        icon: new URL('../assets/icons/blockquoteTag/聊天.svg', import.meta.url).href,
+        accent: '#1cb833',
+        bg: '#effff1',
+    },
 
 };

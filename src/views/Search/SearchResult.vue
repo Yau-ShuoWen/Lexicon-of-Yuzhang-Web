@@ -304,12 +304,16 @@ const getResultLink = (result) => {
   font-weight: 500;
   color: var(--color-text);
   margin-bottom: 8px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .result-explain {
   color: var(--color-text-light);
   font-size: 18px;
   margin: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .result-content {

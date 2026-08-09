@@ -120,7 +120,11 @@ export default {
         github_project: "Github 專案"
     },
     pinyin_table: {
-        hint: "點擊方格查看詳細信息"
+        title: "方言拼音表",
+        subtitle: "按聲母、韻母分組排列，點擊任意方格查看讀音與示例",
+        hint: "點擊方格查看詳細信息",
+        legend_clickable: "可點擊查看詳情",
+        legend_empty: "該位置無對應讀音"
     },
     personal: {
         about: {

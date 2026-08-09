@@ -149,14 +149,10 @@ watch(
     <LoadingIcon v-if="loading" />
 
     <div v-else-if="diary" class="detail-body panel">
-      <h1 class="detail-title">{{ formatDateLabel(diary.date) }}</h1>
+      <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
 
-      <div class="detail-meta">
-        <span v-if="diary.startDate">{{ text.startDate }}: {{ formatDateLabel(diary.startDate) }}</span>
-        <span v-if="diary.finalizeDate">{{ text.finalizeDate }}: {{ formatDateLabel(diary.finalizeDate) }}</span>
-        <span v-if="diary.createdTime">{{ text.createdTime }}: {{ formatDateTimeLabel(diary.createdTime) }}</span>
-        <span v-if="diary.updatedTime">{{ text.updatedTime }}: {{ formatDateTimeLabel(diary.updatedTime) }}</span>
-      </div>
+
+
 
 <!--      <section v-if="diary.abridge" class="content-block">-->
 <!--        <div class="content-block__title" v-formatted-text="text.summary" />-->
@@ -172,11 +168,19 @@ watch(
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent" />
       </section>
-
+      <div class="detail-meta">
+        <span v-if="diary.startDate">{{ text.startDate }}: {{ formatDateLabel(diary.startDate) }}</span>
+        <span v-if="diary.finalizeDate">{{ text.finalizeDate }}: {{ formatDateLabel(diary.finalizeDate) }}</span>
+        <span v-if="diary.createdTime">{{ text.createdTime }}: {{ formatDateTimeLabel(diary.createdTime) }}</span>
+        <span v-if="diary.updatedTime">{{ text.updatedTime }}: {{ formatDateTimeLabel(diary.updatedTime) }}</span>
+      </div>
 
     </div>
 
+
     <div v-else class="empty-box panel" v-formatted-text="text.notFound" />
+
+
 
   </div>
 </template>
@@ -208,16 +212,16 @@ watch(
 }
 
 .detail-title {
-  margin: 0 0 12px;
+  margin: 0 0 40px;
   color: var(--color-primary-dark);
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 20px;
-  margin-bottom: 20px;
+  margin-top: 40px;
   color: var(--color-text-light);
   font-size: 14px;
 }

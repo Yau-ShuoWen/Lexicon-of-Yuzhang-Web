@@ -59,7 +59,7 @@ function processPinyinBlock(text) {
         // 序列化后用 encodeURIComponent 安全传递
         const jsonData = JSON.stringify({trigger: triggerHtml, pairs});
 
-        return `<span class="rt-pinyin-block"><span class="rt-pinyin-trigger" data-pinyin-data="${encodeURIComponent(jsonData)}">${triggerHtml}<span class="rt-pinyin-arrow">&#x25BE;</span></span></span>`;
+        return `<span class="rt-pinyin-block"><span class="rt-pinyin-trigger" data-pinyin-data="${encodeURIComponent(jsonData)}">${triggerHtml}</span></span>`;
     });
 }
 
@@ -81,8 +81,8 @@ function processCurlySyntax(text) {
             // 找到 {
             if (input[i] === "{") {
 
-                // 嘗試匹配 tag 類型
-                const tagMatch = input.slice(i).match(/^\{([a-z])\s/);
+                // 嘗試匹配 tag 類型（支援多字母 tag，如 {code xxx}，舊的單字母 tag 仍兼容）
+                const tagMatch = input.slice(i).match(/^\{([a-z]+)\s/);
 
                 if (!tagMatch) {
                     result += input[i];
@@ -92,8 +92,8 @@ function processCurlySyntax(text) {
 
                 const tag = tagMatch[1];
 
-                // 找到內容開始位置
-                const contentStart = i + 3; // {x␠
+                // 找到內容開始位置（{ + tag + 空格）
+                const contentStart = i + 2 + tag.length;
 
                 // 找對應 }
                 const end = findMatchingBrace(input, i);
@@ -127,7 +127,7 @@ function processCurlySyntax(text) {
 
         // 去掉簡單格式 tag，用於 target
         const stripTags = (str) =>
-            str.replace(/\{[a-z]\s+([^{}]+)\}/g, "$1").trim();
+            str.replace(/\{[a-z]+\s+([^{}]+)\}/g, "$1").trim();
 
         // 沒有 |
         if (separatorIndex === -1) {
@@ -236,10 +236,8 @@ function processCurlySyntax(text) {
             case "u": {
 
                 const parsedData = splitDisplayTarget(inner, true);
+                if (!parsedData) return `{u ${inner}}`;
 
-                if (!parsedData) {
-                    return `{u ${inner}}`;
-                }
 
                 const {display, target} = parsedData;
 
@@ -254,6 +252,21 @@ function processCurlySyntax(text) {
 
             case "s":
                 return `${inner}`;
+
+            // ===== 多字母 tag =====
+
+            case "code":
+
+                // 轉義 HTML 特殊字符，用於代碼塊內容
+            function escapeHtml(str) {
+                return str
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            }
+
+                // 等寬字體行內代碼塊（如 {code xxx}）；內容不解析其他語法，直接轉義輸出
+                return `<code class="rt-code">${escapeHtml(inner)}</code>`;
 
             // ===== 預留 =====
 
@@ -296,6 +309,7 @@ function processCurlySyntax(text) {
     }
 }
 
+
 // 處理 ```blockquote```
 // 支持带标签格式：```标签\n标题\n文本
 // 首行标签命中 BLOCKQUOTE_TAG_MAP 时，渲染为带「图标 + 标题」头部的新式引用块
@@ -317,7 +331,8 @@ function processBlockquote(text) {
             const body = lines.slice(2).join('<br>');
 
             // 单行输出，避免被后续 processLineBreak / processSpaces 污染
-            return `<blockquote class="rt-blockquote rt-blockquote-tag" style="--bq-accent:${tagConfig.accent};--bq-bg:${tagConfig.bg}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagConfig.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`;
+            // --bq-text 未配置时回退为 accent 主题色
+            return `<blockquote class="rt-blockquote rt-blockquote-tag" style="--bq-accent:${tagConfig.accent};--bq-bg:${tagConfig.bg};--bq-text:${tagConfig.text || tagConfig.accent}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagConfig.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`;
         }
 
         // 未命中标签 → 回退为普通引用块（标签行作为普通文本显示）

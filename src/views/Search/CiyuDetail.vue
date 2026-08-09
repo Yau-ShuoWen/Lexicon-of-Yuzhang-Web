@@ -185,6 +185,8 @@ watch(
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 2px dashed #c8e6c9;
+  cursor: pointer;
+  user-select: none;
 }
 
 .block-mean {

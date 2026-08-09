@@ -17,16 +17,16 @@
 }
 
 .page-container {
-    padding: 0;
     max-width: 1200px;
     min-height: auto;
     margin: 0 auto;
+    padding-top: var(--header-height);
 }
 
 @media (max-width: 480px) {
 
     .page-container {
-        padding: 0;
+        padding-top: 40px;
     }
 }
 

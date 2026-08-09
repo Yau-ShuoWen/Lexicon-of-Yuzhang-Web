@@ -6,7 +6,6 @@ import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
-import CopyButton from "../../components/Button/CopyButton.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 
@@ -33,7 +32,7 @@ onMounted(fetchTable)
 async function fetchTable() {
   try {
     loading.value = true
-    const res = await fetch(`/api/pinyin/table/${dialect.value}`)
+    const res = await fetch(`/api/pinyin/table/${dialect.value}/${language.value}`)
     if (!res.ok) throw new Error(res.status)
 
     const data = await res.json()
@@ -69,89 +68,47 @@ function formatDisplay(item) {
   }
 }
 
-const pinyinInput = ref('')
-const pinyinOutput = ref('')
-
-async function previewPinyin() {
-
-  if (!pinyinInput.value.trim()) {
-    pinyinOutput.value = ''
-    return
-  }
-
-  try {
-    const params = new URLSearchParams({
-      pinyin: pinyinInput.value
-    })
-
-    const res = await fetch(
-        `/api/pinyin/preview/${dialect.value}/${language.value}?${params}`
-    )
-
-    if (!res.ok) throw new Error(res.status)
-
-    // UString 序列化就是 String
-    pinyinOutput.value = await res.json()
-
-  } catch (e) {
-    console.error(e)
-    pinyinOutput.value = ''
-  }
-}
-
 /* ---------- 监听路由变化 ---------- */
 watch(dialect, fetchTable)
-
-watch(
-    [pinyinInput, dialect, language],
-    previewPinyin
-)
 </script>
 
 
 <template>
-  <div class="broaden-layout">
+  <div class="broaden-layout pinyin-layout">
+
+    <!-- ===== Hero 标题区 ===== -->
+    <header class="pinyin-hero">
+
+      <h1 class="hero-title">
+        <span class="hero-dialect">{{ $t('dialect.' + dialect) }}</span>
+        <span class="hero-title-main">{{ $t('pinyin_table.title') }}</span>
+      </h1>
+
+      <p class="hero-subtitle">{{ $t('pinyin_table.subtitle') }}</p>
+
+      <div class="hero-hint">
+        <span class="hint-icon">i</span>
+        <span v-formatted-text="$t('pinyin_table.hint')"/>
+      </div>
+
+    </header>
 
     <LoadingIcon v-if="loading"/>
-
 
     <div v-else class="pinyin-container">
 
 
-              <div class="attribute-group">
-
-                <div class="group-header">
-                  <h3>方言拼音生成器</h3>
-                </div>
-
-                <div class="severable-group">
-
-                  <input type="text" inputmode="" pattern="[A-Za-z0-9]*"
-                         maxlength="100" placeholder="輸入拼音字母" v-model="pinyinInput"
-                         class="form-control middle-input pinyin-input-text"/>
-
-                  <div
-                      v-if="pinyinOutput"
-                      class="pinyin-input-text preview-box"
-                      v-formatted-text="pinyinOutput"
-                  />
-
-                </div>
-
-
-              </div>
-
-      <div class="gray-text" v-formatted-text="$t('pinyin_table.hint')"/>
-
-      <div class="table-block">
+      <div class="this-table-block">
         <div
-            v-for="grid in pinyinData"
+            v-for="(grid, gridIndex) in pinyinData"
             :key="grid.code"
             class="attribute-group"
+            :class="'accent-' + (gridIndex % 3)"
+            :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
         >
 
           <div class="group-header">
-            <h3>{{ grid.name[language] }}</h3>
+            <h3>{{ grid.name }}</h3>
           </div>
 
           <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
@@ -159,10 +116,11 @@ watch(
               <div class="items-grid">
 
                 <div
-                    v-for="item in group.item"
+                    v-for="(item, itemIndex) in group.item"
                     :key="item.id"
                     class="item-box clickable"
                     :class="{ invalid: !item.exist }"
+                    :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
                     @click="handleItemClick(item)"
                 >
                   <div
@@ -177,7 +135,6 @@ watch(
         </div>
       </div>
 
-
     </div>
   </div>
   <PinyinDetail
@@ -191,20 +148,214 @@ watch(
 
 
 <style>
-/* ======== Attribute Block ======== */
-.attribute-group {
 
+
+/* ======== Hero 标题区 ======== */
+.pinyin-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius-xl);
+  padding: 32px 28px 26px;
+  margin-bottom: 18px;
+  color: #fff;
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-lg);
+  animation: heroIn 0.6s ease both;
+}
+
+/* 装饰圆 */
+.pinyin-hero::before,
+.pinyin-hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pinyin-hero::before {
+  width: 220px;
+  height: 220px;
+  right: -60px;
+  top: -90px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pinyin-hero::after {
+  width: 140px;
+  height: 140px;
+  left: -40px;
+  bottom: -70px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hero-badge {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  letter-spacing: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-bottom: 12px;
+}
+
+.hero-title {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+}
+
+/* 方言名（如“南昌话”） */
+.hero-dialect {
+  color: #ffffff;
+  margin-right: 8px;
+}
+
+/* “方言拼音表”胶囊 */
+.hero-title-main {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-size: 19px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.hero-subtitle {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 16px;
+  font-size: 14px;
+  opacity: 0.92;
+  line-height: 1.6;
+}
+
+.hero-hint {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+}
+
+.hint-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 50%;
   background: #fff;
-  border-radius: 12px;
-  padding: 20px 18px;
-  /*border: 2px solid var(--color-primary-light);*/
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ======== 图例 ======== */
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 4px 4px 6px;
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+}
+
+.valid-dot {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f4e2 100%);
+  border: 1px solid var(--color-primary-light);
+}
+
+.invalid-dot {
+  background: #fafbfc;
+  border: 1px dashed #cbd2d9;
+}
+
+/* ======== 分组卡片 ======== */
+.attribute-group {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-xl);
+
+  padding: 22px 20px;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.55s ease both;
+  transition: box-shadow var(--transition-base);
+}
+
+
+.attribute-group:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* 左侧强调条 */
+.group-header::before {
+  content: '';
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
+}
+
+/* 分组强调色循环 */
+.accent-0 .group-header::before {
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
+}
+
+.accent-1 .group-header::before {
+  background: var(--color-secondary);
+  box-shadow: 0 2px 6px rgba(74, 111, 200, 0.3);
+}
+
+.accent-2 .group-header::before {
+  background: var(--color-accent);
+  box-shadow: 0 2px 6px rgba(243, 96, 72, 0.3);
 }
 
 .group-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
   color: #34495e;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 /* ======== Line（跨Group容器）======= */
@@ -232,23 +383,30 @@ watch(
 .items-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 70px;
-  gap: 5px; /* Group内部Item间距 */
+  grid-auto-columns: 76px;
+  gap: 6px; /* Group内部Item间距 */
 }
 
 /* ======== Item ======== */
 .item-box {
-  background: var(--card-bg-color);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f9f0 100%);
+  border: 1.5px solid #d6e6d2;
+  border-radius: 10px;
 
-  padding: 12px 8px;
-  min-height: 50px;
+  padding: 12px 6px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
 
-  transition: all 0.3s ease;
+  /* 入场动画：opacity 0 + 错峰 delay（内联） */
+  opacity: 0;
+  animation: itemIn 0.45s ease forwards;
+
+  transition: transform 0.25s ease, box-shadow 0.25s ease,
+  border-color 0.25s ease, background 0.25s ease;
 }
 
 /* ======== 可点击态 ======== */
@@ -256,27 +414,50 @@ watch(
   cursor: pointer;
 }
 
-/* hover 效果与页面1一致 */
+/* 悬浮：上浮 + 放大 + 高亮 */
 .item-box.clickable:not(.invalid):hover {
+  transform: translateY(-4px) scale(1.05);
   border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #e6f4e2 100%);
+  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.18);
+  z-index: 2;
+}
 
-  transform: translateY(0px);
+/* 按下：轻微回缩 */
+.item-box.clickable:not(.invalid):active {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: 0 3px 8px rgba(46, 125, 50, 0.15);
+}
+
+/* 光泽扫过 */
+/*.item-box.clickable:not(.invalid)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  opacity: 0;
+  transition: left 0.5s ease, opacity 0.2s ease;
+}*/
+
+.item-box.clickable:not(.invalid):hover::after {
+  left: 130%;
+  opacity: 1;
 }
 
 /* ======== invalid ======== */
 .item-box.invalid {
-  opacity: 0.5;
-  background: #f8f9fa;
-  border-color: #dee2e6;
-
+  background: #f0f2f4;
+  border: 1px dashed #d3d9df;
+  box-shadow: none;
   pointer-events: none;
-  transform: none !important;
-  box-shadow: none !important;
 }
 
 .item-box.invalid .main-display {
-  color: #adb5bd;
+  color: #b6bec7;
 }
 
 /* ======== 文字 ======== */
@@ -284,7 +465,9 @@ watch(
   font-size: 20px;
   text-align: center;
   color: var(--color-text);
-  line-height: 1.25;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .pinyin-container {
@@ -293,25 +476,93 @@ watch(
   gap: 5px;
 }
 
-.severable-group {
+.this-table-block {
+  display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
 }
 
-.pinyin-input-text {
-  margin: 2px 0;
-  width: 100%;
+/* ======== 入场动画 ======== */
+@keyframes heroIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.preview-box {
-  min-height: 42px;
-  padding: 10px 12px;
-  width: 100%;
-  background: white;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+@keyframes itemIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pinyin-layout {
+  width: 1088px;
+  margin-bottom: 50px;
+}
+
+@media (max-width: 1105px ) {
+  .pinyin-layout {
+    width: 754px
+  }
+}
+
+@media (max-width: 750px ) {
+  .pinyin-layout {
+    width: 500px
+  }
+  .pinyin-line {
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .pinyin-group {
+    width: 70%;
+  }
+  .item-box {
+    width: auto;
+  }
+}
+
 
 /* ======== Mobile Layout ======== */
-@media (max-width: 450px) {
+@media (max-width: 500px) {
+
+  .pinyin-layout {
+    width: 100%;
+  }
+
+  .pinyin-hero {
+    padding: 22px 18px 20px;
+  }
+
+  .hero-title {
+    font-size: 24px;
+  }
+
+  .hero-title-main {
+    font-size: 16px;
+  }
 
   /* 每行只有一个 group */
   .pinyin-line {
@@ -328,10 +579,6 @@ watch(
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
   }
-
-  .pinyin-input-text {
-    width: 100%;
-  }
-
 }
 </style>
+<!--/-->

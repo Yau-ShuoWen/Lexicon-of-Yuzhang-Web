@@ -95,6 +95,11 @@ const routes = [
                         name: 'TestAudio',
                         component: () => import('../views/Developer/Tool/TestAudio.vue')
                     },
+                    {
+                        path: 'test/oss',
+                        name: 'TestOss',
+                        component: () => import('../views/Developer/Tool/TestOss.vue')
+                    },
 
                     {
                         path: 'tool/special-symbol',
@@ -197,15 +202,27 @@ const routes = [
                         name: 'YswHome',
                         component: () => import('../views/Personal/YswHome.vue'),
                     },
+
+
+                    // 字母表
                     {
                         path: 'alphabet',
                         name: 'AlphabetCatalog',
-                        component: () => import('../views/Personal/AlphabetCatalog.vue')
+                        component: () => import('../views/Alphabet/AlphabetCatalog.vue')
                     },
+
+                    // 特殊页面
+                    {
+                        path: 'alphabet/tc-sc',
+                        name: 'AlphabetTcSc',
+                        component: () => import('../views/Alphabet/Alphabet-TcSc.vue'),
+                    },
+
+                    // 通用页面
                     {
                         path: 'alphabet/:code',
                         name: 'Alphabet',
-                        component: () => import('../views/Personal/AlphabetTable.vue'),
+                        component: () => import('../views/Alphabet/AlphabetTable.vue'),
                     },
                     {
                         path: 'diary',

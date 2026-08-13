@@ -19,40 +19,20 @@ const detail = ref(null)
 const audioRef = ref(null)
 const currentAudio = ref('')
 
-/**
- * ⭐ 用 Map 做音频缓存
- * key -> boolean
- */
-const audioMap = ref(new Map())
-
 /* =========================
-   1. HEAD 检测（带缓存）
-========================= */
-async function checkAudioExists(item)
-{
-  try
-  {
-    const res = await fetch(`/api/audio/pinyin/exists?dialect=${props.dialect}&pinyinKey=${item.key}`)
-    return await res.json()
-  }
-  catch
-  {
-    return false
-  }
-}
-/* =========================
-   2. 拉取 detail + 音频检测
+   2. 拉取 detail + 批量音频映射（并行）
 ========================= */
 async function fetchDetail() {
   if (!props.pinyinKey) return
 
   try {
     loading.value = true
-    audioMap.value.clear()
 
-    const res = await fetch(
-        `/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?key=${props.pinyinKey}`
-    )
+    // ⭐ detail 与音频映射并行请求，互不依赖，缩短总等待时间
+    const [res, audioRes] = await Promise.all([
+      fetch(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?key=${props.pinyinKey}`),
+      fetch(`/api/pinyin/audio/batch?dialect=${props.dialect}`)
+    ])
 
     const data = await res.json()
 
@@ -63,15 +43,18 @@ async function fetchDetail() {
 
     detail.value = data.value
 
-    const list = detail.value?.info || []
+    // 用批量结果给每个 item 标记 hasAudio / 缓存签名 url
+    let urlMap = {}
+    try {
+      urlMap = await audioRes.json()
+    } catch { /* 音频查询失败时全部视为无音频 */ }
 
-    // ⭐ 并发检测（比 for-await 快很多）
-    await Promise.all(
-        detail.value.info.map(async (item) =>
-        {
-          item.hasAudio = await checkAudioExists(item)
-        })
-    )
+    detail.value.info.forEach((item) =>
+    {
+      const url = urlMap[item.key]
+      item.hasAudio = !!url
+      item.audioUrl = url || ''
+    })
 
   } catch (e) {
     console.error(e)
@@ -83,12 +66,11 @@ async function fetchDetail() {
 }
 
 /* =========================
-   3. 播放
+   3. 播放（直接使用后端返回的签名 url）
 ========================= */
 function playAudio(item)
 {
-  currentAudio.value =
-      `/api/audio/pinyin/play?dialect=${props.dialect}&key=${item.key}`
+  currentAudio.value = item.audioUrl
 
   nextTick(async () =>
   {

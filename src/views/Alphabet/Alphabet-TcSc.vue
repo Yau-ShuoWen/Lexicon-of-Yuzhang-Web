@@ -9,84 +9,94 @@ const route = useRoute()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
-/* ======== 四种语言（正方形四角） ======== */
-
-// pos 为 SVG viewBox 100x100 里的角坐标
+/* ======== 四种语言配置 ======== */
+// pos 为按钮在 100x100 坐标系中的中心点百分比
 const LANGS = [
-  {key: 'sc', label: '简', name: '简体', pos: {x: 10, y: 10}},   // 左上
-  {key: 'tc', label: '繁', name: '通用繁体', pos: {x: 90, y: 10}},   // 右上
-  {key: 'hk', label: '港', name: '香港繁体', pos: {x: 10, y: 90}},   // 左下
-  {key: 'tw', label: '台', name: '台湾繁体', pos: {x: 90, y: 90}},   // 右下
+  { key: 'sc', label: '简', name: '大陆简体', pos: { x: 17.5, y: 17.5 } },    // 左上
+  { key: 'tc', label: '繁', name: '大陆繁体', pos: { x: 82.5, y: 17.5 } },  // 右上
+  { key: 'hk', label: '港', name: '香港繁体', pos: { x: 17.5, y: 82.5 } },  // 左下
+  { key: 'tw', label: '台', name: '台湾繁体', pos: { x: 82.5, y: 82.5 } }, // 右下
 ]
 
 const langOf = key => LANGS.find(l => l.key === key)
 
-/* ======== 转换方向 ======== */
-
-// 点击三态循环：起点 → 终点 → 下一次的起点 → 终点 → …
+/* ======== 转换状态管理 ======== */
 const from = ref(null)
 const to = ref(null)
 const input = ref('')
 const output = ref('')
 const loading = ref(false)
-
 let convertTimer = null
 
-const fromLang = computed(() => (from.value ? langOf(from.value) : null))
-const toLang = computed(() => (to.value ? langOf(to.value) : null))
+const fromLang = computed(() => langOf(from.value))
+const toLang = computed(() => langOf(to.value))
 const hasDir = computed(() => !!from.value && !!to.value)
 
-/* ======== 箭头 ======== */
-
-// 按两个角的坐标算线段，两端各缩进一点避免盖住角按钮
+/* ======== 箭头路径计算 ======== */
 const arrow = computed(() => {
   if (!hasDir.value) return null
-
-  const a = langOf(from.value).pos
-  const b = langOf(to.value).pos
+  const a = fromLang.value.pos
+  const b = toLang.value.pos
+  
+  // 计算角度
   const dx = b.x - a.x
   const dy = b.y - a.y
-  const len = Math.hypot(dx, dy) || 1
-  const inset = 20
-  const ux = dx / len
-  const uy = dy / len
-
+  const angle = Math.atan2(dy, dx)
+  
+  // 缩进量（基于 100x100 坐标系）
+  // 按钮半径约为 13.3-14%，缩进 16% 可确保箭头不触碰按钮边缘
+  const inset = 16 
+  
   return {
-    x1: a.x + ux * inset,
-    y1: a.y + uy * inset,
-    x2: b.x - ux * inset,
-    y2: b.y - uy * inset,
+    x1: a.x + Math.cos(angle) * inset,
+    y1: a.y + Math.sin(angle) * inset,
+    x2: b.x - Math.cos(angle) * inset,
+    y2: b.y - Math.sin(angle) * inset,
   }
 })
 
-/* 点击顶点：
- * 没起点     → 设为起点
- * 有起点     → 设为终点（并转换）
- * 有起终点   → 该点成为下一次的起点，重新选终点
+/**
+ * 点击角块逻辑：
+ * 1. 如果没选起点，设为起点
+ * 2. 如果选了起点但没选终点：
+ *    - 点击同一个点：取消起点
+ *    - 点击不同点：设为终点并执行转换
+ * 3. 如果已选起终点：
+ *    - 点击已有点：切换起点/终点逻辑（这里简化为重新选起点）
+ *    - 点击新点：设为起点，清空终点
  */
 function clickCorner(key) {
   if (!from.value) {
     from.value = key
-    return
+  } else if (!to.value) {
+    if (from.value === key) {
+      from.value = null
+    } else {
+      to.value = key
+      convert()
+    }
+  } else {
+    // 已有方向，点击任何点都视为开启新的选择（以该点为起点）
+    from.value = key
+    to.value = null
+    output.value = ''
   }
-  if (!to.value) {
-    if (key === from.value) return
-    to.value = key
-    convert()
-    return
-  }
-  from.value = key
-  to.value = null
-  output.value = ''
 }
 
-/* ======== 重置 ======== */
+/* ======== 功能操作 ======== */
+function swapDir() {
+  if (!hasDir.value) return
+  const temp = from.value
+  from.value = to.value
+  to.value = temp
+  convert()
+}
 
-// 去掉所有点击状态：清空起点、终点、箭头与输出
 function reset() {
   from.value = null
   to.value = null
   output.value = ''
+  input.value = ''
 }
 
 /* ======== 转换 ======== */
@@ -134,48 +144,63 @@ function onInput() {
     </header>
 
     <!-- ====== 方向盘 ====== -->
-    <div class="dial">
+    <div class="dial-wrapper">
+      <div class="dial">
+        <!-- SVG 连线 -->
+        <svg v-if="arrow" class="dial-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrowHead" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--color-primary)"/>
+            </marker>
+          </defs>
+          <line
+              class="dir-arrow"
+              :x1="arrow.x1" :y1="arrow.y1" :x2="arrow.x2" :y2="arrow.y2"
+              stroke="var(--color-primary)"
+              stroke-width="3"
+              stroke-linecap="round"
+              marker-end="url(#arrowHead)"
+          />
+        </svg>
 
-      <svg v-if="arrow" class="dial-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <marker id="arrowHead" viewBox="0 0 10 10" refX="7" refY="5"
-                  markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--color-primary)"/>
-          </marker>
-        </defs>
-        <line
-            class="dir-arrow"
-            :x1="arrow.x1" :y1="arrow.y1" :x2="arrow.x2" :y2="arrow.y2"
-            stroke="var(--color-primary)"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            marker-end="url(#arrowHead)"
-        />
-      </svg>
-
-      <!-- 四角顶点 -->
-      <button
-          v-for="l in LANGS"
-          :key="l.key"
-          class="corner"
-          :class="[`corner--${l.key}`, {from: from === l.key, to: to === l.key}]"
-          @click="clickCorner(l.key)"
-      >
-        <span class="corner-label">{{ l.label }}</span>
-      </button>
-
-      <!-- 中心：方向文字 + 重置 -->
-      <div class="dial-center">
-        <p v-if="hasDir" class="dir-text">
-          {{ fromLang.name }} → {{ toLang.name }}
-        </p>
-        <p v-else class="dir-tip">先点起点，再点终点</p>
-
-        <button class="reset-btn" title="去掉所有点击" @click="reset">
-          重置
+        <!-- 四角顶点 -->
+        <button
+            v-for="l in LANGS"
+            :key="l.key"
+            class="corner"
+            :class="[`corner--${l.key}`, { 'is-from': from === l.key, 'is-to': to === l.key }]"
+            @click="clickCorner(l.key)"
+        >
+          <span class="corner-label">{{ l.label }}</span>
+          <span class="corner-name">{{ l.name }}</span>
         </button>
+
+        <!-- 中心控制区 -->
+        <div class="dial-center">
+          <div class="dir-display">
+            <template v-if="hasDir">
+              <span class="dir-name">{{ fromLang.name }}</span>
+              <span class="dir-arrow-icon">→</span>
+              <span class="dir-name">{{ toLang.name }}</span>
+            </template>
+            <p v-else-if="from" class="dir-tip">请选择目标语言</p>
+            <p v-else class="dir-tip">请选择起始语言</p>
+          </div>
+        </div>
       </div>
 
+      <!-- 侧边/下方控制区 -->
+      <div class="dial-controls">
+        <button class="control-btn swap" :disabled="!hasDir" title="交换方向" @click="swapDir">
+          <el-icon><Switch /></el-icon>
+          <span class="btn-text">交换</span>
+        </button>
+        <button class="control-btn reset" title="重置选择" @click="reset">
+          <el-icon><Refresh /></el-icon>
+          <span class="btn-text">重置</span>
+        </button>
+      </div>
     </div>
 
     <!-- ====== 输入 / 输出 ====== -->
@@ -233,15 +258,30 @@ function onInput() {
   color: var(--color-text-light);
 }
 
-/* ===== 方向盘 ===== */
+/* ===== 方向盘容器 ===== */
+
+.dial-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 40px 0;
+  margin-bottom: 20px;
+}
 
 .dial {
   position: relative;
-  width: min(78vw, 180px);
-  aspect-ratio: 1 / 1;
-  margin: 0 auto 26px;
-  border: 1px dashed var(--color-border);
-  border-radius: 14px;
+  width: 240px;
+  height: 240px;
+  display: grid;
+  grid-template-columns: 64px 64px;
+  grid-template-rows: 64px 64px;
+  justify-content: space-between;
+  align-content: space-between;
+  padding: 10px;
+  border: 2px dashed var(--color-border);
+  border-radius: 24px;
+  background: rgba(var(--color-primary-rgb), 0.02);
 }
 
 .dial-svg {
@@ -251,104 +291,172 @@ function onInput() {
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  overflow: visible;
 }
 
-/* ===== 四角顶点 ===== */
+/* ===== 控制按钮区 (侧边/下方) ===== */
+
+.dial-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--card-bg-color);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.control-btn:not(:disabled):hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.control-btn .el-icon {
+  font-size: 20px;
+}
+
+.btn-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.control-btn.reset:not(:disabled):hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ===== 四角顶点按钮 ===== */
 
 .corner {
-  position: absolute;
-  z-index: 2;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: 2px solid var(--color-primary);
-  background: #fff;
-  color: var(--color-primary);
+  position: relative;
+  z-index: 10;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  border: 2px solid var(--color-border);
+  background: var(--card-bg-color);
+  color: var(--color-text);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
-  user-select: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
 }
 
-.corner--sc { top: 0; left: 0; transform: translate(-28%, -28%); }
-.corner--tc { top: 0; right: 0; transform: translate(28%, -28%); }
-.corner--hk { bottom: 0; left: 0; transform: translate(-28%, 28%); }
-.corner--tw { bottom: 0; right: 0; transform: translate(28%, 28%); }
+.corner:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
 
-/* 起点：实心 */
-.corner.from {
+.corner.is-from {
   background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
 }
 
-/* 终点：粗边 */
-.corner.to {
-  border-width: 4px;
+.corner.is-to {
+  border-color: var(--color-primary);
+  border-width: 3px;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  transform: scale(1.05);
 }
+
+.corner--sc { justify-self: start; align-self: start; }
+.corner--tc { justify-self: end; align-self: start; }
+.corner--hk { justify-self: start; align-self: end; }
+.corner--tw { justify-self: end; align-self: end; }
 
 .corner-label {
   font-size: 20px;
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .corner-name {
-  font-size: 12px;
-  opacity: .85;
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 2px;
 }
 
-/* ===== 中心 ===== */
+.corner.is-from .corner-name {
+  opacity: 0.9;
+}
+
+/* ===== 中心显示区 ===== */
 
 .dial-center {
   position: absolute;
   inset: 0;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   pointer-events: none;
+  z-index: 5;
 }
 
-.dir-text {
-  margin: 0;
-  font-size: 16px;
+.dir-display {
+  background: var(--card-bg-color);
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  min-height: 40px;
+}
+
+.dir-name {
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
 }
 
+.dir-arrow-icon {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
 .dir-tip {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--color-text-light);
-}
-
-.reset-btn {
-  pointer-events: auto;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  color: var(--color-text-light);
-  border-radius: 999px;
-  padding: 3px 14px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.reset-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  white-space: nowrap;
 }
 
 /* ===== 输入 / 输出 ===== */
 
 .edit-row {
   display: flex;
-  gap: 14px;
+  gap: 20px;
   align-items: stretch;
 }
 
@@ -356,19 +464,21 @@ function onInput() {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
 }
 
 .tcsc-box {
   flex: 1;
   width: 100%;
-  min-height: 260px;
+  min-height: 300px;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
+  border-radius: 16px;
   background: var(--card-bg-color);
-  padding: 14px;
+  padding: 20px;
   font-size: 16px;
   line-height: 1.8;
   color: var(--color-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .tcsc-input {
@@ -379,37 +489,65 @@ function onInput() {
 
 .tcsc-input:focus {
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
 .tcsc-output {
   white-space: pre-wrap;
   word-break: break-word;
   overflow: auto;
+  background: var(--color-fill-1);
 }
 
 .output-hint {
   color: var(--color-text-light);
+  font-style: italic;
 }
 
-/* ===== mobile ===== */
+/* ===== 响应式适配 ===== */
 
-@media (max-width: 640px) {
-  .edit-row {
+@media (max-width: 768px) {
+  .dial-wrapper {
     flex-direction: column;
-    gap: 10px;
+    padding: 20px 0;
+    gap: 20px;
+  }
+  
+  .dial {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .dial-controls {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+    gap: 20px;
   }
 
-  .tcsc-box {
-    min-height: 140px;
+  .control-btn {
+    width: 80px;
+    height: 50px;
+    flex-direction: row;
+    gap: 8px;
   }
 
   .corner {
-    width: 72px;
-    height: 72px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+  }
+  
+  .corner-label {
+    font-size: 18px;
   }
 
-  .corner-label {
-    font-size: 22px;
+  .edit-row {
+    flex-direction: column;
+  }
+
+  .tcsc-box {
+    min-height: 200px;
   }
 }
 

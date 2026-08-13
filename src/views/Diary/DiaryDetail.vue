@@ -217,6 +217,12 @@ watch(
   font-size: 28px;
 }
 
+@media (max-width: 500px) {
+  .detail-title {
+    font-size: 22px;
+  }
+}
+
 .detail-meta {
   display: flex;
   flex-wrap: wrap;

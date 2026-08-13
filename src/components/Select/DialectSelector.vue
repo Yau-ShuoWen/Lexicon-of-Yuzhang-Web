@@ -12,7 +12,7 @@ const {t} = useI18n()
 
 const dialects = [
   {value: 'lac', label: t('dialect.lac'), icon: lacIcon},
-  {value: 'ced', label: t('dialect.ced'), icon: cedIcon},
+  // {value: 'ced', label: t('dialect.ced'), icon: cedIcon},
 ]
 
 const currentDialectInRoute = () => {

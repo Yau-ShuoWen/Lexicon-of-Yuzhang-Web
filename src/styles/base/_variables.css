@@ -28,6 +28,7 @@
 
     /* 渐变 - 更新为绿色系 */
     --gradient-primary: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+    --gradient-primary-light: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
     --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 

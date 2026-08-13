@@ -188,6 +188,16 @@ watch(
 <template>
   <div class="broaden-layout diary-page">
     <div class="diary-layout">
+      <aside class="sidebar">
+        <DiaryArchive
+            :language="language"
+            :catalog="catalog"
+            :loading="loadingCatalog"
+            :active-year="filters.year"
+            :active-month="filters.month"
+            @select="applyArchive"
+        />
+      </aside>
 
       <section class="content">
         <section class="panel">
@@ -224,33 +234,68 @@ watch(
           <div v-else class="empty-box" v-formatted-text="text.noData"/>
         </section>
       </section>
-
-      <aside class="sidebar">
-        <DiaryArchive
-            :language="language"
-            :catalog="catalog"
-            :loading="loadingCatalog"
-            :active-year="filters.year"
-            :active-month="filters.month"
-            @select="applyArchive"
-        />
-      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
 .diary-page {
-  /* padding-top: 10px;*/
   padding-bottom: 32px;
 }
 
 .diary-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 18px;
-  /* 侧边栏（归档栏）随内容列拉伸，保证内部 sticky 有滚动空间 */
   align-items: stretch;
+}
+
+/*
+ * 桌面端新布局：整页锁定为视口高度（扣除固定导航栏高度），
+ * 内容列与归档边栏各自独立滚动，归档栏是固定区域，完全不会随页面滑动。
+ * 窄屏（<=900px）仍回退为下方原有的单列堆叠布局。
+ */
+@media (min-width: 901px) {
+  .diary-page {
+    height: calc(100vh - var(--header-height));
+    height: calc(100dvh - var(--header-height));
+    padding-bottom: 10px;
+  }
+
+  .diary-layout {
+    height: 100%;
+    overflow: hidden;
+    /* 关键：单行锁定为容器高度（minmax(0,1fr) 允许收缩），
+       否则 auto 行会按内容高度撑开，列内容超出视口被裁剪 */
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .content,
+  .sidebar {
+    min-height: 0;
+    overflow-y: auto;
+    /* 隐藏滚动条 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  .content::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  /* 面板边框固定占满所在列，内部内容独立滚动 */
+  .panel {
+    height: 100%;
+    overflow-y: auto;
+    /* 隐藏滚动条 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .panel::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .sidebar,
@@ -261,17 +306,37 @@ watch(
 }
 
 .panel {
-  background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-md);
-  padding: 18px;
+  background: transparent;/*var(--color-background);*/
+  /*border: 1px solid var(--color-border);*/
+  /*border-radius: var(--border-radius-xl);*/
+  padding:10px 5px;
+  /*box-shadow: var(--shadow-sm);*/
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
+/*
+.panel:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-light);
+}*/
 
 .panel-title {
   font-size: 22px;
-  font-weight: 600;
-  margin-bottom: 16px;
+  font-weight: 700;
+  margin:0 5px 5px;
   color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 参考 PinyinTable 的左侧强调条 */
+.panel-title::before {
+  content: '';
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
 }
 
 .card-list {
@@ -281,16 +346,21 @@ watch(
 }
 
 .diary-card {
-  border: 1.5px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #f7ffff 100%);
+  border: 1.5px solid #d6e6d2;
   border-radius: var(--border-radius-md);
   padding: 16px;
-  background: #f7ffff;
-  transition: all 0.2s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .diary-card:hover {
+  transform: translateY(-4px) scale(1.01);
   border-color: var(--color-primary);
-  transform: translateY(-1px);
+  background: linear-gradient(180deg, #ffffff 0%, #eefbfb 100%);
+  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.12);
+  z-index: 2;
 }
 
 .diary-card__top {
@@ -336,8 +406,14 @@ watch(
 }
 
 @media (max-width: 500px) {
+  .diary-card__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
   .diary-card__date {
     font-size: 16px;
+    align-self: flex-end; /* 日期靠右对齐，如果想靠左可改为 flex-start */
   }
 }
 </style>

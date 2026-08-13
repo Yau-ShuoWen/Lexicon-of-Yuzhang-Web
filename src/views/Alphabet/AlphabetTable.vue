@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import AlphabetIntroCard from "./AlphabetIntroCard.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 
@@ -15,9 +16,7 @@ const dialect = computed(() => route.params.dialect)
 
 const {t} = useI18n()
 
-const currentAlphabet = ref(null)
 const pinyinData = ref([])
-const introduce = ref('')
 
 const loading = ref(false)
 
@@ -35,30 +34,30 @@ useHead({
 
 /* ======== computed ======== */
 
-const transferList = computed(() =>
-    currentAlphabet.value?.trans || []
-)
-
 async function fetchTable() {
 
   const code = route.params.code
 
   try {
     loading.value = true
-    const res = await fetch(`/api/personal/alphabet/table/${code}/${language.value}`)
 
-    if (!res.ok) throw new Error(res.status)
+    // 字母表：接口返回 AlphabetTable，取其中的 table 字段
+    // 转换器列表：接口返回 [{left, right}]，left 为名称、right 为方法名
+    // （介绍卡片已由 AlphabetIntroCard 组件单独请求）
+    const [tableRes, transRes] = await Promise.all([
+      fetch(`/api/alphabet/table/new/${code}/${language.value}`),
+      fetch(`/api/alphabet/trans/${code}/${language.value}`),
+    ])
 
-    const data = await res.json()
+    if (!tableRes.ok) throw new Error(tableRes.status)
+    if (!transRes.ok) throw new Error(transRes.status)
 
-    introduce.value = data.middle
-    currentAlphabet.value = data.left
-    pinyinData.value = data.right.table
+    const tableData = await tableRes.json()
+    pinyinData.value = tableData.table
 
-    /**
-     * 初始化每个转换框
-     */
-    transferData.value = transferList.value.map(i => ({
+    // 3. 转换器列表：接口返回 [{left, right}]，left 为名称、right 为方法名
+    const trans = await transRes.json()
+    transferData.value = trans.map(i => ({
       name: i.left,
       funName: i.right,
       input: '',
@@ -112,7 +111,7 @@ async function transferText(item) {
   try {
     const code = route.params.code
     const res = await fetch(
-        `/api/personal/alphabet/transfer/${code}/${language.value}` +
+        `/api/alphabet/transfer/${code}/${language.value}` +
         `?funName=${encodeURIComponent(item.funName)}` +
         `&s=${encodeURIComponent(item.input)}`
     )
@@ -162,7 +161,7 @@ onMounted(async () => {
 
     <div v-else class="pinyin-container">
 
-      <div v-if="introduce?.length" v-formatted-text="introduce" class="text-box"/>
+      <AlphabetIntroCard :code="route.params.code"/>
 
       <!-- ======== transfer ======== -->
 
@@ -247,17 +246,6 @@ onMounted(async () => {
 </template>
 
 <style>
-/* ======== text ======== */
-
-.text-box {
-  background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-md);
-  padding: 20px;
-  line-height: 1.7;
-  color: var(--color-text);
-}
-
 /* ======== group ======== */
 .attribute-group {
 

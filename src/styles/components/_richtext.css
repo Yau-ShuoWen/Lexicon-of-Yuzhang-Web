@@ -14,6 +14,12 @@
     height: 0.8em;
 }
 
+.rt-li-dot {
+    color: #1f6722;
+    font-size: 13px;
+    vertical-align: 0.05em
+}
+
 .rt-note {
     display: inline-block;
 }

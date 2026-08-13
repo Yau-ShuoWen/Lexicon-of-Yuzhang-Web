@@ -229,7 +229,7 @@ function processCurlySyntax(text) {
 
                 const href = `/${language}/${dialect}${normalizedTarget}`;
 
-                return `<a href="${href}" style="color: #1a73e8;">${displayHtml}</a>`;
+                return `<a href="${href}" class="normal-link">${displayHtml}</a>`;
             }
 
 
@@ -239,12 +239,17 @@ function processCurlySyntax(text) {
                 if (!parsedData) return `{u ${inner}}`;
 
 
-                const {display, target} = parsedData;
+                let {display, target} = parsedData;
 
                 // 只解析 display
                 const displayHtml = parseCurly(display, true);
 
-                return `<a href="${target}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8;">${displayHtml}</a>`;
+                // 沒有協議時自動補 https://
+                if (!/^https?:\/\//i.test(target)) {
+                    target = "https://" + target;
+                }
+
+                return `<a href="${target}" target="_blank" rel="noopener noreferrer" class="normal-link">${displayHtml}</a>`;
             }
 
             case "h":
@@ -531,7 +536,7 @@ function processList(text) {
         // 無序列表
         if (line.startsWith("- ")) {
             orderedIndex = 0; // 打斷有序列表
-            result.push("○  " + line.slice(2));
+            result.push('<span class="rt-li-dot" style="color:color-mix(in srgb,var(--bq-accent,#2e7d32) 80%,#000)">●</span>  ' + line.slice(2));
             continue;
         }
 

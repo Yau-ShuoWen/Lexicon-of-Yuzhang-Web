@@ -112,6 +112,8 @@ watch(route, async () => {
     gap: 4px;
 
     padding: 6px;
+  user-select: none;
+  -webkit-user-select: none;
 
     /* 毛玻璃效果 */
     background: rgba(255, 255, 255, 0.72);

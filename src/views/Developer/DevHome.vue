@@ -52,6 +52,10 @@ useHead({
                        v-formatted-text="`編輯漢字`"/>
           <router-link :to="getPath(`ciyu-filter`)" class="dev-btn-middle dev-normal-button"
                        v-formatted-text="`編輯词语`"/>
+
+          <router-link :to="getPath(`pinyin-editor`)" class="dev-btn-middle dev-normal-button"
+                       v-formatted-text="`编辑拼音`"/>
+
           <router-link :to="getPath(`ref-filter`)" class="dev-btn-middle dev-normal-button"
                        v-formatted-text="`編輯資料`"/>
 

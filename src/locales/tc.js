@@ -132,7 +132,7 @@ export default {
             me: '關於我',
         },
         alphabet_table: {
-            title_short: '字母表',
+            title_short: '字母',
             title: '拼音和字母表',
         },
         dictionary: {}

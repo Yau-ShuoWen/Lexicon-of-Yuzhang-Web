@@ -92,7 +92,7 @@ async function fetchCatalog() {
   loading.value = true
 
   try {
-    const res = await fetch(`/api/personal/alphabet/catalog/${language.value}`)
+    const res = await fetch(`/api/alphabet/catalog/${language.value}`)
 
     if (!res.ok) throw new Error(res.status)
     catalog.value = await res.json()

@@ -8,7 +8,8 @@
  *   点击整块年份区域均可展开/收起（收起后回到原来的紧凑样式）。
  * - 月份格固定展示「x月（换行）x篇」，无内容的月份也照常显示（0篇，置灰禁用）。
  * - 点击有内容的月份格，向外触发 select 事件，由父组件刷新左侧日记列表。
- * - 组件整体吸顶（position: sticky），滚动页面时归档栏固定在右侧不划走。
+ * - 桌面端由父页面提供固定高度的侧边栏区域，本组件填满该区域并内部独立滚动，
+ *   边栏整体锁定在视口内，滚动内容时不会随页面划走（窄屏单列布局下位于内容下方）。
  */
 import { computed, ref, watch } from 'vue'
 import LoadingIcon from '../../components/Status/LoadingIcon.vue'
@@ -179,25 +180,48 @@ function getYearMonths(yearItem) {
   position: sticky;
   top: 16px;
   background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-lg);
-  padding: 16px 14px;
-  box-shadow: 0 6px 18px rgba(46, 125, 50, 0.08);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-xl);
+  padding: 22px 18px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.diary-archive::-webkit-scrollbar {
+  display: none;
+}
+
+.diary-archive:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-light);
 }
 
 /* ---- 面板头部 ---- */
 .diary-archive__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
   border-bottom: 2px dashed var(--color-border);
 }
 
+/* 参考 PinyinTable 的左侧强调条 */
+.diary-archive__head::before {
+  content: '';
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
+}
+
 .diary-archive__head-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: var(--color-primary);
   flex: none;
 }
@@ -420,6 +444,15 @@ function getYearMonths(yearItem) {
   display: flex;
   justify-content: center;
   padding: 12px 0;
+}
+
+/* 桌面端新布局：归档栏填满固定高度的侧边栏区域，内部独立滚动，边栏整体锁定不随页面滑动 */
+@media (min-width: 901px) {
+  .diary-archive {
+    position: static;
+    height: 100%;
+    overflow-y: auto;
+  }
 }
 
 /* 窄屏下归档栏位于内容下方，取消吸顶 */

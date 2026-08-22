@@ -12,7 +12,6 @@
  *   边栏整体锁定在视口内，滚动内容时不会随页面划走（窄屏单列布局下位于内容下方）。
  */
 import { computed, ref, watch } from 'vue'
-import LoadingIcon from '../../components/Status/LoadingIcon.vue'
 
 const props = defineProps({
   // 语言：sc 简体 / tc 繁体
@@ -106,8 +105,19 @@ function getYearMonths(yearItem) {
       <span class="diary-archive__total">{{ totalCount }}{{ text.countSuffix }}</span>
     </header>
 
-    <div v-if="loading" class="diary-archive__loading">
-      <LoadingIcon :size="18" :inline="true" :show-text="false" />
+    <div v-if="loading" class="diary-archive__loading" aria-hidden="true">
+      <div class="diary-archive__skeleton-group">
+        <div class="diary-archive__skeleton-year shimmer" />
+        <div class="diary-archive__skeleton-grid">
+          <div v-for="item in 12" :key="item" class="diary-archive__skeleton-cell shimmer" />
+        </div>
+      </div>
+      <div class="diary-archive__skeleton-group">
+        <div class="diary-archive__skeleton-year shimmer" />
+        <div class="diary-archive__skeleton-grid">
+          <div v-for="item in 8" :key="item" class="diary-archive__skeleton-cell shimmer" />
+        </div>
+      </div>
     </div>
 
     <div v-else-if="catalog.length" class="diary-archive__years">
@@ -442,8 +452,57 @@ function getYearMonths(yearItem) {
 
 .diary-archive__loading {
   display: flex;
-  justify-content: center;
-  padding: 12px 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 10px;
+}
+
+.diary-archive__skeleton-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diary-archive__skeleton-year,
+.diary-archive__skeleton-cell {
+  background: #e7efe2;
+  border-radius: 14px;
+}
+
+.diary-archive__skeleton-year {
+  width: 54%;
+  height: 18px;
+}
+
+.diary-archive__skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.diary-archive__skeleton-cell {
+  height: 52px;
+  border-radius: var(--border-radius-sm);
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: diaryArchiveShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes diaryArchiveShimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* 桌面端新布局：归档栏填满固定高度的侧边栏区域，内部独立滚动，边栏整体锁定不随页面滑动 */

@@ -116,7 +116,7 @@ const handleSearch = () => {
   saveSearchHistory(query)
 
   router.push({
-    path: `/${language.value}/${dialect.value}/search`,
+    path: `/${language.value}/${dialect.value}/dict/search`,
     query: {
       q: query
     }
@@ -128,7 +128,7 @@ const handleSearch = () => {
  */
 const handleRandom = () => {
   router.push({
-    path: `/${language.value}/${dialect.value}/search`,
+    path: `/${language.value}/${dialect.value}/dict/search`,
     query: {
       q: 'random'
     }
@@ -310,22 +310,16 @@ onMounted(() => {
 
 .search-container {
   position: relative;
-
   background: var(--color-background);
-
   border: 2px solid var(--color-border);
-
   border-radius: var(--border-radius-lg);
-
   transition: border-color var(--transition-base),
   box-shadow var(--transition-base);
-
   overflow: hidden;
 }
 
 .search-container:focus-within {
   border-color: var(--color-primary);
-
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
 }
 
@@ -333,18 +327,12 @@ onMounted(() => {
 
 .search-input {
   width: 100%;
-
   min-height: 100px;
-
   resize: none;
-
   border: none;
   outline: none;
-
   background: transparent;
-
   font-size: var(--font-size-base);
-
   padding: 18px 18px 18px 18px;
 }
 
@@ -352,13 +340,10 @@ onMounted(() => {
 
 .toolbar {
   position: absolute;
-
   left: 0;
   right: 0;
   bottom: 0;
-
   padding: 12px;
-
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -376,21 +361,14 @@ onMounted(() => {
 
 .capsule-btn {
   height: 32px;
-
   border: 1.5px solid var(--color-border);
-
   border-radius: 8px;
-
   background: var(--color-background);
-
   padding: 0 12px;
-
   display: flex;
   align-items: center;
   gap: 6px;
-
   cursor: pointer;
-
   transition: background-color .2s ease,
   border-color .2s ease;
 }
@@ -412,27 +390,19 @@ onMounted(() => {
 .mode-dialog-overlay {
   position: fixed;
   inset: 0;
-
   background: rgba(0, 0, 0, .3);
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   z-index: 9999;
 }
 
 .mode-dialog {
   width: min(600px, calc(100vw - 32px));
-
   background: var(--color-background);
-
   border-radius: var(--border-radius-lg);
-
   padding: 20px;
-
   box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
-
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -440,20 +410,15 @@ onMounted(() => {
 
 .mode-dialog-title {
   margin: 0 0 4px 0;
-
   font-size: 1.1rem;
   font-weight: 600;
 }
 
 .mode-card {
   border: 1.5px solid var(--color-border);
-
   border-radius: var(--border-radius-md);
-
   padding: 14px;
-
   cursor: pointer;
-
   transition: all .2s ease;
 }
 
@@ -473,23 +438,16 @@ onMounted(() => {
 
 .mode-desc {
   margin-top: 4px;
-
   color: var(--color-text-secondary);
-
   font-size: 0.9rem;
 }
 
 .mode-example {
   margin-top: 10px;
-
   padding: 8px 10px;
-
   border-radius: 6px;
-
   background: var(--color-background-alt);
-
   font-family: monospace;
-
   font-size: 0.95rem;
 }
 
@@ -497,7 +455,6 @@ onMounted(() => {
 
   .mode-dialog {
     width: calc(100vw - 20px);
-
     padding: 14px;
   }
 

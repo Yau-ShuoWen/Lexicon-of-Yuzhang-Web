@@ -15,16 +15,26 @@
     font-display: swap;
 }
 
-/**/
-/*
 @font-face {
-    font-family: 'HanaMinA';
-    src: url('../../assets/fonts/HanaMinA.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-    unicode-range: U+20000-2A6DF;
-}*/
+    font-family: 'MiSansOnlyLatin';
+    src: local('MiSans');
+    unicode-range:
+            U+0020-007E, /* 0-9 */
+            U+0041-005A, /* A-Z */
+            U+0061-007A, /* a-z */
+            U+00C0-024F, /* Latin Extended */
+            U+0370-03FF, /* Greek and Coptic */
+            U+0400-052F, /* Cyrillic + Cyrillic Supplement */
+            U+1C80-1C8F, /* Cyrillic Extended-C */
+            U+1D00-1D7F, /* Phonetic Extensions */
+            U+1D80-1DBF, /* Phonetic Extensions Supplement */
+            U+1E00-1EFF, /* Latin Extended Additional */
+            U+2C60-2C7F, /* Latin Extended-C */
+            U+A640-A69F, /* Cyrillic Extended-B */
+            U+A720-A7FF, /* Latin Extended-D */
+            U+AB30-AB6F; /* Latin Extended-E */
+}
+
 @font-face {
     font-family: 'HanaMinB';
     src: url('../../assets/fonts/hanamin_subset.woff2') format('woff2');

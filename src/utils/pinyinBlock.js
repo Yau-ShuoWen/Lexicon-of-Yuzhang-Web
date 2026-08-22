@@ -17,17 +17,31 @@ export function initPinyinBlock() {
     }
 
     let currentBlock = null;
+    let popupLocked = false;
 
     let longPressTimer = null;
     let longPressTriggered = false;
     let touchStartPos = null;
+    let hoverShowTimer = null;
+    let hoverHideTimer = null;
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+    // ---------- 事件绑定 ----------
 
     // 点击
     document.addEventListener("click", onClick);
 
-    // 长按
+    // PC Hover
+    if (!isTouch) {
+        document.addEventListener("mouseenter", onMouseEnter, true);
+        document.addEventListener("mouseleave", onMouseLeave, true);
+
+        popup.addEventListener("mouseenter", onPopupMouseEnter);
+        popup.addEventListener("mouseleave", onPopupMouseLeave);
+    }
+
+    // 移动端长按
     if (isTouch) {
 
         document.addEventListener("touchstart", onTouchStart, {passive: true});
@@ -44,7 +58,7 @@ export function initPinyinBlock() {
     // ---------- 函数 ----------
 
     // 复制按钮 SVG（内联）
-    const COPY_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><path d="M394.666667 106.666667h448a74.666667 74.666667 0 0 1 74.666666 74.666666v448a74.666667 74.666667 0 0 1-74.666666 74.666667H394.666667a74.666667 74.666667 0 0 1-74.666667-74.666667V181.333333a74.666667 74.666667 0 0 1 74.666667-74.666666z m0 64a10.666667 10.666667 0 0 0-10.666667 10.666666v448a10.666667 10.666667 0 0 0 10.666667 10.666667h448a10.666667 10.666667 0 0 0 10.666666-10.666667V181.333333a10.666667 10.666667 0 0 0-10.666666-10.666666H394.666667z m245.333333 597.333333a32 32 0 0 1 64 0v74.666667a74.666667 74.666667 0 0 1-74.666667 74.666666H181.333333a74.666667 74.666667 0 0 1-74.666666-74.666666V394.666667a74.666667 74.666667 0 0 1 74.666666-74.666667h74.666667a32 32 0 0 1 0 64h-74.666667a10.666667 10.666667 0 0 0-10.666666 10.666667v448a10.666667 10.666667 0 0 0 10.666666 10.666666h448a10.666667 10.666667 0 0 0 10.666667-10.666666v-74.666667z" fill="currentColor"/></svg>';
+    const COPY_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><path d="M394.666667 106.666667h448a74.666667 74.666667 0 0 1 74.666666 74.666666v448a74.666667 74.666667 0 0 1-74.666666 74.666667H394.666667a74.666667 74.666667 0 0 1-74.666667-74.666667V181.333333a74.666667 74.666667 0 0 1 74.666667-74.666666z m0 64a10.666667 10.666667 0 0 0-10.666667 10.666666v448a10.666667 10.666667 0 0 0 10.666667 10.666667h448a10.666667 10.666667 0 0 0 10.666666-10.666667V181.333333a10.666667 10.666667 0 0 0-10.666666-10.666666H394.666667z m245.333333 597.333333a32 32 0 0 1 64 0v74.666667a74.666667 74.666667 0 0 1-74.666667 74.666666H181.333333a74.666667 74.666667 0 0 1-74.666666-74.666666V394.666667a74.666667 74.666667 0 0 1 74.666667-74.666667h74.666667a32 32 0 0 1 0 64h-74.666667a10.666667 10.666667 0 0 0-10.666666 10.666667v448a10.666667 10.666667 0 0 0 10.666666 10.666666h448a10.666667 10.666667 0 0 0 10.666667-10.666666v-74.666667z" fill="currentColor"/></svg>';
 
     function showPopup(blockEl) {
         currentBlock = blockEl;
@@ -85,6 +99,7 @@ export function initPinyinBlock() {
 
         if (currentBlock) currentBlock.classList.remove("active");
         currentBlock = null;
+        popupLocked = false;
         popup.style.display = "none";
     }
 
@@ -200,8 +215,75 @@ export function initPinyinBlock() {
 
             showSuccess("复制成功");
 
-        }).catch(() => {
-        });
+        }).catch(() => {});
+    }
+
+    // ---------- PC Hover ----------
+
+    function closestFromEventTarget(target, selector) {
+
+        if (!(target instanceof Element)) return null;
+
+        return target.closest(selector);
+    }
+
+    function onMouseEnter(e) {
+
+        const block =
+            closestFromEventTarget(
+                e.target,
+                ".rt-pinyin-trigger"
+            );
+
+        if (!block) return;
+
+        clearTimeout(hoverShowTimer);
+        clearTimeout(hoverHideTimer);
+
+        if (popupLocked) return;
+
+        hoverShowTimer = setTimeout(() => {
+            if (currentBlock !== block) {
+                showPopup(block);
+            }
+        }, 300);
+    }
+
+    function onMouseLeave(e) {
+        const block =
+            closestFromEventTarget(
+                e.target,
+                ".rt-pinyin-trigger"
+            );
+
+        if (!block) return;
+
+        clearTimeout(hoverShowTimer);
+
+        if (popupLocked) return;
+
+        clearTimeout(hoverHideTimer);
+
+        hoverHideTimer = setTimeout(() => {
+            // 如果鼠标已经进入 popup，就不要关闭
+            if (popup.matches(":hover")) return;
+
+            hidePopup();
+        }, 100);
+    }
+
+    function onPopupMouseEnter() {
+        clearTimeout(hoverHideTimer);
+    }
+
+    function onPopupMouseLeave() {
+        if (popupLocked) return;
+
+        clearTimeout(hoverHideTimer);
+
+        hoverHideTimer = setTimeout(() => {
+            hidePopup();
+        }, 100);
     }
 
     // ---------- 事件 handler ----------
@@ -209,13 +291,40 @@ export function initPinyinBlock() {
     function onClick(e) {
 
         const block =
-            e.target.closest(
+            closestFromEventTarget(
+                e.target,
                 ".rt-pinyin-trigger"
             );
 
         if (block) {
 
-            // 长按后不触发 click 弹窗
+            // PC：点击后锁定 popup
+            if (!isTouch) {
+
+                e.stopPropagation();
+
+                if (
+                    currentBlock === block &&
+                    popupLocked
+                ) {
+
+                    hidePopup();
+
+                } else {
+
+                    if (currentBlock !== block) {
+                        showPopup(block);
+                    }
+
+                    popupLocked = true;
+
+                    clearTimeout(hoverHideTimer);
+                }
+
+                return;
+            }
+
+            // 移动端：长按后不触发 click 弹窗
             if (block.dataset.pinyinLongPress === "1") {
 
                 delete block.dataset.pinyinLongPress;
@@ -239,10 +348,16 @@ export function initPinyinBlock() {
         // 点击弹窗本身不关闭
 
         if (
-            e.target.closest(".rt-pinyin-popup")
+            closestFromEventTarget(
+                e.target,
+                ".rt-pinyin-popup"
+            )
         ) {
             // 点击复制按钮 → 复制对应的值
-            const copyBtn = e.target.closest(".rt-pinyin-copy-btn");
+            const copyBtn = closestFromEventTarget(
+                e.target,
+                ".rt-pinyin-copy-btn"
+            );
             if (copyBtn) {
                 const row = copyBtn.closest(".rt-pinyin-popup-row");
                 const valueCell = row && row.querySelector(".rt-pinyin-popup-value");
@@ -251,7 +366,10 @@ export function initPinyinBlock() {
             }
 
             // 点击右侧拼音值 → 复制该值
-            const valueCell = e.target.closest(".rt-pinyin-popup-value");
+            const valueCell = closestFromEventTarget(
+                e.target,
+                ".rt-pinyin-popup-value"
+            );
             if (valueCell) {
                 copyValue(valueCell);
                 return;
@@ -268,7 +386,8 @@ export function initPinyinBlock() {
     function onTouchStart(e) {
 
         const block =
-            e.target.closest(
+            closestFromEventTarget(
+                e.target,
                 ".rt-pinyin-trigger"
             );
 

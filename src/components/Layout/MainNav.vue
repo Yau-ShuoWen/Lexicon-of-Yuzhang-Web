@@ -14,6 +14,7 @@ const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
 
 // 当前站点形态：normal（词典）/ dev（开发者）/ ysw（屋里），决定渲染哪一套导航
 const navType = computed(() => {
+  if (route.path.includes('/dict/')) return 'dict'
   if (route.path.includes('/ysw/')) return 'ysw'
   if (route.path.includes('/dev/')) return 'dev'
   else return 'normal'
@@ -22,14 +23,14 @@ const navType = computed(() => {
 // ===== 导航滑动指示条 =====
 // 只有一个导航（normal/dev/ysw 之一）会被渲染，共用同一个 ref
 const navRef = ref(null)
-const indicator = ref({ x: 0, width: 0 })
+const indicator = ref({x: 0, width: 0})
 
 // 读取当前激活链接的位置，驱动指示条滑动
 function updateIndicator() {
   if (!navRef.value) return
   const active = navRef.value.querySelector('.nav-link.router-link-active')
   if (!active) {
-    indicator.value = { x: 0, width: 0 }
+    indicator.value = {x: 0, width: 0}
     return
   }
   indicator.value = {
@@ -60,12 +61,12 @@ watch(route, async () => {
 </script>
 
 <template>
-  <nav ref="navRef" v-if="navType === 'normal'" class="main-nav">
+  <nav ref="navRef" v-if="navType === 'dict'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
-    <!--      <router-link :to="getPath(`tutorial`)" class="nav-link" v-formatted-text="$t('nav.tutorial')"/>-->
-    <router-link :to="getPath(`pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
-    <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
+    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
+    <router-link :to="getPath(`dict/pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
+    <router-link :to="getPath(`dict/about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
+    <router-link :to="getPath(`dict/auth`)" class="nav-link" v-formatted-text="`登陆`"/>
   </nav>
 
   <nav ref="navRef" v-if="navType === 'dev'" class="main-nav">
@@ -100,72 +101,70 @@ watch(route, async () => {
  * - 悬停时文字染绿 + 淡绿底，过渡平滑
  */
 .main-nav {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
 
-    z-index: 1000;
+  z-index: 1000;
 
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 
-    padding: 6px;
+  padding: 6px;
   user-select: none;
   -webkit-user-select: none;
 
-    /* 毛玻璃效果 */
-    background: rgba(255, 255, 255, 0.72);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    backdrop-filter: blur(14px) saturate(1.4);
+  /* 毛玻璃效果 */
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
 
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
 
-    box-shadow:
-        0 4px 6px rgba(46, 125, 50, 0.06),
-        0 12px 28px rgba(46, 125, 50, 0.14);
+  box-shadow: 0 4px 6px rgba(46, 125, 50, 0.06),
+  0 12px 28px rgba(46, 125, 50, 0.14);
 
-    transition: box-shadow var(--transition-base);
+  transition: box-shadow var(--transition-base);
 }
 
 .main-nav:hover {
-    box-shadow:
-        0 4px 6px rgba(46, 125, 50, 0.08),
-        0 16px 36px rgba(46, 125, 50, 0.2);
+  box-shadow: 0 4px 6px rgba(46, 125, 50, 0.08),
+  0 16px 36px rgba(46, 125, 50, 0.2);
 }
 
 .nav-link {
-    position: relative;
-    z-index: 1;
-    text-decoration: none;
-    color: var(--color-text);
-    font-weight: 500;
-    line-height: 1.2;
-    letter-spacing: 0.02em;
+  position: relative;
+  z-index: 1;
+  text-decoration: none;
+  color: var(--color-text);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 
-    padding: 7px 18px;
-    border-radius: 999px;
-    white-space: nowrap;
+  padding: 7px 18px;
+  border-radius: 999px;
+  white-space: nowrap;
 
-    transition: color var(--transition-base),
-    background-color var(--transition-base);
+  transition: color var(--transition-base),
+  background-color var(--transition-base);
 }
 
 .nav-link:hover {
-    color: var(--color-primary);
-    background-color: rgba(46, 125, 50, 0.08);
+  color: var(--color-primary);
+  background-color: rgba(46, 125, 50, 0.08);
 }
 
 /* 当前页：文字保持白色，绿色渐变底由滑动指示条呈现 */
 .nav-link.router-link-active {
-    color: #ffffff;
+  color: #ffffff;
 }
 
 .nav-link.router-link-active:hover {
-    color: #ffffff;
-    background-color: transparent;
+  color: #ffffff;
+  background-color: transparent;
 }
 
 /*
@@ -173,19 +172,19 @@ watch(route, async () => {
  * 位置由 MainNav.vue 根据激活链接的 offsetLeft / offsetWidth 计算
  */
 .nav-indicator {
-    position: absolute;
-    top: 6px;
-    bottom: 6px;
-    left: 0;
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
 
-    border-radius: 999px;
-    background: var(--gradient-primary);
-    box-shadow: 0 4px 12px rgba(46, 125, 50, 0.35);
+  border-radius: 999px;
+  background: var(--gradient-primary);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.35);
 
-    /* 滑动 + 宽度变化使用同一条缓动曲线，实现“吸附”到目标的效果 */
-    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform, width;
+  /* 滑动 + 宽度变化使用同一条缓动曲线，实现“吸附”到目标的效果 */
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+  width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, width;
 }
 
 
@@ -197,68 +196,68 @@ watch(route, async () => {
  * https://chatgpt.com/c/6a71b999-b2f4-83ee-8e86-fb5720e0fae7
  */
 .nav-fade {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
 
-    height: 100px;
+  height: 100px;
 
-    z-index: 990;
+  z-index: 990;
 
-    pointer-events: none;
+  pointer-events: none;
 
-    background: rgba(233, 246, 233, 0.9);
+  background: rgba(233, 246, 233, 0.9);
 
-    mask-image: linear-gradient(
-            to bottom,
-            black 0,
-            black 65px,
-            transparent 100px
-    );
+  mask-image: linear-gradient(
+      to bottom,
+      black 0,
+      black 65px,
+      transparent 100px
+  );
 
-    -webkit-mask-image: linear-gradient(
-            to bottom,
-            black 0,
-            black 65px,
-            transparent 100px
-    );
+  -webkit-mask-image: linear-gradient(
+      to bottom,
+      black 0,
+      black 65px,
+      transparent 100px
+  );
 }
 
 @media (max-width: 768px) {
-    .main-nav {
-        top: 10px;
-        gap: 2px;
-        padding: 5px;
-    }
+  .main-nav {
+    top: 10px;
+    gap: 2px;
+    padding: 5px;
+  }
 
-    .nav-link {
-        padding: 6px 12px;
-    }
+  .nav-link {
+    padding: 6px 12px;
+  }
 
-    .nav-indicator {
-        top: 5px;
-        bottom: 5px;
-    }
+  .nav-indicator {
+    top: 5px;
+    bottom: 5px;
+  }
 
-    .nav-fade {
-        height: 70px;
+  .nav-fade {
+    height: 70px;
 
-        background: rgba(233, 246, 233, 0.92);
+    background: rgba(233, 246, 233, 0.92);
 
-        -webkit-mask-image: linear-gradient(
-                to bottom,
-                #000 0px,
-                #000 55px,
-                transparent 70px
-        );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0px,
+        #000 55px,
+        transparent 70px
+    );
 
-        mask-image: linear-gradient(
-                to bottom,
-                #000 0px,
-                #000 55px,
-                transparent 70px
-        );
-    }
+    mask-image: linear-gradient(
+        to bottom,
+        #000 0px,
+        #000 55px,
+        transparent 70px
+    );
+  }
 }
 </style>

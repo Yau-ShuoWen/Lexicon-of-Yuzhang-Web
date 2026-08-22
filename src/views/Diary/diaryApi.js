@@ -1,4 +1,4 @@
-const DEFAULT_LIMIT = 50
+import { getToken } from '../../utils/auth.js'
 
 function isObject(value) {
     return value !== null && typeof value === 'object'
@@ -70,6 +70,12 @@ export function normalizeDiaryText(payload, language = 'sc') {
     const raw = unwrapMaybe(payload)
     if (!raw) return null
 
+    const availableViews = Array.isArray(raw.availableViews)
+        ? raw.availableViews
+            .filter(Boolean)
+            .map(item => String(item).trim().toLowerCase())
+        : []
+
     return {
         id: raw.id ?? null,
         date: raw.date ?? '',
@@ -79,7 +85,9 @@ export function normalizeDiaryText(payload, language = 'sc') {
         startDate: raw.startDate ?? '',
         finalizeDate: raw.finalizeDate ?? '',
         createdTime: raw.createdTime ?? '',
-        updatedTime: raw.updatedTime ?? ''
+        updatedTime: raw.updatedTime ?? '',
+        viewMode: raw.viewMode ? String(raw.viewMode).trim().toLowerCase() : '',
+        availableViews
     }
 }
 
@@ -94,39 +102,47 @@ async function fetchJson(url) {
     return json
 }
 
-export async function getDiaryCatalog() {
-    const data = await fetchJson('/api/diary/catalog')
+function buildDiaryQuery(view, extra = {}) {
+    const params = new URLSearchParams()
+    if (view) params.set('view', String(view))
+    const token = getToken()
+    if (token) params.set('t', token)
+
+    for (const [key, value] of Object.entries(extra)) {
+        if (value !== null && value !== undefined && value !== '') {
+            params.set(key, String(value))
+        }
+    }
+
+    const suffix = params.toString()
+    return suffix ? `?${suffix}` : ''
+}
+
+export async function getDiaryCatalog(view = 'stranger') {
+    const data = await fetchJson(`/api/diary/catalog${buildDiaryQuery(view)}`)
     return normalizeCatalog(data)
 }
 
-export async function getRecentDiaries(language, limit = DEFAULT_LIMIT) {
-    const params = new URLSearchParams()
-    params.set('limit', String(limit))
-
-    const data = await fetchJson(`/api/diary/recent/${language}?${params.toString()}`)
+export async function getRecentDiaries(language, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/recent/${language}${buildDiaryQuery(view)}`)
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
-export async function queryDiaries(language, filters = {}) {
-    const params = new URLSearchParams()
-
-    if (filters.year) params.set('year', String(filters.year))
-    if (filters.month) params.set('month', String(filters.month))
-    if (filters.startDate) params.set('startDate', filters.startDate)
-    if (filters.endDate) params.set('endDate', filters.endDate)
-    params.set('limit', String(filters.limit || DEFAULT_LIMIT))
-
-    const data = await fetchJson(`/api/diary/query/${language}?${params.toString()}`)
+export async function queryDiaries(language, filters = {}, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/query/${language}${buildDiaryQuery(view, {
+        year: filters.year,
+        month: filters.month
+    })}`)
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
-export async function getDiaryByDate(language, date) {
-    const data = await fetchJson(`/api/diary/item/${language}/date/${date}`)
+export async function getDiaryByDate(language, date, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/item/${language}/date/${date}${buildDiaryQuery(view)}`)
     return normalizeDiaryText(data, language)
 }
 
-export async function getDiaryById(language, id) {
-    const data = await fetchJson(`/api/diary/item/${language}/id/${id}`)
+export async function getDiaryById(language, id, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/item/${language}/id/${id}${buildDiaryQuery(view)}`)
     return normalizeDiaryText(data, language)
 }
 
@@ -150,8 +166,8 @@ export function normalizeNearby(payload) {
     }
 }
 
-export async function getNearbyDiaries(id) {
-    const data = await fetchJson(`/api/diary/item/nearby/${id}`)
+export async function getNearbyDiaries(id, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/item/nearby/${id}${buildDiaryQuery(view)}`)
     return normalizeNearby(data)
 }
 

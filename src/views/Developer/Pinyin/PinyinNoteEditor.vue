@@ -1,7 +1,7 @@
 <!-- PinyinNoteEditor.vue -->
 
 <script setup>
-import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {showError, showSuccess} from "../../../services/ToastService.js";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
@@ -32,7 +32,6 @@ const saving = ref(false)
 
 /* ========== 音频管理 ========== */
 const audioList = ref([])
-const audioFile = ref(null)
 const loadingAudio = ref(false)
 const uploadingAudio = ref(false)
 const currentAudioUrl = ref('')
@@ -43,6 +42,9 @@ const recordingTime = ref(0)
 const recordedBlob = ref(null)      // 录音生成的原始 blob（webm/mp4）
 const recordedUrl = ref('')         // 录音试听地址
 const converting = ref(false)       // 转码中
+const previewAudioRef = ref(null)   // 录音预览播放器（无进度条）
+const playerAudioRef = ref(null)    // 管理区播放器（无进度条）
+const originalAudioRef = ref(null)  // 原音频播放器（对比用，无进度条）
 let mediaRecorder = null
 let mediaStream = null
 let recordChunks = []
@@ -66,6 +68,11 @@ const loadAudioList = async () => {
     if (!res.ok) throw new Error('加載音頻列表失敗')
 
     audioList.value = await res.json()
+
+    // 音频细节只打印到控制台，界面不展示名称等
+    if (audioList.value.length > 0) {
+      console.log(`[音頻] ${selectedKey.value}`, audioList.value[0])
+    }
   }
   catch (err) {
     showError(err.message)
@@ -76,25 +83,7 @@ const loadAudioList = async () => {
 }
 
 
-// 选择音频文件
-const onAudioFileChange = (e) => {
-  audioFile.value = e.target.files[0]
-}
-
-
-// 上传音频（固定重命名为 pronunciation，与原始文件名无关）
-const uploadAudio = async () => {
-  if (!audioFile.value) {
-    showError('請先選擇音頻文件')
-    return
-  }
-
-  await uploadFile(audioFile.value)
-  audioFile.value = null
-}
-
-
-// 通用上传：把 File/Blob 上传到当前拼音
+// 通用上传：把 File/Blob 上传到当前拼音（后端为替换式上传，同拼音只保留一条）
 const uploadFile = async (file) => {
   if (!selectedKey.value) {
     showError('請先選擇拼音')
@@ -163,6 +152,19 @@ const startRecording = async () => {
       const blob = new Blob(recordChunks, {type: mediaRecorder.mimeType || 'audio/webm'})
       recordedBlob.value = blob
       recordedUrl.value = URL.createObjectURL(blob)
+
+      // 录制完成立即自动播放预览
+      await nextTick()
+      try {
+        const audio = previewAudioRef.value
+        if (audio) {
+          audio.load()
+          await audio.play()
+        }
+      }
+      catch (e) {
+        console.error('自動播放預覽失敗', e)
+      }
     }
 
     mediaRecorder.start()
@@ -302,7 +304,7 @@ const deleteAudio = async (id) => {
     if (!res.ok) throw new Error('刪除失敗')
 
     showSuccess('刪除成功')
-    if (currentAudioUrl.value) currentAudioUrl.value = ''
+    stopCurrentPlay()
     await loadAudioList()
   }
   catch (err) {
@@ -311,9 +313,68 @@ const deleteAudio = async (id) => {
 }
 
 
-// 播放音频
-const playAudio = (item) => {
-  currentAudioUrl.value = item.url
+// 播放音频（无进度条：点击播放，播完自动回到开头；再次点击可重播）
+const playAudio = async (item) => {
+  const audio = playerAudioRef.value
+  if (!audio) return
+
+  if (currentAudioUrl.value !== item.url) {
+    currentAudioUrl.value = item.url
+    await nextTick()
+    // src 变化后必须 load() 才能正确加载新音频
+    audio.load()
+  }
+
+  try {
+    // 已播完则回到开头重新播放
+    if (audio.ended) {
+      audio.currentTime = 0
+    }
+    await audio.play()
+  }
+  catch (e) {
+    console.error('播放失敗', e)
+  }
+}
+
+// 停止当前播放（删除音频时调用）
+const stopCurrentPlay = () => {
+  currentAudioUrl.value = ''
+  const audio = playerAudioRef.value
+  if (audio) {
+    audio.pause()
+    audio.currentTime = 0
+  }
+}
+
+
+// 播放新版（本次录音）预览
+const playPreview = async () => {
+  const audio = previewAudioRef.value
+  if (!audio) return
+
+  try {
+    if (audio.ended) audio.currentTime = 0
+    await audio.play()
+  }
+  catch (e) {
+    console.error('播放新版預覽失敗', e)
+  }
+}
+
+
+// 播放原版（已存在的录音）对比
+const playOriginal = async () => {
+  const audio = originalAudioRef.value
+  if (!audio) return
+
+  try {
+    if (audio.ended) audio.currentTime = 0
+    await audio.play()
+  }
+  catch (e) {
+    console.error('播放原音頻失敗', e)
+  }
 }
 
 
@@ -479,10 +540,15 @@ onUnmounted(() => {
             :rows=10
         />
 
-        <!-- ===== 录音模块 ===== -->
+        <!-- ===== 音频（录音 + 当前音频合并） ===== -->
         <div class="audio-section record-section">
 
-          <h4>錄音</h4>
+          <h4>音頻</h4>
+
+          <!-- 已有录音时提示将替换 -->
+          <p v-if="audioList.length > 0" class="audio-tip replace-tip">
+            已有一段錄音，重新錄音將替換原音頻。
+          </p>
 
           <!-- 录音中 -->
           <div v-if="isRecording" class="record-row recording">
@@ -493,8 +559,9 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- 未在录音 -->
-          <div v-else class="record-row">
+          <!-- 未在录音且无待上传预览 -->
+          <div v-else-if="!recordedUrl" class="record-row">
+
             <button
                 class="dev-btn-small dev-add-btn"
                 :disabled="converting"
@@ -502,12 +569,40 @@ onUnmounted(() => {
             >
               開始錄音
             </button>
+
+            <!-- 当前音频操作：细节在控制台，界面只留按钮 -->
+            <template v-if="audioList.length > 0">
+              <button class="dev-btn-small dev-add-btn" @click="playAudio(audioList[0])">
+                播放音頻
+              </button>
+              <button class="dev-btn-small dev-remove-btn" @click="deleteAudio(audioList[0].id)">
+                刪除音頻
+              </button>
+            </template>
+
+            <span v-else class="audio-empty">暫無音頻</span>
+
           </div>
 
-          <!-- 录音完成：试听 / 重录 / 上传 -->
-          <div v-if="recordedUrl && !isRecording" class="record-result">
+          <!-- 录音完成：对比 / 上传 / 重录 -->
+          <div v-else class="record-result">
 
-            <audio :src="recordedUrl" controls class="audio-player"/>
+            <!-- 原版 vs 新版对比 -->
+            <div class="compare-row">
+              <span class="compare-label">對比</span>
+
+              <button
+                  v-if="audioList.length > 0"
+                  class="dev-btn-small dev-normal-button"
+                  @click="playOriginal"
+              >
+                原版
+              </button>
+
+              <button class="dev-btn-small dev-add-btn" @click="playPreview">
+                新版
+              </button>
+            </div>
 
             <div class="record-actions">
               <button
@@ -529,59 +624,10 @@ onUnmounted(() => {
 
           </div>
 
-        </div>
-
-        <!-- ===== 音频管理 ===== -->
-        <div class="audio-section">
-
-          <h4>音頻管理</h4>
-
-          <!-- 上传 -->
-          <div class="audio-upload">
-            <input type="file" accept="audio/*" @change="onAudioFileChange"/>
-            <button
-                class="dev-add-btn dev-btn-small"
-                :disabled="uploadingAudio"
-                @click="uploadAudio"
-            >
-              {{ uploadingAudio ? '上傳中...' : '上傳音頻' }}
-            </button>
-          </div>
-
-          <p class="audio-tip">
-            不管原始文件名是什么，落盤後統一重命名為 pronunciation（後綴保留原格式）。
-          </p>
-
-          <!-- 列表 -->
-          <div v-if="loadingAudio" class="audio-empty">加載中...</div>
-
-          <div v-else-if="audioList.length === 0" class="audio-empty">
-            暫無音頻
-          </div>
-
-          <div
-              v-for="item in audioList"
-              :key="item.id"
-              class="audio-item"
-          >
-            <span class="audio-name">{{ item.name }}（{{ item.format }}）</span>
-
-            <button class="dev-btn-small dev-add-btn" @click="playAudio(item)">
-              播放
-            </button>
-
-            <button class="dev-btn-small dev-remove-btn" @click="deleteAudio(item.id)">
-              刪除
-            </button>
-          </div>
-
-          <!-- 播放器 -->
-          <audio
-              v-if="currentAudioUrl"
-              :src="currentAudioUrl"
-              controls
-              class="audio-player"
-          />
+          <!-- 播放器们（始终渲染，避免 v-if 导致 ref 为空播不出声） -->
+          <audio ref="originalAudioRef" :src="audioList[0]?.url || ''" class="hidden-audio"/>
+          <audio ref="previewAudioRef" :src="recordedUrl" class="hidden-audio"/>
+          <audio ref="playerAudioRef" :src="currentAudioUrl" class="hidden-audio"/>
 
         </div>
 
@@ -649,6 +695,11 @@ onUnmounted(() => {
   background: #fafbfa;
 }
 
+.replace-tip {
+  color: #b7791f;
+  font-weight: bold;
+}
+
 .record-row {
   display: flex;
   align-items: center;
@@ -677,6 +728,18 @@ onUnmounted(() => {
   margin-top: 10px;
 }
 
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.compare-label {
+  font-size: 13px;
+  color: #666;
+}
+
 .record-actions {
   display: flex;
   gap: 10px;
@@ -695,40 +758,24 @@ onUnmounted(() => {
   margin: 0 0 10px;
 }
 
-.audio-upload {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .audio-tip {
   margin: 8px 0;
   font-size: 12px;
   color: #888;
 }
 
+.hidden-audio {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 .audio-empty {
   color: #999;
   font-size: 13px;
   padding: 8px 0;
-}
-
-.audio-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  border-top: 1px solid #f0f0f0;
-}
-
-.audio-name {
-  flex: 1;
-  font-size: 14px;
-}
-
-.audio-player {
-  margin-top: 10px;
-  width: 100%;
 }
 </style>

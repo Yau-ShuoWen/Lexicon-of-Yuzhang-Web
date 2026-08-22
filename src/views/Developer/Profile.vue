@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
+import { logout as authLogout, getToken } from '../../utils/auth.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,21 +12,12 @@ const newUsername = ref('')
 const oldPassword = ref('')
 const newPassword = ref('')
 
-const getToken = () => localStorage.getItem('auth-token')
-
 // 统一跳转路径（和你项目风格一致）
-const getLoginPath = () => `/${route.params.language}/${route.params.dialect}/dev/login`
+const getLoginPath = () => `/${route.params.language}/${route.params.dialect}/dict/auth`
 
 const logout = async () => {
   try {
-    await axios.post('/api/user/logout', null, {
-      params: {
-        t: getToken()
-      }
-    })
-
-    localStorage.removeItem('auth-token')
-
+    await authLogout()
     showSuccess('已退出登录')
 
     router.push({

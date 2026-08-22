@@ -24,7 +24,7 @@ useHead({
       <DialectSelector/>
 
       <section>
-        <router-link :to="getPath(`profile`)" class="dev-btn-middle dev-normal-button" v-formatted-text="`管理`"/>
+        <router-link :to="getPath(`admin`)" class="dev-btn-middle dev-normal-button" v-formatted-text="`管理员后台`"/>
       </section>
 
 

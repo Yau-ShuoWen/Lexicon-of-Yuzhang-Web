@@ -1,4 +1,4 @@
-
+/*富文本标题*/
 .rt-h {
     margin: 0;
     padding: 0;
@@ -9,15 +9,35 @@
     display: inline;
 }
 
+/*富文本空行*/
 .rt-empty-line {
     display: block;
     height: 0.8em;
 }
 
+/*富文本无序列表*/
 .rt-li-dot {
+    font-family: PMingLiU, sans-serif;
     color: #1f6722;
-    font-size: 13px;
-    vertical-align: 0.05em
+    font-size: 12px;
+    vertical-align: 0.2em;
+    padding-right: 5px;
+}
+
+.rt-pinyin {
+    font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+    font-size: 1.1em;
+    word-break: normal;
+    overflow-wrap: normal;
+    line-height: 1.6;
+}
+
+.rt-ipa {
+    font-family: 'Charis SIL', serif;
+    font-size: 1.1em;
+    word-break: normal;
+    overflow-wrap: normal;
+    line-height: 1.6;
 }
 
 .rt-note {
@@ -44,9 +64,8 @@
 
     border-radius: 5px;
 
-    box-shadow:
-            0 4px 12px rgba(0,0,0,.08),
-            0 8px 24px rgba(0,0,0,.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .08),
+    0 8px 24px rgba(0, 0, 0, .08);
 
     padding: 6px 14px;
 
@@ -71,7 +90,7 @@
 
     left: var(--arrow-left, 20px);
 
-    width : 8.5px;
+    width: 8.5px;
     height: 8.5px;
 
     background: white;
@@ -105,32 +124,50 @@
 /* ========================富文本拼音块====================== */
 
 .rt-pinyin-block {
-    display: inline;
+    display: inline-block;
 }
 
 .rt-pinyin-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
+    position: relative;
+    display: inline-block;
 
-    padding: 1px 8px 1px 8px;
+    padding: 0 2px;
+    line-height: 1;
 
-    font-size: 1.0em;
+    font-size: 1em;
     font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
 
     color: #07428e;
-    background: #fafcff;
-    border: 1px solid #c8d8f0;
-    border-radius: 4px;
+    background: transparent;
+    border: none;
 
     cursor: pointer;
     user-select: none;
 
-    transition: background 0.15s;
+    transition: color 0.15s;
 }
 
-.rt-pinyin-trigger:hover {
-    background: #ecf5fb;
+.rt-pinyin-trigger::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: 2px; /* 调整这里，1~4px 都可以试 */
+    height: 1px;
+    background: repeating-linear-gradient(
+            to right,
+            #999 0 3px,
+            transparent 3px 5px
+    );
+    pointer-events: none;
+}
+
+.rt-pinyin-trigger:hover::after {
+    background: repeating-linear-gradient(
+            to right,
+            #07428e 0 3px,
+            transparent 3px 5px
+    );
 }
 
 .rt-pinyin-key {
@@ -159,9 +196,8 @@
     border: 1.5px solid #b1b6bc;
     border-radius: 8px;
 
-    box-shadow:
-            0 4px 16px rgba(0,0,0,.1),
-            0 8px 28px rgba(0,0,0,.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .1),
+    0 8px 28px rgba(0, 0, 0, .08);
 
     overflow: hidden;
 
@@ -193,6 +229,7 @@
     word-break: break-all;
     overflow-wrap: anywhere;
 }
+
 /*
 .rt-pinyin-popup::before {
     content: "";
@@ -226,7 +263,7 @@
 
     top: -6px;
 
-    width : 8.5px;
+    width: 8.5px;
     height: 8.5px;
 
     background: white;
@@ -335,7 +372,7 @@
 
 .rt-blockquote {
     padding: 12px 14px;
-    margin: 16px 0;
+    margin: 12px 0;
 
     border: 1px solid #e0e0e0;
     border-left: 4px solid #2196f3;
@@ -344,6 +381,10 @@
     background-color: #f4f8fd;
     color: var(--color-text);
     line-height: 1.6;
+}
+
+.rt-blockquote-gap {
+    height: 2px;
 }
 
 /* ---- 带标签的新式引用块（颜色由内联 CSS 变量驱动） ---- */

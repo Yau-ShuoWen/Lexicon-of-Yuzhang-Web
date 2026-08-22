@@ -4,6 +4,7 @@ import { BLOCKQUOTE_TAG_MAP } from "./blockquote.js";
 export function formatRichText(text) {
     if (!text || typeof text !== "string") return text;
 
+    text = processSpaces(text);
     text = processPinyinBlock(text);
     text = processBracketPhonetic(text);
     text = processCurlySyntax(text);
@@ -12,9 +13,13 @@ export function formatRichText(text) {
     text = processHorizontalRule(text);
     text = processBlockquote(text);
     text = processLineBreak(text);
-    text = processSpaces(text);
 
     return text;
+}
+
+// 处理空格
+function processSpaces(text) {
+    return text.replace(/ {2,}/g, (spaces) => "&nbsp;".repeat(spaces.length));
 }
 
 // 处理 ▕▏ 拼音块（用 renderBracketContent 处理 [] 内容）
@@ -572,17 +577,20 @@ function processBracketPhonetic(text) {
         if (inner.includes("_")) {
             const [pre, tone] = inner.split("_");
             return (
-                `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em ">${pre}</span>` +
-                `<span style="font-family: 'Charis SIL', serif; font-size: 1.1em">${tone}</span>`
+                `<span class="rt-pinyin">${pre}</span>` +
+                `<span class="rt-ipa">${tone}</span>`
             );
         }
-        return `<span style="font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif; font-size: 1.1em">${inner}</span>`;
+        return `<span class="rt-pinyin">${inner}</span>`;
     });
 }
 
 // 处理换行
 function processLineBreak(text) {
     text = text.replace(/\r/g, "");
+
+    // 相邻 blockquote 之间统一使用较小的专用间隔，避免空行被转成过大的 <br>
+    text = text.replace(/(<\/blockquote>)\n+(<blockquote\b)/g, '$1<div class="rt-blockquote-gap"></div>$2');
 
     // table / blockquote 后面的换行不要转成 <br>
     text = text.replace(/(<\/table><\/div>)\n/g, "$1");
@@ -597,9 +605,4 @@ function processLineBreak(text) {
     });
 
     return text.replace(/\n/g, "<br>");
-}
-
-// 处理空格
-function processSpaces(text) {
-    return text.replace(/ {2,}/g, (spaces) => "&nbsp;".repeat(spaces.length));
 }

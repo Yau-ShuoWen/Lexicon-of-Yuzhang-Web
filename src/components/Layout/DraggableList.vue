@@ -8,6 +8,9 @@ const props = defineProps({
   createItem: {type: Function, default: () => ({})},
   autoSort: {type: Boolean, default: true},
   draggable: {type: Boolean, default: true},
+  showAdd: {type: Boolean, default: true},
+  showDelete: {type: Boolean, default: true},
+  unboxed: {type: Boolean, default: false},   // 去掉条目外层边框/底色，由内容自绘卡片
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -75,9 +78,9 @@ const updateSort = () => {
 </script>
 
 <template>
-  <div class="draggable-wrapper">
+  <div class="draggable-wrapper" :class="{ unboxed: unboxed || !showAdd }">
 
-    <div class="add-bar">
+    <div v-if="showAdd" class="add-bar">
       <button @click="addItem" class="dev-add-btn dev-btn-small">
         添加
       </button>
@@ -108,6 +111,7 @@ const updateSort = () => {
       </div>
 
       <button
+          v-if="showDelete"
           class="dev-remove-btn dev-btn-small"
           @click="removeItem(index)"
       >删除
@@ -140,6 +144,17 @@ const updateSort = () => {
 
 .draggable-item:hover {
   background: #f0f0f0;
+}
+
+/* 无外框模式：去掉条目外层编辑态边框/底色，仅展示内容（内容自绘卡片） */
+.draggable-wrapper.unboxed .draggable-item {
+  border: none;
+  background: #fff;
+  padding: 0;
+}
+
+.draggable-wrapper.unboxed .draggable-item:hover {
+  background: #fff;
 }
 
 .drag-handle {

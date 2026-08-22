@@ -1,10 +1,10 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
-import LoadingIcon from '../../components/Status/LoadingIcon.vue'
 import DiaryArchive from './DiaryArchive.vue'
 import { showError } from '../../services/ToastService.js'
+import { getBlogVisibilityLevel } from '../../utils/auth.js'
 import {
   formatDateLabel,
   getDiaryCatalog,
@@ -16,6 +16,40 @@ const router = useRouter()
 
 const language = computed(() => String(route.params.language || 'sc'))
 const dialect = computed(() => String(route.params.dialect || 'lac'))
+const blogLevel = computed(() => getBlogVisibilityLevel())
+const canSelfView = computed(() => blogLevel.value >= 3)
+const canFriendView = computed(() => blogLevel.value >= 2)
+const canStrangerView = computed(() => blogLevel.value >= 1)
+const viewOptions = computed(() => {
+  if (canSelfView.value) {
+    return [
+      { mode: 'self', label: text.value.self },
+      { mode: 'friend', label: text.value.friend },
+      { mode: 'stranger', label: text.value.stranger }
+    ]
+  }
+  if (canFriendView.value) {
+    return [
+      { mode: 'friend', label: text.value.full },
+      { mode: 'stranger', label: text.value.public }
+    ]
+  }
+  return []
+})
+
+const viewMode = computed(() => {
+  const raw = String(route.query.view || '').toLowerCase()
+  if (raw === 'self' || raw === 'friend' || raw === 'stranger') {
+    if (raw === 'self') {
+      return canSelfView.value ? raw : (canFriendView.value ? 'friend' : 'stranger')
+    }
+    if (raw === 'friend') {
+      return canFriendView.value ? raw : 'stranger'
+    }
+    return raw
+  }
+  return canSelfView.value ? 'self' : (canFriendView.value ? 'friend' : 'stranger')
+})
 
 const text = computed(() => (
     language.value === 'tc'
@@ -23,13 +57,25 @@ const text = computed(() => (
           title: '日記',
           list: '日記列表',
           noSummary: '暫無摘要',
-          noData: '暫無日記資料'
+          noData: '暫無日記資料',
+          view: '視角',
+          self: '自己',
+          friend: '朋友',
+          stranger: '陌生人',
+          full: '完整版',
+          public: '公開版'
         }
         : {
           title: '日记',
           list: '日记列表',
           noSummary: '暂无摘要',
-          noData: '暂无日记资料'
+          noData: '暂无日记资料',
+          view: '视角',
+          self: '自己',
+          friend: '朋友',
+          stranger: '陌生人',
+          full: '完整版',
+          public: '公开版'
         }
 ))
 
@@ -39,63 +85,113 @@ useHead({
 
 const loadingCatalog = ref(false)
 const loadingList = ref(false)
+const showCatalogSkeleton = ref(false)
+const showListSkeleton = ref(false)
+const listRenderKey = ref(0)
 
 const catalog = ref([])
 const listItems = ref([])
+let catalogSkeletonTimer = null
+let listSkeletonTimer = null
 
 const filters = ref({
   year: '',
-  month: '',
-  startDate: '',
-  endDate: '',
-  limit: 50
+  month: ''
 })
 
-const currentQuery = computed(() => {
+const detailQuery = computed(() => {
   const query = {}
-  if (filters.value.year) query.year = String(filters.value.year)
-  if (filters.value.month) query.month = String(filters.value.month)
-  if (filters.value.startDate) query.startDate = filters.value.startDate
-  if (filters.value.endDate) query.endDate = filters.value.endDate
-  if (filters.value.limit) query.limit = String(filters.value.limit)
+  if (viewMode.value) query.view = viewMode.value
   return query
 })
 
-async function loadCatalog() {
+const activeViewIndex = computed(() => {
+  const index = viewOptions.value.findIndex(option => option.mode === viewMode.value)
+  return index >= 0 ? index : 0
+})
+
+function setView(mode) {
+  const nextMode = mode === 'self'
+    ? (canSelfView.value ? 'self' : (canFriendView.value ? 'friend' : 'stranger'))
+    : mode === 'friend'
+      ? (canFriendView.value ? 'friend' : 'stranger')
+      : 'stranger'
+  router.replace({
+    query: {
+      ...(route.query.year ? { year: String(route.query.year) } : {}),
+      ...(route.query.month ? { month: String(route.query.month) } : {}),
+      view: nextMode
+    }
+  })
+}
+
+function startCatalogLoading() {
   loadingCatalog.value = true
+  showCatalogSkeleton.value = false
+  clearTimeout(catalogSkeletonTimer)
+  catalogSkeletonTimer = setTimeout(() => {
+    if (loadingCatalog.value) {
+      showCatalogSkeleton.value = true
+    }
+  }, 180)
+}
+
+function stopCatalogLoading() {
+  loadingCatalog.value = false
+  showCatalogSkeleton.value = false
+  clearTimeout(catalogSkeletonTimer)
+}
+
+async function loadCatalog() {
+  startCatalogLoading()
   try {
-    catalog.value = await getDiaryCatalog()
+    catalog.value = await getDiaryCatalog(viewMode.value)
   } catch (error) {
     console.error(error)
     showError(error.message || '加载目录失败')
     catalog.value = []
   }
   finally {
-    loadingCatalog.value = false
+    stopCatalogLoading()
   }
 }
 
-async function loadList() {
+function startListLoading() {
   loadingList.value = true
+  showListSkeleton.value = false
+  clearTimeout(listSkeletonTimer)
+  listSkeletonTimer = setTimeout(() => {
+    if (loadingList.value) {
+      showListSkeleton.value = true
+    }
+  }, 180)
+}
+
+function stopListLoading() {
+  loadingList.value = false
+  showListSkeleton.value = false
+  clearTimeout(listSkeletonTimer)
+  listRenderKey.value += 1
+}
+
+async function loadList() {
+  startListLoading()
   try {
-    listItems.value = await queryDiaries(language.value, filters.value)
+    listItems.value = await queryDiaries(language.value, filters.value, viewMode.value)
   } catch (error) {
     console.error(error)
     showError(error.message || '加载日记列表失败')
     listItems.value = []
   }
   finally {
-    loadingList.value = false
+    stopListLoading()
   }
 }
 
 function syncFiltersFromQuery() {
   filters.value = {
     year: route.query.year ? String(route.query.year) : '',
-    month: route.query.month ? String(route.query.month) : '',
-    startDate: route.query.startDate ? String(route.query.startDate) : '',
-    endDate: route.query.endDate ? String(route.query.endDate) : '',
-    limit: route.query.limit ? Number(route.query.limit) : 50
+    month: route.query.month ? String(route.query.month) : ''
   }
 }
 
@@ -117,14 +213,12 @@ function applyArchive({ year, month }) {
     filters.value.year = year
     filters.value.month = month
   }
-  filters.value.startDate = ''
-  filters.value.endDate = ''
-  filters.value.limit = 50
 
   // 生成归档 URL：?year=2026&month=7（无筛选时为空 query）
   const query = {}
   if (filters.value.year) query.year = filters.value.year
   if (filters.value.month) query.month = filters.value.month
+  if (viewMode.value) query.view = viewMode.value
 
   skipNextWatch = true
   router.replace({ query })
@@ -144,7 +238,7 @@ function getDetailHref(item) {
       dialect: dialect.value,
       id: String(item.id)
     },
-    //query: currentQuery.value
+    query: detailQuery.value
   }).href
 }
 
@@ -160,18 +254,16 @@ function openDetail(item) {
       dialect: dialect.value,
       id: String(item.id)
     },
-    query: currentQuery.value
+    query: detailQuery.value
   })
 }
 
 watch(
   () => [
     language.value,
+    viewMode.value,
     route.query.year,
-    route.query.month,
-    route.query.startDate,
-    route.query.endDate,
-    route.query.limit
+    route.query.month
   ],
   () => {
     // 本页通过归档点击主动推送的 query：列表已在 applyArchive 中刷新，跳过整页重载
@@ -183,6 +275,11 @@ watch(
   },
   { immediate: true }
 )
+
+onBeforeUnmount(() => {
+  clearTimeout(catalogSkeletonTimer)
+  clearTimeout(listSkeletonTimer)
+})
 </script>
 
 <template>
@@ -192,7 +289,7 @@ watch(
         <DiaryArchive
             :language="language"
             :catalog="catalog"
-            :loading="loadingCatalog"
+            :loading="showCatalogSkeleton"
             :active-year="filters.year"
             :active-month="filters.month"
             @select="applyArchive"
@@ -201,11 +298,44 @@ watch(
 
       <section class="content">
         <section class="panel">
-          <div class="panel-title" v-formatted-text="text.list"/>
+          <div class="panel-head">
+            <div class="panel-title" v-formatted-text="text.list"/>
+            <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
+              <span class="view-switch__label">{{ text.view }}</span>
+              <div
+                class="view-switch__track"
+                :class="`is-${viewOptions.length}`"
+                :style="{
+                  '--segment-count': String(viewOptions.length),
+                  '--active-index': String(activeViewIndex)
+                }"
+              >
+                <button
+                  v-for="option in viewOptions"
+                  :key="option.mode"
+                  class="view-switch__option"
+                  :class="{ active: viewMode === option.mode }"
+                  @click="setView(option.mode)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+          </div>
 
-          <LoadingIcon v-if="loadingList"/>
+          <div v-if="showListSkeleton" class="diary-skeleton" aria-hidden="true">
+            <div v-for="index in 5" :key="index" class="diary-skeleton__card">
+              <div class="diary-skeleton__line diary-skeleton__line--summary shimmer" />
+              <div class="diary-skeleton__line diary-skeleton__line--date shimmer" />
+            </div>
+          </div>
 
-          <div v-else-if="listItems.length" class="card-list">
+          <div
+            v-else-if="listItems.length"
+            :key="listRenderKey"
+            class="card-list"
+            :class="{ 'is-loading': loadingList }"
+          >
             <article
                 v-for="item in listItems"
                 :key="item.id ?? item.date"
@@ -329,6 +459,95 @@ watch(
   gap: 10px;
 }
 
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.view-switch__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.view-switch__track {
+  position: relative;
+  display: inline-grid;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7fbf5 0%, #eaf4e5 100%);
+  border: 1px solid #d8e7d1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.view-switch__track::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5aa84d 0%, #2f7d43 100%);
+  box-shadow: 0 8px 18px rgba(46, 125, 67, 0.22);
+  transform: translateX(calc(var(--active-index) * (100% + 4px)));
+  transition: transform 0.28s ease;
+}
+
+.view-switch__track.is-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.view-switch__track.is-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.view-switch__option {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-light);
+  min-width: 68px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.22s ease, transform 0.22s ease;
+}
+
+.view-switch__option.active {
+  color: #fff;
+}
+
+.view-switch__option:hover {
+  color: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.view-switch__option.active:hover {
+  color: #fff;
+  transform: none;
+}
+
+.card-list.is-loading {
+  opacity: 0.72;
+  transition: opacity 0.18s ease;
+}
+
 /* 参考 PinyinTable 的左侧强调条 */
 .panel-title::before {
   content: '';
@@ -343,6 +562,69 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 12px;
+  opacity: 0;
+  animation: diaryRiseIn 0.42s ease 0.04s both;
+}
+
+.diary-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diary-skeleton__card {
+  padding: 16px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid #dce9d8;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf6 100%);
+}
+
+.diary-skeleton__line {
+  border-radius: 999px;
+  background: #e7efe2;
+}
+
+.diary-skeleton__line--summary {
+  width: 72%;
+  height: 18px;
+  margin-bottom: 16px;
+}
+
+.diary-skeleton__line--date {
+  width: 112px;
+  height: 14px;
+  margin-left: auto;
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: diarySkeletonShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes diarySkeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes diaryRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .diary-card {
@@ -356,11 +638,11 @@ watch(
 }
 
 .diary-card:hover {
-  transform: translateY(-4px) scale(1.01);
+  transform: translateY(-2px) scale(1.00);
   border-color: var(--color-primary);
   background: linear-gradient(180deg, #ffffff 0%, #eefbfb 100%);
   box-shadow: 0 8px 18px rgba(46, 125, 50, 0.12);
-  z-index: 2;
+  z-index: 1;
 }
 
 .diary-card__top {
@@ -399,7 +681,7 @@ watch(
   line-height: 1.7;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .diary-layout {
     grid-template-columns: 1fr;
   }

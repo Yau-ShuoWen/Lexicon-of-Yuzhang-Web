@@ -2,6 +2,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
+import { AUTH_TOKEN_KEY, clearAuth, isAdminUser, saveAuth } from '../utils/auth'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
 const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
@@ -17,32 +18,67 @@ const routes = [
             return {path: `/${to.params.language}/${to.params.dialect}/home`}
         },
         children: [
+            // 字典
             {
-                path: 'home',
-                name: 'Home',
-                component: () => import('../views/HomePage.vue')
-            },
-            {
-                path: 'pinyin',
-                name: 'PinyinTable',
-                component: () => import('../views/Pinyin/PinyinTable.vue')
-            },
-            {
-                path: 'about',
-                name: 'About',
-                component: () => import('../views/AboutPage.vue')
-            },
+                path: 'dict',
+                name: 'dictionary',
+                component: () => import('../views/Personal/LayoutBlog.vue'),
+                redirect: to => {
+                    return {path: `/${to.params.language}/${to.params.dialect}/dict/home`}
+                },
+                children: [
+                    {
+                        path: 'home',
+                        name: 'Home',
+                        component: () => import('../views/HomePage.vue')
+                    },
+                    {
+                        path: 'pinyin',
+                        name: 'PinyinTable',
+                        component: () => import('../views/Pinyin/PinyinTable.vue')
+                    },
+                    {
+                        path: 'about',
+                        name: 'About',
+                        component: () => import('../views/AboutPage.vue')
+                    },
+                    {
+                        path: 'auth',
+                        name: 'DictAuth',
+                        component: () => import('../views/Dict/AuthPanel.vue')
+                    },
 
-            // 教程
-            {
-                path: 'tutorial',
-                name: 'Tutorial',
-                component: () => import('../views/Tutorial/TutorialHome.vue')
-            },
-            {
-                path: 'article/:id?',
-                name: 'Article',
-                component: () => import('../views/Tutorial/ArticlePage.vue')
+                    // 教程
+                    {
+                        path: 'tutorial',
+                        name: 'Tutorial',
+                        component: () => import('../views/Tutorial/TutorialHome.vue')
+                    },
+                    {
+                        path: 'article/:id?',
+                        name: 'Article',
+                        component: () => import('../views/Tutorial/ArticlePage.vue')
+                    },
+
+                    // 查询
+                    {
+                        path: 'search',
+                        name: 'Search',
+                        component: () => import('../views/Search/SearchResult.vue')
+                    },
+                    {
+                        path: 'h/:query',
+                        name: 'HanziDetail',
+                        component: () => import('../views/Search/HanziDetail.vue'),
+                        props: true
+                    },
+                    {
+                        path: 'c/:query',
+                        name: 'CiyuDetail',
+                        component: () => import('../views/Search/CiyuDetail.vue'),
+                        props: true
+                    },
+                ]
             },
 
             // 开发者模式
@@ -54,24 +90,23 @@ const routes = [
                     return {path: `/${to.params.language}/${to.params.dialect}/dev/home`}
                 },
                 children: [
-                    // 登陆
                     {
-                        path: 'login',
-                        name: 'Login',
-                        component: () => import('../views/Developer/Login.vue')
+                        path: 'home',
+                        name: 'DevHome',
+                        component: () => import('../views/Developer/DevHome.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
                         path: 'profile',
                         name: 'Profile',
                         component: () => import('../views/Developer/Profile.vue'),
-                        meta: {requiresAuth: true}
+                        meta: {requiresAuth: true, requiresAdmin: true}
                     },
-
                     {
-                        path: 'home',
-                        name: 'DevHome',
-                        component: () => import('../views/Developer/DevHome.vue'),
-                        meta: {requiresAuth: true}
+                        path: 'admin',
+                        name: 'AdminDashboard',
+                        component: () => import('../views/Developer/AdminDashboard.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
                     },
 
                     // 测试
@@ -169,25 +204,6 @@ const routes = [
                 ]
             },
 
-            // 查询
-            {
-                path: 'search',
-                name: 'Search',
-                component: () => import('../views/Search/SearchResult.vue')
-            },
-            {
-                path: 'h/:query',
-                name: 'HanziDetail',
-                component: () => import('../views/Search/HanziDetail.vue'),
-                props: true
-            },
-            {
-                path: 'c/:query',
-                name: 'CiyuDetail',
-                component: () => import('../views/Search/CiyuDetail.vue'),
-                props: true
-            },
-
             {
                 path: 'ysw',
                 name: 'Blog',
@@ -222,7 +238,7 @@ const routes = [
                     {
                         path: 'alphabet/:code',
                         name: 'Alphabet',
-                        component: () => import('../views/Alphabet/AlphabetTable.vue'),
+                        component: () => import('../views/Alphabet/AlphabetIntroduce.vue'),
                     },
                     {
                         path: 'diary',
@@ -242,6 +258,18 @@ const routes = [
     {
         path: '/',
         name: 'Root'
+    },
+
+    {
+        path: '/:language(sc|tc)/:dialect(lac|ced)/dev-hidden',
+        name: 'DevHidden',
+        component: () => import('../views/Developer/DevHidden.vue')
+    },
+
+    {
+        path: '/:language(sc|tc)/:dialect(lac|ced)/admin-login',
+        name: 'Login',
+        redirect: to => `/${to.params.language}/${to.params.dialect}/dict/auth`
     },
 
     {
@@ -273,7 +301,7 @@ router.beforeEach(async (to, from, next) => {
             localStorage.setItem('user-dialect', dialect)
         }
 
-        return next(`/${language}/${dialect}/home`)
+        return next(`/${language}/${dialect}/dict/home`)
     }
 
     // ==============================
@@ -291,13 +319,12 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // ===== 3. dev 模块统一鉴权 =====
-    const token = localStorage.getItem('auth-token')
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
 
-    // ❌ 没 token → 直接去 login（关键修复点）
+    // ❌ 没 token → 直接显示隐藏页
     if (!token) {
-
         return next({
-            name: 'Login',
+            name: 'DevHidden',
             params: {
                 language: to.params.language,
                 dialect: to.params.dialect
@@ -309,13 +336,21 @@ router.beforeEach(async (to, from, next) => {
     try {
 
         const res = await axios.get('/api/user/check-auth', {
-            params: { t: token }
+            params: {t: token}
         })
 
         if (res.data.success) {
+            const userRes = await axios.get('/api/user/me', {
+                params: {t: token}
+            })
 
-            // ✅ 放行
-            return next()
+            if (userRes.data.success && userRes.data.data) {
+                saveAuth(userRes.data.data, token)
+
+                if (isAdminUser(userRes.data.data)) {
+                    return next()
+                }
+            }
         }
 
     } catch (e) {
@@ -323,10 +358,10 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // ===== 5. token 失效处理 =====
-    localStorage.removeItem('auth-token')
+    clearAuth()
 
     return next({
-        name: 'Login',
+        name: 'DevHidden',
         params: {
             language: to.params.language,
             dialect: to.params.dialect

@@ -315,6 +315,17 @@ watch(() => route.params.sort, () => {
 // ==================== Proof 模式弹窗相关 ====================
 const currentEditingItem = ref(null)
 
+// 判断条目文本中是否包含关键词标记 {词}，决定是否显示关键词区
+function hasKeywords(item) {
+  const text = (item.source || '') + '\n' + (item.note?.tc || '')
+  return /\{[^\s{}]+\}/.test(text)
+}
+
+// ==================== 高级编辑模式开关 ====================
+// 默认关闭 = 简单展示模式（隐藏列表的「添加 / 拖动 / 删除」）；
+// 打开后恢复完整编辑功能
+const advancedMode = ref(false)
+
 function openProofEditor(item) {
   // 确保只有一个弹窗打开
   if (currentEditingItem.value) {
@@ -346,6 +357,17 @@ function handleEscClose(e) {
 <template>
   <div class="ref-editor">
 
+    <!-- 高级编辑模式开关（仅 proof 模式有列表，故仅此时显示） -->
+    <div v-if="page?.type === 'proof'" class="editor-mode-bar">
+      <label class="mode-toggle">
+        <input type="checkbox" v-model="advancedMode" class="mode-switch-input"/>
+        <span class="mode-switch-track"></span>
+        <span class="mode-switch-text">
+          高级编辑模式
+          <small>显示新增 / 拖动 / 删除</small>
+        </span>
+      </label>
+    </div>
 
     <div class="editor-header">
       <div class="nav-left">
@@ -399,41 +421,50 @@ function handleEscClose(e) {
       <div v-else-if="page.type === 'proof'" class="proof-mode">
         <DraggableList
             v-model="page.contents"
+            unboxed
+            :show-add="advancedMode"
+            :draggable="advancedMode"
+            :show-delete="advancedMode"
             :createItem="() => ({ id: null, source: '', text: { sc: '', tc: '' }, note: { sc: '', tc: '' } })"
         >
 
           <template #default="{ item }">
 
-            <KeywordEnhancer
-                :source="item.source"
-                :note="item.note.tc"
-                :dialect="dialect.toString()"
-                :language="language.toString()"
-                :dict="dictionary.toString()"
-            />
-            <!-- 缩略预览卡片 -->
-            <div class="proof-item-compact" @click="openProofEditor(item)">
-              <div
-                  class="preview-source"
+            <!-- 统一条目卡片：关键词区 + 可点击预览区 -->
+            <div class="proof-card" @click="openProofEditor(item)">
 
-              >
-                <h4>原始文本</h4>
-                <RichText
+              <!-- 关键词区（顶部浅色条） -->
+              <div v-if="hasKeywords(item)" class="card-keywords" @click.stop>
+                <KeywordEnhancer
+                    :source="item.source"
+                    :note="item.note.tc"
                     :dialect="dialect.toString()"
                     :language="language.toString()"
                     :dict="dictionary.toString()"
-                    :model-value="item.source"
                 />
               </div>
 
-              <div class="preview-note" v-if="item.note.tc">
-                <h4>注释（繁体）</h4>
-                <RichText
-                    :dialect="dialect.toString()"
-                    :language="language.toString()"
-                    :dict="dictionary.toString()"
-                    :model-value="item.note.tc"
-                />
+              <!-- 点击预览区 -->
+              <div class="card-preview">
+                <div class="preview-block">
+                  <h4>原始文本</h4>
+                  <RichText
+                      :dialect="dialect.toString()"
+                      :language="language.toString()"
+                      :dict="dictionary.toString()"
+                      :model-value="item.source"
+                  />
+                </div>
+
+                <div class="preview-block" v-if="item.note.tc">
+                  <h4>注释（繁体）</h4>
+                  <RichText
+                      :dialect="dialect.toString()"
+                      :language="language.toString()"
+                      :dict="dictionary.toString()"
+                      :model-value="item.note.tc"
+                  />
+                </div>
               </div>
 
             </div>
@@ -526,6 +557,70 @@ function handleEscClose(e) {
   padding: 20px;
 }
 
+/* 顶部高级编辑模式开关 */
+.editor-mode-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 隐藏原生 checkbox，用自定义开关代替 */
+.mode-switch-input {
+  display: none;
+}
+
+.mode-switch-track {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #ccc;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.mode-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+
+.mode-switch-input:checked + .mode-switch-track {
+  background: #4caf50;
+}
+
+.mode-switch-input:checked + .mode-switch-track::after {
+  transform: translateX(18px);
+}
+
+.mode-switch-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  font-size: 14px;
+  color: #555;
+}
+
+.mode-switch-text small {
+  font-size: 12px;
+  color: #999;
+}
+
 .editor-header {
   display: flex;
   justify-content: space-between;
@@ -582,41 +677,72 @@ function handleEscClose(e) {
   font-size: 16px;
 }
 
-.proof-item-compact {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px 16px;
+/* ==================== 条目卡片（统一布局，不再套多层框） ==================== */
+.proof-card {
   background: #fff;
-  margin-bottom: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
   cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.proof-item-compact:hover {
-  border-color: #aaa;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.proof-card:hover {
+  border-color: #b5c8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.preview-source, .preview-note {
-  margin-bottom: 12px;
+/* 关键词区：顶部浅色条，关键词显示为小标签 */
+.card-keywords {
+  background: #f7f9fc;
+  border-bottom: 1px solid #eee;
+  padding: 8px 14px;
 }
 
-.preview-source h4,
-.preview-note h4 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.drag-handle {
-  position: absolute;
-  right: 12px;
-  top: 12px;
+.card-keywords :deep(.keyword-link) {
+  display: inline-block;
+  margin: 2px 8px 2px 0;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: #e8f0fe;
+  color: #2a6df4;
   font-size: 20px;
-  color: #ccc;
-  cursor: grab;
-  user-select: none;
+  text-decoration: none;
+}
+
+.card-keywords :deep(.keyword-link:hover) {
+  text-decoration: underline;
+}
+
+.card-keywords :deep(.keyword-missing) {
+  display: inline-block;
+  margin: 2px 8px 2px 0;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  color: #888;
+  font-size: 13px;
+}
+
+/* 点击预览区 */
+.card-preview {
+  padding: 12px 14px 14px;
+}
+
+.preview-block {
+  margin-bottom: 10px;
+}
+
+.preview-block:last-child {
+  margin-bottom: 0;
+}
+
+.preview-block h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
 }
 
 /* ==================== 弹窗样式 ==================== */

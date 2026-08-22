@@ -4,8 +4,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
-import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 import PinyinDetail from "./PinyinDetail.vue";
+import TableSkeleton from "../../components/Status/TableSkeleton.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 
@@ -18,12 +18,31 @@ const {t} = useI18n()
 
 const pinyinData = ref([])
 const loading = ref(true)
+const showSkeleton = ref(false)
 const showDetail = ref(false)
 const currentKey = ref('')
+let skeletonTimer = null
+
+const hasData = computed(() => pinyinData.value.length > 0)
 
 useHead({
   title: () => `${t('dialect_about.pinyin_table.' + dialect.value)}`
 })
+
+function startLoading() {
+  loading.value = true
+  showSkeleton.value = false
+  clearTimeout(skeletonTimer)
+  skeletonTimer = setTimeout(() => {
+    if (loading.value && !hasData.value) showSkeleton.value = true
+  }, 160)
+}
+
+function stopLoading() {
+  loading.value = false
+  showSkeleton.value = false
+  clearTimeout(skeletonTimer)
+}
 
 
 // 生命周期
@@ -31,7 +50,7 @@ onMounted(fetchTable)
 
 async function fetchTable() {
   try {
-    loading.value = true
+    startLoading()
     const res = await fetch(`/api/pinyin/table/${dialect.value}/${language.value}`)
     if (!res.ok) throw new Error(res.status)
 
@@ -43,7 +62,7 @@ async function fetchTable() {
     showError('加载拼音表失败')
   }
   finally {
-    loading.value = false
+    stopLoading()
   }
 }
 
@@ -93,48 +112,50 @@ watch(dialect, fetchTable)
 
     </header>
 
-    <LoadingIcon v-if="loading"/>
+    <div class="pinyin-content-host">
+      <TableSkeleton
+        v-if="showSkeleton"
+        key="skeleton"
+        :groups="3"
+        :rows="2"
+        :cols="6"
+      />
 
-    <div v-else class="pinyin-container">
+      <div v-else-if="hasData" key="content" class="pinyin-container">
+        <div class="this-table-block">
+          <div
+              v-for="(grid, gridIndex) in pinyinData"
+              :key="grid.code"
+              class="attribute-group"
+              :class="'accent-' + (gridIndex % 3)"
+              :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
+          >
 
+            <div class="group-header">
+              <h3>{{ grid.name }}</h3>
+            </div>
 
-      <div class="this-table-block">
-        <div
-            v-for="(grid, gridIndex) in pinyinData"
-            :key="grid.code"
-            class="attribute-group"
-            :class="'accent-' + (gridIndex % 3)"
-            :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
-        >
+            <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
+              <div v-for="group in line.group" :key="group.id" class="pinyin-group">
+                <div class="items-grid">
 
-          <div class="group-header">
-            <h3>{{ grid.name }}</h3>
-          </div>
-
-          <div v-for="line in grid.line" :key="line.id" class="pinyin-line">
-            <div v-for="group in line.group" :key="group.id" class="pinyin-group">
-              <div class="items-grid">
-
-                <div
-                    v-for="(item, itemIndex) in group.item"
-                    :key="item.id"
-                    class="item-box clickable"
-                    :class="{ invalid: !item.exist }"
-                    :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
-                    @click="handleItemClick(item)"
-                >
                   <div
-                      class="main-display"
-                      v-html="formatDisplay(item)"
-                  />
-                </div>
+                      v-for="(item, itemIndex) in group.item"
+                      :key="item.id"
+                      class="item-box clickable"
+                      :class="{ invalid: !item.exist }"
+                      :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
+                      @click="handleItemClick(item)"
+                  >
+                    <div class="main-display" v-formatted-text="item.standard"/>
+                  </div>
 
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
   <PinyinDetail
@@ -396,7 +417,7 @@ watch(dialect, fetchTable)
   border-radius: 10px;
 
   padding: 12px 6px;
-  min-height: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -462,7 +483,7 @@ watch(dialect, fetchTable)
 
 /* ======== 文字 ======== */
 .main-display {
-  font-size: 20px;
+  font-size: 22px;
   text-align: center;
   color: var(--color-text);
   line-height: 1;
@@ -474,6 +495,10 @@ watch(dialect, fetchTable)
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.pinyin-content-host {
+  min-width: 0;
 }
 
 .this-table-block {

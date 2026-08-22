@@ -20,7 +20,7 @@ const extraVisibleCount = ref(0)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const getPath = (path) => `/${language.value}/${dialect.value}/dict/${path}`
 
 const isRandom = computed(() => searchQuery.value === 'random')
 
@@ -118,8 +118,8 @@ const getResultLink = (result) => {
     return '/'
   }
 
-  if (result.tag === 'hanzi') return `/${language.value}/${dialect.value}/h/${encodeURIComponent(result.info.query)}`
-  if (result.tag === 'ciyu') return `/${language.value}/${dialect.value}/c/${encodeURIComponent(result.info.query)}`
+  if (result.tag === 'hanzi') return `/${language.value}/${dialect.value}/dict/h/${encodeURIComponent(result.info.query)}`
+  if (result.tag === 'ciyu') return `/${language.value}/${dialect.value}/dict/c/${encodeURIComponent(result.info.query)}`
 
   return '/'
 }

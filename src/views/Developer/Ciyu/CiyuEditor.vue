@@ -130,7 +130,7 @@ onMounted(() => {
             <h4>
               繁體：
               <router-link
-                  :to="`/tc/${dialect}/c/${updateData.ciyu.tc}`"
+                  :to="`/tc/${dialect}/dict/c/${updateData.ciyu.tc}`"
                   class="word-link" target="_blank"
               >
                 {{ updateData.ciyu.tc }}
@@ -140,7 +140,7 @@ onMounted(() => {
             <h4>
               簡體：
               <router-link
-                  :to="`/sc/${dialect}/c/${updateData.ciyu.sc}`"
+                  :to="`/sc/${dialect}/dict/c/${updateData.ciyu.sc}`"
                   class="word-link" target="_blank"
               >
                 {{ updateData.ciyu.sc }}
@@ -291,7 +291,6 @@ onMounted(() => {
         <CopyButton text="|---!|---*|
 |例句||
 |說法||
-|直譯||
 |讀音||
 相關詞彙：
 - {c }：[] （）

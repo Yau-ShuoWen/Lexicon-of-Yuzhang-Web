@@ -32,11 +32,11 @@ const permittedViewModes = computed(() => {
 })
 
 const availableViewModes = computed(() => (
-  Array.isArray(diary.value?.availableViews)
-    ? diary.value.availableViews
-        .filter(Boolean)
-        .map(item => String(item).trim().toLowerCase())
-    : []
+    Array.isArray(diary.value?.availableViews)
+        ? diary.value.availableViews
+            .filter(Boolean)
+            .map(item => String(item).trim().toLowerCase())
+        : []
 ))
 
 const visibleViewModes = computed(() => {
@@ -87,56 +87,56 @@ const viewMode = computed(() => {
 })
 
 const text = computed(() => (
-  language.value === 'tc'
-    ? {
-      title: '日記詳情',
-      loadingTitle: '載入中',
-      back: '返回日記列表',
-      summary: '摘要',
-      content: '正文',
-      noContent: '暫無正文內容',
-      notFound: '沒有找到這篇日記。',
-      startDate: '開始寫作',
-      finalizeDate: '完成時間',
-      createdTime: '建立時間',
-      updatedTime: '最後更新',
-      prev: '上一篇',
-      next: '下一篇',
-      view: '視角',
-      self: '自己',
-      friend: '朋友',
-      stranger: '陌生人',
-      full: '完整版',
-      public: '公開版'
-    }
-    : {
-      title: '日记详情',
-      loadingTitle: '加载中',
-      back: '返回日记列表',
-      summary: '摘要',
-      content: '正文',
-      noContent: '暂无正文内容',
-      notFound: '没有找到这篇日记。',
-      startDate: '开始写作',
-      finalizeDate: '完成时间',
-      createdTime: '创建时间',
-      updatedTime: '最后更新',
-      prev: '上一篇',
-      next: '下一篇',
-      view: '视角',
-      self: '自己',
-      friend: '朋友',
-      stranger: '陌生人',
-      full: '完整版',
-      public: '公开版'
-    }
+    language.value === 'tc'
+        ? {
+          title: '日記詳情',
+          loadingTitle: '載入中',
+          back: '返回日記列表',
+          summary: '摘要',
+          content: '正文',
+          noContent: '暫無正文內容',
+          notFound: '沒有找到這篇日記。',
+          startDate: '開始寫作',
+          finalizeDate: '完成時間',
+          createdTime: '建立時間',
+          updatedTime: '最後更新',
+          prev: '上一篇',
+          next: '下一篇',
+          view: '視角',
+          self: '自己',
+          friend: '朋友',
+          stranger: '陌生人',
+          full: '完整版',
+          public: '公開版'
+        }
+        : {
+          title: '日记详情',
+          loadingTitle: '加载中',
+          back: '返回日记列表',
+          summary: '摘要',
+          content: '正文',
+          noContent: '暂无正文内容',
+          notFound: '没有找到这篇日记。',
+          startDate: '开始写作',
+          finalizeDate: '完成时间',
+          createdTime: '创建时间',
+          updatedTime: '最后更新',
+          prev: '上一篇',
+          next: '下一篇',
+          view: '视角',
+          self: '自己',
+          friend: '朋友',
+          stranger: '陌生人',
+          full: '完整版',
+          public: '公开版'
+        }
 ))
 
 const loading = ref(true)
 const showSkeleton = ref(false)
 const animateDetail = ref(false)
 const diary = ref(null)
-const nearby = ref({ prev: null, next: null })
+const nearby = ref({prev: null, next: null})
 let skeletonTimer = null
 let detailAnimationTimer = null
 
@@ -156,10 +156,10 @@ function diaryLink(id) {
 
 function setView(mode) {
   const nextMode = mode === 'self'
-    ? (canSelfView.value ? 'self' : (canFriendView.value ? 'friend' : 'stranger'))
-    : mode === 'friend'
-      ? (canFriendView.value ? 'friend' : 'stranger')
-      : 'stranger'
+      ? (canSelfView.value ? 'self' : (canFriendView.value ? 'friend' : 'stranger'))
+      : mode === 'friend'
+          ? (canFriendView.value ? 'friend' : 'stranger')
+          : 'stranger'
   router.replace({
     query: {
       ...route.query,
@@ -218,25 +218,26 @@ async function loadDiary() {
   startLoading()
   try {
     diary.value = diaryId.value
-      ? await getDiaryById(language.value, diaryId.value, requestedView.value)
-      : null
+        ? await getDiaryById(language.value, diaryId.value, requestedView.value)
+        : null
     nearby.value = diaryId.value
-      ? await getNearbyDiaries(diaryId.value, requestedView.value)
-      : { prev: null, next: null }
+        ? await getNearbyDiaries(diaryId.value, requestedView.value)
+        : {prev: null, next: null}
   } catch (error) {
     console.error(error)
     showError(error.message || '加载详情失败')
     diary.value = null
-    nearby.value = { prev: null, next: null }
-  } finally {
+    nearby.value = {prev: null, next: null}
+  }
+  finally {
     stopLoading()
   }
 }
 
 watch(
-  () => [language.value, diaryId.value, requestedView.value],
-  loadDiary,
-  { immediate: true }
+    () => [language.value, diaryId.value, requestedView.value],
+    loadDiary,
+    {immediate: true}
 )
 
 onBeforeUnmount(() => {
@@ -249,77 +250,78 @@ onBeforeUnmount(() => {
   <div class="broaden-layout diary-detail">
 
     <nav v-if="nearby.prev || nearby.next" class="detail-nav">
-      <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn">
+      <div class="detail-nav__pages">
+        <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn">
         <span class="nav-btn__dir">{{ text.prev }}</span>
         <span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span>
-      </router-link>
+        </router-link>
       <span v-else class="nav-btn nav-btn--disabled">
           <span class="nav-btn__dir">{{ text.prev }}</span>
+          <span class="nav-btn__date" aria-hidden="true"></span>
         </span>
 
-      <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right">
+        <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right">
         <span class="nav-btn__dir">{{ text.next }}</span>
         <span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span>
 
-      </router-link>
+        </router-link>
       <span v-else class="nav-btn nav-btn--disabled nav-btn--right">
           <span class="nav-btn__dir">{{ text.next }}</span>
+          <span class="nav-btn__date" aria-hidden="true"></span>
         </span>
-    </nav>
+      </div>
 
-    <div class="detail-header">
-      <router-link :to="backToList" class="back-link">
-        {{ text.back }}
-      </router-link>
       <div class="detail-header__right">
+        <LanguageSelector class="language-switch" />
         <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
-          <span class="view-switch__label">{{ text.view }}</span>
+<!--          <span class="view-switch__label">{{ text.view }}</span>-->
           <div
-            class="view-switch__track"
-            :class="`is-${viewOptions.length}`"
-            :style="{
+              class="view-switch__track"
+              :class="`is-${viewOptions.length}`"
+              :style="{
               '--segment-count': String(viewOptions.length),
               '--active-index': String(activeViewIndex)
             }"
           >
             <button
-              v-for="option in viewOptions"
-              :key="option.mode"
-              class="view-switch__option"
-              :class="{ active: viewMode === option.mode }"
-              @click="setView(option.mode)"
+                v-for="option in viewOptions"
+                :key="option.mode"
+                class="view-switch__option"
+                :class="{ active: viewMode === option.mode }"
+                @click="setView(option.mode)"
             >
               {{ option.label }}
             </button>
           </div>
         </div>
-        <LanguageSelector />
       </div>
-    </div>
+
+    </nav>
 
     <div v-if="showSkeleton" class="detail-skeleton panel" aria-hidden="true">
-      <div class="detail-skeleton__title shimmer" />
-      <div class="detail-skeleton__line shimmer" />
-      <div class="detail-skeleton__line shimmer" />
-      <div class="detail-skeleton__line detail-skeleton__line--short shimmer" />
+      <div class="detail-skeleton__title shimmer"/>
+      <div class="detail-skeleton__line shimmer"/>
+      <div class="detail-skeleton__line shimmer"/>
+      <div class="detail-skeleton__line detail-skeleton__line--short shimmer"/>
       <div class="detail-skeleton__meta">
-        <span class="detail-skeleton__pill shimmer" />
-        <span class="detail-skeleton__pill shimmer" />
-        <span class="detail-skeleton__pill shimmer" />
+        <span class="detail-skeleton__pill shimmer"/>
+        <span class="detail-skeleton__pill shimmer"/>
+        <span class="detail-skeleton__pill shimmer"/>
       </div>
     </div>
 
     <div v-else-if="diary" class="detail-body panel" :class="{ 'detail-body--enter': animateDetail }">
-      <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
+      <div class="detail-heading">
+        <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
+      </div>
 
       <section class="content-block">
-
         <div
-          v-if="diary.content"
-          class="content-block__body content-block__body--article"
-          v-formatted-text="diary.content"
+            v-if="diary.content"
+            class="content-block__body content-block__body--article"
+            v-formatted-text="diary.content"
         />
-        <div v-else class="empty-box" v-formatted-text="text.noContent" />
+        <div v-else class="empty-box" v-formatted-text="text.noContent"/>
       </section>
       <div class="detail-meta">
         <span v-if="diary.startDate">{{ text.startDate }}: {{ formatDateLabel(diary.startDate) }}</span>
@@ -331,8 +333,7 @@ onBeforeUnmount(() => {
     </div>
 
 
-    <div v-else class="empty-box panel" v-formatted-text="text.notFound" />
-
+    <div v-else class="empty-box panel" v-formatted-text="text.notFound"/>
 
 
   </div>
@@ -348,15 +349,24 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 16px;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 0px;
 }
 
 .detail-header__right {
+  position: relative;
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.detail-header__right > .language-switch {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
 }
 
 .back-link {
@@ -366,16 +376,28 @@ onBeforeUnmount(() => {
 }
 
 .panel {
-  background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-md);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfefb 100%);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-lg);
   padding: 30px;
+  box-shadow: var(--shadow-md);
+}
+
+.detail-body {
+  position: relative;
+  overflow: hidden;
+}
+
+.detail-heading {
+  padding: 8px 4px 24px;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .detail-title {
-  margin: 0 0 40px;
+  margin: 0;
   color: var(--color-primary-dark);
-  font-size: 28px;
+  font-size: 30px;
+  line-height: 1.3;
 }
 
 @media (max-width: 500px) {
@@ -388,18 +410,30 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 20px;
-  margin-top: 40px;
+  margin-top: 28px;
   color: var(--color-text-light);
   font-size: 14px;
+}
+
+.detail-meta span {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: #f5faf3;
 }
 
 .content-block + .content-block {
   margin-top: 22px;
 }
 
+.content-block {
+  margin-top: 26px;
+  padding: 0 4px;
+}
+
 .content-block__title {
-  margin-bottom: 12px;
-  font-size: 22px;
+  margin: 0;
+  font-size: 19px;
   font-weight: 600;
   color: var(--color-text);
 }
@@ -411,6 +445,8 @@ onBeforeUnmount(() => {
 
 .content-block__body--article {
   font-size: 17px;
+  line-height: 2;
+  letter-spacing: 0.01em;
 }
 
 .empty-box {
@@ -419,30 +455,47 @@ onBeforeUnmount(() => {
 }
 
 .detail-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 18px;
+  margin: 8px 0 22px;
+}
+
+.detail-nav__pages {
   display: flex;
+  width: 100%;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 26px;
-  padding-top: 18px;
-  /*border-top: 2px solid var(--color-primary-light);*/
+  min-width: 0;
 }
 
 .nav-btn {
-  width: 160px;
+  width: auto;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-width: 45%;
-  padding: 10px 14px;
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-md);
+  position: relative;
+  gap: 6px;
+  max-width: none;
+  min-height: 66px;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #d8e8d3;
+  border-radius: var(--border-radius-lg);
+  background: linear-gradient(145deg, #ffffff 0%, #f2f9f0 100%);
   color: var(--color-primary-dark);
   text-decoration: none;
-  transition: background 0.2s;
+  box-shadow: 0 5px 14px rgba(46, 125, 50, 0.07);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-btn:hover {
-  background: var(--app-bg-color);
+  transform: translateY(-2px);
+  border-color: var(--color-primary-light);
+  background: linear-gradient(145deg, #ffffff 0%, #eaf7e7 100%);
+  box-shadow: 0 9px 20px rgba(46, 125, 50, 0.13);
 }
 
 .nav-btn--right {
@@ -453,13 +506,18 @@ onBeforeUnmount(() => {
 .nav-btn--disabled {
   opacity: 0.35;
   pointer-events: none;
+  background: #f7f9f6;
+  box-shadow: none;
 }
 
 .nav-btn__dir {
+  font-size: 14px;
   font-weight: 600;
 }
 
 .nav-btn__date {
+  display: block;
+  min-height: 1.2em;
   font-size: 13px;
   color: var(--color-text-light);
 }
@@ -628,5 +686,59 @@ onBeforeUnmount(() => {
     gap: 0 20px;
   }
 
+}
+
+@media (max-width: 820px) {
+  .detail-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .detail-nav__pages {
+    width: 100%;
+  }
+
+  .detail-header__right {
+    justify-content: flex-end;
+  }
+
+  .detail-header__right > .language-switch {
+    position: static;
+    align-self: flex-end;
+    transform: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .detail-header__right {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .detail-header__right .view-switch {
+    align-self: center;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .detail-header__right .view-switch__track {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .detail-header__right .view-switch__option {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+
+  .detail-header__right > .language-switch {
+    flex: 0 0 auto;
+  }
 }
 </style>

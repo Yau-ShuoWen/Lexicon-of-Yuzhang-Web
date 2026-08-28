@@ -297,32 +297,33 @@ onBeforeUnmount(() => {
       </aside>
 
       <section class="content">
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title" v-formatted-text="text.list"/>
-            <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
-              <span class="view-switch__label">{{ text.view }}</span>
-              <div
+
+        <div class="panel-head">
+          <div class="panel-title" v-formatted-text="text.list"/>
+          <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
+            <span class="view-switch__label">{{ text.view }}</span>
+            <div
                 class="view-switch__track"
                 :class="`is-${viewOptions.length}`"
                 :style="{
                   '--segment-count': String(viewOptions.length),
                   '--active-index': String(activeViewIndex)
                 }"
-              >
-                <button
+            >
+              <button
                   v-for="option in viewOptions"
                   :key="option.mode"
                   class="view-switch__option"
                   :class="{ active: viewMode === option.mode }"
                   @click="setView(option.mode)"
-                >
-                  {{ option.label }}
-                </button>
-              </div>
+              >
+                {{ option.label }}
+              </button>
             </div>
           </div>
+        </div>
 
+        <section class="panel">
           <div v-if="showListSkeleton" class="diary-skeleton" aria-hidden="true">
             <div v-for="index in 5" :key="index" class="diary-skeleton__card">
               <div class="diary-skeleton__line diary-skeleton__line--summary shimmer" />
@@ -370,6 +371,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .diary-page {
+  padding-top: 20px;
   padding-bottom: 32px;
 }
 
@@ -400,8 +402,7 @@ onBeforeUnmount(() => {
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .content,
-  .sidebar {
+  .content {
     min-height: 0;
     overflow-y: auto;
     /* 隐藏滚动条 */
@@ -409,8 +410,14 @@ onBeforeUnmount(() => {
     -ms-overflow-style: none; /* IE/Edge */
   }
 
-  .content::-webkit-scrollbar,
-  .sidebar::-webkit-scrollbar {
+  /* 归档面板自身负责滚动，外层不能再裁切它的悬停阴影 */
+  .sidebar {
+    padding:10px;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .content::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
   }
 
@@ -432,14 +439,15 @@ onBeforeUnmount(() => {
 .content {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
 }
 
 .panel {
   background: transparent;/*var(--color-background);*/
   /*border: 1px solid var(--color-border);*/
   /*border-radius: var(--border-radius-xl);*/
-  padding:10px 5px;
+  /* 给卡片 hover 阴影留出空间，避免被 panel 的滚动边界裁切 */
+  padding: 12px 13px 18px;
   /*box-shadow: var(--shadow-sm);*/
   transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
@@ -465,6 +473,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  margin-top:10px ;
 }
 
 .view-switch {

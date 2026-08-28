@@ -30,7 +30,7 @@ const emit = defineEmits(['select'])
 const isTc = computed(() => props.language === 'tc')
 
 const text = computed(() => ({
-  archive: isTc.value ? '目錄歸檔' : '目录归档',
+  archive: isTc.value ? '目錄' : '目录',
   yearSuffix: isTc.value ? '年' : '年',
   monthSuffix: isTc.value ? '月' : '月',
   countSuffix: isTc.value ? '篇' : '篇',
@@ -206,7 +206,7 @@ function getYearMonths(yearItem) {
 
 .diary-archive:hover {
   box-shadow: var(--shadow-md);
-  border-color: var(--color-primary-light);
+ /* border-color: var(--color-primary-light);*/
 }
 
 /* ---- 面板头部 ---- */
@@ -217,16 +217,6 @@ function getYearMonths(yearItem) {
   padding-bottom: 16px;
   margin-bottom: 20px;
   border-bottom: 2px dashed var(--color-border);
-}
-
-/* 参考 PinyinTable 的左侧强调条 */
-.diary-archive__head::before {
-  content: '';
-  width: 6px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
 }
 
 .diary-archive__head-icon {

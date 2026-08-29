@@ -77,8 +77,8 @@ const sourceLineList = computed(() => lineList(sourceLineCount.value))
 const targetLineList = computed(() => lineList(targetLineCount.value))
 const gutterHeight = computed(() => `${Math.max(sourceLineCount.value, targetLineCount.value, 1) * DIFF_LINE_HEIGHT}px`)
 
-const sourceHighlights = computed(() => buildHighlights(diffData.value.source, 'source'))
-const targetHighlights = computed(() => buildHighlights(diffData.value.target, 'target'))
+const sourceHighlightLines = computed(() => buildHighlightLines(diffData.value.source, 'source'))
+const targetHighlightLines = computed(() => buildHighlightLines(diffData.value.target, 'target'))
 const sourceLineStates = computed(() => buildLineStates(diffData.value.source, 'source'))
 const targetLineStates = computed(() => buildLineStates(diffData.value.target, 'target'))
 
@@ -146,7 +146,7 @@ function sliceChars(chars, start, end) {
   return chars.slice(start, end).join('')
 }
 
-function buildHighlights(text, side) {
+function buildHighlightLines(text, side) {
   const chars = charsOf(text)
   const ranges = changes.value
     .map(change => ({
@@ -158,41 +158,54 @@ function buildHighlights(text, side) {
     .filter(range => range.end > range.start)
     .sort((left, right) => left.start - right.start)
 
-  const result = []
-  let cursor = 0
+  const lineRanges = []
+  let lineStart = 0
+  for (let index = 0; index <= chars.length; index++) {
+    if (index === chars.length || chars[index] === '\n') {
+      lineRanges.push({ start: lineStart, end: index })
+      lineStart = index + 1
+    }
+  }
 
-  ranges.forEach(range => {
-    const start = Math.max(cursor, range.start)
-    const end = Math.max(start, range.end)
-    if (start > cursor) {
-      result.push({
-        id: `context-${side}-${cursor}`,
-        value: sliceChars(chars, cursor, start),
+  return lineRanges.map((line, lineIndex) => {
+    const segments = []
+    let cursor = line.start
+
+    ranges.forEach(range => {
+      if (range.end <= line.start || range.start >= line.end) return
+
+      const start = Math.max(line.start, range.start)
+      const end = Math.min(line.end, range.end)
+      if (start > cursor) {
+        segments.push({
+          id: `context-${side}-${lineIndex}-${cursor}`,
+          value: sliceChars(chars, cursor, start),
+          className: ''
+        })
+      }
+
+      if (end > start) {
+        const isRemoved = side === 'source' && ['DELETED', 'MODIFIED'].includes(range.type)
+        const isAdded = side === 'target' && ['ADDED', 'MODIFIED'].includes(range.type)
+        segments.push({
+          id: `change-${side}-${range.id}-${lineIndex}`,
+          value: sliceChars(chars, start, end),
+          className: isRemoved ? 'diff-highlight--removed' : isAdded ? 'diff-highlight--added' : ''
+        })
+        cursor = end
+      }
+    })
+
+    if (cursor < line.end || !segments.length) {
+      segments.push({
+        id: `tail-${side}-${lineIndex}`,
+        value: sliceChars(chars, cursor, line.end),
         className: ''
       })
     }
 
-    if (end > start) {
-      const isRemoved = side === 'source' && ['DELETED', 'MODIFIED'].includes(range.type)
-      const isAdded = side === 'target' && ['ADDED', 'MODIFIED'].includes(range.type)
-      result.push({
-        id: `change-${side}-${range.id}`,
-        value: sliceChars(chars, start, end),
-        className: isRemoved ? 'diff-highlight--removed' : isAdded ? 'diff-highlight--added' : ''
-      })
-      cursor = end
-    }
+    return { id: `line-${side}-${lineIndex}`, segments }
   })
-
-  if (cursor < chars.length || !result.length) {
-    result.push({
-      id: `tail-${side}-${cursor}`,
-      value: sliceChars(chars, cursor, chars.length),
-      className: ''
-    })
-  }
-
-  return result
 }
 
 function buildLineStates(text, side) {
@@ -227,20 +240,14 @@ function lineStateClass(state) {
   return state ? `diff-line-background--${state}` : ''
 }
 
-function actionLabel(type) {
-  if (type === 'DELETED') return '应用到右侧'
-  if (type === 'ADDED') return '移除右侧'
-  return '用左侧替换'
-}
-
 function changeTypeLabel(type) {
   if (type === 'DELETED') return '左侧删除'
   if (type === 'ADDED') return '右侧新增'
   return '内容修改'
 }
 
-function actionSymbol(type) {
-  return type === 'ADDED' ? '←' : '→'
+function directionLabel(direction) {
+  return direction === 'left' ? '应用右侧到左侧' : '应用左侧到右侧'
 }
 
 function replaceByCodePoints(text, start, end, replacement) {
@@ -302,47 +309,56 @@ function handleKeydown(side, event) {
   })
 }
 
-function applyChange(change) {
+function applyChange(change, direction = 'right') {
   if (!change || isComparing.value) return
 
-  const nextTarget = replaceByCodePoints(
-    targetText.value,
-    change.targetStart,
-    change.targetEnd,
-    change.sourceText
-  )
+  const isRightDirection = direction === 'right'
+  const side = isRightDirection ? 'target' : 'source'
+  const currentText = isRightDirection ? targetText.value : sourceText.value
+  const start = isRightDirection ? change.targetStart : change.sourceStart
+  const end = isRightDirection ? change.targetEnd : change.sourceEnd
+  const replacement = isRightDirection ? change.sourceText : change.targetText
+  const nextText = replaceByCodePoints(currentText, start, end, replacement)
   const nextCaret = codePointIndexToStringIndex(
-    nextTarget,
-    change.targetStart + charsOf(change.sourceText).length
+    nextText,
+    start + charsOf(replacement).length
   )
 
-  setText('target', nextTarget)
+  setText(side, nextText)
   nextTick(() => {
-    targetTextarea.value?.focus()
-    targetTextarea.value?.setSelectionRange(nextCaret, nextCaret)
+    const textarea = side === 'source' ? sourceTextarea.value : targetTextarea.value
+    textarea?.focus()
+    textarea?.setSelectionRange(nextCaret, nextCaret)
   })
 }
 
-function applyAll() {
+function applyAll(direction = 'right') {
   if (isComparing.value || !changes.value.length) return
 
-  let nextTarget = targetText.value
+  const isRightDirection = direction === 'right'
+  const side = isRightDirection ? 'target' : 'source'
+  let nextText = isRightDirection ? targetText.value : sourceText.value
   const ordered = [...changes.value].sort((left, right) => {
-    if (left.targetStart !== right.targetStart) return right.targetStart - left.targetStart
-    return right.targetEnd - left.targetEnd
+    const leftStart = isRightDirection ? left.targetStart : left.sourceStart
+    const rightStart = isRightDirection ? right.targetStart : right.sourceStart
+    if (leftStart !== rightStart) return rightStart - leftStart
+    const leftEnd = isRightDirection ? left.targetEnd : left.sourceEnd
+    const rightEnd = isRightDirection ? right.targetEnd : right.sourceEnd
+    return rightEnd - leftEnd
   })
 
   ordered.forEach(change => {
-    nextTarget = replaceByCodePoints(
-      nextTarget,
-      change.targetStart,
-      change.targetEnd,
-      change.sourceText
-    )
+    const start = isRightDirection ? change.targetStart : change.sourceStart
+    const end = isRightDirection ? change.targetEnd : change.sourceEnd
+    const replacement = isRightDirection ? change.sourceText : change.targetText
+    nextText = replaceByCodePoints(nextText, start, end, replacement)
   })
 
-  setText('target', nextTarget)
-  nextTick(() => targetTextarea.value?.focus())
+  setText(side, nextText)
+  nextTick(() => {
+    const textarea = side === 'source' ? sourceTextarea.value : targetTextarea.value
+    textarea?.focus()
+  })
 }
 
 function gutterButtonStyle(item) {
@@ -371,7 +387,7 @@ function nextChange() {
 function setScrollTop(value) {
   scrollOrigin = 'programmatic'
   applyScrollPosition(value, sourceTextarea.value?.scrollLeft || 0)
-  gutterOffset.value = value
+  gutterOffset.value = sourceTextarea.value?.scrollTop || 0
   releaseScrollOrigin()
 }
 
@@ -396,6 +412,7 @@ function applyScrollPosition(scrollTop, scrollLeft = 0) {
       element.scrollLeft = scrollLeft
     }
   })
+
   ;[sourceHighlight.value, targetHighlight.value].forEach(element => {
     if (element) {
       element.scrollTop = scrollTop
@@ -547,12 +564,20 @@ onBeforeUnmount(() => {
           @click="compareNow"
         >重新比较</button>
         <button
+          class="diff-apply-all diff-apply-all--left"
+          type="button"
+          :disabled="isComparing || !changes.length"
+          @click="applyAll('left')"
+        >
+          ← 全部应用
+        </button>
+        <button
           class="diff-apply-all"
           type="button"
           :disabled="isComparing || !changes.length"
-          @click="applyAll"
+          @click="applyAll('right')"
         >
-          应用全部修改
+          全部应用 →
         </button>
       </div>
     </div>
@@ -601,7 +626,9 @@ onBeforeUnmount(() => {
               <span v-for="(state, index) in sourceLineStates" :key="`source-bg-${index}`" :class="lineStateClass(state)"></span>
             </div>
             <div ref="sourceHighlight" class="text-diff-highlight-layer" aria-hidden="true">
-              <span v-for="segment in sourceHighlights" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+              <div v-for="line in sourceHighlightLines" :key="line.id" class="text-diff-highlight-line">
+                <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+              </div>
             </div>
             <textarea
               ref="sourceTextarea"
@@ -620,21 +647,34 @@ onBeforeUnmount(() => {
 
         <div class="text-diff-gutter" aria-label="差异操作">
           <div class="text-diff-gutter__track" :style="{ height: gutterHeight, transform: `translateY(-${gutterOffset}px)` }">
-            <button
+            <div
               v-for="item in gutterItems"
               :key="`gutter-${item.change.id}`"
-              class="diff-row-action"
-              :class="[`diff-row-action--${item.change.type.toLowerCase()}`, { 'is-active': item.index === activeChangeIndex }]"
-              type="button"
+              class="diff-row-action-group"
+              :class="{ 'is-active': item.index === activeChangeIndex }"
               :style="gutterButtonStyle(item)"
-              :disabled="isComparing"
-              :title="`${changeTypeLabel(item.change.type)}：${actionLabel(item.change.type)}`"
-              :aria-label="`${changeTypeLabel(item.change.type)}，${actionLabel(item.change.type)}`"
-              @click="activeChangeIndex = item.index; applyChange(item.change)"
             >
-              <span class="diff-row-action__arrow" aria-hidden="true">{{ actionSymbol(item.change.type) }}</span>
-              <span class="diff-row-action__label">{{ actionLabel(item.change.type) }}</span>
-            </button>
+              <button
+                class="diff-row-action diff-row-action--left"
+                type="button"
+                :disabled="isComparing"
+                :title="`${changeTypeLabel(item.change.type)}：${directionLabel('left')}`"
+                :aria-label="`${changeTypeLabel(item.change.type)}，${directionLabel('left')}`"
+                @click="activeChangeIndex = item.index; applyChange(item.change, 'left')"
+              >
+                <span aria-hidden="true">←</span>
+              </button>
+              <button
+                class="diff-row-action diff-row-action--right"
+                type="button"
+                :disabled="isComparing"
+                :title="`${changeTypeLabel(item.change.type)}：${directionLabel('right')}`"
+                :aria-label="`${changeTypeLabel(item.change.type)}，${directionLabel('right')}`"
+                @click="activeChangeIndex = item.index; applyChange(item.change, 'right')"
+              >
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -647,7 +687,9 @@ onBeforeUnmount(() => {
               <span v-for="(state, index) in targetLineStates" :key="`target-bg-${index}`" :class="lineStateClass(state)"></span>
             </div>
             <div ref="targetHighlight" class="text-diff-highlight-layer" aria-hidden="true">
-              <span v-for="segment in targetHighlights" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+              <div v-for="line in targetHighlightLines" :key="line.id" class="text-diff-highlight-line">
+                <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+              </div>
             </div>
             <textarea
               ref="targetTextarea"
@@ -796,6 +838,18 @@ onBeforeUnmount(() => {
   border-color: #2b633e;
   background: #2b633e;
   transform: translateY(-1px);
+}
+
+.diff-apply-all--left {
+  border-color: #aeb8c4;
+  background: #f8fafc;
+  color: #536071;
+}
+
+.diff-apply-all--left:hover:not(:disabled) {
+  border-color: #7f8c9c;
+  background: #eef2f6;
+  color: #344152;
 }
 
 .diff-toolbar-button:disabled,
@@ -1066,6 +1120,14 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.text-diff-highlight-line {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  height: var(--diff-line-height);
+  line-height: var(--diff-line-height);
+}
+
 .text-diff-highlight-layer span {
   color: transparent;
   border-radius: 2px;
@@ -1133,17 +1195,27 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.diff-row-action {
+.diff-row-action-group {
   position: absolute;
   left: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-width: 102px;
-  min-height: 28px;
-  padding: 3px 6px;
   transform: translateX(-50%);
+  min-height: 28px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.diff-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 25px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
@@ -1152,31 +1224,23 @@ onBeforeUnmount(() => {
   font: inherit;
 }
 
-.diff-row-action__arrow {
-  color: #e5edf6;
-  font-size: 1.1rem;
-  line-height: 0.8;
-}
-
-.diff-row-action__label {
-  font-size: 0.63rem;
-  white-space: nowrap;
-}
-
-.diff-row-action--deleted .diff-row-action__arrow,
-.diff-row-action--modified .diff-row-action__arrow {
-  color: #8bc99f;
-}
-
-.diff-row-action--added .diff-row-action__arrow {
+.diff-row-action--left {
   color: #e19991;
 }
 
-.diff-row-action:hover:not(:disabled),
-.diff-row-action.is-active {
+.diff-row-action--right {
+  color: #8bc99f;
+}
+
+.diff-row-action:hover:not(:disabled) {
   border-color: #586575;
   background: #303742;
   color: #fff;
+}
+
+.diff-row-action-group.is-active {
+  border-color: #586575;
+  background: #303742;
 }
 
 .text-diff-editor__same-state,
@@ -1247,11 +1311,7 @@ onBeforeUnmount(() => {
   }
 
   .diff-row-action {
-    min-width: 64px;
-  }
-
-  .diff-row-action__label {
-    display: none;
+    width: 29px;
   }
 }
 </style>

@@ -23,17 +23,17 @@ function clearTexts() {
 
 <template>
   <div class="broaden-layout text-diff-tool-page">
-    <div class="text-diff-tool-page__header">
-      <div>
-        <div class="text-diff-tool-page__eyebrow">DEVELOPER TOOL / TEXT DIFF</div>
-        <h2>字符串差异工具</h2>
-        <p>比较两个版本，在差异位置快速将左侧修改应用到右侧。</p>
-      </div>
-      <div class="text-diff-tool-page__actions">
-        <button class="dev-normal-button dev-btn-small" @click="loadExample">填入示例</button>
-        <button class="dev-normal-button dev-btn-small" @click="clearTexts">清空</button>
-      </div>
-    </div>
+<!--    <div class="text-diff-tool-page__header">-->
+<!--      <div>-->
+<!--        <div class="text-diff-tool-page__eyebrow">DEVELOPER TOOL / TEXT DIFF</div>-->
+<!--        <h2>字符串差异工具</h2>-->
+<!--        <p>比较两个版本，在差异位置快速将左侧修改应用到右侧。</p>-->
+<!--      </div>-->
+<!--      <div class="text-diff-tool-page__actions">-->
+<!--        <button class="dev-normal-button dev-btn-small" @click="loadExample">填入示例</button>-->
+<!--        <button class="dev-normal-button dev-btn-small" @click="clearTexts">清空</button>-->
+<!--      </div>-->
+<!--    </div>-->
 
     <TextDiffEditor
       v-model:source="sourceText"

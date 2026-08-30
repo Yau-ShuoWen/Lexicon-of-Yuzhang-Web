@@ -4,7 +4,7 @@ import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import LanguageSelector from '../../components/Select/LanguageSelector.vue'
 import { showError } from '../../services/ToastService.js'
-import { getBlogVisibilityLevel } from '../../utils/auth.js'
+import { getBlogVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
   formatDateLabel,
   formatDateTimeLabel,
@@ -18,6 +18,7 @@ const router = useRouter()
 const language = computed(() => String(route.params.language || 'sc'))
 const dialect = computed(() => String(route.params.dialect || 'lac'))
 const diaryId = computed(() => route.params.id ? String(route.params.id) : '')
+const canEdit = computed(() => hasPermission('blog.edit'))
 const requestedView = computed(() => String(route.query.view || '').toLowerCase())
 const blogLevel = computed(() => getBlogVisibilityLevel())
 const canSelfView = computed(() => blogLevel.value >= 3)
@@ -151,6 +152,17 @@ function diaryLink(id) {
       id: String(id)
     },
     query
+  }
+}
+
+function diaryEditLink() {
+  return {
+    name: 'DiaryEditor',
+    params: {
+      language: language.value,
+      dialect: dialect.value,
+      id: diaryId.value
+    }
   }
 }
 
@@ -312,7 +324,10 @@ onBeforeUnmount(() => {
 
     <div v-else-if="diary" class="detail-body panel" :class="{ 'detail-body--enter': animateDetail }">
       <div class="detail-heading">
-        <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
+        <div class="detail-heading__main">
+          <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
+          <router-link v-if="canEdit" :to="diaryEditLink()" class="detail-edit-link">编辑日记</router-link>
+        </div>
       </div>
 
       <section class="content-block">
@@ -393,6 +408,13 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--color-border-light);
 }
 
+.detail-heading__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
 .detail-title {
   margin: 0;
   color: var(--color-primary-dark);
@@ -400,7 +422,27 @@ onBeforeUnmount(() => {
   line-height: 1.3;
 }
 
+.detail-edit-link {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid #b9d4bc;
+  border-radius: 8px;
+  color: var(--color-primary-dark);
+  background: #f1f9f2;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.detail-edit-link:hover {
+  background: #e5f3e7;
+}
+
 @media (max-width: 500px) {
+  .detail-heading__main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .detail-title {
     font-size: 22px;
   }
@@ -445,8 +487,6 @@ onBeforeUnmount(() => {
 
 .content-block__body--article {
   font-size: 17px;
-  line-height: 2;
-  letter-spacing: 0.01em;
 }
 
 .empty-box {

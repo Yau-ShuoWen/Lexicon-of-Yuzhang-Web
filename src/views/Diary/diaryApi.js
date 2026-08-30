@@ -91,8 +91,25 @@ export function normalizeDiaryText(payload, language = 'sc') {
     }
 }
 
-async function fetchJson(url) {
-    const response = await fetch(url)
+export function normalizeDiaryEdit(payload) {
+    const raw = unwrapMaybe(payload)
+    if (!raw) return null
+
+    return {
+        id: raw.id ?? null,
+        date: raw.date ?? '',
+        sort: raw.sort ?? 1,
+        content: raw.content ?? '',
+        forFriend: raw.forFriend ?? null,
+        forStranger: raw.forStranger ?? null,
+        startDate: raw.startDate ?? '',
+        finalizeDate: raw.finalizeDate ?? '',
+        visibility: raw.visibility ? String(raw.visibility).trim().toLowerCase() : 'private'
+    }
+}
+
+async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options)
     const json = await response.json().catch(() => null)
 
     if (!response.ok) {
@@ -100,6 +117,13 @@ async function fetchJson(url) {
     }
 
     return json
+}
+
+function assertApiSuccess(data, fallbackMessage) {
+    if (!data?.success) {
+        throw new Error(data?.message || fallbackMessage)
+    }
+    return data.data
 }
 
 function buildDiaryQuery(view, extra = {}) {
@@ -144,6 +168,22 @@ export async function getDiaryByDate(language, date, view = 'stranger') {
 export async function getDiaryById(language, id, view = 'stranger') {
     const data = await fetchJson(`/api/diary/item/${language}/id/${id}${buildDiaryQuery(view)}`)
     return normalizeDiaryText(data, language)
+}
+
+export async function getDiaryForEdit(id) {
+    const data = await fetchJson(`/api/diary/edit/${id}${buildDiaryQuery()}`)
+    return normalizeDiaryEdit(assertApiSuccess(data, '加载日记编辑内容失败'))
+}
+
+export async function updateDiary(id, payload) {
+    const data = await fetchJson(`/api/diary/edit/${id}${buildDiaryQuery()}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    return normalizeDiaryEdit(assertApiSuccess(data, '保存日记失败'))
 }
 
 function normalizeNearbyEntity(value) {

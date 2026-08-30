@@ -538,6 +538,9 @@ onBeforeUnmount(() => {
           {{ compareState === 'scheduled' ? '等待比较' : compareState === 'comparing' ? '正在比较' : compareState === 'error' ? '比较失败' : changes.length ? '比较完成' : '准备就绪' }}
         </span>
         <span v-if="currentChangeLabel" class="text-diff-editor__position">差异 {{ currentChangeLabel }}</span>
+        <span v-if="summary.deleted" class="summary-badge summary-badge--deleted">删除 {{ summary.deleted }}</span>
+        <span v-if="summary.added" class="summary-badge summary-badge--added">新增 {{ summary.added }}</span>
+        <span v-if="summary.modified" class="summary-badge summary-badge--modified">修改 {{ summary.modified }}</span>
       </div>
 
       <div class="text-diff-editor__toolbar-actions">
@@ -582,39 +585,31 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="text-diff-editor__summary">
-      <span class="summary-count">{{ isComparing ? '正在计算差异…' : `共 ${summary.total} 处差异` }}</span>
-      <span v-if="summary.deleted" class="summary-badge summary-badge--deleted">删除 {{ summary.deleted }}</span>
-      <span v-if="summary.added" class="summary-badge summary-badge--added">新增 {{ summary.added }}</span>
-      <span v-if="summary.modified" class="summary-badge summary-badge--modified">修改 {{ summary.modified }}</span>
-      <span class="summary-hint">Ctrl / ⌘ + Enter 立即比较 · Tab 插入两个空格</span>
-    </div>
-
     <p v-if="errorMessage" class="text-diff-editor__error" role="alert">
       {{ errorMessage }}
       <button type="button" @click="compareNow">重试</button>
     </p>
 
     <div class="text-diff-editor__workbench">
-      <div class="text-diff-editor__diff-head">
-        <div class="diff-pane-heading">
-          <span class="diff-pane-heading__side">左</span>
-          <span class="diff-pane-heading__copy">
-            <strong>{{ sourceLabel }}</strong>
-            <small>修改来源 · 可直接编辑</small>
-          </span>
-          <span class="diff-pane-heading__meta">{{ sourceLineCount }} 行</span>
-        </div>
-        <div class="diff-gutter-heading" aria-hidden="true"><span>DIFF</span></div>
-        <div class="diff-pane-heading diff-pane-heading--right">
-          <span class="diff-pane-heading__copy">
-            <strong>{{ targetLabel }}</strong>
-            <small>应用目标 · 可直接编辑</small>
-          </span>
-          <span class="diff-pane-heading__meta">{{ targetLineCount }} 行</span>
-          <span class="diff-pane-heading__side">右</span>
-        </div>
-      </div>
+<!--      <div class="text-diff-editor__diff-head">-->
+<!--        <div class="diff-pane-heading">-->
+<!--          <span class="diff-pane-heading__side">左</span>-->
+<!--          <span class="diff-pane-heading__copy">-->
+<!--            <strong>{{ sourceLabel }}</strong>-->
+<!--            <small>修改来源 · 可直接编辑</small>-->
+<!--          </span>-->
+<!--          <span class="diff-pane-heading__meta">{{ sourceLineCount }} 行</span>-->
+<!--        </div>-->
+<!--        <div class="diff-gutter-heading" aria-hidden="true"><span>DIFF</span></div>-->
+<!--        <div class="diff-pane-heading diff-pane-heading&#45;&#45;right">-->
+<!--          <span class="diff-pane-heading__copy">-->
+<!--            <strong>{{ targetLabel }}</strong>-->
+<!--            <small>应用目标 · 可直接编辑</small>-->
+<!--          </span>-->
+<!--          <span class="diff-pane-heading__meta">{{ targetLineCount }} 行</span>-->
+<!--          <span class="diff-pane-heading__side">右</span>-->
+<!--        </div>-->
+<!--      </div>-->
 
       <div class="text-diff-editor__body">
         <div class="text-diff-pane">
@@ -707,14 +702,14 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-if="!isComparing && !changes.length && hasText" class="text-diff-editor__same-state">
-        两侧内容相同。
-      </div>
-      <div v-else-if="!isComparing && !hasText" class="text-diff-editor__empty">
-        <span class="text-diff-editor__empty-icon">⇄</span>
-        <strong>开始比较两段文本</strong>
-        <span>在左右编辑框中输入或粘贴内容，差异会自动显示在中间。</span>
-      </div>
+<!--      <div v-if="!isComparing && !changes.length && hasText" class="text-diff-editor__same-state">-->
+<!--        两侧内容相同。-->
+<!--      </div>-->
+<!--      <div v-else-if="!isComparing && !hasText" class="text-diff-editor__empty">-->
+<!--        <span class="text-diff-editor__empty-icon">⇄</span>-->
+<!--        <strong>开始比较两段文本</strong>-->
+<!--        <span>在左右编辑框中输入或粘贴内容，差异会自动显示在中间。</span>-->
+<!--      </div>-->
     </div>
   </section>
 </template>
@@ -1014,7 +1009,7 @@ onBeforeUnmount(() => {
 
 .text-diff-editor__body {
   min-width: 760px;
-  height: clamp(420px, 68vh, 760px);
+  height: clamp(520px, calc(100vh - 130px), 700px);
   overflow: hidden;
 }
 

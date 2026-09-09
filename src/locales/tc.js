@@ -33,6 +33,7 @@ export default {
     dialect: {
         lac: '南昌話',
         ced: '成都話',
+        wuh: '武漢話',
     },
     dialect_about: {
         website_title: {

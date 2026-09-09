@@ -8,7 +8,7 @@
     <SearchBar/>
 
     <div class="logo">
-      <img src="../assets/images/yuzhangci.svg" draggable="false"/>
+      <img src="../assets/images/logov2/yuzhangci2-transparent.svg" draggable="false"/>
     </div>
   </div>
 

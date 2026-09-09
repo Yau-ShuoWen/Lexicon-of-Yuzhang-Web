@@ -6,7 +6,7 @@ import JumpButton from "../../../components/Button/JumpButton.vue";
 
 <template>
 
-  <div>
+  <div class="broaden-layout">
     <CopyButton text="˥" hint="˥" class="dev-normal-button dev-btn-middle"/>
     <CopyButton text="˦" hint="˦" class="dev-normal-button dev-btn-middle"/>
     <CopyButton text="˧" hint="˧" class="dev-normal-button dev-btn-middle copy"/>
@@ -20,13 +20,13 @@ import JumpButton from "../../../components/Button/JumpButton.vue";
   </div>
 
   <div>
-    <CopyButton text="̀" hint="à" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="́" hint="á" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="̌" hint="ǎ" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="̄" hint="ā" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="̉" hint="ả" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="̋" hint="a̋" class="dev-normal-button dev-btn-middle copy"/>
-    <CopyButton text="̏" hint="ȁ" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̀" hint="[à]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="́" hint="[á]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̌" hint="[ǎ]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̄" hint="[ā]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̉" hint="[ả]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̋" hint="[a̋]" class="dev-normal-button dev-btn-middle copy"/>
+    <CopyButton text="̏" hint="[ȁ]" class="dev-normal-button dev-btn-middle copy"/>
 
   </div>
 

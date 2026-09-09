@@ -978,35 +978,6 @@ onBeforeUnmount(() => {
   font-size: 0.67rem;
 }
 
-.diff-pane-heading__side {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 25px;
-  width: 25px;
-  height: 25px;
-  border: 1px solid #4a5260;
-  border-radius: 4px;
-  color: #aeb7c4;
-  font: 0.7rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.diff-pane-heading__meta {
-  flex: 0 0 auto;
-  color: #77818e;
-  font: 0.64rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.diff-gutter-heading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-inline: 1px solid var(--diff-border);
-  color: #7f8996;
-  font: 0.61rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.14em;
-}
-
 .text-diff-editor__body {
   min-width: 760px;
   height: clamp(520px, calc(100vh - 130px), 700px);

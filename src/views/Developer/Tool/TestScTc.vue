@@ -10,7 +10,7 @@ const dialect = computed(() => route.params.dialect)
 </script>
 
 <template>
-  <div class="container">
+  <div class="broaden-layout">
     <ScAndTcText layout="small" :dialect="dialect.toString()"/>
     <ScAndTcText layout="large" :dialect="dialect.toString()"/>
   </div>

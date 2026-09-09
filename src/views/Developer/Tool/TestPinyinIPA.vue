@@ -17,7 +17,7 @@ const dialect = computed(() => route.params.dialect)
 </script>
 
 <template>
-  <div class="container">
+  <div class="broaden-layout">
 
     <div class="card">
       <div class="card-body">

@@ -8,6 +8,7 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
+import { getToken } from "../../../utils/auth.js";
 
 // 路由
 const route = useRoute()
@@ -56,7 +57,9 @@ const loadHanzi = async (id) => {
 
   isLoading.value = true
   try {
-    const response = await fetch(`/api/edit/hanzi/get-info/${dialect.value}?id=${id}`)
+    const response = await fetch(`/api/edit/hanzi/get-info/${dialect.value}?id=${id}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     if (!response.ok) throw new Error('加载失败')
     const apiResponse = await response.json()
     if (!apiResponse.success) throw new Error(apiResponse.message || '加载失败')
@@ -72,7 +75,7 @@ const loadHanzi = async (id) => {
     await loadNearBy(id)
   } catch (error) {
     console.error('加载汉字详情失败:', error)
-    showError('加载失败：' + err.message)
+    showError('加载失败：' + error.message)
   }
   finally {
     isLoading.value = false
@@ -82,7 +85,9 @@ const loadHanzi = async (id) => {
 // 找到上一个和下一个词条
 const loadNearBy = async (id) => {
   try {
-    const res = await fetch(`/api/edit/hanzi/get-nearby/${dialect.value}?id=${id}`)
+    const res = await fetch(`/api/edit/hanzi/get-nearby/${dialect.value}?id=${id}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     if (!res.ok) throw new Error('加载上下文失败')
 
     const json = await res.json()
@@ -101,7 +106,9 @@ const loadNearBy = async (id) => {
 // 方法：加载普通话选项并设置选中状态
 const loadMandarinOptions = async () => {
   try {
-    const response = await fetch(`/api/edit/hanzi/get-mandarin/${dialect.value}?sc=${updateData.value.hanzi.sc}&tc=${updateData.value.hanzi.tc}`)
+    const response = await fetch(`/api/edit/hanzi/get-mandarin/${dialect.value}?sc=${encodeURIComponent(updateData.value.hanzi.sc)}&tc=${encodeURIComponent(updateData.value.hanzi.tc)}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     if (response.ok) {
       const options = await response.json()
       mandarinOptions.value = options
@@ -151,7 +158,10 @@ const saveData = async () => {
 
     const response = await fetch(`/api/edit/hanzi/submit/${dialect.value}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json',},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(backendData)
     })
     const json = await response.json().catch(() => null)

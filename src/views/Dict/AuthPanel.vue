@@ -207,16 +207,6 @@ const updatePassword = async () => {
 
 <template>
   <div class="auth-page broaden-layout">
-    <section class="hero-card">
-      <div>
-        <p class="eyebrow">账号测试页</p>
-        <h1>把登录相关操作集中到这里</h1>
-        <p class="hero-text">
-          这里单独处理登录、登出、验证码测试和当前会话检查，不再混在开发者工具里。
-        </p>
-      </div>
-      <button class="ghost-button" @click="router.push(homePath)">返回词典首页</button>
-    </section>
 
     <div class="auth-grid">
       <section class="panel-card">

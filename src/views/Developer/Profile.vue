@@ -13,7 +13,7 @@ const oldPassword = ref('')
 const newPassword = ref('')
 
 // 统一跳转路径（和你项目风格一致）
-const getLoginPath = () => `/${route.params.language}/${route.params.dialect}/dict/auth`
+const getLoginPath = () => `/${route.params.language}/${route.params.dialect}/login`
 
 const logout = async () => {
   try {

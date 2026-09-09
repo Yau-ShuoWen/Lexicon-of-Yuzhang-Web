@@ -10,6 +10,7 @@ import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
 import { useHead } from '@vueuse/head'
 import CopyButton from "../../../components/Button/CopyButton.vue";
+import { getToken } from "../../../utils/auth.js";
 
 // 路由
 const route = useRoute()
@@ -24,7 +25,7 @@ const updateData = ref({
   id: null,
   ciyu: {sc: '', tc: ''},
   special: 0,
-  mainPy: [],
+  mainPy: '',
   similar: [],
   note: [],
   mean: [],
@@ -56,7 +57,9 @@ const loadCiyu = async (id) => {
   if (isNew.value) return
   isLoading.value = true
   try {
-    const res = await fetch(`/api/edit/ciyu/get-info/${dialect.value}?id=${id}`)
+    const res = await fetch(`/api/edit/ciyu/get-info/${dialect.value}?id=${id}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     if (!res.ok) throw new Error('加载失败')
     const json = await res.json()
     if (!json.success || json.data.empty) throw new Error('未找到数据')
@@ -83,7 +86,10 @@ const saveData = async () => {
 
     const response = await fetch(`/api/edit/ciyu/submit/${dialect.value}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(payload)
     })
 

@@ -7,6 +7,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
+import { getToken } from "../../../utils/auth.js";
 
 const route = useRoute()
 const router = useRouter()
@@ -27,7 +28,9 @@ const searchCharacter = async () => {
   characterList.value = null
 
   try {
-    const res = await fetch(`/api/edit/hanzi/get-character/${dialect.value}?pinyin=${encodeURIComponent(searchPinyin.value)}`)
+    const res = await fetch(`/api/edit/hanzi/get-character/${dialect.value}?pinyin=${encodeURIComponent(searchPinyin.value)}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
 
     characterList.value = await res.json()
   } catch (e) {
@@ -40,7 +43,8 @@ const submit = async () => {
     const res = await fetch(`/api/edit/hanzi/create/${dialect.value}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
       },
       body: JSON.stringify(createData.value)
     })

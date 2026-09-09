@@ -2,7 +2,8 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
-import { AUTH_TOKEN_KEY, clearAuth, isAdminUser, saveAuth } from '../utils/auth'
+import { AUTH_TOKEN_KEY, clearAuth, hasPermission, isAdminUser, saveAuth } from '../utils/auth'
+import { isBackendUnavailableError } from '../services/networkRecovery.js'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
 const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
@@ -42,12 +43,6 @@ const routes = [
                         name: 'About',
                         component: () => import('../views/AboutPage.vue')
                     },
-                    {
-                        path: 'auth',
-                        name: 'DictAuth',
-                        component: () => import('../views/Dict/AuthPanel.vue')
-                    },
-
                     // 教程
                     {
                         path: 'tutorial',
@@ -78,6 +73,46 @@ const routes = [
                         component: () => import('../views/Search/CiyuDetail.vue'),
                         props: true
                     },
+                ]
+            },
+
+            // 学习
+            {
+                path: 'study',
+                name: 'study',
+                component: () => import('../views/Personal/LayoutBlog.vue'),
+                redirect: to => `/${to.params.language}/${to.params.dialect}/study/me`,
+                children: [
+                    {
+                        path: 'me',
+                        name: 'StudyMe',
+                        component: () => import('../views/Study/StudyHome.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'question',
+                        name: 'StudyQuestion',
+                        component: () => import('../views/Study/Question.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'profile',
+                        name: 'StudyProfile',
+                        component: () => import('../views/Study/ProfileHome.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'profile/username',
+                        name: 'StudyProfileUsername',
+                        component: () => import('../views/Study/EditUsername.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'profile/password',
+                        name: 'StudyProfilePassword',
+                        component: () => import('../views/Study/EditPassword.vue'),
+                        meta: {requiresAuth: true}
+                    }
                 ]
             },
 
@@ -141,6 +176,11 @@ const routes = [
                         name: 'specialSymbol',
                         component: () => import('../views/Developer/Tool/SpecialSymbol.vue')
                     },
+                    {
+                        path: 'tool/text-diff',
+                        name: 'TextDiffTool',
+                        component: () => import('../views/Developer/Tool/TextDiffTool.vue')
+                    },
 
                     // 漢字
                     {
@@ -201,6 +241,29 @@ const routes = [
                         component: () => import('../views/Developer/Ref/ReferenceEditor.vue'),
                         //  meta: { requiresAuth: true }
                     },
+                    {
+                        path: 'study-word-card',
+                        name: 'StudyWordCardFilter',
+                        component: () => import('../views/Developer/Study/WordCardFilter.vue'),
+                    },
+                    {
+                        path: 'study-word-card-editor/:id?',
+                        name: 'StudyWordCardEditor',
+                        component: () => import('../views/Developer/Study/WordCardEditor.vue'),
+                        props: true,
+                    },
+                    {
+                        path: 'streak-admin',
+                        name: 'StreakAdmin',
+                        component: () => import('../views/Developer/Study/StreakAdmin.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
+                        path: 'loading-text',
+                        name: 'LoadingTextEditor',
+                        component: () => import('../views/Developer/LoadingText/LoadingTextEditor.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
                 ]
             },
 
@@ -246,6 +309,12 @@ const routes = [
                         component: () => import('../views/Diary/DiaryHome.vue')
                     },
                     {
+                        path: 'diary/edit/:id(\\d+)',
+                        name: 'DiaryEditor',
+                        component: () => import('../views/Diary/DiaryEditor.vue'),
+                        meta: { requiresPermission: 'blog.edit' }
+                    },
+                    {
                         path: 'diary/:id(\\d+)',
                         name: 'DiaryDetail',
                         component: () => import('../views/Diary/DiaryDetail.vue')
@@ -267,9 +336,16 @@ const routes = [
     },
 
     {
+        path: '/:language(sc|tc)/:dialect(lac|ced)/login',
+        name: 'StudyLogin',
+        component: () => import('../views/Study/StudyLogin.vue'),
+        meta: {hideNav: true}
+    },
+
+    {
         path: '/:language(sc|tc)/:dialect(lac|ced)/admin-login',
         name: 'Login',
-        redirect: to => `/${to.params.language}/${to.params.dialect}/dict/auth`
+        redirect: to => `/${to.params.language}/${to.params.dialect}/login`
     },
 
     {
@@ -304,11 +380,44 @@ router.beforeEach(async (to, from, next) => {
         return next(`/${language}/${dialect}/dict/home`)
     }
 
-    // ==============================
-    // ❗关键修复：排除 login 页面
-    // ==============================
-    if (to.name === 'Login') {
-        return next()
+    // 学习模块统一鉴权：未登录时回到学习区登录页，登录后可返回原目标。
+    if (to.name === 'StudyLogin') {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY)
+        if (!token) return next()
+
+        const redirect = typeof to.query.redirect === 'string'
+            && to.query.redirect.startsWith('/')
+            && !to.query.redirect.startsWith('//')
+            && !to.query.redirect.endsWith('/login')
+            ? to.query.redirect
+            : `/${to.params.language}/${to.params.dialect}/study/me`
+        return next(redirect)
+    }
+
+    const isStudyRoute = to.path.includes('/study/')
+    if (isStudyRoute && to.meta?.requiresAuth && !localStorage.getItem(AUTH_TOKEN_KEY)) {
+        return next({
+            name: 'StudyLogin',
+            params: {
+                language: to.params.language,
+                dialect: to.params.dialect
+            },
+            query: {redirect: to.fullPath}
+        })
+    }
+
+    if (to.meta?.requiresPermission && !hasPermission(to.meta.requiresPermission)) {
+        if (to.name === 'DiaryEditor') {
+            return next({
+                name: 'DiaryDetail',
+                params: {
+                    language: to.params.language,
+                    dialect: to.params.dialect,
+                    id: to.params.id
+                }
+            })
+        }
+        return next(false)
     }
 
     // ===== 2. 只保护 dev 下非 login =====
@@ -354,6 +463,21 @@ router.beforeEach(async (to, from, next) => {
         }
 
     } catch (e) {
+        const status = e.response?.status
+        const isExplicitAuthFailure = status === 401 || status === 403
+
+        if (isBackendUnavailableError(e) || !isExplicitAuthFailure) {
+            // 后端暂时不可用不清除 Token，允许当前页面保留，恢复后可继续校验。
+            if (isAdminUser()) return next()
+            return next({
+                name: 'DevHidden',
+                params: {
+                    language: to.params.language,
+                    dialect: to.params.dialect
+                }
+            })
+        }
+
         console.error(e)
     }
 

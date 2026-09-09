@@ -196,18 +196,18 @@ onMounted(() => {
             <span>{{ searchLevel }}</span>
           </button>
 
-          <button
-              class="capsule-btn"
-              type="button"
-              @click="handleGuide"
-          >
-            <img
-                src="../../assets/icons/information.svg"
-                alt="guide"
-                class="toolbar-icon-left"
-            >
-            <span>指南</span>
-          </button>
+<!--          <button-->
+<!--              class="capsule-btn"-->
+<!--              type="button"-->
+<!--              @click="handleGuide"-->
+<!--          >-->
+<!--            <img-->
+<!--                src="../../assets/icons/information.svg"-->
+<!--                alt="guide"-->
+<!--                class="toolbar-icon-left"-->
+<!--            >-->
+<!--            <span>指南</span>-->
+<!--          </button>-->
 
         </div>
 

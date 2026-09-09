@@ -7,6 +7,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
+import { getToken } from "../../../utils/auth.js";
 
 const route = useRoute()
 const router = useRouter()
@@ -23,7 +24,8 @@ const submit = async () => {
     const res = await fetch(`/api/edit/ciyu/create/${dialect.value}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
       },
       body: JSON.stringify(createData.value)
     })

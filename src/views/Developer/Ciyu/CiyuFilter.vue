@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showError } from "../../../services/ToastService.js";
 import { useHead } from "@vueuse/head";
+import { getToken } from "../../../utils/auth.js";
 
 // 路由
 const router = useRouter()
@@ -31,7 +32,9 @@ const performSearch = async () => {
   isLoading.value = true
 
   try {
-    const response = await fetch(`/api/edit/ciyu/filter/${dialect.value}?query=${encodeURIComponent(searchText.value)}`)
+    const response = await fetch(`/api/edit/ciyu/filter/${dialect.value}?query=${encodeURIComponent(searchText.value)}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     if (!response.ok) throw new Error('網絡請求失敗')
 
     searchResults.value = await response.json()

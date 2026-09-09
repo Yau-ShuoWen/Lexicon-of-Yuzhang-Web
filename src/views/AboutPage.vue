@@ -168,27 +168,6 @@ watch([language, dialect], () => {
                 <span class="contact-text">{{ `說文的屋里（彩蛋）` }}</span>
               </router-link>
 
-              <router-link
-                  :to="{ name: 'DictAuth', params: { language: language, dialect: dialect } }"
-                  class="contact-item contact-button"
-              >
-                <span class="contact-icon">
-                  <img src="../assets/icons/developer.svg" alt="login"/>
-                </span>
-                <span class="contact-text">账号测试</span>
-              </router-link>
-
-              <router-link
-                  v-if="isAdmin"
-                  :to="{ name: 'DevHome', params: { language: language, dialect: dialect } }"
-                  class="contact-item"
-              >
-                <span class="contact-icon">
-                  <img src="../assets/icons/developer.svg" alt="admin"/>
-                </span>
-                <span class="contact-text">开发者模式</span>
-              </router-link>
-
             </div>
           </section>
 

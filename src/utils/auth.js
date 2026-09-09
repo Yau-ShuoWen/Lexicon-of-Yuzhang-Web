@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import axios from 'axios'
+import { isBackendUnavailableError } from '../services/networkRecovery.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
@@ -123,6 +124,16 @@ const saveAuth = (userData, userToken) => {
     }
 }
 
+const preserveAuthForBackendUnavailable = (savedToken, savedUser, error = null) => {
+    // 后端暂时不可用不等于 Token 失效，保留登录状态，等待后端恢复后再次验证。
+    isAuthenticated.value = true
+    token.value = savedToken
+    user.value = savedUser
+    if (error) {
+        console.warn('后端暂时不可用，保留当前登录状态:', error.message || error)
+    }
+}
+
 const initializeAuth = async () => {
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY)
     const savedUser = getStoredUser()
@@ -152,7 +163,21 @@ const initializeAuth = async () => {
             }
             return
         }
+
+        // 代理异常有时会以 200 返回非 API 内容，不能把这种响应当成 Token 失效。
+        if (typeof response.data?.success !== 'boolean') {
+            preserveAuthForBackendUnavailable(savedToken, savedUser, '认证响应格式异常')
+            return
+        }
     } catch (error) {
+        const status = error.response?.status
+        const isExplicitAuthFailure = status === 401 || status === 403
+
+        if (isBackendUnavailableError(error) || !isExplicitAuthFailure) {
+            preserveAuthForBackendUnavailable(savedToken, savedUser, error)
+            return
+        }
+
         console.error('验证登录状态失败:', error)
     }
 

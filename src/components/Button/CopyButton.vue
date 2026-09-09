@@ -26,5 +26,5 @@ const copyText = async () => {
 </script>
 
 <template>
-  <button @click="copyText">{{hint}}</button>
+  <button @click="copyText" v-formatted-text="hint"/>
 </template>

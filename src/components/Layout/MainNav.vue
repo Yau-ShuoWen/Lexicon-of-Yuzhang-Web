@@ -3,6 +3,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { isAdminUser } from "../../utils/auth.js";
 
 // 路由
 const route = useRoute()
@@ -11,10 +12,12 @@ const route = useRoute()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const shouldShowNav = computed(() => !route.meta?.hideNav)
 
-// 当前站点形态：normal（词典）/ dev（开发者）/ ysw（屋里），决定渲染哪一套导航
+// 当前站点形态：dict / study / dev / ysw，决定渲染哪一套导航
 const navType = computed(() => {
   if (route.path.includes('/dict/')) return 'dict'
+  if (route.path.includes('/study/')) return 'study'
   if (route.path.includes('/ysw/')) return 'ysw'
   if (route.path.includes('/dev/')) return 'dev'
   else return 'normal'
@@ -39,6 +42,17 @@ function updateIndicator() {
   }
 }
 
+const currentUser = ref(null)
+const loadCurrentUser = () => {
+  try {
+    const raw = localStorage.getItem('auth-user')
+    currentUser.value = raw ? JSON.parse(raw) : null
+  } catch {
+    currentUser.value = null
+  }
+}
+const isAdmin = computed(() => isAdminUser(currentUser.value))
+
 onMounted(() => {
   // 等 DOM 渲染完成后再定位指示条，避免首屏位置错误
   nextTick(updateIndicator)
@@ -61,35 +75,42 @@ watch(route, async () => {
 </script>
 
 <template>
-  <nav ref="navRef" v-if="navType === 'dict'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'dict'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
     <router-link :to="getPath(`dict/pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
     <router-link :to="getPath(`dict/about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
-    <router-link :to="getPath(`dict/auth`)" class="nav-link" v-formatted-text="`登陆`"/>
+    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="`学习`"/>
+    <router-link :to="getPath(`dev`)" class="nav-link" v-formatted-text="`开发者`" v-if="isAdmin"/>
+
   </nav>
 
-  <nav ref="navRef" v-if="navType === 'dev'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav">
+    <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
+    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="`开始学习`"/>
+    <router-link :to="getPath(`study/profile`)" class="nav-link" v-formatted-text="`个人中心`"/>
+    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="`词典`"/>
+  </nav>
+
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="getPath(`dev/home`)" class="nav-link" v-formatted-text="`開發者首頁`"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="`回到詞典↗`" target="_blank"/>
+    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="`詞典`"/>
   </nav>
 
-  <nav ref="navRef" v-if="navType === 'ysw'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="{ name: 'YswHome', params: { language: language } }"
                  class="nav-link" v-formatted-text="`屋里`"/>
     <router-link :to="getPath(`ysw/alphabet`)" class="nav-link"
                  v-formatted-text="$t('personal.alphabet_table.title_short')"
     />
-    <router-link :to="getPath(`ysw/diary`)" class="nav-link"
-                 v-formatted-text="language === 'tc' ? '日記' : '日记'"
-    />
-    <router-link :to="getPath(`about`)" class="nav-link" v-formatted-text="`词典↗`"/>
+    <router-link :to="getPath(`ysw/diary`)" class="nav-link" v-formatted-text="language === 'tc' ? '日記' : '日记'"/>
+    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="`詞典`"/>
   </nav>
 
   <!-- 顶部渐隐遮罩：内容滚动到导航下方之前先慢慢模糊淡出 -->
-  <div class="nav-fade" aria-hidden="true"></div>
+  <div v-if="shouldShowNav" class="nav-fade" aria-hidden="true"></div>
 </template>
 
 <style scoped>

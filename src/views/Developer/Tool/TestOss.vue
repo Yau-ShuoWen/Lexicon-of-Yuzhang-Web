@@ -2,6 +2,9 @@
 import { ref, onMounted } from "vue"
 import axios from "axios"
 import { showError, showSuccess, showWarning } from "../../../services/ToastService.js"
+import { getToken } from "../../../utils/auth.js"
+
+const authHeaders = () => ({ "X-Auth-Token": getToken() || "" })
 
 /* ========== OSS 连接测试 ========== */
 const ossTestResult = ref("")
@@ -9,7 +12,7 @@ const ossTestResult = ref("")
 async function testOss() {
   ossTestResult.value = "测试中..."
   try {
-    const res = await axios.get("/oss/test")
+    const res = await axios.get("/oss/test", { headers: authHeaders() })
     ossTestResult.value = res.data
     showSuccess(res.data)
   } catch (err) {
@@ -40,7 +43,7 @@ async function uploadOss() {
 
     const res = await axios.post("/upload", form, {
       params: { path: ossPath.value || undefined },
-      headers: { "Content-Type": "multipart/form-data" }
+      headers: { "Content-Type": "multipart/form-data", ...authHeaders() }
     })
 
     lastObjectName.value = res.data
@@ -66,7 +69,8 @@ async function loadOssList() {
   ossLoading.value = true
   try {
     const res = await axios.get("/upload/list", {
-      params: { prefix: ossPrefix.value || undefined }
+      params: { prefix: ossPrefix.value || undefined },
+      headers: authHeaders()
     })
     ossList.value = res.data
   } catch (err) {
@@ -78,7 +82,10 @@ async function loadOssList() {
 
 async function getOssUrl(objectName) {
   try {
-    const res = await axios.get("/upload/url", { params: { objectName } })
+    const res = await axios.get("/upload/url", {
+      params: { objectName },
+      headers: authHeaders()
+    })
     return res.data
   } catch (err) {
     showError(err)
@@ -101,7 +108,10 @@ async function copyOssUrl(objectName) {
 
 async function deleteOss(objectName) {
   try {
-    await axios.delete("/upload", { params: { objectName } })
+    await axios.delete("/upload", {
+      params: { objectName },
+      headers: authHeaders()
+    })
     showSuccess("已删除：" + objectName)
     if (previewName.value === objectName) {
       previewName.value = ""
@@ -136,7 +146,7 @@ async function uploadAudio() {
 
     const res = await axios.post("/api/audio/upload", form, {
       params: { folder: audioFolder.value || undefined },
-      headers: { "Content-Type": "multipart/form-data" }
+      headers: { "Content-Type": "multipart/form-data", ...authHeaders() }
     })
 
     showSuccess("音频上传成功：" + res.data.name)
@@ -151,7 +161,8 @@ async function loadAudioList() {
   audioLoading.value = true
   try {
     const res = await axios.get("/api/audio/list", {
-      params: { folder: audioFolder.value || undefined }
+      params: { folder: audioFolder.value || undefined },
+      headers: authHeaders()
     })
     audioList.value = res.data
   } catch (err) {
@@ -168,7 +179,7 @@ function playAudio(item) {
 
 async function deleteAudio(id) {
   try {
-    await axios.delete(`/api/audio/${id}`)
+    await axios.delete(`/api/audio/${id}`, { headers: authHeaders() })
     showSuccess("已删除音频 #" + id)
     currentAudioUrl.value = ""
     await loadAudioList()

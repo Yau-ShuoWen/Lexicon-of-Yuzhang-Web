@@ -4,6 +4,7 @@ import RichText from "../../../components/Text/RichText.vue";
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js"
 import CopyButton from "../../../components/Button/CopyButton.vue";
+import { getToken } from "../../../utils/auth.js";
 
 const props = defineProps({
   source: String,
@@ -44,7 +45,8 @@ async function fetchLink(word, pinyin) {
 
   try {
     const res = await fetch(
-        `/api/edit/ciyu/get-link/${props.dialect}/${props.dict}?ciyu=${encodeURIComponent(word)}`
+        `/api/edit/ciyu/get-link/${props.dialect}/${props.dict}?ciyu=${encodeURIComponent(word)}`,
+        {headers: {'X-Auth-Token': getToken() || ''}}
     )
     const json = await res.json()
 
@@ -107,7 +109,10 @@ async function submit() {
   try {
     const res = await fetch(`/api/edit/ciyu/create/${props.dialect}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(createData.value)
     })
 

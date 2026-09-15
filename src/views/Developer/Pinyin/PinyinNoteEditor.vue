@@ -8,6 +8,7 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import {useHead} from "@vueuse/head";
 import CopyButton from "../../../components/Button/CopyButton.vue";
+import {getToken} from "../../../utils/auth.js";
 
 useHead({
   title: () => `拼音註釋編輯`
@@ -62,7 +63,8 @@ const loadAudioList = async () => {
 
   try {
     const res = await fetch(
-        `/api/pinyin/audio/list?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`
+        `/api/pinyin/audio/list?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`,
+        {headers: {'X-Auth-Token': getToken() || ''}}
     )
 
     if (!res.ok) throw new Error('加載音頻列表失敗')
@@ -100,6 +102,7 @@ const uploadFile = async (file) => {
         `/api/pinyin/audio/upload?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`,
         {
           method: 'POST',
+          headers: {'X-Auth-Token': getToken() || ''},
           body: form
         }
     )
@@ -299,7 +302,10 @@ const formatRecordTime = (sec) => {
 // 删除音频
 const deleteAudio = async (id) => {
   try {
-    const res = await fetch(`/api/pinyin/audio/${id}`, {method: 'DELETE'})
+    const res = await fetch(`/api/pinyin/audio/${id}`, {
+      method: 'DELETE',
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
 
     if (!res.ok) throw new Error('刪除失敗')
 
@@ -384,7 +390,8 @@ const loadKeys = async () => {
 
   try {
     const res = await fetch(
-        `/api/edit/pinyin/filter/${dialect.value}`
+        `/api/edit/pinyin/filter/${dialect.value}`,
+        {headers: {'X-Auth-Token': getToken() || ''}}
     )
 
     if (!res.ok) throw new Error('加載失敗')
@@ -412,7 +419,8 @@ const selectKey = async (key) => {
 
   try {
     const res = await fetch(
-        `/api/edit/pinyin/get-note/${dialect.value}?key=${encodeURIComponent(key)}`
+        `/api/edit/pinyin/get-note/${dialect.value}?key=${encodeURIComponent(key)}`,
+        {headers: {'X-Auth-Token': getToken() || ''}}
     )
 
     if (!res.ok) throw new Error('讀取失敗')
@@ -442,7 +450,8 @@ const saveNote = async () => {
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Auth-Token': getToken() || ''
           },
           body: JSON.stringify(note.value)
         }

@@ -4,7 +4,7 @@ import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import LanguageSelector from '../../components/Select/LanguageSelector.vue'
 import { showError } from '../../services/ToastService.js'
-import { getBlogVisibilityLevel, hasPermission } from '../../utils/auth.js'
+import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
   formatDateLabel,
   formatDateTimeLabel,
@@ -18,12 +18,12 @@ const router = useRouter()
 const language = computed(() => String(route.params.language || 'sc'))
 const dialect = computed(() => String(route.params.dialect || 'lac'))
 const diaryId = computed(() => route.params.id ? String(route.params.id) : '')
-const canEdit = computed(() => hasPermission('blog.edit'))
+const canEdit = computed(() => hasPermission('diary.edit'))
 const requestedView = computed(() => String(route.query.view || '').toLowerCase())
-const blogLevel = computed(() => getBlogVisibilityLevel())
-const canSelfView = computed(() => blogLevel.value >= 3)
-const canFriendView = computed(() => blogLevel.value >= 2)
-const canStrangerView = computed(() => blogLevel.value >= 1)
+const diaryLevel = computed(() => getDiaryVisibilityLevel())
+const canSelfView = computed(() => diaryLevel.value >= 3)
+const canFriendView = computed(() => diaryLevel.value >= 2)
+const canStrangerView = computed(() => diaryLevel.value >= 1)
 const permittedViewModes = computed(() => {
   const modes = []
   if (canSelfView.value) modes.push('self')

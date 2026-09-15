@@ -1,6 +1,7 @@
 <script setup>
 import {ref, watch, computed} from 'vue'
 import {ElMessage} from 'element-plus'
+import {getToken} from '../../utils/auth.js'
 
 /* =======================
    Props & Emits
@@ -138,7 +139,9 @@ const loadDictionaries = async () => {
 
   loading.value = true
   try {
-    const response = await fetch(getApiUrl())
+    const response = await fetch(getApiUrl(), {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     const result = await response.json()
 
     const data = result?.success === false

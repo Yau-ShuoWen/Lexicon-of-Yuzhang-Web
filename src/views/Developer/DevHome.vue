@@ -48,6 +48,7 @@ const sections = [
       { path: "hanzi-filter", title: "編輯漢字", description: "查找與維護方言漢字資料", icon: EditPen },
       { path: "ciyu-filter", title: "編輯詞語", description: "整理方言詞語與相關內容", icon: Memo },
       { path: "study-word-card", title: "編輯學習詞卡", description: "維護學習模式使用的詞卡", icon: Files },
+      { path: "study-curriculum", title: "關卡編輯器", description: "管理部分與章節結構", icon: Collection },
       { path: "streak-admin", title: "用戶連勝管理", description: "查看與調整學習連勝資料", icon: Setting },
       { path: "loading-text", title: "編輯加載提示語", description: "管理頁面載入時的提示文字", icon: MagicStick },
       { path: "pinyin-editor", title: "編輯拼音", description: "維護字詞的拼音註記", icon: Document },
@@ -240,7 +241,7 @@ useHead({
 }
 
 .dev-home__admin-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-0.5px);
   box-shadow: 0 20px 42px rgba(38, 92, 51, 0.28);
 }
 
@@ -351,7 +352,7 @@ useHead({
 }
 
 .dev-home__tool-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-0.5px);
   border-color: rgba(46, 125, 50, 0.38);
   background: #fff;
   box-shadow: 0 13px 25px rgba(41, 72, 48, 0.11);

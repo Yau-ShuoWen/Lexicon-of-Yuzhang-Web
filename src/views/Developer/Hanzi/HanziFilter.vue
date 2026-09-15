@@ -83,7 +83,7 @@ watch(searchText, (newValue) => {
           target="_blank"
       >
         <div class="item-display">{{ item.title }}</div>
-        <div class="item-display">{{ item.explain }}</div>
+        <div class="item-display" v-formatted-text="item.explain"/>
       </router-link>
     </div>
 
@@ -124,6 +124,5 @@ watch(searchText, (newValue) => {
 .item-display {
   min-width: 100px;
   font-size: 20px;
-  font-weight: bold;
 }
 </style>

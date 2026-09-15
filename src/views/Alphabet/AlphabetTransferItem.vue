@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { formatRichText } from '../../utils/textFormatter.js'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -17,6 +18,9 @@ let resizeObserver = null
 
 const hasInput = computed(() => input.value.trim().length > 0)
 const hasOutput = computed(() => output.value.trim().length > 0)
+const hasTableOutput = computed(() =>
+  formatRichText(output.value)?.includes('<table class="rt-table">') === true
+)
 
 async function transferText() {
   if (!input.value.trim()) {
@@ -107,7 +111,7 @@ onBeforeUnmount(() => {
         <div
           v-if="hasOutput"
           class="transfer-output"
-          :class="{ active: hasOutput }"
+          :class="{ active: hasOutput, 'table-output': hasTableOutput }"
           :style="{ height: `${outputHeight}px` }"
           v-formatted-text="output"
         />
@@ -235,6 +239,57 @@ onBeforeUnmount(() => {
 .transfer-output.active {
   border-color: rgba(46, 125, 50, 0.28);
   box-shadow: 0 8px 18px rgba(46, 125, 50, 0.08);
+}
+
+.transfer-output.table-output {
+  padding: 0;
+  overflow: hidden;
+  white-space: normal;
+  background: #ffffff;
+}
+
+.transfer-output.table-output :deep(.rt-table-wrap) {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  padding-bottom: 0;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.transfer-output.table-output :deep(.rt-table-wrap)::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.transfer-output.table-output :deep(.rt-table) {
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+}
+
+.transfer-output.table-output :deep(.rt-table > :first-child > tr:first-child > *) {
+  border-top: 0;
+}
+
+.transfer-output.table-output :deep(.rt-table > :last-child > tr:last-child > *) {
+  border-bottom: 0;
+}
+
+.transfer-output.table-output :deep(.rt-table tr > *:first-child) {
+  border-left: 0;
+}
+
+.transfer-output.table-output :deep(.rt-table tr > *:last-child) {
+  border-right: 0;
+}
+
+.transfer-output.table-output :deep(.rt-col-nowrap) {
+  width: 1px;
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: nowrap;
 }
 
 .transfer-empty {

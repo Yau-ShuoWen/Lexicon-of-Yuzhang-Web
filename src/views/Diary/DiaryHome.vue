@@ -4,7 +4,7 @@ import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import DiaryArchive from './DiaryArchive.vue'
 import { showError } from '../../services/ToastService.js'
-import { getBlogVisibilityLevel } from '../../utils/auth.js'
+import { getDiaryVisibilityLevel } from '../../utils/auth.js'
 import {
   formatDateLabel,
   getDiaryCatalog,
@@ -16,10 +16,10 @@ const router = useRouter()
 
 const language = computed(() => String(route.params.language || 'sc'))
 const dialect = computed(() => String(route.params.dialect || 'lac'))
-const blogLevel = computed(() => getBlogVisibilityLevel())
-const canSelfView = computed(() => blogLevel.value >= 3)
-const canFriendView = computed(() => blogLevel.value >= 2)
-const canStrangerView = computed(() => blogLevel.value >= 1)
+const diaryLevel = computed(() => getDiaryVisibilityLevel())
+const canSelfView = computed(() => diaryLevel.value >= 3)
+const canFriendView = computed(() => diaryLevel.value >= 2)
+const canStrangerView = computed(() => diaryLevel.value >= 1)
 const viewOptions = computed(() => {
   if (canSelfView.value) {
     return [
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top:10px ;
+  margin:10px 10px 0px ;
 }
 
 .view-switch {
@@ -544,7 +544,6 @@ onBeforeUnmount(() => {
 
 .view-switch__option:hover {
   color: var(--color-primary-dark);
-  transform: translateY(-1px);
 }
 
 .view-switch__option.active:hover {

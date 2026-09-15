@@ -87,11 +87,11 @@ const isAdminUser = (currentUser = null) => {
     return permissions.includes('admin.access') || permissions.includes('admin')
 }
 
-const getBlogVisibilityLevel = () => {
+const getDiaryVisibilityLevel = () => {
     const permissions = getUserPermissions()
-    if (permissions.includes('blog.read.private')) return 3
-    if (permissions.includes('blog.read.friends')) return 2
-    if (permissions.includes('blog.read.public')) return 1
+    if (permissions.includes('diary.read.private')) return 3
+    if (permissions.includes('diary.read.protected')) return 2
+    if (permissions.includes('diary.read.public')) return 1
     return 0
 }
 
@@ -223,6 +223,6 @@ export {
     getStoredUser,
     getUserPermissions,
     isAdminUser,
-    getBlogVisibilityLevel,
+    getDiaryVisibilityLevel,
     hasPermission
 }

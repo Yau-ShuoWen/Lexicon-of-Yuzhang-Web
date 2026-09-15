@@ -86,14 +86,14 @@ const routes = [
                     {
                         path: 'me',
                         name: 'StudyMe',
-                        component: () => import('../views/Study/StudyHome.vue'),
+                        component: () => import('../views/Study/StudyPath.vue'),
                         meta: {requiresAuth: true}
                     },
                     {
                         path: 'question',
                         name: 'StudyQuestion',
                         component: () => import('../views/Study/Question.vue'),
-                        meta: {requiresAuth: true}
+                        meta: {requiresAuth: true, hideNav: true}
                     },
                     {
                         path: 'profile',
@@ -253,6 +253,18 @@ const routes = [
                         props: true,
                     },
                     {
+                        path: 'study-curriculum',
+                        name: 'StudyCurriculumEditor',
+                        component: () => import('../views/Developer/Study/StudyPartEditor.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
+                        path: 'study-curriculum/:partId(\\d+)/chapters',
+                        name: 'StudyChapterEditor',
+                        component: () => import('../views/Developer/Study/StudyChapterEditor.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'streak-admin',
                         name: 'StreakAdmin',
                         component: () => import('../views/Developer/Study/StreakAdmin.vue'),
@@ -312,7 +324,7 @@ const routes = [
                         path: 'diary/edit/:id(\\d+)',
                         name: 'DiaryEditor',
                         component: () => import('../views/Diary/DiaryEditor.vue'),
-                        meta: { requiresPermission: 'blog.edit' }
+                        meta: { requiresPermission: 'diary.edit' }
                     },
                     {
                         path: 'diary/:id(\\d+)',

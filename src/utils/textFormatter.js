@@ -342,7 +342,7 @@ function processBlockquote(text) {
 
             // 单行输出，避免被后续 processLineBreak / processSpaces 污染
             // --bq-text 未配置时回退为 accent 主题色
-            return `<blockquote class="rt-blockquote rt-blockquote-tag" style="--bq-accent:${tagConfig.accent};--bq-bg:${tagConfig.bg};--bq-text:${tagConfig.text || tagConfig.accent}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagConfig.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`;
+            return `<blockquote class="rt-blockquote rt-blockquote-tag" style="--bq-accent:${tagConfig.accent};--bq-bg:${tagConfig.bg};--bq-header-bg:${tagConfig.headerBg};--bq-icon-bg:${tagConfig.iconBg};--bq-text:${tagConfig.text || tagConfig.accent}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagConfig.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`;
         }
 
         // 未命中标签 → 回退为普通引用块（标签行作为普通文本显示）
@@ -541,7 +541,7 @@ function processList(text) {
         // 無序列表
         if (line.startsWith("- ")) {
             orderedIndex = 0; // 打斷有序列表
-            result.push('<span class="rt-li-dot" style="color:color-mix(in srgb,var(--bq-accent,#2e7d32) 80%,#000)">●</span>  ' + line.slice(2));
+            result.push('<span class="rt-li-dot">●</span>  ' + line.slice(2));
             continue;
         }
 

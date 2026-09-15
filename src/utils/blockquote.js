@@ -7,46 +7,62 @@ export const BLOCKQUOTE_TAG_MAP = {
     pyq: {
         icon: new URL('../assets/icons/blockquoteTag/朋友圈.svg', import.meta.url).href,
         accent: '#3b82f6',
-        bg: '#eff6ff'
+        bg: '#eff6ff',
+        headerBg: '#cbdffd',
+        iconBg: '#a7c8fb'
     },
     // 橙红色系：警告
     warn: {
         icon: new URL('../assets/icons/blockquoteTag/警告.svg', import.meta.url).href,
         accent: '#f97316',
-        bg: '#fff7ed'
+        bg: '#fff7ed',
+        headerBg: '#fee0c4',
+        iconBg: '#fdc297'
     },
     // 紫色系：人工智能 思考
     sl: {
         icon: new URL('../assets/icons/blockquoteTag/ChatGPT.svg', import.meta.url).href,
         accent: '#7F72EA',
-        bg: '#e5e5ff'
+        bg: '#e5e5ff',
+        headerBg: '#d1cefb',
+        iconBg: '#bcb7f7'
     },
     // 绿色系：便签
     bq: {
         icon: new URL('../assets/icons/blockquoteTag/便签.svg', import.meta.url).href,
         accent: '#199e2d',
         bg: '#ebffed',
+        headerBg: '#c1ebc7',
+        iconBg: '#97d8a0',
     },
     yl: {
         icon: new URL('../assets/icons/blockquoteTag/医疗.svg', import.meta.url).href,
         accent: '#5da8d1',
-        bg: '#e8f6ff'
+        bg: '#e8f6ff',
+        headerBg: '#cce6f6',
+        iconBg: '#b0d7ed'
     },
     bc: {
         icon: new URL('../assets/icons/blockquoteTag/补充.svg', import.meta.url).href,
         accent: '#29aaa2',
         bg: '#e4fffd',
+        headerBg: '#bee8ea',
+        iconBg: '#99ddd9',
     },
     gd: {
         icon: new URL('../assets/icons/blockquoteTag/观点.svg', import.meta.url).href,
         accent: '#f8d750',
         bg: '#fbf5e9',
+        headerBg: '#faefca',
+        iconBg: '#fae9ac',
         text: '#bc953d',   // 黄色主题太浅，单独加深标题文字色保证清晰
     },
     lt: {
         icon: new URL('../assets/icons/blockquoteTag/聊天.svg', import.meta.url).href,
         accent: '#1cb833',
         bg: '#effff1',
+        headerBg: '#c4f1cb',
+        iconBg: '#9be3a5',
     },
 
 };

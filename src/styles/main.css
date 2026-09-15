@@ -12,7 +12,6 @@
 @import './components/_cards.css';
 @import "./components/_text.css";
 @import "./components/_richtext.css";
-@import './components/_icon.css';
 
 /* 导入布局样式 */
 @import './layouts/_container.css';
@@ -39,6 +38,7 @@ html {
     margin: 0;
     padding: 0;
     background: var(--app-bg-color);
+    background-attachment: fixed;
 }
 
 /* 响应式设计 */

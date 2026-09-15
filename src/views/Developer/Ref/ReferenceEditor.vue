@@ -10,6 +10,7 @@ import DraggableList from "../../../components/Layout/DraggableList.vue"
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue"
 import RichText from "../../../components/Text/RichText.vue"
 import KeywordEnhancer from "./KeywordEnhancer.vue";
+import { getToken } from "../../../utils/auth.js";
 
 const route = useRoute()
 const router = useRouter()
@@ -43,7 +44,9 @@ const hasUnsavedChanges = computed(() => {
 async function loadPage() {
   loading.value = true
   try {
-    const res = await fetch(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`)
+    const res = await fetch(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     const json = await res.json()
     if (!json.success) throw new Error(json.message || '加载失败')
 
@@ -65,7 +68,10 @@ async function loadNearby() {
   try {
     const res = await fetch(`/api/ref/get-nearby/${dictionary.value}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(body)
     })
     const json = await res.json()
@@ -99,7 +105,10 @@ async function saveDraft() {
     syncPageInfo()
     const res = await fetch(`/api/ref/update-page/${dictionary.value}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(page.value)
     })
     const json = await res.json()
@@ -125,7 +134,10 @@ async function saveProof() {
     syncPageInfo()
     const res = await fetch(`/api/ref/edit-page/${dictionary.value}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': getToken() || ''
+      },
       body: JSON.stringify(page.value)
     })
     const json = await res.json()
@@ -219,7 +231,10 @@ async function lockPage() {
 
   loading.value = true
   try {
-    const res = await fetch(`/api/ref/lock-page/${dictionary.value}?sort=${encodeURIComponent(page.value.frontSort)}`, {method: 'POST'})
+    const res = await fetch(`/api/ref/lock-page/${dictionary.value}?sort=${encodeURIComponent(page.value.frontSort)}`, {
+      method: 'POST',
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     const json = await res.json()
     if (json.success) {
       page.value = json.data
@@ -261,7 +276,10 @@ async function insertPage(before) {
   })
 
   try {
-    const res = await fetch(`/api/ref/create-page/${dictionary.value}?${params}`, {method: 'POST'})
+    const res = await fetch(`/api/ref/create-page/${dictionary.value}?${params}`, {
+      method: 'POST',
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     const json = await res.json()
     if (json.success) {
       await router.replace(getPath(json.data.frontSort))
@@ -288,7 +306,10 @@ async function deleteCurrentPage() {
 
   loading.value = true
   try {
-    const res = await fetch(`/api/ref/delete-page/${dictionary.value}?frontSort=${encodeURIComponent(page.value.frontSort)}`, {method: 'POST'})
+    const res = await fetch(`/api/ref/delete-page/${dictionary.value}?frontSort=${encodeURIComponent(page.value.frontSort)}`, {
+      method: 'POST',
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
     const json = await res.json()
     if (json.success) {
       await router.replace(getPath(json.data.frontSort))

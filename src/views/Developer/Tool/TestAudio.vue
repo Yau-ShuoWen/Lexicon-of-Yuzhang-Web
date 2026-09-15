@@ -2,6 +2,9 @@
 import { ref, onMounted } from "vue"
 import axios from "axios"
 import { showError } from "../../../services/ToastService.js"
+import { getToken } from "../../../utils/auth.js"
+
+const authHeaders = () => ({ "X-Auth-Token": getToken() || "" })
 
 const file = ref(null)
 const audioList = ref([])
@@ -20,7 +23,8 @@ async function upload() {
 
     await axios.post("/api/audio/upload", form, {
       headers: {
-        "Content-Type": "multipart/form-data"
+        "Content-Type": "multipart/form-data",
+        ...authHeaders()
       }
     })
 
@@ -32,7 +36,7 @@ async function upload() {
 
 async function loadList() {
   try {
-    const res = await axios.get("/api/audio/list")
+    const res = await axios.get("/api/audio/list", { headers: authHeaders() })
     audioList.value = res.data
   } catch (err) {
     showError(err)
@@ -45,7 +49,7 @@ function play(url) {
 
 async function remove(id) {
   try {
-    await axios.delete(`/api/audio/${id}`)
+    await axios.delete(`/api/audio/${id}`, { headers: authHeaders() })
     currentUrl.value = ""
     await loadList()
   } catch (err) {

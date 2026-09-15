@@ -11,7 +11,7 @@ import { getDiaryForEdit, updateDiary } from './diaryApi.js'
 const route = useRoute()
 const router = useRouter()
 const diaryId = computed(() => String(route.params.id || ''))
-const canEdit = computed(() => hasPermission('blog.edit'))
+const canEdit = computed(() => hasPermission('diary.edit'))
 
 const visibilityOptions = [
   { value: 'private', label: '私人', hint: '只保存主版本' },

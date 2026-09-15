@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getToken } from '../../utils/auth.js'
 
 const DIFF_LINE_HEIGHT = 24
@@ -35,7 +35,10 @@ const diffData = ref({ ...EMPTY_DIFF })
 const compareState = ref('idle')
 const errorMessage = ref('')
 const activeChangeIndex = ref(-1)
-const gutterOffset = ref(0)
+const sourceScrollTop = ref(0)
+const targetScrollTop = ref(0)
+const undoStack = ref([])
+const redoStack = ref([])
 
 const sourceTextarea = ref(null)
 const targetTextarea = ref(null)
@@ -45,48 +48,81 @@ const sourceHighlight = ref(null)
 const targetHighlight = ref(null)
 const sourceLineNumbers = ref(null)
 const targetLineNumbers = ref(null)
+const gutterElement = ref(null)
+const gutterWidth = ref(124)
+const gutterHeight = ref(700)
 
 let compareTimer = null
 let compareSequence = 0
 let abortController = null
-let scrollOrigin = null
-let scrollFrame = null
+let gutterResizeObserver = null
 
 const changes = computed(() => Array.isArray(diffData.value?.changes)
   ? diffData.value.changes.map((change, index) => normalizeChange(change, index))
   : [])
 
+const hunks = computed(() => {
+  const groups = new Map()
+  changes.value.forEach((change, index) => {
+    const key = Number.isInteger(change.hunkIndex) ? change.hunkIndex : index
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: `hunk-${key}`,
+        hunkIndex: key,
+        type: change.hunkType || change.type,
+        sourceStart: change.hunkSourceStart ?? change.sourceStart,
+        sourceEnd: change.hunkSourceEnd ?? change.sourceEnd,
+        targetStart: change.hunkTargetStart ?? change.targetStart,
+        targetEnd: change.hunkTargetEnd ?? change.targetEnd,
+        sourceLineStart: change.sourceHunkLineStart,
+        sourceLineEnd: change.sourceHunkLineEnd,
+        targetLineStart: change.targetHunkLineStart,
+        targetLineEnd: change.targetHunkLineEnd,
+        changes: []
+      })
+    }
+    groups.get(key).changes.push(change)
+  })
+  return [...groups.values()].sort((left, right) => left.hunkIndex - right.hunkIndex)
+})
+
 const isComparing = computed(() => compareState.value === 'scheduled' || compareState.value === 'comparing')
 const hasText = computed(() => Boolean(sourceText.value || targetText.value))
 
 const summary = computed(() => ({
-  total: changes.value.length,
-  deleted: changes.value.filter(item => item.type === 'DELETED').length,
-  added: changes.value.filter(item => item.type === 'ADDED').length,
-  modified: changes.value.filter(item => item.type === 'MODIFIED').length
+  total: hunks.value.length,
+  deleted: hunks.value.filter(item => item.type === 'DELETED').length,
+  added: hunks.value.filter(item => item.type === 'ADDED').length,
+  modified: hunks.value.filter(item => item.type === 'MODIFIED').length
 }))
 
 const currentChangeLabel = computed(() => {
-  if (!changes.value.length || activeChangeIndex.value < 0) return ''
-  return `${activeChangeIndex.value + 1}/${changes.value.length}`
+  if (!hunks.value.length || activeChangeIndex.value < 0) return ''
+  return `${activeChangeIndex.value + 1}/${hunks.value.length}`
 })
 
 const sourceLineCount = computed(() => lineCount(sourceText.value))
 const targetLineCount = computed(() => lineCount(targetText.value))
 const sourceLineList = computed(() => lineList(sourceLineCount.value))
 const targetLineList = computed(() => lineList(targetLineCount.value))
-const gutterHeight = computed(() => `${Math.max(sourceLineCount.value, targetLineCount.value, 1) * DIFF_LINE_HEIGHT}px`)
 
 const sourceHighlightLines = computed(() => buildHighlightLines(diffData.value.source, 'source'))
 const targetHighlightLines = computed(() => buildHighlightLines(diffData.value.target, 'target'))
 const sourceLineStates = computed(() => buildLineStates(diffData.value.source, 'source'))
 const targetLineStates = computed(() => buildLineStates(diffData.value.target, 'target'))
 
-const gutterItems = computed(() => changes.value.map((change, index) => ({
-  change,
+const gutterItems = computed(() => hunks.value.map((hunk, index) => ({
+  hunk,
   index,
-  line: Math.max(change.sourceLineStart, change.targetLineStart)
+  path: connectorPath(hunk),
+  buttonTop: connectorButtonTop(hunk)
 })))
+
+const sourceInsertionMarkers = computed(() => insertionMarkers('source'))
+const targetInsertionMarkers = computed(() => insertionMarkers('target'))
+
+const canUndo = computed(() => undoStack.value.length > 0)
+const canRedo = computed(() => redoStack.value.length > 0)
 
 function charsOf(value) {
   return Array.from(value || '')
@@ -114,6 +150,16 @@ function lineNumber(chars, index) {
   return line
 }
 
+function codePointOffsetAtLine(text, zeroBasedLine) {
+  const chars = charsOf(text)
+  if (zeroBasedLine <= 0) return 0
+  let line = 0
+  for (let index = 0; index < chars.length; index++) {
+    if (chars[index] === '\n' && ++line === zeroBasedLine) return index + 1
+  }
+  return chars.length
+}
+
 function normalizeChange(change, index) {
   const sourceChars = charsOf(diffData.value.source)
   const targetChars = charsOf(diffData.value.target)
@@ -122,6 +168,18 @@ function normalizeChange(change, index) {
   const targetStart = clampRange(change?.targetStart, targetChars.length)
   const targetEnd = Math.max(targetStart, clampRange(change?.targetEnd, targetChars.length))
   const type = ['ADDED', 'DELETED', 'MODIFIED'].includes(change?.type) ? change.type : 'MODIFIED'
+  const sourceHunkLineStart = Number.isInteger(change?.sourceLineStart)
+    ? change.sourceLineStart
+    : lineNumber(sourceChars, sourceStart) - 1
+  const sourceHunkLineEnd = Number.isInteger(change?.sourceLineEnd)
+    ? change.sourceLineEnd
+    : lineNumber(sourceChars, Math.max(sourceStart, sourceEnd - 1))
+  const targetHunkLineStart = Number.isInteger(change?.targetLineStart)
+    ? change.targetLineStart
+    : lineNumber(targetChars, targetStart) - 1
+  const targetHunkLineEnd = Number.isInteger(change?.targetLineEnd)
+    ? change.targetLineEnd
+    : lineNumber(targetChars, Math.max(targetStart, targetEnd - 1))
 
   return {
     ...change,
@@ -138,7 +196,17 @@ function normalizeChange(change, index) {
       ? change.targetText
       : targetChars.slice(targetStart, targetEnd).join(''),
     sourceLineStart: lineNumber(sourceChars, sourceStart),
-    targetLineStart: lineNumber(targetChars, targetStart)
+    targetLineStart: lineNumber(targetChars, targetStart),
+    hunkIndex: Number.isInteger(change?.hunkIndex) ? change.hunkIndex : index,
+    hunkType: ['ADDED', 'DELETED', 'MODIFIED'].includes(change?.hunkType) ? change.hunkType : type,
+    sourceHunkLineStart,
+    sourceHunkLineEnd,
+    targetHunkLineStart,
+    targetHunkLineEnd,
+    hunkSourceStart: codePointOffsetAtLine(diffData.value.source, sourceHunkLineStart),
+    hunkSourceEnd: codePointOffsetAtLine(diffData.value.source, sourceHunkLineEnd),
+    hunkTargetStart: codePointOffsetAtLine(diffData.value.target, targetHunkLineStart),
+    hunkTargetEnd: codePointOffsetAtLine(diffData.value.target, targetHunkLineEnd)
   }
 }
 
@@ -209,25 +277,16 @@ function buildHighlightLines(text, side) {
 }
 
 function buildLineStates(text, side) {
-  const chars = charsOf(text)
   const states = Array.from({ length: lineCount(text) }, () => '')
 
-  changes.value.forEach(change => {
-    const start = side === 'source' ? change.sourceStart : change.targetStart
-    const end = side === 'source' ? change.sourceEnd : change.targetEnd
-    const isRelevant = side === 'source'
-      ? ['DELETED', 'MODIFIED'].includes(change.type)
-      : ['ADDED', 'MODIFIED'].includes(change.type)
-
-    if (!isRelevant || end <= start) return
-
-    const firstLine = lineNumber(chars, start)
-    const lastLine = lineNumber(chars, Math.max(start, end - 1))
-    for (let line = firstLine; line <= lastLine; line++) {
-      const current = states[line - 1]
-      states[line - 1] = current === 'modified' || change.type === 'MODIFIED'
+  hunks.value.forEach(hunk => {
+    const start = side === 'source' ? hunk.sourceLineStart : hunk.targetLineStart
+    const end = side === 'source' ? hunk.sourceLineEnd : hunk.targetLineEnd
+    if (end <= start) return
+    for (let line = start; line < end; line++) {
+      states[line] = hunk.type === 'MODIFIED'
         ? 'modified'
-        : change.type === 'ADDED'
+        : hunk.type === 'ADDED'
           ? 'added'
           : 'removed'
     }
@@ -250,6 +309,48 @@ function directionLabel(direction) {
   return direction === 'left' ? '应用右侧到左侧' : '应用左侧到右侧'
 }
 
+function connectorRange(lineStart, lineEnd, scrollTop) {
+  const start = 10 + lineStart * DIFF_LINE_HEIGHT - scrollTop
+  const end = 10 + lineEnd * DIFF_LINE_HEIGHT - scrollTop
+  return end > start ? [start, end] : [start - 1, start + 1]
+}
+
+function connectorPath(hunk) {
+  const [sourceStart, sourceEnd] = connectorRange(hunk.sourceLineStart, hunk.sourceLineEnd, sourceScrollTop.value)
+  const [targetStart, targetEnd] = connectorRange(hunk.targetLineStart, hunk.targetLineEnd, targetScrollTop.value)
+  const width = gutterWidth.value
+  const bend = width * 0.34
+  return [
+    `M 0 ${sourceStart}`,
+    `C ${bend} ${sourceStart}, ${width - bend} ${targetStart}, ${width} ${targetStart}`,
+    `L ${width} ${targetEnd}`,
+    `C ${width - bend} ${targetEnd}, ${bend} ${sourceEnd}, 0 ${sourceEnd}`,
+    'Z'
+  ].join(' ')
+}
+
+function connectorButtonTop(hunk) {
+  const [sourceStart, sourceEnd] = connectorRange(hunk.sourceLineStart, hunk.sourceLineEnd, sourceScrollTop.value)
+  const [targetStart, targetEnd] = connectorRange(hunk.targetLineStart, hunk.targetLineEnd, targetScrollTop.value)
+  return (sourceStart + sourceEnd + targetStart + targetEnd) / 4
+}
+
+function insertionMarkers(side) {
+  const scrollTop = side === 'source' ? sourceScrollTop.value : targetScrollTop.value
+  return hunks.value
+    .filter(hunk => side === 'source'
+      ? hunk.sourceLineEnd <= hunk.sourceLineStart
+      : hunk.targetLineEnd <= hunk.targetLineStart)
+    .map(hunk => {
+      const line = side === 'source' ? hunk.sourceLineStart : hunk.targetLineStart
+      return {
+        id: `${side}-${hunk.id}`,
+        type: hunk.type.toLowerCase(),
+        top: 10 + line * DIFF_LINE_HEIGHT - scrollTop
+      }
+    })
+}
+
 function replaceByCodePoints(text, start, end, replacement) {
   const chars = charsOf(text)
   return chars.slice(0, start).concat(charsOf(replacement), chars.slice(end)).join('')
@@ -265,6 +366,8 @@ function invalidateDiff(nextSource = sourceText.value, nextTarget = targetText.v
 }
 
 function onTextInput(side, event) {
+  undoStack.value = []
+  redoStack.value = []
   const value = event.target.value
   if (side === 'source') {
     sourceText.value = value
@@ -286,6 +389,16 @@ function setText(side, value) {
 }
 
 function handleKeydown(side, event) {
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z' && canUndo.value) {
+    event.preventDefault()
+    undoLastApply()
+    return
+  }
+  if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z')) && canRedo.value) {
+    event.preventDefault()
+    redoLastApply()
+    return
+  }
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
     event.preventDefault()
     compareNow()
@@ -300,6 +413,8 @@ function handleKeydown(side, event) {
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const value = textarea.value.slice(0, start) + insertion + textarea.value.slice(end)
+  undoStack.value = []
+  redoStack.value = []
   setText(side, value)
 
   nextTick(() => {
@@ -309,21 +424,55 @@ function handleKeydown(side, event) {
   })
 }
 
-function applyChange(change, direction = 'right') {
-  if (!change || isComparing.value) return
+function snapshot() {
+  return { source: sourceText.value, target: targetText.value }
+}
+
+function restoreSnapshot(value) {
+  sourceText.value = value.source
+  targetText.value = value.target
+  invalidateDiff(value.source, value.target)
+}
+
+function recordApply() {
+  undoStack.value = [...undoStack.value, snapshot()].slice(-50)
+  redoStack.value = []
+}
+
+function undoLastApply() {
+  if (!canUndo.value) return
+  const previous = undoStack.value[undoStack.value.length - 1]
+  redoStack.value = [...redoStack.value, snapshot()].slice(-50)
+  undoStack.value = undoStack.value.slice(0, -1)
+  restoreSnapshot(previous)
+}
+
+function redoLastApply() {
+  if (!canRedo.value) return
+  const next = redoStack.value[redoStack.value.length - 1]
+  undoStack.value = [...undoStack.value, snapshot()].slice(-50)
+  redoStack.value = redoStack.value.slice(0, -1)
+  restoreSnapshot(next)
+}
+
+function applyChange(hunk, direction = 'right') {
+  if (!hunk || isComparing.value) return
 
   const isRightDirection = direction === 'right'
   const side = isRightDirection ? 'target' : 'source'
   const currentText = isRightDirection ? targetText.value : sourceText.value
-  const start = isRightDirection ? change.targetStart : change.sourceStart
-  const end = isRightDirection ? change.targetEnd : change.sourceEnd
-  const replacement = isRightDirection ? change.sourceText : change.targetText
+  const start = isRightDirection ? hunk.targetStart : hunk.sourceStart
+  const end = isRightDirection ? hunk.targetEnd : hunk.sourceEnd
+  const replacement = isRightDirection
+    ? sliceChars(charsOf(diffData.value.source), hunk.sourceStart, hunk.sourceEnd)
+    : sliceChars(charsOf(diffData.value.target), hunk.targetStart, hunk.targetEnd)
   const nextText = replaceByCodePoints(currentText, start, end, replacement)
   const nextCaret = codePointIndexToStringIndex(
     nextText,
     start + charsOf(replacement).length
   )
 
+  recordApply()
   setText(side, nextText)
   nextTick(() => {
     const textarea = side === 'source' ? sourceTextarea.value : targetTextarea.value
@@ -333,12 +482,12 @@ function applyChange(change, direction = 'right') {
 }
 
 function applyAll(direction = 'right') {
-  if (isComparing.value || !changes.value.length) return
+  if (isComparing.value || !hunks.value.length) return
 
   const isRightDirection = direction === 'right'
   const side = isRightDirection ? 'target' : 'source'
   let nextText = isRightDirection ? targetText.value : sourceText.value
-  const ordered = [...changes.value].sort((left, right) => {
+  const ordered = [...hunks.value].sort((left, right) => {
     const leftStart = isRightDirection ? left.targetStart : left.sourceStart
     const rightStart = isRightDirection ? right.targetStart : right.sourceStart
     if (leftStart !== rightStart) return rightStart - leftStart
@@ -347,13 +496,16 @@ function applyAll(direction = 'right') {
     return rightEnd - leftEnd
   })
 
-  ordered.forEach(change => {
-    const start = isRightDirection ? change.targetStart : change.sourceStart
-    const end = isRightDirection ? change.targetEnd : change.sourceEnd
-    const replacement = isRightDirection ? change.sourceText : change.targetText
+  ordered.forEach(hunk => {
+    const start = isRightDirection ? hunk.targetStart : hunk.sourceStart
+    const end = isRightDirection ? hunk.targetEnd : hunk.sourceEnd
+    const replacement = isRightDirection
+      ? sliceChars(charsOf(diffData.value.source), hunk.sourceStart, hunk.sourceEnd)
+      : sliceChars(charsOf(diffData.value.target), hunk.targetStart, hunk.targetEnd)
     nextText = replaceByCodePoints(nextText, start, end, replacement)
   })
 
+  recordApply()
   setText(side, nextText)
   nextTick(() => {
     const textarea = side === 'source' ? sourceTextarea.value : targetTextarea.value
@@ -361,79 +513,48 @@ function applyAll(direction = 'right') {
   })
 }
 
-function gutterButtonStyle(item) {
-  return { top: `${Math.max(0, item.line - 1) * DIFF_LINE_HEIGHT + 3}px` }
-}
-
 function goToChange(index) {
-  if (!changes.value.length) return
-  const normalizedIndex = (index + changes.value.length) % changes.value.length
-  const change = changes.value[normalizedIndex]
-  const line = Math.max(change.sourceLineStart, change.targetLineStart)
-  const nextScrollTop = Math.max(0, (line - 4) * DIFF_LINE_HEIGHT)
+  if (!hunks.value.length) return
+  const normalizedIndex = (index + hunks.value.length) % hunks.value.length
+  const hunk = hunks.value[normalizedIndex]
 
   activeChangeIndex.value = normalizedIndex
-  setScrollTop(nextScrollTop)
+  setScrollTop('source', Math.max(0, (hunk.sourceLineStart - 3) * DIFF_LINE_HEIGHT))
+  setScrollTop('target', Math.max(0, (hunk.targetLineStart - 3) * DIFF_LINE_HEIGHT))
 }
 
 function previousChange() {
-  goToChange(activeChangeIndex.value <= 0 ? changes.value.length - 1 : activeChangeIndex.value - 1)
+  goToChange(activeChangeIndex.value <= 0 ? hunks.value.length - 1 : activeChangeIndex.value - 1)
 }
 
 function nextChange() {
   goToChange(activeChangeIndex.value < 0 ? 0 : activeChangeIndex.value + 1)
 }
 
-function setScrollTop(value) {
-  scrollOrigin = 'programmatic'
-  applyScrollPosition(value, sourceTextarea.value?.scrollLeft || 0)
-  gutterOffset.value = sourceTextarea.value?.scrollTop || 0
-  releaseScrollOrigin()
+function setScrollTop(side, value) {
+  const textarea = side === 'source' ? sourceTextarea.value : targetTextarea.value
+  if (!textarea) return
+  textarea.scrollTop = value
+  syncScroll(side, textarea)
 }
 
-function syncScroll(event) {
-  if (scrollOrigin && scrollOrigin !== event.target) return
-  const source = sourceTextarea.value
-  const target = targetTextarea.value
-  if (!source || !target) return
-
-  const scrollTop = event.target.scrollTop
-  const scrollLeft = event.target.scrollLeft
-  scrollOrigin = event.target
-  applyScrollPosition(scrollTop, scrollLeft)
-  gutterOffset.value = scrollTop
-  releaseScrollOrigin()
+function syncScroll(side, element) {
+  const highlight = side === 'source' ? sourceHighlight.value : targetHighlight.value
+  const backgrounds = side === 'source' ? sourceLineBackgrounds.value : targetLineBackgrounds.value
+  const numbers = side === 'source' ? sourceLineNumbers.value : targetLineNumbers.value
+  translateLayer(highlight, element.scrollLeft, element.scrollTop)
+  translateLayer(backgrounds, 0, element.scrollTop)
+  translateLayer(numbers, 0, element.scrollTop)
+  if (side === 'source') sourceScrollTop.value = element.scrollTop
+  else targetScrollTop.value = element.scrollTop
 }
 
-function applyScrollPosition(scrollTop, scrollLeft = 0) {
-  ;[sourceTextarea.value, targetTextarea.value].forEach(element => {
-    if (element) {
-      element.scrollTop = scrollTop
-      element.scrollLeft = scrollLeft
-    }
-  })
-
-  ;[sourceHighlight.value, targetHighlight.value].forEach(element => {
-    if (element) {
-      element.scrollTop = scrollTop
-      element.scrollLeft = scrollLeft
-    }
-  })
-  ;[sourceLineBackgrounds.value, targetLineBackgrounds.value].forEach(element => {
-    if (element) element.scrollTop = scrollTop
-  })
-  ;[sourceLineNumbers.value, targetLineNumbers.value].forEach(element => {
-    if (element) element.scrollTop = scrollTop
-  })
+function translateLayer(layer, scrollLeft, scrollTop) {
+  if (!layer) return
+  layer.style.transform = `translate3d(${-scrollLeft}px, ${-scrollTop}px, 0)`
 }
 
-function releaseScrollOrigin() {
-  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame)
-  scrollFrame = requestAnimationFrame(() => {
-    scrollOrigin = null
-    scrollFrame = null
-  })
-}
+// 后续：可选的 IDEA 式智能同步滚动，按差异块映射位置，而不是直接绑定 scrollTop。
 
 function normalizeResponse(data, source, target) {
   return {
@@ -487,7 +608,8 @@ async function compare() {
     compareState.value = 'idle'
     emit('compared', diffData.value)
     await nextTick()
-    setScrollTop(sourceTextarea.value?.scrollTop || 0)
+    if (sourceTextarea.value) syncScroll('source', sourceTextarea.value)
+    if (targetTextarea.value) syncScroll('target', targetTextarea.value)
   } catch (error) {
     if (error?.name === 'AbortError' || sequence !== compareSequence) return
     errorMessage.value = error?.message || '比较失败，请稍后重试'
@@ -521,11 +643,20 @@ watch(
   { immediate: true }
 )
 
+onMounted(() => {
+  if (!gutterElement.value || typeof ResizeObserver === 'undefined') return
+  gutterResizeObserver = new ResizeObserver(([entry]) => {
+    gutterWidth.value = entry.contentRect.width || 124
+    gutterHeight.value = entry.contentRect.height || 700
+  })
+  gutterResizeObserver.observe(gutterElement.value)
+})
+
 onBeforeUnmount(() => {
   clearTimeout(compareTimer)
   compareSequence++
   abortController?.abort()
-  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame)
+  gutterResizeObserver?.disconnect()
 })
 </script>
 
@@ -547,7 +678,7 @@ onBeforeUnmount(() => {
         <button
           class="diff-toolbar-button diff-toolbar-button--icon"
           type="button"
-          :disabled="isComparing || !changes.length"
+          :disabled="isComparing || !hunks.length"
           aria-label="上一个差异"
           title="上一个差异"
           @click="previousChange"
@@ -555,11 +686,25 @@ onBeforeUnmount(() => {
         <button
           class="diff-toolbar-button diff-toolbar-button--icon"
           type="button"
-          :disabled="isComparing || !changes.length"
+          :disabled="isComparing || !hunks.length"
           aria-label="下一个差异"
           title="下一个差异"
           @click="nextChange"
         >↓</button>
+        <button
+          class="diff-toolbar-button"
+          type="button"
+          :disabled="!canUndo"
+          title="撤销上一次应用"
+          @click="undoLastApply"
+        >撤销</button>
+        <button
+          class="diff-toolbar-button"
+          type="button"
+          :disabled="!canRedo"
+          title="重做上一次应用"
+          @click="redoLastApply"
+        >重做</button>
         <button
           class="diff-toolbar-button"
           type="button"
@@ -569,7 +714,7 @@ onBeforeUnmount(() => {
         <button
           class="diff-apply-all diff-apply-all--left"
           type="button"
-          :disabled="isComparing || !changes.length"
+          :disabled="isComparing || !hunks.length"
           @click="applyAll('left')"
         >
           ← 全部应用
@@ -577,7 +722,7 @@ onBeforeUnmount(() => {
         <button
           class="diff-apply-all"
           type="button"
-          :disabled="isComparing || !changes.length"
+          :disabled="isComparing || !hunks.length"
           @click="applyAll('right')"
         >
           全部应用 →
@@ -613,16 +758,30 @@ onBeforeUnmount(() => {
 
       <div class="text-diff-editor__body">
         <div class="text-diff-pane">
-          <div ref="sourceLineNumbers" class="text-diff-line-numbers" aria-hidden="true">
-            <span v-for="line in sourceLineList" :key="`source-line-${line}`" :class="lineStateClass(sourceLineStates[line - 1])">{{ line }}</span>
+          <span
+            v-for="marker in sourceInsertionMarkers"
+            :key="marker.id"
+            class="diff-insertion-marker"
+            :class="`is-${marker.type}`"
+            :style="{ top: `${marker.top}px` }"
+            aria-hidden="true"
+          ></span>
+          <div class="text-diff-line-numbers" aria-hidden="true">
+            <div ref="sourceLineNumbers" class="text-diff-line-number-track">
+              <span v-for="line in sourceLineList" :key="`source-line-${line}`" :class="lineStateClass(sourceLineStates[line - 1])">{{ line }}</span>
+            </div>
           </div>
           <div class="text-diff-input-shell">
-            <div ref="sourceLineBackgrounds" class="text-diff-line-backgrounds" aria-hidden="true">
-              <span v-for="(state, index) in sourceLineStates" :key="`source-bg-${index}`" :class="lineStateClass(state)"></span>
+            <div class="text-diff-line-backgrounds" aria-hidden="true">
+              <div ref="sourceLineBackgrounds" class="text-diff-line-background-track">
+                <span v-for="(state, index) in sourceLineStates" :key="`source-bg-${index}`" :class="lineStateClass(state)"></span>
+              </div>
             </div>
-            <div ref="sourceHighlight" class="text-diff-highlight-layer" aria-hidden="true">
-              <div v-for="line in sourceHighlightLines" :key="line.id" class="text-diff-highlight-line">
-                <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+            <div class="text-diff-highlight-layer" aria-hidden="true">
+              <div ref="sourceHighlight" class="text-diff-highlight-track">
+                <div v-for="line in sourceHighlightLines" :key="line.id" class="text-diff-highlight-line">
+                  <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+                </div>
               </div>
             </div>
             <textarea
@@ -635,27 +794,35 @@ onBeforeUnmount(() => {
               aria-label="左侧完整文本编辑框"
               @input="onTextInput('source', $event)"
               @keydown="handleKeydown('source', $event)"
-              @scroll="syncScroll"
+              @scroll="syncScroll('source', $event.target)"
             ></textarea>
           </div>
         </div>
 
-        <div class="text-diff-gutter" aria-label="差异操作">
-          <div class="text-diff-gutter__track" :style="{ height: gutterHeight, transform: `translateY(-${gutterOffset}px)` }">
+        <div ref="gutterElement" class="text-diff-gutter" aria-label="差异操作">
+          <svg class="text-diff-gutter__connectors" :viewBox="`0 0 ${gutterWidth} ${gutterHeight}`" preserveAspectRatio="none" aria-hidden="true">
+            <path
+              v-for="item in gutterItems"
+              :key="`connector-${item.hunk.id}`"
+              :d="item.path"
+              :class="[`is-${item.hunk.type.toLowerCase()}`, { 'is-active': item.index === activeChangeIndex }]"
+            />
+          </svg>
+          <div class="text-diff-gutter__track">
             <div
               v-for="item in gutterItems"
-              :key="`gutter-${item.change.id}`"
+              :key="`gutter-${item.hunk.id}`"
               class="diff-row-action-group"
               :class="{ 'is-active': item.index === activeChangeIndex }"
-              :style="gutterButtonStyle(item)"
+              :style="{ top: `${item.buttonTop}px` }"
             >
               <button
                 class="diff-row-action diff-row-action--left"
                 type="button"
                 :disabled="isComparing"
-                :title="`${changeTypeLabel(item.change.type)}：${directionLabel('left')}`"
-                :aria-label="`${changeTypeLabel(item.change.type)}，${directionLabel('left')}`"
-                @click="activeChangeIndex = item.index; applyChange(item.change, 'left')"
+                :title="`${changeTypeLabel(item.hunk.type)}：${directionLabel('left')}`"
+                :aria-label="`${changeTypeLabel(item.hunk.type)}，${directionLabel('left')}`"
+                @click="activeChangeIndex = item.index; applyChange(item.hunk, 'left')"
               >
                 <span aria-hidden="true">←</span>
               </button>
@@ -663,9 +830,9 @@ onBeforeUnmount(() => {
                 class="diff-row-action diff-row-action--right"
                 type="button"
                 :disabled="isComparing"
-                :title="`${changeTypeLabel(item.change.type)}：${directionLabel('right')}`"
-                :aria-label="`${changeTypeLabel(item.change.type)}，${directionLabel('right')}`"
-                @click="activeChangeIndex = item.index; applyChange(item.change, 'right')"
+                :title="`${changeTypeLabel(item.hunk.type)}：${directionLabel('right')}`"
+                :aria-label="`${changeTypeLabel(item.hunk.type)}，${directionLabel('right')}`"
+                @click="activeChangeIndex = item.index; applyChange(item.hunk, 'right')"
               >
                 <span aria-hidden="true">→</span>
               </button>
@@ -674,16 +841,30 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="text-diff-pane">
-          <div ref="targetLineNumbers" class="text-diff-line-numbers" aria-hidden="true">
-            <span v-for="line in targetLineList" :key="`target-line-${line}`" :class="lineStateClass(targetLineStates[line - 1])">{{ line }}</span>
+          <span
+            v-for="marker in targetInsertionMarkers"
+            :key="marker.id"
+            class="diff-insertion-marker"
+            :class="`is-${marker.type}`"
+            :style="{ top: `${marker.top}px` }"
+            aria-hidden="true"
+          ></span>
+          <div class="text-diff-line-numbers" aria-hidden="true">
+            <div ref="targetLineNumbers" class="text-diff-line-number-track">
+              <span v-for="line in targetLineList" :key="`target-line-${line}`" :class="lineStateClass(targetLineStates[line - 1])">{{ line }}</span>
+            </div>
           </div>
           <div class="text-diff-input-shell">
-            <div ref="targetLineBackgrounds" class="text-diff-line-backgrounds" aria-hidden="true">
-              <span v-for="(state, index) in targetLineStates" :key="`target-bg-${index}`" :class="lineStateClass(state)"></span>
+            <div class="text-diff-line-backgrounds" aria-hidden="true">
+              <div ref="targetLineBackgrounds" class="text-diff-line-background-track">
+                <span v-for="(state, index) in targetLineStates" :key="`target-bg-${index}`" :class="lineStateClass(state)"></span>
+              </div>
             </div>
-            <div ref="targetHighlight" class="text-diff-highlight-layer" aria-hidden="true">
-              <div v-for="line in targetHighlightLines" :key="line.id" class="text-diff-highlight-line">
-                <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+            <div class="text-diff-highlight-layer" aria-hidden="true">
+              <div ref="targetHighlight" class="text-diff-highlight-track">
+                <div v-for="line in targetHighlightLines" :key="line.id" class="text-diff-highlight-line">
+                  <span v-for="segment in line.segments" :key="segment.id" :class="segment.className">{{ segment.value }}</span>
+                </div>
               </div>
             </div>
             <textarea
@@ -696,7 +877,7 @@ onBeforeUnmount(() => {
               aria-label="右侧完整文本编辑框"
               @input="onTextInput('target', $event)"
               @keydown="handleKeydown('target', $event)"
-              @scroll="syncScroll"
+              @scroll="syncScroll('target', $event.target)"
             ></textarea>
           </div>
         </div>
@@ -985,6 +1166,7 @@ onBeforeUnmount(() => {
 }
 
 .text-diff-pane {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -992,15 +1174,55 @@ onBeforeUnmount(() => {
 }
 
 .text-diff-line-numbers {
+  box-sizing: border-box;
   flex: 0 0 47px;
   min-height: 0;
   overflow: hidden;
-  padding-top: 10px;
+  padding: 0;
   border-right: 1px solid rgba(255, 255, 255, 0.055);
   color: #626c79;
   font: 0.67rem/var(--diff-line-height) ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   text-align: right;
   user-select: none;
+}
+
+.text-diff-line-number-track,
+.text-diff-line-background-track,
+.text-diff-highlight-track {
+  box-sizing: border-box;
+  will-change: transform;
+}
+
+.text-diff-line-number-track {
+  min-height: 100%;
+  padding: 10px 0;
+}
+
+.diff-insertion-marker {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  height: 2px;
+  transform: translateY(-1px);
+  background: #687381;
+  box-shadow: 0 0 0 1px rgba(104, 115, 129, 0.12);
+  pointer-events: none;
+}
+
+.diff-insertion-marker.is-added {
+  background: #34845a;
+  box-shadow: 0 0 0 1px rgba(76, 175, 125, 0.13);
+}
+
+.diff-insertion-marker.is-deleted {
+  background: #b95c55;
+  box-shadow: 0 0 0 1px rgba(224, 122, 114, 0.13);
+}
+
+.diff-insertion-marker.is-modified {
+  background: #527fab;
+  box-shadow: 0 0 0 1px rgba(105, 157, 216, 0.14);
 }
 
 .text-diff-line-numbers span {
@@ -1038,7 +1260,6 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 10px 14px;
   border: 0;
   font: 0.78rem/var(--diff-line-height) ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 400;
@@ -1052,8 +1273,11 @@ onBeforeUnmount(() => {
 .text-diff-line-backgrounds {
   z-index: 0;
   overflow: hidden;
-  padding-right: 0;
-  padding-left: 0;
+}
+
+.text-diff-line-background-track {
+  min-height: 100%;
+  padding: 10px 0;
 }
 
 .text-diff-line-backgrounds span {
@@ -1076,14 +1300,16 @@ onBeforeUnmount(() => {
 
 .text-diff-highlight-layer {
   z-index: 1;
-  overflow: auto;
+  overflow: hidden;
   color: transparent;
   pointer-events: none;
-  scrollbar-width: none;
 }
 
-.text-diff-highlight-layer::-webkit-scrollbar {
-  display: none;
+.text-diff-highlight-track {
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  padding: 10px 14px;
 }
 
 .text-diff-highlight-line {
@@ -1111,6 +1337,7 @@ onBeforeUnmount(() => {
 
 .text-diff-textarea {
   z-index: 2;
+  padding: 10px 14px;
   resize: none;
   outline: none;
   background: transparent;
@@ -1156,9 +1383,43 @@ onBeforeUnmount(() => {
   background: var(--diff-bg-deep);
 }
 
+.text-diff-gutter__connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.text-diff-gutter__connectors path {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.text-diff-gutter__connectors path.is-added {
+  fill: rgba(49, 130, 86, 0.22);
+  stroke: rgba(76, 175, 125, 0.52);
+}
+
+.text-diff-gutter__connectors path.is-deleted {
+  fill: rgba(190, 73, 65, 0.22);
+  stroke: rgba(224, 122, 114, 0.52);
+}
+
+.text-diff-gutter__connectors path.is-modified {
+  fill: rgba(69, 112, 167, 0.24);
+  stroke: rgba(105, 157, 216, 0.58);
+}
+
+.text-diff-gutter__connectors path.is-active {
+  filter: brightness(1.35);
+  stroke-width: 1.5;
+}
+
 .text-diff-gutter__track {
   position: relative;
   width: 100%;
+  height: 100%;
 }
 
 .diff-row-action-group {
@@ -1168,7 +1429,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   min-height: 28px;
   padding: 2px;
   border: 1px solid transparent;

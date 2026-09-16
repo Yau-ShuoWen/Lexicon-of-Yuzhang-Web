@@ -1,11 +1,14 @@
 <script setup>
 import {ref, computed, onMounted, onUnmounted} from 'vue'
+import {useI18n} from 'vue-i18n'
+
+const {t} = useI18n()
 
 const props = defineProps({
   items: {type: Array, required: true},
   currentInRoute: {type: Function, required: true},
   changeFunc: {type: Function, required: true},
-  defaultText: {type: String, default: '选择'},
+  defaultText: {type: String, default: ''},
   defaultIcon: {type: String, required: true},
 })
 
@@ -15,7 +18,7 @@ const dropdownRef = ref(null)
 // 动态变换的文字和图标
 const triggerText = computed(() => {
   const current = props.items.find(item => item.value === props.currentInRoute())
-  return current ? current.label : props.defaultText
+  return current ? current.label : (props.defaultText || t('common.select'))
 })
 
 const triggerIcon = computed(() => {

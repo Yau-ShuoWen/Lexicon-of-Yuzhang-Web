@@ -2,17 +2,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth'
 import LoadingPage from '../../components/Status/LoadingPage.vue'
 import { prepareLoadingText } from '../../services/loadingTextCache.js'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 const phase = ref('loading')
-const loadingText = ref('方言是我们能听见的历史')
+const loadingText = ref(t('study.question.loading_text'))
 const loadingComplete = ref(false)
 const attemptId = ref('')
 const questions = ref([])
@@ -34,7 +36,7 @@ const report = ref(null)
 
 const EXPECTED_LOADING_DURATION_MS = 3000
 
-useHead({title: '学习 · 词典'})
+useHead({title: () => t('study.common.page_title')})
 
 const completedQuestionCount = computed(() => questionResults.value.filter(Boolean).length)
 const progress = computed(() => questions.value.length === 0
@@ -71,7 +73,7 @@ const loadLevel = async () => {
   const token = getToken()
   if (!token) {
     phase.value = 'error'
-    error.value = '请先登录后再开始学习。'
+    error.value = t('study.common.login_required')
     return
   }
 
@@ -99,20 +101,20 @@ const loadLevel = async () => {
     )
     const result = await response.json()
     if (!response.ok || !result.success) {
-      throw new Error(result.message || '加载学习内容失败')
+      throw new Error(result.message || t('study.question.load_failed'))
     }
 
     const data = result.data || {}
     attemptId.value = data.attemptId || ''
     questions.value = Array.isArray(data.questions) ? data.questions : []
-    if (!attemptId.value) throw new Error('学习尝试创建失败')
-    if (questions.value.length === 0) throw new Error('暂时没有可用的学习题目')
+    if (!attemptId.value) throw new Error(t('study.question.attempt_failed'))
+    if (questions.value.length === 0) throw new Error(t('study.question.empty'))
 
     loadingComplete.value = true
   } catch (e) {
     console.error(e)
     phase.value = 'error'
-    error.value = e.message || '暂时无法加载学习内容，请稍后再试。'
+    error.value = e.message || t('study.question.unavailable')
   }
 }
 
@@ -182,7 +184,7 @@ const finishLevel = async () => {
     )
     const result = await response.json()
     if (!response.ok || !result.success) {
-      throw new Error(result.message || '保存学习结果失败')
+      throw new Error(result.message || t('study.question.save_failed'))
     }
 
     report.value = {
@@ -194,7 +196,7 @@ const finishLevel = async () => {
     }
     phase.value = 'result'
   } catch (e) {
-    error.value = e.message || '保存学习结果失败，请重试。'
+    error.value = e.message || t('study.question.save_retry')
     phase.value = 'finish-error'
   }
 }
@@ -227,55 +229,55 @@ onMounted(loadLevel)
     />
 
     <section v-else-if="phase === 'error'" class="question-state error-state">
-      <h1>暂时无法开始学习</h1>
+      <h1>{{ $t('study.question.cannot_start') }}</h1>
       <p>{{ error }}</p>
-      <button class="question-button" @click="loadLevel">重新开始</button>
+      <button class="question-button" @click="loadLevel">{{ $t('study.question.restart') }}</button>
     </section>
 
     <section v-else-if="phase === 'question-result'" class="question-state question-result-state">
-      <p class="question-kicker">QUESTION {{ currentQuestionIndex + 1 }}</p>
+      <p class="question-kicker">{{ $t('study.question.number', {number: currentQuestionIndex + 1}) }}</p>
       <div class="result-icon" aria-hidden="true">✓</div>
-      <h1>回答正确</h1>
-      <p>这道配对题已经完成。</p>
-      <div class="question-result-progress">已完成 {{ completedQuestionCount }} / {{ questions.length }} 道题</div>
+      <h1>{{ $t('study.question.correct') }}</h1>
+      <p>{{ $t('study.question.completed_hint') }}</p>
+      <div class="question-result-progress">{{ $t('study.question.completed_progress', {completed: completedQuestionCount, total: questions.length}) }}</div>
       <button class="question-button" @click="continueQuestion">
-        {{ isLastQuestion ? '查看学习报告' : '下一题' }}
+        {{ isLastQuestion ? $t('study.question.view_report') : $t('study.question.next') }}
       </button>
     </section>
 
     <section v-else-if="phase === 'finishing'" class="question-state loading-state">
       <div class="loading-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-      <h1>正在保存学习结果</h1>
-      <p>马上就完成了……</p>
+      <h1>{{ $t('study.question.saving') }}</h1>
+      <p>{{ $t('study.question.almost_done') }}</p>
     </section>
 
     <section v-else-if="phase === 'result'" class="question-state result-state">
-      <h1>这一组完成了</h1>
-      <p>你已经完成全部 {{ report.questionCount }} 道题。</p>
+      <h1>{{ $t('study.question.group_completed') }}</h1>
+      <p>{{ $t('study.question.all_completed', {count: report.questionCount}) }}</p>
       <div class="result-summary">
-        <div><strong>{{ report.completedCount }}</strong><span>完成题目</span></div>
-        <div><strong>{{ report.mistakeCount }}</strong><span>重新尝试</span></div>
+        <div><strong>{{ report.completedCount }}</strong><span>{{ $t('study.question.completed_items') }}</span></div>
+        <div><strong>{{ report.mistakeCount }}</strong><span>{{ $t('study.question.retries') }}</span></div>
       </div>
-      <p class="streak-message">{{ report.streakSettled ? '今天的连胜已记录。' : '学习完成，但连胜记录未更新。' }}</p>
+      <p class="streak-message">{{ report.streakSettled ? $t('study.question.streak_recorded') : $t('study.question.streak_not_updated') }}</p>
       <div class="result-actions">
-        <button class="question-button" @click="restart">再来一组</button>
-        <button class="question-button secondary-button" @click="backToHome">返回学习首页</button>
+        <button class="question-button" @click="restart">{{ $t('study.question.another_group') }}</button>
+        <button class="question-button secondary-button" @click="backToHome">{{ $t('study.question.back_home') }}</button>
       </div>
     </section>
 
     <section v-else-if="phase === 'finish-error'" class="question-state error-state">
-      <h1>学习已经完成</h1>
+      <h1>{{ $t('study.question.finished') }}</h1>
       <p>{{ error }}</p>
-      <button class="question-button" @click="finishLevel">重新保存结果</button>
+      <button class="question-button" @click="finishLevel">{{ $t('study.question.save_again') }}</button>
     </section>
 
     <template v-else>
       <header class="question-header">
-        <h1>词语配对</h1>
-        <p>第 {{ currentQuestionIndex + 1 }} / {{ questions.length }} 题</p>
+        <h1>{{ $t('study.question.matching') }}</h1>
+        <p>{{ $t('study.question.position', {current: currentQuestionIndex + 1, total: questions.length}) }}</p>
       </header>
 
-      <div class="question-progress" aria-label="学习进度">
+      <div class="question-progress" :aria-label="$t('study.question.progress')">
 
         <div class="progress-track"><span :style="{width: `${progress}%`}"></span></div>
       </div>

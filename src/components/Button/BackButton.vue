@@ -1,6 +1,6 @@
 <template>
   <button @click="goBack" class="dev-normal-button" :class="sizeClass">
-    {{ buttonText }}
+    {{ buttonText || $t('common.back') }}
   </button>
 </template>
 
@@ -10,7 +10,7 @@ export default {
   props: {
     buttonText: {
       type: String,
-      default: '← 返回'
+      default: ''
     },
     size: {
       type: String,

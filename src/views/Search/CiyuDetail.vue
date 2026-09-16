@@ -59,7 +59,7 @@ const fetchCiyu = async () => {
     const json = await response.json().catch(() => null)
 
     if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    if (!json.success) throw new Error(json.message || '查询失败')
+    if (!json.success) throw new Error(json.message || t('search_detail.load_failed'))
 
     data.value = json.data
   } catch (e) {
@@ -101,7 +101,7 @@ watch(
 
       <div v-if="data.mean?.length" class="block-mean">
         <div class="section" v-if="data.mean && data.mean.length">
-          <h3 class="section-title">释义</h3>
+          <h3 class="section-title">{{ $t('search_detail.definition') }}</h3>
           <div class="mean-list">
             <div class="list-item" v-for="(m, i) in data.mean" :key="i" v-formatted-text="m"/>
           </div>
@@ -110,7 +110,7 @@ watch(
 
       <div v-if="data.note?.length" class="block-note">
         <div class="section" v-if="data.note && data.note.length">
-          <h3 class="section-title">注释</h3>
+          <h3 class="section-title">{{ $t('search_detail.notes') }}</h3>
           <div class="mean-list">
             <div class="note-item" v-for="(m, i) in data.note" :key="i">
               <div class="note-item-left" v-formatted-text="m.left"></div>
@@ -121,7 +121,7 @@ watch(
       </div>
 
       <div v-if="data.ref && data.ref.length" class="block-ref">
-        <h3 class="section-title">辞书</h3>
+        <h3 class="section-title">{{ $t('search_detail.dictionary') }}</h3>
         <div class="mean-list">
           <div v-for="(r, i) in data.ref" :key="i" class="ref-item">
             <div class="ref-content" v-formatted-text="r.content"/>
@@ -137,11 +137,11 @@ watch(
       <div class="block-pinyin">
         <div class="section">
           <h2 class="pinyin-title">
-            {{ query }}：该词条尚未收录
+            {{ query }}：{{ $t('search_detail.entry_missing') }}
           </h2>
 
           <p style="margin-top: 10px; color: var(--color-text-light);">
-            当前数据库中暂无该词语的详细释义。
+            {{ $t('search_detail.no_definition') }}
 <!--            嘗試更換方言或者詞語-->
           </p>
 
@@ -149,7 +149,7 @@ watch(
           <!--
           <div class="feedback-area" style="margin-top: 16px;">
             <button class="feedback-button">
-              提交反馈 / 补充资料
+              {{ $t('search_detail.feedback') }}
             </button>
           </div>
           -->

@@ -2,9 +2,11 @@
 
 import {computed, ref} from 'vue'
 import {useRoute} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {showError} from '../../services/ToastService.js'
 
 const route = useRoute()
+const {t} = useI18n()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
@@ -12,13 +14,14 @@ const dialect = computed(() => route.params.dialect)
 /* ======== 四种语言配置 ======== */
 // pos 为按钮在 100x100 坐标系中的中心点百分比
 const LANGS = [
-  { key: 'sc', label: '简', name: '大陆简体', pos: { x: 17.5, y: 17.5 } },    // 左上
-  { key: 'tc', label: '繁', name: '大陆繁体', pos: { x: 82.5, y: 17.5 } },  // 右上
-  { key: 'hk', label: '港', name: '香港繁体', pos: { x: 17.5, y: 82.5 } },  // 左下
-  { key: 'tw', label: '台', name: '台湾繁体', pos: { x: 82.5, y: 82.5 } }, // 右下
+  { key: 'sc', label: 'alphabet_tcsc.simplified', name: 'alphabet_tcsc.mainland_sc', pos: { x: 17.5, y: 17.5 } },
+  { key: 'tc', label: 'alphabet_tcsc.traditional', name: 'alphabet_tcsc.mainland_tc', pos: { x: 82.5, y: 17.5 } },
+  { key: 'hk', label: 'alphabet_tcsc.hong_kong', name: 'alphabet_tcsc.hong_kong_tc', pos: { x: 17.5, y: 82.5 } },
+  { key: 'tw', label: 'alphabet_tcsc.taiwan', name: 'alphabet_tcsc.taiwan_tc', pos: { x: 82.5, y: 82.5 } },
 ]
 
 const langOf = key => LANGS.find(l => l.key === key)
+const langText = value => t(value)
 
 /* ======== 转换状态管理 ======== */
 const from = ref(null)
@@ -115,11 +118,11 @@ async function convert() {
         }
     )
     const data = await res.json()
-    if (!data.success) throw new Error(data.message || '转换失败')
+    if (!data.success) throw new Error(data.message || t('alphabet_tcsc.failed'))
     output.value = data.data ?? ''
   } catch (e) {
     console.error(e)
-    showError(e.message || '转换失败')
+    showError(e.message || t('alphabet_tcsc.failed'))
   } finally {
     loading.value = false
   }
@@ -139,8 +142,8 @@ function onInput() {
 
     <!-- ====== 标题 ====== -->
     <header class="tcsc-hero">
-      <h1 class="tcsc-title">简体繁体转换</h1>
-      <p class="tcsc-sub">点一个顶点为起点，再点一个为终点</p>
+      <h1 class="tcsc-title">{{ $t('alphabet_tcsc.title') }}</h1>
+      <p class="tcsc-sub">{{ $t('alphabet_tcsc.subtitle') }}</p>
     </header>
 
     <!-- ====== 方向盘 ====== -->
@@ -172,33 +175,33 @@ function onInput() {
             :class="[`corner--${l.key}`, { 'is-from': from === l.key, 'is-to': to === l.key }]"
             @click="clickCorner(l.key)"
         >
-          <span class="corner-label">{{ l.label }}</span>
-          <span class="corner-name">{{ l.name }}</span>
+          <span class="corner-label">{{ langText(l.label) }}</span>
+          <span class="corner-name">{{ langText(l.name) }}</span>
         </button>
 
         <!-- 中心控制区 -->
         <div class="dial-center">
           <div class="dir-display">
             <template v-if="hasDir">
-              <span class="dir-name">{{ fromLang.name }}</span>
+              <span class="dir-name">{{ langText(fromLang.name) }}</span>
               <span class="dir-arrow-icon">→</span>
-              <span class="dir-name">{{ toLang.name }}</span>
+              <span class="dir-name">{{ langText(toLang.name) }}</span>
             </template>
-            <p v-else-if="from" class="dir-tip">请选择目标语言</p>
-            <p v-else class="dir-tip">请选择起始语言</p>
+            <p v-else-if="from" class="dir-tip">{{ $t('alphabet_tcsc.target_required') }}</p>
+            <p v-else class="dir-tip">{{ $t('alphabet_tcsc.source_required') }}</p>
           </div>
         </div>
       </div>
 
       <!-- 侧边/下方控制区 -->
       <div class="dial-controls">
-        <button class="control-btn swap" :disabled="!hasDir" title="交换方向" @click="swapDir">
+        <button class="control-btn swap" :disabled="!hasDir" :title="$t('alphabet_tcsc.direction')" @click="swapDir">
           <el-icon><Switch /></el-icon>
-          <span class="btn-text">交换</span>
+          <span class="btn-text">{{ $t('alphabet_tcsc.swap') }}</span>
         </button>
-        <button class="control-btn reset" title="重置选择" @click="reset">
+        <button class="control-btn reset" :title="$t('alphabet_tcsc.reset_selection')" @click="reset">
           <el-icon><Refresh /></el-icon>
-          <span class="btn-text">重置</span>
+          <span class="btn-text">{{ $t('alphabet_tcsc.reset') }}</span>
         </button>
       </div>
     </div>
@@ -211,17 +214,17 @@ function onInput() {
             v-model="input"
             class="tcsc-box tcsc-input"
             rows="10"
-            placeholder="在这里输入要转换的文字…"
+            :placeholder="$t('alphabet_tcsc.input_placeholder')"
             @input="onInput"
         />
       </div>
 
       <div class="edit-col">
         <div class="tcsc-box tcsc-output">
-          <span v-if="loading" class="output-hint">转换中…</span>
+          <span v-if="loading" class="output-hint">{{ $t('alphabet_tcsc.converting') }}</span>
           <template v-else-if="output">{{ output }}</template>
           <span v-else class="output-hint">
-            {{ hasDir ? '转换结果会显示在这里' : '先在上面选择转换方向' }}
+            {{ hasDir ? $t('alphabet_tcsc.result_placeholder') : $t('alphabet_tcsc.direction_placeholder') }}
           </span>
         </div>
       </div>

@@ -16,7 +16,7 @@
           :class="{ active: visible }"
           @click.stop="toggle"
       >
-        <img src="../../assets/icons/information.svg" alt="信息" class="control-icon"/>
+        <img src="../../assets/icons/information.svg" :alt="$t('common.information')" class="control-icon"/>
       </button>
 
     </div>

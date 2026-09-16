@@ -4,8 +4,8 @@
 <template>
   <div class="narrow-layout">
     <div class="hidden-box">
-      <h3>页面不存在</h3>
-      <p>你访问的地址暂时不可用。</p>
+      <h3>{{ $t('developer.not_found_page') }}</h3>
+      <p>{{ $t('developer.unavailable_page') }}</p>
     </div>
   </div>
 </template>

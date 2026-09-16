@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   expectedDuration: { type: Number, default: 3000 },
-  text: { type: String, default: '方言是我们能听见的历史' },
+  text: { type: String, default: '' },
   complete: { type: Boolean, default: false }
 })
 
@@ -60,10 +60,10 @@ onBeforeUnmount(() => {
 <template>
   <section class="loading-page" aria-live="polite" aria-busy="true">
     <div class="loading-content">
-      <div class="loading-track" role="progressbar" aria-label="加载进度" :aria-valuenow="Math.round(progress)" aria-valuemin="0" aria-valuemax="100">
+      <div class="loading-track" role="progressbar" :aria-label="$t('status.loading_progress')" :aria-valuenow="Math.round(progress)" aria-valuemin="0" aria-valuemax="100">
         <span :style="{ width: `${progress}%` }"></span>
       </div>
-      <p v-formatted-text="text || '方言是我们能听见的历史'" />
+      <p v-formatted-text="text || $t('message.welcome')" />
     </div>
   </section>
 </template>

@@ -2,9 +2,11 @@
 import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth.js'
 
 const route = useRoute()
+const {t} = useI18n()
 const getPath = (path) => `/${route.params.language}/${route.params.dialect}/dev/${path}`
 const dashboard = ref(null)
 const loading = ref(false)
@@ -18,11 +20,11 @@ const loadDashboard = async () => {
       params: { t: getToken() }
     })
     if (!res.data.success) {
-      throw new Error(res.data.message || '加载失败')
+      throw new Error(res.data.message || t('developer.load_failed'))
     }
     dashboard.value = res.data.data
   } catch (e) {
-    error.value = e.message || '加载失败'
+    error.value = e.message || t('developer.load_failed')
   } finally {
     loading.value = false
   }
@@ -34,21 +36,21 @@ onMounted(loadDashboard)
 <template>
   <div class="narrow-layout">
     <div class="right-box">
-      <h3>管理员后台框架</h3>
-      <p>这里先放管理员专用入口，后续会接权限校验、用户管理、验证码审计和内容审核。</p>
-      <p v-if="loading">正在读取后台数据...</p>
+      <h3>{{ $t('developer.admin_title') }}</h3>
+      <p>{{ $t('developer.admin_intro') }}</p>
+      <p v-if="loading">{{ $t('developer.reading') }}</p>
       <p v-else-if="error" class="error-text">{{ error }}</p>
       <template v-else-if="dashboard">
-        <p>当前账号：{{ dashboard.profile.username }}</p>
-        <p>角色：admin = {{ dashboard.profile.admin ? '是' : '否' }}</p>
+        <p>{{ $t('developer.current_account') }}{{ dashboard.profile.username }}</p>
+        <p>{{ $t('developer.admin_role') }}{{ dashboard.profile.admin ? $t('developer.yes') : $t('developer.no') }}</p>
       </template>
     </div>
 
     <div class="right-box">
-      <h4>管理入口</h4>
+      <h4>{{ $t('developer.management') }}</h4>
       <div class="d-flex flex-wrap gap-3">
-        <router-link :to="getPath('profile')" class="dev-btn-middle dev-normal-button">账号管理</router-link>
-        <router-link :to="getPath('home')" class="dev-btn-middle dev-normal-button">开发后台</router-link>
+        <router-link :to="getPath('profile')" class="dev-btn-middle dev-normal-button">{{ $t('developer.account_manage') }}</router-link>
+        <router-link :to="getPath('home')" class="dev-btn-middle dev-normal-button">{{ $t('developer.dev_home') }}</router-link>
       </div>
       <div v-if="dashboard?.modules?.length" class="module-list">
         <span v-for="module in dashboard.modules" :key="module" class="module-tag">{{ module }}</span>

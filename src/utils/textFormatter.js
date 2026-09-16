@@ -402,8 +402,16 @@ function processTable(text) {
             i++;
         }
 
+        // 根据列宽标记选择整体布局模式：全紧凑、含长列、普通自适应
+        const widthTypes = aligns.map(info => info.widthType || "normal");
+        const tableMode = widthTypes.length > 0 && widthTypes.every(type => type === "nowrap")
+            ? "rt-table-compact"
+            : widthTypes.includes("long")
+                ? "rt-table-fill"
+                : "rt-table-auto";
+
         // render
-        let html = `<table class="rt-table">`;
+        let html = `<table class="rt-table ${tableMode}">`;
 
         // thead
         if (headers) {
@@ -414,7 +422,7 @@ function processTable(text) {
 
                 const info = aligns[idx] || {};
 
-                html += `<th class="${getColumnClass(info)}"style="text-align:${info.align || "left"}">${cell}</th>`;
+                html += `<th class="${getColumnClass(info)}" style="text-align:${info.align || "left"}">${cell}</th>`;
             });
 
             html += `</tr></thead>`;
@@ -438,7 +446,7 @@ function processTable(text) {
                     const info = aligns[idx] || {};
                     const cell = row[idx] || "";
 
-                    html += `<td class="${getColumnClass(info)}"style="text-align:${info.align || "left"}">${cell}</td>`;
+                    html += `<td class="${getColumnClass(info)}" style="text-align:${info.align || "left"}">${cell}</td>`;
                 }
 
                 html += `</tr>`;
@@ -449,7 +457,7 @@ function processTable(text) {
 
         html += `</table>`;
 
-        html = `<div class="rt-table-wrap">${html}</div>`;
+        html = `<div class="rt-table-wrap ${tableMode}-wrap">${html}</div>`;
 
         result.push(html);
     }
@@ -483,7 +491,9 @@ function processTable(text) {
             .replace(/^\|/, "")
             .replace(/\|$/, "")
             .split("|")
-            .map(cell => cell.trim());
+            // 连续空格已在 processSpaces 中转为 &nbsp;，两种空白都要从单元格两端清除。
+            // 只处理开头和结尾，保留正文中间用于排版的空格。
+            .map(cell => cell.replace(/^(?:\s|&nbsp;)+|(?:\s|&nbsp;)+$/g, ""));
     }
 
     function parseAlignments(line) {

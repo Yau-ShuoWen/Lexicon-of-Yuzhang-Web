@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { saveAuth } from '../../utils/auth.js'
@@ -10,6 +11,7 @@ import brandLogo from '../../assets/images/logov2/yuzhangci2-white.svg'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 const loginMode = ref('password')
 const account = ref('')
 const password = ref('')
@@ -19,7 +21,7 @@ const loading = ref(false)
 const sendingCode = ref(false)
 const error = ref('')
 
-useHead({title: '登录 · 豫章词'})
+useHead({title: () => t('account.login.page_title')})
 
 const studyHome = computed(() => `/${route.params.language}/${route.params.dialect}/study/me`)
 
@@ -30,15 +32,15 @@ const getRedirectTarget = () => {
     : studyHome.value
 }
 
-const getErrorMessage = (exception) => exception.response?.data?.message || exception.message || '登录失败，请稍后再试。'
+const getErrorMessage = (exception) => exception.response?.data?.message || exception.message || t('account.login.failed')
 
 const finishLogin = async (token) => {
   const profileResponse = await axios.get('/api/user/me', {params: {t: token}})
   if (!profileResponse.data?.success) {
-    throw new Error(profileResponse.data?.message || '无法读取账号信息。')
+    throw new Error(profileResponse.data?.message || t('account.login.profile_failed'))
   }
   saveAuth(profileResponse.data.data || null, token)
-  showSuccess('登录成功')
+  showSuccess(t('account.login.success'))
   await router.replace(getRedirectTarget())
 }
 
@@ -46,11 +48,11 @@ const login = async () => {
   error.value = ''
   if (loginMode.value === 'password') {
     const value = account.value.trim()
-    if (!value) return (error.value = '请输入用户名或手机号。')
-    if (!password.value) return (error.value = '请输入密码。')
+    if (!value) return (error.value = t('account.login.account_required'))
+    if (!password.value) return (error.value = t('account.login.password_required'))
   } else {
-    if (!/^\d{11}$/.test(phone.value.trim())) return (error.value = '请输入 11 位手机号。')
-    if (!code.value.trim()) return (error.value = '请输入验证码。')
+    if (!/^\d{11}$/.test(phone.value.trim())) return (error.value = t('account.login.phone_11_required'))
+    if (!code.value.trim()) return (error.value = t('account.login.code_required'))
   }
 
   loading.value = true
@@ -69,7 +71,7 @@ const login = async () => {
         })
 
     if (!response.data?.success || !response.data?.data) {
-      throw new Error(response.data?.message || '登录信息不正确。')
+      throw new Error(response.data?.message || t('account.login.invalid_credentials'))
     }
     await finishLogin(response.data.data)
   } catch (exception) {
@@ -85,7 +87,7 @@ const sendCode = async () => {
   error.value = ''
   const value = phone.value.trim()
   if (!/^\d{11}$/.test(value)) {
-    error.value = '请输入 11 位手机号。'
+    error.value = t('account.login.phone_11_required')
     return
   }
 
@@ -93,9 +95,9 @@ const sendCode = async () => {
   try {
     const response = await axios.post('/api/user/code/create', null, {params: {phone: value}})
     if (!response.data?.success || !response.data?.data?.code) {
-      throw new Error(response.data?.message || '获取验证码失败。')
+      throw new Error(response.data?.message || t('account.login.code_failed'))
     }
-    showSuccess(`验证码：${response.data.data.code}（10 分钟内有效）`, 10000)
+    showSuccess(t('account.login.code_message', {code: response.data.data.code}), 10000)
   } catch (exception) {
     console.error(exception)
     error.value = getErrorMessage(exception)
@@ -120,39 +122,39 @@ const switchMode = (mode) => {
       <div class="login-brand" aria-hidden="true">
         <img :src="brandLogo" alt="" />
       </div>
-      <h3 id="login-title">登录后开始学习</h3>
-      <p class="login-intro">进入方言的世界，并保留学习进度</p>
+      <h3 id="login-title">{{ $t('account.login.heading') }}</h3>
+      <p class="login-intro">{{ $t('account.login.intro') }}</p>
 
-      <div class="login-mode-switch" role="tablist" aria-label="登录方式">
+      <div class="login-mode-switch" role="tablist" :aria-label="$t('account.login.method')">
         <span class="login-mode-slider" :class="{'is-code': loginMode === 'code'}" aria-hidden="true"></span>
-        <button type="button" :class="{active: loginMode === 'password'}" role="tab" :aria-selected="loginMode === 'password'" @click="switchMode('password')">账号密码</button>
-        <button type="button" :class="{active: loginMode === 'code'}" role="tab" :aria-selected="loginMode === 'code'" @click="switchMode('code')">手机验证码</button>
+        <button type="button" :class="{active: loginMode === 'password'}" role="tab" :aria-selected="loginMode === 'password'" @click="switchMode('password')">{{ $t('account.login.account_password') }}</button>
+        <button type="button" :class="{active: loginMode === 'code'}" role="tab" :aria-selected="loginMode === 'code'" @click="switchMode('code')">{{ $t('account.login.phone_code') }}</button>
       </div>
 
       <form class="account-form" @submit.prevent="login">
         <div v-if="loginMode === 'password'" class="login-fields">
-          <input id="study-account" v-model="account" type="text" autocomplete="username" aria-label="用户名或手机号" placeholder="请输入用户名或 11 位手机号" :disabled="loading" />
-          <PasswordInput id="study-password" v-model="password" autocomplete="current-password" aria-label="密码" placeholder="请输入密码" :disabled="loading" />
+          <input id="study-account" v-model="account" type="text" autocomplete="username" :aria-label="$t('account.login.account_label')" :placeholder="$t('account.login.account_placeholder')" :disabled="loading" />
+          <PasswordInput id="study-password" v-model="password" autocomplete="current-password" :aria-label="$t('account.common.password')" :placeholder="$t('account.login.password_placeholder')" :disabled="loading" />
         </div>
 
         <div v-else class="login-fields">
-          <input id="study-phone" v-model="phone" type="tel" inputmode="numeric" autocomplete="tel" aria-label="手机号" maxlength="11" placeholder="请输入 11 位手机号" :disabled="loading || sendingCode" />
+          <input id="study-phone" v-model="phone" type="tel" inputmode="numeric" autocomplete="tel" :aria-label="$t('account.common.phone')" maxlength="11" :placeholder="$t('account.login.phone_11_placeholder')" :disabled="loading || sendingCode" />
           <div class="verification-row">
-            <input id="study-code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code" aria-label="验证码" maxlength="6" placeholder="6 位验证码" :disabled="loading" />
+            <input id="study-code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code" :aria-label="$t('account.common.verification_code')" maxlength="6" :placeholder="$t('account.login.code_placeholder')" :disabled="loading" />
             <button type="button" :disabled="loading || sendingCode" @click="sendCode">
-              {{ sendingCode ? '获取中……' : '获取验证码' }}
+              {{ sendingCode ? $t('account.login.getting_code') : $t('account.login.get_code') }}
             </button>
           </div>
         </div>
 
         <p v-if="error" class="account-error" role="alert">{{ error }}</p>
         <button class="account-primary-button" type="submit" :disabled="loading">
-          {{ loading ? '正在登录…' : '登录' }}
+          {{ loading ? $t('account.login.logging_in') : $t('user.login') }}
         </button>
       </form>
 
       <router-link class="login-back-link" :to="`/${route.params.language}/${route.params.dialect}/dict/home`">
-        暂不登录，返回词典
+        {{ $t('account.login.back_to_dictionary') }}
       </router-link>
     </section>
   </main>

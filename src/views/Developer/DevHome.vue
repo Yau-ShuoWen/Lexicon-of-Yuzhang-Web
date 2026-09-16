@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useHead } from "@vueuse/head";
+import { useI18n } from 'vue-i18n';
 import {
   ArrowRight,
   Collection,
@@ -20,45 +21,46 @@ import {
 import DialectSelector from "../../components/Select/DialectSelector.vue";
 
 const route = useRoute();
+const {t} = useI18n();
 
 const language = computed(() => route.params.language);
 const dialect = computed(() => route.params.dialect);
 const getPath = (path) => `/${language.value}/${dialect.value}/dev/${path}`;
 
-const sections = [
+const sections = computed(() => [
   {
-    title: "工具箱",
-    subtitle: "快速驗證轉換、文字與檔案處理流程",
+    title: t('devhome.toolbox'),
+    subtitle: t('devhome.toolbox_desc'),
     icon: Tools,
     tone: "blue",
     items: [
-      { path: "test/sc-tc", title: "繁體轉簡體", description: "檢查繁簡字轉換結果", icon: Connection },
-      { path: "test/pinyin-ipa", title: "富文本展示框", description: "測試拼音與 IPA 顯示效果", icon: Document },
-      { path: "test/oss", title: "OSS／音頻上傳測試", description: "驗證檔案與音頻上傳流程", icon: Upload },
-      { path: "tool/special-symbol", title: "特殊符號複製", description: "瀏覽並複製常用特殊符號", icon: CopyDocument },
-      { path: "tool/text-diff", title: "字符串差異工具", description: "比較兩段文字的內容差異", icon: DataLine },
+      { path: "test/sc-tc", title: t('devhome.sc_tc'), description: t('devhome.sc_tc_desc'), icon: Connection },
+      { path: "test/pinyin-ipa", title: t('devhome.rich_text'), description: t('devhome.rich_text_desc'), icon: Document },
+      { path: "test/oss", title: t('devhome.oss_audio'), description: t('devhome.oss_audio_desc'), icon: Upload },
+      { path: "tool/special-symbol", title: t('devhome.special_symbol'), description: t('devhome.special_symbol_desc'), icon: CopyDocument },
+      { path: "tool/text-diff", title: t('devhome.text_diff'), description: t('devhome.text_diff_desc'), icon: DataLine },
     ],
   },
   {
-    title: "內容工作區",
-    subtitle: "管理字詞資料、學習內容與輔助設定",
+    title: t('devhome.content_workspace'),
+    subtitle: t('devhome.content_workspace_desc'),
     icon: Collection,
     tone: "green",
     items: [
-      { path: "hanzi-filter", title: "編輯漢字", description: "查找與維護方言漢字資料", icon: EditPen },
-      { path: "ciyu-filter", title: "編輯詞語", description: "整理方言詞語與相關內容", icon: Memo },
-      { path: "study-word-card", title: "編輯學習詞卡", description: "維護學習模式使用的詞卡", icon: Files },
-      { path: "study-curriculum", title: "關卡編輯器", description: "管理部分與章節結構", icon: Collection },
-      { path: "streak-admin", title: "用戶連勝管理", description: "查看與調整學習連勝資料", icon: Setting },
-      { path: "loading-text", title: "編輯加載提示語", description: "管理頁面載入時的提示文字", icon: MagicStick },
-      { path: "pinyin-editor", title: "編輯拼音", description: "維護字詞的拼音註記", icon: Document },
-      { path: "ref-filter", title: "編輯資料", description: "管理字典與參考資料", icon: Collection },
+      { path: "hanzi-filter", title: t('devhome.edit_hanzi'), description: t('devhome.edit_hanzi_desc'), icon: EditPen },
+      { path: "ciyu-filter", title: t('devhome.edit_ciyu'), description: t('devhome.edit_ciyu_desc'), icon: Memo },
+      { path: "study-word-card", title: t('devhome.edit_word_card'), description: t('devhome.edit_word_card_desc'), icon: Files },
+      { path: "study-curriculum", title: t('devhome.curriculum_editor'), description: t('devhome.curriculum_editor_desc'), icon: Collection },
+      { path: "streak-admin", title: t('devhome.streak_admin'), description: t('devhome.streak_admin_desc'), icon: Setting },
+      { path: "loading-text", title: t('devhome.loading_text'), description: t('devhome.loading_text_desc'), icon: MagicStick },
+      { path: "pinyin-editor", title: t('devhome.edit_pinyin'), description: t('devhome.edit_pinyin_desc'), icon: Document },
+      { path: "ref-filter", title: t('devhome.edit_reference'), description: t('devhome.edit_reference_desc'), icon: Collection },
     ],
   },
-];
+]);
 
 useHead({
-  title: () => `開發者模式`,
+  title: () => t('devhome.title'),
 });
 </script>
 
@@ -66,11 +68,11 @@ useHead({
   <div class="dev-home">
     <header class="dev-home__hero">
       <div class="dev-home__hero-copy">
-        <h1 v-formatted-text="`開發者工作台`" />
+        <h1 v-formatted-text="$t('devhome.heading')" />
       </div>
 
       <div class="dev-home__context">
-        <span class="dev-home__context-label">目前環境</span>
+        <span class="dev-home__context-label">{{ $t('devhome.environment') }}</span>
         <DialectSelector />
       </div>
     </header>
@@ -81,8 +83,8 @@ useHead({
           <el-icon><Setting /></el-icon>
         </span>
         <span class="dev-home__card-copy">
-          <strong v-formatted-text="`管理員後台`" />
-          <span>管理帳號、權限與系統層級設定</span>
+          <strong v-formatted-text="$t('devhome.admin')" />
+          <span>{{ $t('devhome.admin_desc') }}</span>
         </span>
         <el-icon class="dev-home__arrow" aria-hidden="true"><ArrowRight /></el-icon>
       </router-link>

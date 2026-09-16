@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { saveAuth } from '../../utils/auth.js'
@@ -9,6 +10,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'logged-in'])
+const {t} = useI18n()
 
 const loginMode = ref('username')
 const username = ref('')
@@ -21,7 +23,11 @@ const isMobile = ref(false)
 const recentCodes = ref([])
 
 const checkMobile = () => { isMobile.value = window.matchMedia('(max-width: 768px)').matches }
-const loginTitle = computed(() => loginMode.value === 'phone-password' ? '手机号登录' : loginMode.value === 'phone-code' ? '手机号验证码登录' : '用户名登录')
+const loginTitle = computed(() => loginMode.value === 'phone-password'
+  ? t('account.login.phone_password_title')
+  : loginMode.value === 'phone-code'
+    ? t('account.login.phone_code_title')
+    : t('account.login.username_title'))
 
 onMounted(() => { checkMobile(); window.addEventListener('resize', checkMobile) })
 onUnmounted(() => window.removeEventListener('resize', checkMobile))
@@ -38,14 +44,14 @@ const loginWithPhoneCode = () => axios.post('/api/user/login-by-code', null, { p
 
 const login = async () => {
   if (loginMode.value === 'username') {
-    if (!username.value.trim()) return showError('请输入用户名')
-    if (!password.value.trim()) return showError('请输入密码')
+    if (!username.value.trim()) return showError(t('account.login.username_required'))
+    if (!password.value.trim()) return showError(t('account.login.password_required'))
   } else if (loginMode.value === 'phone-password') {
-    if (!phone.value.trim()) return showError('请输入手机号')
-    if (!password.value.trim()) return showError('请输入密码')
+    if (!phone.value.trim()) return showError(t('account.login.phone_required'))
+    if (!password.value.trim()) return showError(t('account.login.password_required'))
   } else {
-    if (!phone.value.trim()) return showError('请输入手机号')
-    if (!code.value.trim()) return showError('请输入验证码')
+    if (!phone.value.trim()) return showError(t('account.login.phone_required'))
+    if (!code.value.trim()) return showError(t('account.login.code_required'))
   }
 
   loading.value = true
@@ -56,29 +62,29 @@ const login = async () => {
         ? await loginWithPhonePassword()
         : await loginWithPhoneCode()
 
-    if (!res.data.success) throw new Error(res.data.message || '登录失败')
+    if (!res.data.success) throw new Error(res.data.message || t('account.login.failed_short'))
     await saveSession(res.data.data)
-    showSuccess('登录成功')
+    showSuccess(t('account.login.success'))
     emit('close')
   } catch (e) {
     console.error(e)
-    showError(e.message || '登录失败')
+    showError(e.message || t('account.login.failed_short'))
   } finally {
     loading.value = false
   }
 }
 
 const sendCode = async () => {
-  if (!phone.value.trim()) return showError('请输入手机号')
+  if (!phone.value.trim()) return showError(t('account.login.phone_required'))
   sendingCode.value = true
   try {
     const res = await axios.post('/api/user/code/create', null, { params: { phone: phone.value.trim() } })
-    if (!res.data.success) throw new Error(res.data.message || '生成失败')
-    showSuccess('验证码已生成')
+    if (!res.data.success) throw new Error(res.data.message || t('account.login.code_generation_failed'))
+    showSuccess(t('account.login.code_generated'))
     await refreshRecentCodes()
   } catch (e) {
     console.error(e)
-    showError(e.message || '生成失败')
+    showError(e.message || t('account.login.code_generation_failed'))
   } finally {
     sendingCode.value = false
   }
@@ -95,44 +101,44 @@ const refreshRecentCodes = async () => {
   <teleport to="body">
     <div v-if="open" class="login-overlay" @click.self="$emit('close')">
       <div class="login-modal">
-        <div v-if="isMobile" class="mobile-tip">当前登录页更适合桌面浏览器。</div>
+        <div v-if="isMobile" class="mobile-tip">{{ $t('account.login.desktop_recommended') }}</div>
         <template v-else>
           <div class="login-head">
             <h3>{{ loginTitle }}</h3>
             <button class="close-btn" @click="$emit('close')">×</button>
           </div>
           <div class="mode-switch">
-            <button :class="{ active: loginMode === 'username' }" @click="loginMode = 'username'">用户名</button>
-            <button :class="{ active: loginMode === 'phone-password' }" @click="loginMode = 'phone-password'">手机号+密码</button>
-            <button :class="{ active: loginMode === 'phone-code' }" @click="loginMode = 'phone-code'">手机号+验证码</button>
+            <button :class="{ active: loginMode === 'username' }" @click="loginMode = 'username'">{{ $t('account.common.username') }}</button>
+            <button :class="{ active: loginMode === 'phone-password' }" @click="loginMode = 'phone-password'">{{ $t('account.login.phone_password') }}</button>
+            <button :class="{ active: loginMode === 'phone-code' }" @click="loginMode = 'phone-code'">{{ $t('account.login.phone_verification_code') }}</button>
           </div>
           <template v-if="loginMode === 'username'">
-            <input v-model="username" class="ordinary-input form-item" placeholder="用户名" />
-            <input v-model="password" type="password" class="ordinary-input form-item" placeholder="密码" />
+            <input v-model="username" class="ordinary-input form-item" :placeholder="$t('account.common.username')" />
+            <input v-model="password" type="password" class="ordinary-input form-item" :placeholder="$t('account.common.password')" />
           </template>
           <template v-else-if="loginMode === 'phone-password'">
-            <input v-model="phone" class="ordinary-input form-item" placeholder="手机号" />
-            <input v-model="password" type="password" class="ordinary-input form-item" placeholder="密码" />
+            <input v-model="phone" class="ordinary-input form-item" :placeholder="$t('account.common.phone')" />
+            <input v-model="password" type="password" class="ordinary-input form-item" :placeholder="$t('account.common.password')" />
           </template>
           <template v-else>
-            <input v-model="phone" class="ordinary-input form-item" placeholder="手机号" />
-            <input v-model="code" class="ordinary-input form-item" placeholder="验证码" />
+            <input v-model="phone" class="ordinary-input form-item" :placeholder="$t('account.common.phone')" />
+            <input v-model="code" class="ordinary-input form-item" :placeholder="$t('account.common.verification_code')" />
             <div class="code-actions">
               <button class="dev-normal-button dev-btn-small" :disabled="sendingCode" @click="sendCode">
-                {{ sendingCode ? '生成中...' : '生成验证码' }}
+                {{ sendingCode ? $t('account.login.generating_code') : $t('account.login.generate_code') }}
               </button>
-              <button class="dev-normal-button dev-btn-small" @click="refreshRecentCodes">刷新最近验证码</button>
+              <button class="dev-normal-button dev-btn-small" @click="refreshRecentCodes">{{ $t('account.login.refresh_recent_codes') }}</button>
             </div>
             <div v-if="recentCodes.length" class="code-list">
               <div v-for="item in recentCodes" :key="item.id" class="code-item">
                 <span>{{ item.code }}</span>
-                <span>{{ item.used ? '已核销' : '未核销' }}</span>
+                <span>{{ item.used ? $t('account.login.redeemed') : $t('account.login.not_redeemed') }}</span>
                 <span>{{ item.expiredAt }}</span>
               </div>
             </div>
           </template>
           <button class="dev-normal-button dev-btn-small login-btn" :disabled="loading" @click="login">
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? $t('account.login.logging_in_short') : $t('user.login') }}
           </button>
         </template>
       </div>

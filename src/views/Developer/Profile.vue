@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { logout as authLogout, getToken } from '../../utils/auth.js'
 
 const router = useRouter()
 const route = useRoute()
+const {t} = useI18n()
 
 const newUsername = ref('')
 const oldPassword = ref('')
@@ -18,7 +20,7 @@ const getLoginPath = () => `/${route.params.language}/${route.params.dialect}/lo
 const logout = async () => {
   try {
     await authLogout()
-    showSuccess('已退出登录')
+    showSuccess(t('account.profile.logged_out'))
 
     router.push({
       path: getLoginPath()
@@ -26,7 +28,7 @@ const logout = async () => {
 
   } catch (e) {
     console.error(e)
-    showError('退出登录失败')
+    showError(t('developer.logout_failed'))
   }
 }
 
@@ -41,11 +43,11 @@ const updateUsername = async () => {
 
     if (!res.data.success) throw new Error(res.data.message)
 
-    showSuccess(res.data.message || '修改成功')
+    showSuccess(res.data.message || t('developer.updated'))
 
   } catch (e) {
     console.error(e)
-    showError(e.message || '修改用户名失败')
+    showError(e.message || t('developer.update_username_failed'))
   }
 }
 
@@ -63,11 +65,11 @@ const updatePassword = async () => {
       throw new Error(res.data.message)
     }
 
-    showSuccess(res.data.message || '修改成功')
+    showSuccess(res.data.message || t('developer.updated'))
 
   } catch (e) {
     console.error(e)
-    showError(e.message || '修改密码失败')
+    showError(e.message || t('developer.update_password_failed'))
   }
 }
 </script>
@@ -78,12 +80,12 @@ const updatePassword = async () => {
 
     <div class="right-box">
 
-      <h3>修改用户名</h3>
+      <h3>{{ $t('developer.change_username') }}</h3>
 
-      <input v-model="newUsername" placeholder="新用户名" class="ordinary-input form-item"/>
+      <input v-model="newUsername" :placeholder="$t('developer.new_username')" class="ordinary-input form-item"/>
 
       <button @click="updateUsername" class="dev-btn-small dev-normal-button form-item">
-        修改用户名
+        {{ $t('developer.change_username') }}
       </button>
 
     </div>
@@ -91,14 +93,14 @@ const updatePassword = async () => {
 
     <div class="right-box">
 
-      <h3>修改密码</h3>
+      <h3>{{ $t('account.password.title') }}</h3>
 
-      <input v-model="oldPassword" type="password" placeholder="旧密码" class="ordinary-input form-item"/>
+      <input v-model="oldPassword" type="password" :placeholder="$t('developer.old_password')" class="ordinary-input form-item"/>
 
-      <input v-model="newPassword" type="password" placeholder="新密码" class="ordinary-input form-item"/>
+      <input v-model="newPassword" type="password" :placeholder="$t('developer.new_password')" class="ordinary-input form-item"/>
 
       <button @click="updatePassword" class="dev-btn-small dev-normal-button form-item">
-        修改密码
+        {{ $t('account.password.title') }}
       </button>
 
     </div>
@@ -108,10 +110,10 @@ const updatePassword = async () => {
 
 
     <div class="right-box">
-      <h3>退出登录</h3>
+      <h3>{{ $t('developer.logout') }}</h3>
 
       <button @click="logout" class="dev-btn-small dev-normal-button form-item">
-        确认退出
+        {{ $t('developer.confirm_logout') }}
       </button>
     </div>
 

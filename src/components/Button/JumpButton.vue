@@ -2,7 +2,7 @@
   <button @click="handleClick"
           class="dev-normal-button"
           :class="sizeClass">
-    {{ buttonText }}
+    {{ buttonText || $t('common.jump') }}
   </button>
 </template>
 
@@ -16,7 +16,7 @@ export default {
     },
     buttonText: {
       type: String,
-      default: '跳转'
+      default: ''
     },
     size: {
       type: String,

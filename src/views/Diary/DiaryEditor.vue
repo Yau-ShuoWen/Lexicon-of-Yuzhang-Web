@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
+import { useI18n } from 'vue-i18n'
 import TextDiffEditor from '../../components/Compare/TextDiffEditor.vue'
 import { confirm } from '../../services/confirmService.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
@@ -10,14 +11,15 @@ import { getDiaryForEdit, updateDiary } from './diaryApi.js'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 const diaryId = computed(() => String(route.params.id || ''))
 const canEdit = computed(() => hasPermission('diary.edit'))
 
-const visibilityOptions = [
-  { value: 'private', label: '私人', hint: '只保存主版本' },
-  { value: 'friend', label: '朋友', hint: '保存主版本和朋友版本' },
-  { value: 'stranger', label: '陌生人', hint: '保存三个层级版本' }
-]
+const visibilityOptions = computed(() => [
+  { value: 'private', label: t('diary.editor.private'), hint: t('diary.editor.private_hint') },
+  { value: 'friend', label: t('diary.editor.friend'), hint: t('diary.editor.friend_hint') },
+  { value: 'stranger', label: t('diary.editor.stranger'), hint: t('diary.editor.stranger_hint') }
+])
 
 const form = ref(null)
 const loading = ref(true)
@@ -41,7 +43,7 @@ const strangerEditorValue = computed({
 
 const currentVisibility = computed(() => form.value?.visibility || 'private')
 const currentVisibilityLabel = computed(() => (
-  visibilityOptions.find(item => item.value === currentVisibility.value)?.label || '私人'
+  visibilityOptions.value.find(item => item.value === currentVisibility.value)?.label || t('diary.editor.private')
 ))
 const showFriendVersion = computed(() => Boolean(
   form.value && (currentVisibility.value !== 'private' || form.value.forFriend !== null)
@@ -56,16 +58,16 @@ const fieldsToClearOnSave = computed(() => {
 
   const fields = []
   if (currentVisibility.value === 'private') {
-    if (form.value.forFriend !== null) fields.push('朋友版本')
-    if (form.value.forStranger !== null) fields.push('陌生人版本')
+    if (form.value.forFriend !== null) fields.push(t('diary.editor.friend_version'))
+    if (form.value.forStranger !== null) fields.push(t('diary.editor.stranger_version'))
   } else if (currentVisibility.value === 'friend' && form.value.forStranger !== null) {
-    fields.push('陌生人版本')
+    fields.push(t('diary.editor.stranger_version'))
   }
   return fields
 })
 
 useHead({
-  title: () => form.value?.date ? `${form.value.date} - 编辑日记` : '编辑日记'
+  title: () => form.value?.date ? `${form.value.date} - ${t('diary.editor.title')}` : t('diary.editor.title')
 })
 
 function normalizeForm(value) {
@@ -85,7 +87,7 @@ function normalizeForm(value) {
 async function loadDiary() {
   if (!canEdit.value) {
     loading.value = false
-    loadError.value = '没有日记编辑权限'
+    loadError.value = t('diary.editor.no_permission')
     return
   }
 
@@ -95,8 +97,8 @@ async function loadDiary() {
     form.value = normalizeForm(await getDiaryForEdit(diaryId.value))
   } catch (error) {
     console.error(error)
-    loadError.value = error.message || '加载日记失败'
-    showError(`加载日记失败：${loadError.value}`)
+    loadError.value = error.message || t('diary.editor.load_failed')
+    showError(`${t('diary.editor.load_failed')}：${loadError.value}`)
   } finally {
     loading.value = false
   }
@@ -136,9 +138,9 @@ function publicEmptyLabels() {
   if (!form.value || currentVisibility.value === 'private') return []
 
   const labels = []
-  if (!String(form.value.forFriend ?? '').trim()) labels.push('朋友版本')
+  if (!String(form.value.forFriend ?? '').trim()) labels.push(t('diary.editor.friend_version'))
   if (currentVisibility.value === 'stranger' && !String(form.value.forStranger ?? '').trim()) {
-    labels.push('陌生人版本')
+    labels.push(t('diary.editor.stranger_version'))
   }
   return labels
 }
@@ -161,26 +163,26 @@ async function saveDiary() {
   if (!form.value || saving.value) return
 
   if (!form.value.date) {
-    showError('请选择日记日期')
+    showError(t('diary.editor.date_required'))
     return
   }
   if (!Number.isInteger(Number(form.value.sort)) || Number(form.value.sort) <= 0) {
-    showError('sort 必须是大于 0 的整数')
+    showError(t('diary.editor.sort_invalid'))
     return
   }
   if (form.value.content === null || form.value.content === undefined) {
-    showError('正文不能为空')
+    showError(t('diary.editor.content_required'))
     return
   }
 
   const emptyLabels = publicEmptyLabels()
   if (fieldsToClearOnSave.value.length) {
     const shouldClear = await confirm({
-      title: '确认降低公开范围',
-      message: `${fieldsToClearOnSave.value.join('、')}将在确认提交后保存为 null，当前内容会被清除。确定继续吗？`,
+      title: t('diary.editor.lower_confirm_title'),
+      message: t('diary.editor.lower_confirm', {labels: fieldsToClearOnSave.value.join('、')}),
       actions: [
-        { key: true, text: '确认提交并清除', class: 'dev-btn-small dev-remove-btn' },
-        { key: false, text: '返回修改', class: 'dev-btn-small dev-normal-button' }
+        { key: true, text: t('diary.editor.clear_submit'), class: 'dev-btn-small dev-remove-btn' },
+        { key: false, text: t('diary.editor.return_edit'), class: 'dev-btn-small dev-normal-button' }
       ]
     })
     if (!shouldClear) return
@@ -188,15 +190,15 @@ async function saveDiary() {
 
   if (emptyLabels.length) {
     const shouldSubmitEmpty = await confirm({
-      title: '公开版本为空',
-      message: `${emptyLabels.join('、')}为空，确定仍然提交吗？`,
+      title: t('diary.editor.empty_public_title'),
+      message: t('diary.editor.empty_public', {labels: emptyLabels.join('、')}),
       actions: [
-        { key: true, text: '仍然提交', class: 'dev-btn-small dev-add-btn' },
-        { key: false, text: '返回修改', class: 'dev-btn-small dev-normal-button' }
+        { key: true, text: t('diary.editor.submit_anyway'), class: 'dev-btn-small dev-add-btn' },
+        { key: false, text: t('diary.editor.return_edit'), class: 'dev-btn-small dev-normal-button' }
       ]
     })
     if (!shouldSubmitEmpty) {
-      activePublicModal.value = emptyLabels.includes('朋友版本') ? 'friend' : 'stranger'
+      activePublicModal.value = emptyLabels.includes(t('diary.editor.friend_version')) ? 'friend' : 'stranger'
       return
     }
   }
@@ -206,10 +208,10 @@ async function saveDiary() {
     const saved = await updateDiary(diaryId.value, buildPayload())
     form.value = normalizeForm(saved)
     activePublicModal.value = null
-    showSuccess('日记保存成功')
+    showSuccess(t('diary.editor.save_success'))
   } catch (error) {
     console.error(error)
-    showError(`保存日记失败：${error.message || '请稍后重试'}`)
+    showError(`${t('diary.editor.save')}：${error.message || t('diary.editor.retry')}`)
   } finally {
     saving.value = false
   }
@@ -233,10 +235,10 @@ onMounted(loadDiary)
   <main class="broaden-layout diary-editor-page">
     <div class="diary-editor-header">
       <div>
-        <h1>编辑日记</h1>
+        <h1>{{ $t('diary.editor.title') }}</h1>
       </div>
       <div class="diary-editor-header-actions">
-        <button class="dev-normal-button dev-btn-small" type="button" @click="router.back()">返回详情</button>
+        <button class="dev-normal-button dev-btn-small" type="button" @click="router.back()">{{ $t('diary.editor.back_detail') }}</button>
         <button
           v-if="form"
           class="dev-add-btn dev-btn-small"
@@ -244,41 +246,41 @@ onMounted(loadDiary)
           :disabled="saving"
           @click="saveDiary"
         >
-          {{ saving ? '保存中……' : '保存修改' }}
+          {{ saving ? $t('diary.editor.saving') : $t('diary.editor.save') }}
         </button>
       </div>
     </div>
 
-    <div v-if="loading" class="diary-editor-state panel">正在加载日记……</div>
+    <div v-if="loading" class="diary-editor-state panel">{{ $t('diary.editor.loading') }}</div>
     <div v-else-if="loadError" class="diary-editor-state panel">
       <strong>{{ loadError }}</strong>
-      <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">返回</button>
+      <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">{{ $t('diary.editor.back') }}</button>
     </div>
 
     <div v-else-if="form" class="diary-editor-form">
       <section class="diary-editor-panel panel">
         <div class="diary-meta-grid">
           <label class="diary-field">
-            <span>日期</span>
+            <span>{{ $t('diary.editor.date') }}</span>
             <input v-model="form.date" class="ordinary-input" type="date" required />
           </label>
           <label class="diary-field">
-            <span>排序 sort</span>
+            <span>{{ $t('diary.editor.sort') }}</span>
             <input v-model.number="form.sort" class="ordinary-input" type="number" min="1" step="1" required />
           </label>
           <label class="diary-field">
-            <span>开始写作</span>
+            <span>{{ $t('diary.editor.start') }}</span>
             <input v-model="form.startDate" class="ordinary-input" type="date" />
           </label>
           <label class="diary-field">
-            <span>完成时间</span>
+            <span>{{ $t('diary.editor.finalize') }}</span>
             <input v-model="form.finalizeDate" class="ordinary-input" type="date" />
           </label>
         </div>
 
         <div class="diary-settings-row">
           <div class="visibility-setting">
-            <div class="visibility-options" role="radiogroup" aria-label="公开范围">
+            <div class="visibility-options" role="radiogroup" :aria-label="$t('diary.editor.visibility')">
               <label
                 v-for="option in visibilityOptions"
                 :key="option.value"
@@ -296,37 +298,37 @@ onMounted(loadDiary)
 
           <div class="diary-public-version-setting">
             <div v-if="!showFriendVersion && !showStrangerVersion" class="public-empty-state">
-              当前为私人模式，朋友版和陌生人版保存为 <code>null</code>。
+              {{ $t('diary.editor.private_notice') }}
             </div>
             <div v-else class="public-version-summary">
               <div v-if="showFriendVersion" class="public-version-summary__item">
-                <span>朋友版本</span>
+                <span>{{ $t('diary.editor.friend_version') }}</span>
                 <strong :class="{ 'is-empty': !String(form.forFriend ?? '').trim() }">
-                  {{ String(form.forFriend ?? '').trim() ? '已填写' : '暂为空' }}
+                  {{ String(form.forFriend ?? '').trim() ? $t('diary.editor.filled') : $t('diary.editor.empty') }}
                 </strong>
-                <em v-if="!canEditFriendVersion" class="public-version-summary__pending">提交后清除</em>
+                <em v-if="!canEditFriendVersion" class="public-version-summary__pending">{{ $t('diary.editor.pending') }}</em>
                 <button
                   v-if="canEditFriendVersion"
                   class="dev-normal-button dev-btn-small"
                   type="button"
                   @click="openPublicEditor('friend')"
                 >
-                  编辑
+                  {{ $t('diary.editor.edit') }}
                 </button>
               </div>
               <div v-if="showStrangerVersion" class="public-version-summary__item">
-                <span>陌生人版本</span>
+                <span>{{ $t('diary.editor.stranger_version') }}</span>
                 <strong :class="{ 'is-empty': !String(form.forStranger ?? '').trim() }">
-                  {{ String(form.forStranger ?? '').trim() ? '已填写' : '暂为空' }}
+                  {{ String(form.forStranger ?? '').trim() ? $t('diary.editor.filled') : $t('diary.editor.empty') }}
                 </strong>
-                <em v-if="!canEditStrangerVersion" class="public-version-summary__pending">提交后清除</em>
+                <em v-if="!canEditStrangerVersion" class="public-version-summary__pending">{{ $t('diary.editor.pending') }}</em>
                 <button
                   v-if="canEditStrangerVersion"
                   class="dev-normal-button dev-btn-small"
                   type="button"
                   @click="openPublicEditor('stranger')"
                 >
-                  编辑
+                  {{ $t('diary.editor.edit') }}
                 </button>
               </div>
             </div>
@@ -340,7 +342,7 @@ onMounted(loadDiary)
           v-model="form.content"
           class="diary-main-input"
           rows="18"
-          placeholder="在这里编辑完整日记内容……"
+          :placeholder="$t('diary.editor.content_placeholder')"
           spellcheck="false"
         ></textarea>
       </section>
@@ -357,14 +359,14 @@ onMounted(loadDiary)
         <header class="diary-modal-header">
           <div>
             <h2 :id="`public-editor-title-${activePublicModal}`">
-              {{ activePublicModal === 'friend' ? '编辑朋友版本' : '编辑陌生人版本' }}
+              {{ activePublicModal === 'friend' ? `${$t('diary.editor.edit')}${$t('diary.editor.friend_version')}` : `${$t('diary.editor.edit')}${$t('diary.editor.stranger_version')}` }}
             </h2>
           </div>
           <button
             class="diary-modal-close"
             type="button"
             :disabled="saving"
-            aria-label="关闭版本编辑窗口"
+            :aria-label="$t('diary.editor.close_version')"
             @click="closePublicEditor"
           >×</button>
         </header>
@@ -374,8 +376,8 @@ onMounted(loadDiary)
             v-if="activePublicModal === 'friend'"
             v-model:source="form.content"
             v-model:target="friendEditorValue"
-            source-label="主版本（自己）"
-            target-label="朋友版本"
+            :source-label="$t('diary.editor.main_version')"
+            :target-label="$t('diary.editor.friend_version')"
             compare-url="/api/diary/edit/diff"
           />
 
@@ -383,8 +385,8 @@ onMounted(loadDiary)
             v-else
             v-model:source="form.content"
             v-model:target="strangerEditorValue"
-            source-label="主版本（自己）"
-            target-label="陌生人版本"
+            :source-label="$t('diary.editor.main_version')"
+            :target-label="$t('diary.editor.stranger_version')"
             compare-url="/api/diary/edit/diff"
           />
         </div>

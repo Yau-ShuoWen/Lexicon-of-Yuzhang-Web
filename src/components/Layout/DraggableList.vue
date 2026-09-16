@@ -82,7 +82,7 @@ const updateSort = () => {
 
     <div v-if="showAdd" class="add-bar">
       <button @click="addItem" class="dev-add-btn dev-btn-small">
-        添加
+        {{ $t('draggable_list.add') }}
       </button>
     </div>
 
@@ -114,7 +114,7 @@ const updateSort = () => {
           v-if="showDelete"
           class="dev-remove-btn dev-btn-small"
           @click="removeItem(index)"
-      >删除
+      >{{ $t('draggable_list.delete') }}
       </button>
     </div>
 

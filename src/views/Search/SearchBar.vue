@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   getValidatedSearchConfig,
   saveSearchConfig
@@ -8,6 +9,7 @@ import {
 
 const router = useRouter()
 const route = useRoute()
+const {t} = useI18n()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
@@ -87,13 +89,13 @@ const saveConfig = () => {
 const searchLevel = computed(() => {
   switch (phonogram.value) {
     case 0:
-      return '入门'
+      return t('search.beginner')
 
     case 2:
-      return '专业'
+      return t('search.professional')
 
     default:
-      return '标准'
+      return t('search.standard').replace('（推荐）', '')
   }
 })
 
@@ -180,7 +182,7 @@ onMounted(() => {
 
           <button class="capsule-btn" type="button" @click="handleRandom">
             <img src="../../assets/icons/random.svg" alt="random" class="toolbar-icon-left">
-            <span>随机</span>
+            <span>{{ $t('search.random') }}</span>
           </button>
 
           <button
@@ -238,7 +240,7 @@ onMounted(() => {
         <div class="mode-dialog">
 
           <h3 class="mode-dialog-title">
-            选择显示模式
+            {{ $t('search.mode_select') }}
           </h3>
 
           <div
@@ -247,11 +249,11 @@ onMounted(() => {
               @click="selectMode(0)"
           >
             <div class="mode-header">
-              <span class="mode-name">入门</span>
+              <span class="mode-name">{{ $t('search.beginner') }}</span>
             </div>
 
             <div class="mode-desc">
-              适合初学者
+              {{ $t('search.beginner_desc') }}
             </div>
 
             <div class="mode-example" v-formatted-text="`豫章词：[yu↘] [zòng] [cí]`"/>
@@ -263,11 +265,11 @@ onMounted(() => {
               @click="selectMode(1)"
           >
             <div class="mode-header">
-              <span class="mode-name">标准（推荐）</span>
+              <span class="mode-name">{{ $t('search.standard') }}</span>
             </div>
 
             <div class="mode-desc">
-              适合学习者
+              {{ $t('search.standard_desc') }}
             </div>
 
             <div class="mode-example" v-formatted-text="`豫章词：[ü̉] [zòng] [cí]`">
@@ -281,11 +283,11 @@ onMounted(() => {
               @click="selectMode(2)"
           >
             <div class="mode-header">
-              <span class="mode-name">专业</span>
+              <span class="mode-name">{{ $t('search.professional') }}</span>
             </div>
 
             <div class="mode-desc">
-              适合研究者，展示国际音标，支持自定义显示样式
+              {{ $t('search.professional_desc') }}
             </div>
 
             <div class="mode-example" v-formatted-text="`豫章词：[y_˩˩˩] [tsɔŋ_˦˨] [ts'ɿ_˨˦]`"/>

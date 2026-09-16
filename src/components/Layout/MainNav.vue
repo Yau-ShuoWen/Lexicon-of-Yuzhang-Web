@@ -80,33 +80,33 @@ watch(route, async () => {
     <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
     <router-link :to="getPath(`dict/pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
     <router-link :to="getPath(`dict/about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
-    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="`学习`"/>
-    <router-link :to="getPath(`dev`)" class="nav-link" v-formatted-text="`开发者`" v-if="isAdmin"/>
+    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="$t('nav.study')"/>
+    <router-link :to="getPath(`dev`)" class="nav-link" v-formatted-text="$t('nav.developer')" v-if="isAdmin"/>
 
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="`开始学习`"/>
-    <router-link :to="getPath(`study/profile`)" class="nav-link" v-formatted-text="`个人中心`"/>
-    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="`词典`"/>
+    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="$t('nav.start_study')"/>
+    <router-link :to="getPath(`study/profile`)" class="nav-link" v-formatted-text="$t('nav.profile_center')"/>
+    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`dev/home`)" class="nav-link" v-formatted-text="`開發者首頁`"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="`詞典`"/>
+    <router-link :to="getPath(`dev/home`)" class="nav-link" v-formatted-text="$t('nav.developer_home')"/>
+    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="{ name: 'YswHome', params: { language: language } }"
-                 class="nav-link" v-formatted-text="`屋里`"/>
+                 class="nav-link" v-formatted-text="$t('nav.ysw_home')"/>
     <router-link :to="getPath(`ysw/alphabet`)" class="nav-link"
                  v-formatted-text="$t('personal.alphabet_table.title_short')"
     />
-    <router-link :to="getPath(`ysw/diary`)" class="nav-link" v-formatted-text="language === 'tc' ? '日記' : '日记'"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="`詞典`"/>
+    <router-link :to="getPath(`ysw/diary`)" class="nav-link" v-formatted-text="$t('nav.diary')"/>
+    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
   </nav>
 
   <!-- 顶部渐隐遮罩：内容滚动到导航下方之前先慢慢模糊淡出 -->

@@ -2,10 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import StreakSummary from './StreakSummary.vue'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const parts = ref([])
@@ -13,7 +15,7 @@ const loading = ref(true)
 const usingDemo = ref(false)
 const expandedLevel = ref(null)
 
-useHead({ title: '学习路线 · 词典' })
+useHead({title: () => t('study.home.page_title')})
 
 const demo = [{
   id: 'demo-part-1', partOrder: 1,
@@ -76,64 +78,64 @@ onMounted(load)
     <div class="study-path-shell">
       <header class="study-path-topbar">
         <div>
-          <p class="study-path-eyebrow">LEARNING PATH</p>
-          <p class="study-path-breadcrumb">学习 <span>/</span> {{ dialect === 'lac' ? '南昌话' : '成都话' }}</p>
+          <p class="study-path-eyebrow">{{ $t('study.path.eyebrow') }}</p>
+          <p class="study-path-breadcrumb">{{ $t('study.path.breadcrumb') }} <span>/</span> {{ $t(`dialect.${dialect}`) }}</p>
         </div>
         <StreakSummary />
       </header>
 
       <section class="study-path-hero">
         <div>
-          <span class="study-path-tag">从认识，到会用</span>
-          <h1>一步一步，学会<br /><em>听见</em>这门方言。</h1>
-          <p>每一个部分都由真实场景组成。完成一关，就把一个小目标变成自己的能力。</p>
-          <button class="study-path-continue" @click="continueStudy">继续学习 <b>→</b></button>
+          <span class="study-path-tag">{{ $t('study.path.tag') }}</span>
+          <h1>{{ $t('study.path.hero_before') }}<br /><em>{{ $t('study.path.hero_emphasis') }}</em>{{ $t('study.path.hero_after') }}</h1>
+          <p>{{ $t('study.path.intro') }}</p>
+          <button class="study-path-continue" @click="continueStudy">{{ $t('study.path.continue') }} <b>→</b></button>
         </div>
         <div class="study-path-art" aria-hidden="true">
           <div class="study-path-circle"></div>
           <div class="study-path-card">
-            <small>当前部分</small>
-            <strong>{{ activePart ? text(activePart.title) : '完成入门' }}</strong>
+            <small>{{ $t('study.path.current_part') }}</small>
+            <strong>{{ activePart ? text(activePart.title) : $t('study.path.default_part') }}</strong>
             <div class="study-path-bar"><span :style="{width: `${progress}%`}"></span></div>
-            <small>{{ completed }} / {{ levels.length }} 关卡完成</small>
+            <small>{{ $t('study.path.levels_completed', {completed, total: levels.length}) }}</small>
           </div>
-          <i class="study-path-note note-one">听见</i><i class="study-path-note note-two">开口</i>
+          <i class="study-path-note note-one">{{ $t('study.path.note_listen') }}</i><i class="study-path-note note-two">{{ $t('study.path.note_speak') }}</i>
         </div>
       </section>
 
-      <p v-if="usingDemo" class="study-path-demo">当前显示基础示例路线，发布课程后会自动替换为实际内容。</p>
+      <p v-if="usingDemo" class="study-path-demo">{{ $t('study.path.demo_notice') }}</p>
 
       <section class="study-path-content">
         <div class="study-path-heading">
-          <div><p class="study-path-eyebrow">YOUR PATH</p><h2>学习路线</h2></div>
-          <span>{{ completed }} / {{ levels.length }} 关卡</span>
+          <div><p class="study-path-eyebrow">{{ $t('study.path.your_path') }}</p><h2>{{ $t('study.path.title') }}</h2></div>
+          <span>{{ $t('study.path.level_count', {completed, total: levels.length}) }}</span>
         </div>
 
         <section v-if="activePart" class="study-part-panel">
           <header class="study-part-header">
             <div class="study-part-number">{{ String(activePart.partOrder).padStart(2, '0') }}</div>
-            <div><small>第 {{ activePart.partOrder }} 部分</small><h3>{{ text(activePart.title) }}</h3><p>{{ text(activePart.description) }}</p></div>
+            <div><small>{{ $t('study.path.part_number', {number: activePart.partOrder}) }}</small><h3>{{ text(activePart.title) }}</h3><p>{{ text(activePart.description) }}</p></div>
             <strong>{{ progress }}%</strong>
           </header>
           <div class="study-level-list">
             <article v-for="level in levels" :key="level.id" class="study-level" :class="`level-${level.state}`">
               <button class="study-level-button" :disabled="level.state === 'locked'" @click="expandedLevel = expandedLevel === level.id ? null : level.id">
                 <span class="study-level-icon"><span v-if="level.state === 'completed'">✓</span><span v-else-if="level.state === 'locked'">···</span><span v-else>{{ level.levelOrder }}</span></span>
-                <span class="study-level-info"><small>关卡 {{ String(level.levelOrder).padStart(2, '0') }}</small><b>{{ text(level.title) }}</b><em>{{ text(level.description) }}</em></span>
-                <span class="study-level-meta">{{ level.questionCount || 3 }} 组练习<br /><strong>{{ level.state === 'completed' ? '已完成' : level.state === 'locked' ? '未解锁' : '开始学习' }}</strong></span>
+                <span class="study-level-info"><small>{{ $t('study.path.level_number', {number: String(level.levelOrder).padStart(2, '0')}) }}</small><b>{{ text(level.title) }}</b><em>{{ text(level.description) }}</em></span>
+                <span class="study-level-meta">{{ $t('study.path.exercise_count', {count: level.questionCount || 3}) }}<br /><strong>{{ level.state === 'completed' ? $t('study.path.completed') : level.state === 'locked' ? $t('study.path.locked') : $t('study.path.start') }}</strong></span>
                 <span class="study-level-arrow" :class="{open: expandedLevel === level.id}">⌄</span>
               </button>
               <div v-if="expandedLevel === level.id && level.state !== 'locked'" class="study-level-detail">
-                <p>{{ text(level.description) }}</p><button @click="start(level)">{{ level.state === 'completed' ? '重新练习' : '进入关卡' }} →</button>
+                <p>{{ text(level.description) }}</p><button @click="start(level)">{{ level.state === 'completed' ? $t('study.path.practice_again') : $t('study.path.enter_level') }} →</button>
               </div>
             </article>
           </div>
         </section>
-        <div v-else-if="loading" class="study-path-empty">正在读取学习路线……</div>
-        <div v-else class="study-path-empty">还没有发布学习内容。</div>
+        <div v-else-if="loading" class="study-path-empty">{{ $t('study.path.loading') }}</div>
+        <div v-else class="study-path-empty">{{ $t('study.path.empty') }}</div>
       </section>
 
-      <footer class="study-path-footer">部分 <i>→</i> 关卡 <i>→</i> 练习 <span>完成当前关卡后，下一关会自动解锁。</span></footer>
+      <footer class="study-path-footer">{{ $t('study.path.footer_part') }} <i>→</i> {{ $t('study.path.footer_level') }} <i>→</i> {{ $t('study.path.footer_exercise') }} <span>{{ $t('study.path.unlock_hint') }}</span></footer>
     </div>
   </main>
 </template>

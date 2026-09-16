@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { saveAuth } from '../../utils/auth.js'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 
 const loginMode = ref('username')
 const username = ref('')
@@ -19,7 +21,7 @@ const isMobile = ref(false)
 const recentCodes = ref([])
 
 const checkMobile = () => { isMobile.value = window.matchMedia('(max-width: 768px)').matches }
-const loginTitle = computed(() => loginMode.value === 'phone-password' ? '手机号登录' : loginMode.value === 'phone-code' ? '手机号验证码登录' : '用户名登录')
+const loginTitle = computed(() => loginMode.value === 'phone-password' ? t('developer.login_title_phone') : loginMode.value === 'phone-code' ? t('developer.login_title_code') : t('developer.login_title_username'))
 const targetPath = () => `/${route.params.language}/${route.params.dialect}/dict/about`
 
 onMounted(() => { checkMobile(); window.addEventListener('resize', checkMobile) })
@@ -36,14 +38,14 @@ const loginWithPhoneCode = () => axios.post('/api/user/login-by-code', null, { p
 
 const login = async () => {
   if (loginMode.value === 'username') {
-    if (!username.value.trim()) return showError('请输入用户名')
-    if (!password.value.trim()) return showError('请输入密码')
+    if (!username.value.trim()) return showError(t('developer.required_username'))
+    if (!password.value.trim()) return showError(t('developer.required_password'))
   } else if (loginMode.value === 'phone-password') {
-    if (!phone.value.trim()) return showError('请输入手机号')
-    if (!password.value.trim()) return showError('请输入密码')
+    if (!phone.value.trim()) return showError(t('developer.required_phone'))
+    if (!password.value.trim()) return showError(t('developer.required_password'))
   } else {
-    if (!phone.value.trim()) return showError('请输入手机号')
-    if (!code.value.trim()) return showError('请输入验证码')
+    if (!phone.value.trim()) return showError(t('developer.required_phone'))
+    if (!code.value.trim()) return showError(t('developer.required_code'))
   }
 
   loading.value = true
@@ -53,29 +55,29 @@ const login = async () => {
         : loginMode.value === 'phone-password'
             ? await loginWithPhonePassword()
             : await loginWithPhoneCode()
-    if (!res.data.success) throw new Error(res.data.message || '登录失败')
+    if (!res.data.success) throw new Error(res.data.message || t('developer.failed'))
     await saveSession(res.data.data)
-    showSuccess('登录成功')
+    showSuccess(t('developer.success'))
     router.push({ path: targetPath() })
   } catch (e) {
     console.error(e)
-    showError(e.message || '登录失败')
+    showError(e.message || t('developer.failed'))
   } finally {
     loading.value = false
   }
 }
 
 const sendCode = async () => {
-  if (!phone.value.trim()) return showError('请输入手机号')
+  if (!phone.value.trim()) return showError(t('developer.required_phone'))
   sendingCode.value = true
   try {
     const res = await axios.post('/api/user/code/create', null, { params: { phone: phone.value.trim() } })
-    if (!res.data.success) throw new Error(res.data.message || '生成失败')
-    showSuccess('验证码已生成')
+    if (!res.data.success) throw new Error(res.data.message || t('developer.generate_failed'))
+    showSuccess(t('developer.code_generated'))
     await refreshRecentCodes()
   } catch (e) {
     console.error(e)
-    showError(e.message || '生成失败')
+    showError(e.message || t('developer.generate_failed'))
   } finally {
     sendingCode.value = false
   }
@@ -93,45 +95,45 @@ const refreshRecentCodes = async () => {
     <div class="login-backdrop"></div>
     <div class="login-modal">
       <div v-if="isMobile" class="mobile-tip">
-        当前登录页更适合桌面浏览器。
+        {{ $t('developer.desktop_tip') }}
       </div>
       <template v-else>
         <h3>{{ loginTitle }}</h3>
         <div class="mode-switch">
-          <button :class="{active: loginMode==='username'}" @click="loginMode='username'">用户名</button>
+          <button :class="{active: loginMode==='username'}" @click="loginMode='username'">{{ $t('developer.username') }}</button>
           <button :class="{active: loginMode==='phone-password'}" @click="loginMode='phone-password'">手机号+密码</button>
           <button :class="{active: loginMode==='phone-code'}" @click="loginMode='phone-code'">手机号+验证码</button>
         </div>
 
         <template v-if="loginMode === 'username'">
-          <input v-model="username" class="ordinary-input form-item" placeholder="用户名" />
-          <input v-model="password" class="ordinary-input form-item" type="password" placeholder="密码" />
+          <input v-model="username" class="ordinary-input form-item" :placeholder="$t('developer.username')" />
+          <input v-model="password" class="ordinary-input form-item" type="password" :placeholder="$t('developer.password')" />
         </template>
 
         <template v-else-if="loginMode === 'phone-password'">
-          <input v-model="phone" class="ordinary-input form-item" placeholder="手机号" />
-          <input v-model="password" class="ordinary-input form-item" type="password" placeholder="密码" />
+          <input v-model="phone" class="ordinary-input form-item" :placeholder="$t('developer.phone')" />
+          <input v-model="password" class="ordinary-input form-item" type="password" :placeholder="$t('developer.password')" />
         </template>
 
         <template v-else>
-          <input v-model="phone" class="ordinary-input form-item" placeholder="手机号" />
-          <input v-model="code" class="ordinary-input form-item" placeholder="验证码" />
+          <input v-model="phone" class="ordinary-input form-item" :placeholder="$t('developer.phone')" />
+          <input v-model="code" class="ordinary-input form-item" :placeholder="$t('developer.code')" />
           <div class="code-actions">
-            <button class="dev-normal-button dev-btn-small" :disabled="sendingCode" @click="sendCode">{{ sendingCode ? '生成中...' : '生成验证码' }}</button>
-            <button class="dev-normal-button dev-btn-small" @click="refreshRecentCodes">刷新最近验证码</button>
+            <button class="dev-normal-button dev-btn-small" :disabled="sendingCode" @click="sendCode">{{ sendingCode ? $t('developer.generating') : $t('developer.generate') }}</button>
+            <button class="dev-normal-button dev-btn-small" @click="refreshRecentCodes">{{ $t('developer.refresh_codes') }}</button>
           </div>
-          <div class="hint">当前阶段验证码直接写入数据库，可在这里查看最近几条。</div>
+          <div class="hint">{{ $t('developer.code_hint') }}</div>
           <div v-if="recentCodes.length" class="code-list">
             <div v-for="item in recentCodes" :key="item.id" class="code-item">
               <span>{{ item.code }}</span>
-              <span>{{ item.used ? '已核销' : '未核销' }}</span>
+              <span>{{ item.used ? $t('developer.redeemed') : $t('developer.not_redeemed') }}</span>
               <span>{{ item.expiredAt }}</span>
             </div>
           </div>
         </template>
 
         <button class="dev-normal-button dev-btn-small login-btn" :disabled="loading" @click="login">
-          {{ loading ? '登录中...' : '登录' }}
+          {{ loading ? $t('developer.login_short') : $t('developer.login') }}
         </button>
       </template>
     </div>

@@ -1,6 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth.js'
+
+const { t } = useI18n()
 
 const DIFF_LINE_HEIGHT = 24
 const EMPTY_DIFF = { source: '', target: '', changes: [] }
@@ -8,10 +11,10 @@ const EMPTY_DIFF = { source: '', target: '', changes: [] }
 const props = defineProps({
   source: { type: String, default: '' },
   target: { type: String, default: '' },
-  sourceLabel: { type: String, default: '左侧版本' },
-  targetLabel: { type: String, default: '右侧版本' },
+  sourceLabel: { type: String, default: '' },
+  targetLabel: { type: String, default: '' },
   compareUrl: { type: String, default: '/api/tool/string-diff' },
-  placeholder: { type: String, default: '输入文本后自动比较' }
+  placeholder: { type: String, default: '' }
 })
 
 const emit = defineEmits([
@@ -123,6 +126,7 @@ const targetInsertionMarkers = computed(() => insertionMarkers('target'))
 
 const canUndo = computed(() => undoStack.value.length > 0)
 const canRedo = computed(() => redoStack.value.length > 0)
+const displayPlaceholder = computed(() => props.placeholder || t('text_diff.placeholder'))
 
 function charsOf(value) {
   return Array.from(value || '')
@@ -300,13 +304,13 @@ function lineStateClass(state) {
 }
 
 function changeTypeLabel(type) {
-  if (type === 'DELETED') return '左侧删除'
-  if (type === 'ADDED') return '右侧新增'
-  return '内容修改'
+  if (type === 'DELETED') return t('text_diff.left_deleted')
+  if (type === 'ADDED') return t('text_diff.right_added')
+  return t('text_diff.content_modified')
 }
 
 function directionLabel(direction) {
-  return direction === 'left' ? '应用右侧到左侧' : '应用左侧到右侧'
+  return direction === 'left' ? t('text_diff.apply_right_to_left') : t('text_diff.apply_left_to_right')
 }
 
 function connectorRange(lineStart, lineEnd, scrollTop) {
@@ -596,10 +600,10 @@ async function compare() {
     const json = await response.json().catch(() => null)
 
     if (!response.ok) {
-      throw new Error(json?.message || `比较失败：HTTP ${response.status}`)
+      throw new Error(json?.message || t('text_diff.compare_http_failed', { status: response.status }))
     }
     if (!json?.success) {
-      throw new Error(json?.message || '比较失败')
+      throw new Error(json?.message || t('text_diff.compare_failed'))
     }
     if (sequence !== compareSequence) return
 
@@ -612,7 +616,7 @@ async function compare() {
     if (targetTextarea.value) syncScroll('target', targetTextarea.value)
   } catch (error) {
     if (error?.name === 'AbortError' || sequence !== compareSequence) return
-    errorMessage.value = error?.message || '比较失败，请稍后重试'
+    errorMessage.value = error?.message || t('text_diff.compare_retry_later')
     compareState.value = 'error'
     emit('error', error)
   } finally {
@@ -666,12 +670,12 @@ onBeforeUnmount(() => {
       <div class="text-diff-editor__status" aria-live="polite">
         <span class="text-diff-editor__status-dot" :class="[`is-${compareState}`]"></span>
         <span class="text-diff-editor__status-label">
-          {{ compareState === 'scheduled' ? '等待比较' : compareState === 'comparing' ? '正在比较' : compareState === 'error' ? '比较失败' : changes.length ? '比较完成' : '准备就绪' }}
+          {{ compareState === 'scheduled' ? $t('text_diff.waiting') : compareState === 'comparing' ? $t('text_diff.comparing') : compareState === 'error' ? $t('text_diff.compare_failed') : changes.length ? $t('text_diff.completed') : $t('text_diff.ready') }}
         </span>
-        <span v-if="currentChangeLabel" class="text-diff-editor__position">差异 {{ currentChangeLabel }}</span>
-        <span v-if="summary.deleted" class="summary-badge summary-badge--deleted">删除 {{ summary.deleted }}</span>
-        <span v-if="summary.added" class="summary-badge summary-badge--added">新增 {{ summary.added }}</span>
-        <span v-if="summary.modified" class="summary-badge summary-badge--modified">修改 {{ summary.modified }}</span>
+        <span v-if="currentChangeLabel" class="text-diff-editor__position">{{ $t('text_diff.difference') }} {{ currentChangeLabel }}</span>
+        <span v-if="summary.deleted" class="summary-badge summary-badge--deleted">{{ $t('text_diff.deleted') }} {{ summary.deleted }}</span>
+        <span v-if="summary.added" class="summary-badge summary-badge--added">{{ $t('text_diff.added') }} {{ summary.added }}</span>
+        <span v-if="summary.modified" class="summary-badge summary-badge--modified">{{ $t('text_diff.modified') }} {{ summary.modified }}</span>
       </div>
 
       <div class="text-diff-editor__toolbar-actions">
@@ -679,45 +683,45 @@ onBeforeUnmount(() => {
           class="diff-toolbar-button diff-toolbar-button--icon"
           type="button"
           :disabled="isComparing || !hunks.length"
-          aria-label="上一个差异"
-          title="上一个差异"
+          :aria-label="$t('text_diff.previous')"
+          :title="$t('text_diff.previous')"
           @click="previousChange"
         >↑</button>
         <button
           class="diff-toolbar-button diff-toolbar-button--icon"
           type="button"
           :disabled="isComparing || !hunks.length"
-          aria-label="下一个差异"
-          title="下一个差异"
+          :aria-label="$t('text_diff.next')"
+          :title="$t('text_diff.next')"
           @click="nextChange"
         >↓</button>
         <button
           class="diff-toolbar-button"
           type="button"
           :disabled="!canUndo"
-          title="撤销上一次应用"
+          :title="$t('text_diff.undo_title')"
           @click="undoLastApply"
-        >撤销</button>
+        >{{ $t('text_diff.undo') }}</button>
         <button
           class="diff-toolbar-button"
           type="button"
           :disabled="!canRedo"
-          title="重做上一次应用"
+          :title="$t('text_diff.redo_title')"
           @click="redoLastApply"
-        >重做</button>
+        >{{ $t('text_diff.redo') }}</button>
         <button
           class="diff-toolbar-button"
           type="button"
           :disabled="isComparing || !hasText"
           @click="compareNow"
-        >重新比较</button>
+        >{{ $t('text_diff.compare_again') }}</button>
         <button
           class="diff-apply-all diff-apply-all--left"
           type="button"
           :disabled="isComparing || !hunks.length"
           @click="applyAll('left')"
         >
-          ← 全部应用
+          ← {{ $t('text_diff.apply_all') }}
         </button>
         <button
           class="diff-apply-all"
@@ -725,14 +729,14 @@ onBeforeUnmount(() => {
           :disabled="isComparing || !hunks.length"
           @click="applyAll('right')"
         >
-          全部应用 →
+          {{ $t('text_diff.apply_all') }} →
         </button>
       </div>
     </div>
 
     <p v-if="errorMessage" class="text-diff-editor__error" role="alert">
       {{ errorMessage }}
-      <button type="button" @click="compareNow">重试</button>
+      <button type="button" @click="compareNow">{{ $t('common.retry') }}</button>
     </p>
 
     <div class="text-diff-editor__workbench">
@@ -788,10 +792,10 @@ onBeforeUnmount(() => {
               ref="sourceTextarea"
               class="text-diff-textarea"
               :value="source"
-              :placeholder="placeholder"
+              :placeholder="displayPlaceholder"
               wrap="off"
               spellcheck="false"
-              aria-label="左侧完整文本编辑框"
+              :aria-label="$t('text_diff.source_aria')"
               @input="onTextInput('source', $event)"
               @keydown="handleKeydown('source', $event)"
               @scroll="syncScroll('source', $event.target)"
@@ -799,7 +803,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div ref="gutterElement" class="text-diff-gutter" aria-label="差异操作">
+        <div ref="gutterElement" class="text-diff-gutter" :aria-label="$t('text_diff.actions_aria')">
           <svg class="text-diff-gutter__connectors" :viewBox="`0 0 ${gutterWidth} ${gutterHeight}`" preserveAspectRatio="none" aria-hidden="true">
             <path
               v-for="item in gutterItems"
@@ -871,10 +875,10 @@ onBeforeUnmount(() => {
               ref="targetTextarea"
               class="text-diff-textarea"
               :value="target"
-              :placeholder="placeholder"
+              :placeholder="displayPlaceholder"
               wrap="off"
               spellcheck="false"
-              aria-label="右侧完整文本编辑框"
+              :aria-label="$t('text_diff.target_aria')"
               @input="onTextInput('target', $event)"
               @keydown="handleKeydown('target', $event)"
               @scroll="syncScroll('target', $event.target)"

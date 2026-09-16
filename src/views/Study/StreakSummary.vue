@@ -35,10 +35,10 @@ onMounted(loadStreak)
   <button
     class="streak-card"
     :class="{'is-loaded': loaded}"
-    aria-label="查看连胜日历"
+    :aria-label="$t('study.streak.view_calendar')"
     @click="calendarVisible = true"
   >
-    <img :src="todayCompleted ? bookIcon : bookGrayIcon" alt="连胜" />
+    <img :src="todayCompleted ? bookIcon : bookGrayIcon" :alt="$t('study.streak.streak')" />
     <strong :class="{'is-inactive': !todayCompleted}">{{ streak }}</strong>
   </button>
 

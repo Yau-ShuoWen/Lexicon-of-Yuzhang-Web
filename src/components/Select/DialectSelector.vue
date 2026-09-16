@@ -36,7 +36,7 @@ const changeDialect = (dialect) => {
       :items="dialects"
       :currentInRoute="currentDialectInRoute"
       :changeFunc="changeDialect"
-      defaultText="选择方言"
+      :defaultText="$t('dialect.select')"
       :defaultIcon="transferIcon"
   />
 </template>

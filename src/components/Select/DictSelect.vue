@@ -1,7 +1,10 @@
 <script setup>
 import {ref, watch, computed} from 'vue'
 import {ElMessage} from 'element-plus'
+import {useI18n} from 'vue-i18n'
 import {getToken} from '../../utils/auth.js'
+
+const {t} = useI18n()
 
 /* =======================
    Props & Emits
@@ -21,7 +24,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '请选择词典'
+    default: ''
   },
   width: {
     type: String,
@@ -33,7 +36,7 @@ const props = defineProps({
   },
   labelText: {
     type: String,
-    default: '词典选择'
+    default: ''
   },
   required: {
     type: Boolean,
@@ -110,7 +113,7 @@ const processDictionaries = (data) => {
     if (typeof item === 'string') {
       return {left: item, right: item}
     }
-    return {left: '未知', right: 'unknown'}
+    return {left: t('common.unknown'), right: 'unknown'}
   })
 }
 
@@ -237,13 +240,13 @@ defineExpose({
   <div class="dict-select">
     <el-form-item
         v-if="showLabel"
-        :label="labelText"
+        :label="labelText || t('common.dictionary_select')"
         :required="required"
     >
       <el-select
           :model-value="modelValue"
           @update:model-value="v => $emit('update:modelValue', v)"
-          :placeholder="placeholder"
+          :placeholder="placeholder || t('common.dictionary_placeholder')"
           :style="{ width }"
           :loading="loading"
           :disabled="loading || !dictionaries.length"
@@ -263,7 +266,7 @@ defineExpose({
         v-else
         :model-value="modelValue"
         @update:model-value="v => $emit('update:modelValue', v)"
-        :placeholder="placeholder"
+        :placeholder="placeholder || t('common.dictionary_placeholder')"
         :style="{ width }"
         :loading="loading"
         :disabled="loading || !dictionaries.length"

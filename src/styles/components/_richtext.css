@@ -441,28 +441,96 @@
 /* ========================富文本表格====================== */
 
 .rt-table-wrap {
+    width: 100%;
     overflow-x: auto;
     max-width: 100%;
-    padding-bottom: 10px;
+    margin: 0.85em 0;
+
+    background: var(--color-background-card, #ffffff);
+    border: 1px solid #cfd9d3;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(28, 45, 36, 0.06);
+
+    scrollbar-width: thin;
+    scrollbar-color: rgba(74, 111, 200, 0.35) transparent;
+    overscroll-behavior-inline: contain;
+}
+
+/* 全部为 ! 的紧凑表格，外框也随内容收缩，避免右侧留下大片空白。 */
+.rt-table-compact-wrap {
+    width: fit-content;
+}
+
+.rt-table-wrap::-webkit-scrollbar {
+    height: 8px;
+}
+
+.rt-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.rt-table-wrap::-webkit-scrollbar-thumb {
+    background: rgba(74, 111, 200, 0.28);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+}
+
+.rt-table-wrap::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(74, 111, 200, 0.48);
 }
 
 /* 共通 */
 
 .rt-table {
+    width: 100%;
     border-collapse: collapse;
+    border-spacing: 0;
+
+    color: var(--color-text, #333333);
+    font-size: 0.96em;
+    line-height: 1.55;
+    font-variant-numeric: tabular-nums;
 }
 
 .rt-table th,
 .rt-table td {
-    border: 1px solid #ccc;
-    padding: 8px 12px;
+    padding: 10px 14px;
+    border: 0;
+    border-right: 1px solid #dbe3de;
+    border-bottom: 1px solid #dbe3de;
 
     overflow-wrap: break-word;
     word-break: normal;
+    vertical-align: middle;
+}
+
+.rt-table tr > :last-child {
+    border-right: 0;
+}
+
+.rt-table tbody tr:last-child > td {
+    border-bottom: 0;
 }
 
 .rt-table th {
-    background: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    color: var(--color-text, #333333);
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    background: linear-gradient(180deg, #f6fcf7 0%, #e9f7ec 100%);
+    border-bottom-color: #c8d5cd;
+}
+
+.rt-table tbody tr:nth-child(even) > td {
+    background: #f1faf3;
+}
+
+.rt-table .rt-pinyin {
+    white-space: nowrap;
 }
 
 /* 表格模式 */
@@ -471,12 +539,13 @@
 
 .rt-table-compact {
     width: max-content;
+    min-width: 0;
 }
 
 /* 一般表格 */
 
 .rt-table-auto {
-    width: auto;
+    width: 100%;
 }
 
 /* 存在 * */
@@ -488,27 +557,43 @@
 /* 欄位類型 */
 
 .rt-col-nowrap {
+    width: 1%;
     white-space: nowrap;
 }
 
 .rt-col-normal {
-    min-width: 120px;
+    min-width: clamp(7rem, 14vw, 11rem);
 }
 
 .rt-col-long {
-    min-width: 280px;
+    min-width: clamp(16rem, 36vw, 28rem);
 }
 
 /* 手機 */
 
 @media (max-width: 768px) {
 
+    .rt-table-wrap {
+        margin: 0.7em 0;
+        border-radius: 10px;
+        box-shadow: 0 3px 12px rgba(28, 45, 36, 0.05);
+    }
+
+    .rt-table {
+        font-size: 0.93em;
+    }
+
+    .rt-table th,
+    .rt-table td {
+        padding: 9px 11px;
+    }
+
     .rt-col-normal {
-        min-width: 100px;
+        min-width: 7rem;
     }
 
     .rt-col-long {
-        min-width: 300px;
+        min-width: min(78vw, 22rem);
     }
 }
 

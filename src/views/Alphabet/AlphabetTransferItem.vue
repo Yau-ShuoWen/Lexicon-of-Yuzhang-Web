@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatRichText } from '../../utils/textFormatter.js'
 
 const props = defineProps({
@@ -8,6 +9,7 @@ const props = defineProps({
   name: { type: String, required: true },
   funName: { type: String, required: true }
 })
+const {t} = useI18n()
 
 const input = ref('')
 const output = ref('')
@@ -39,7 +41,7 @@ async function transferText() {
     output.value = await res.text()
   } catch (e) {
     console.error(e)
-    output.value = '转换失败'
+    output.value = t('alphabet_transfer.failed')
   }
 }
 
@@ -89,7 +91,7 @@ onBeforeUnmount(() => {
     <div class="transfer-body">
       <div class="transfer-field">
         <div class="pane-top">
-          <span class="pane-label">输入</span>
+          <span class="pane-label">{{ $t('alphabet_transfer.input') }}</span>
         </div>
         <textarea
           ref="inputEl"
@@ -97,15 +99,15 @@ onBeforeUnmount(() => {
           class="form-control pinyin-input-text"
           :class="{ active: hasInput }"
           rows="5"
-          placeholder="请输入内容"
+          :placeholder="$t('alphabet_transfer.input_placeholder')"
           @input="handleInput"
         />
       </div>
 
       <div class="transfer-field">
         <div class="pane-top">
-          <span class="pane-label">结果</span>
-          <span class="pane-hint">{{ hasOutput ? '已更新' : '等待输入' }}</span>
+          <span class="pane-label">{{ $t('alphabet_transfer.result') }}</span>
+          <span class="pane-hint">{{ hasOutput ? $t('alphabet_transfer.updated') : $t('alphabet_transfer.waiting') }}</span>
         </div>
 
         <div
@@ -116,7 +118,7 @@ onBeforeUnmount(() => {
           v-formatted-text="output"
         />
         <div v-else class="transfer-empty" :style="{ height: `${outputHeight}px` }">
-          转换结果会显示在这里
+          {{ $t('alphabet_transfer.result_placeholder') }}
         </div>
       </div>
     </div>

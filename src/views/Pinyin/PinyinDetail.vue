@@ -140,7 +140,7 @@ watch(() => [props.pinyinKey, props.show], () => {
       </div>
 
       <div v-else class="no-results-high">
-        無資料
+        {{ $t('status.no_data') }}
       </div>
 
     </div>

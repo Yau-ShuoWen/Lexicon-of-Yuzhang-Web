@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth'
 import bookIcon from '../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
@@ -9,6 +10,7 @@ const props = defineProps({
   modelValue: {type: Boolean, default: false}
 })
 const emit = defineEmits(['update:modelValue'])
+const {t, tm} = useI18n()
 const visible = computed({get: () => props.modelValue, set: value => emit('update:modelValue', value)})
 
 const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -17,9 +19,12 @@ const currentMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(
 const records = ref({})
 const loading = ref(false)
 const error = ref('')
-const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+const weekdays = computed(() => tm('study.streak.weekdays'))
 
-const monthTitle = computed(() => `${currentMonth.value.getFullYear()} 年 ${currentMonth.value.getMonth() + 1} 月`)
+const monthTitle = computed(() => t('study.streak.month_title', {
+  year: currentMonth.value.getFullYear(),
+  month: currentMonth.value.getMonth() + 1
+}))
 const monthRange = computed(() => {
   const first = currentMonth.value
   const last = new Date(first.getFullYear(), first.getMonth() + 1, 0)
@@ -72,10 +77,10 @@ const load = async () => {
     const {from, to} = monthRange.value
     const response = await fetch(`/api/study/streak?t=${encodeURIComponent(getToken())}&from=${from}&to=${to}`)
     const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '读取日历失败')
+    if (!response.ok || !result.success) throw new Error(result.message || t('study.streak.load_failed'))
     records.value = Object.fromEntries((result.data.records || []).map(item => [item.date, item.status]))
   } catch (e) {
-    error.value = e.message || '读取日历失败'
+    error.value = e.message || t('study.streak.load_failed')
   }
   finally {
     loading.value = false
@@ -91,15 +96,15 @@ watch([visible, currentMonth], () => {
 
 <template>
   <div v-if="visible" class="calendar-backdrop" @click.self="visible = false">
-    <section class="calendar-dialog" role="dialog" aria-modal="true" aria-label="连胜日历">
+    <section class="calendar-dialog" role="dialog" aria-modal="true" :aria-label="$t('study.streak.calendar')">
       <header class="calendar-header">
-        <button class="month-button" aria-label="上个月" @click="changeMonth(-1)">‹</button>
+        <button class="month-button" :aria-label="$t('study.streak.previous_month')" @click="changeMonth(-1)">‹</button>
         <h2>{{ monthTitle }}</h2>
-        <button class="month-button" aria-label="下个月" @click="changeMonth(1)">›</button>
-        <button class="close-button" aria-label="关闭日历" @click="visible = false">×</button>
+        <button class="month-button" :aria-label="$t('study.streak.next_month')" @click="changeMonth(1)">›</button>
+        <button class="close-button" :aria-label="$t('study.streak.close_calendar')" @click="visible = false">×</button>
       </header>
       <div class="weekday-row"><span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span></div>
-      <p v-if="loading" class="calendar-state">正在读取……</p>
+      <p v-if="loading" class="calendar-state">{{ $t('study.streak.loading') }}</p>
       <p v-else-if="error" class="calendar-state error">{{ error }}</p>
       <div v-else class="calendar-grid">
         <div v-for="(week, weekIndex) in weeks" :key="weekIndex" class="calendar-week">
@@ -111,10 +116,10 @@ watch([visible, currentMonth], () => {
           <div v-for="day in week.days" :key="day.key" class="calendar-day"
                :class="{outside: !day.isCurrentMonth, protected: day.status === 'protected', completed: day.status === 'completed', missed: day.status === 'missed', today: day.isToday}">
             <img v-if="day.status === 'protected'" class="calendar-icon bookmark-icon" :src="bookmarkIcon"
-                 alt="保护日"/>
+                 :alt="$t('study.streak.protected_day')"/>
             <img v-else-if="day.isToday" class="calendar-icon"
                  :src="day.status === 'completed' ? bookIcon : bookGrayIcon"
-                 :alt="day.status === 'completed' ? '今天已完成' : '今天未完成'"/>
+                 :alt="day.status === 'completed' ? $t('study.streak.today_completed') : $t('study.streak.today_incomplete')"/>
             <span v-else class="day-number">{{ day.number }}</span>
           </div>
         </div>

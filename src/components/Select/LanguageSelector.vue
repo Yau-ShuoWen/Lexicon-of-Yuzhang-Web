@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import DropdownSelector from './DropdownSelector.vue'
 import transferIcon from '../../assets/icons/LanguageAndDialect/transfer_sc_tc.svg'
 import scIcon from '../../assets/icons/LanguageAndDialect/sc.svg'
@@ -7,11 +9,12 @@ import tcIcon from '../../assets/icons/LanguageAndDialect/tc.svg'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const languages = [
-  {value: 'sc', label: '简体中文', icon: scIcon},
-  {value: 'tc', label: '繁體中文', icon: tcIcon},
-]
+const languages = computed(() => [
+  {value: 'sc', label: t('language.simplified_chinese'), icon: scIcon},
+  {value: 'tc', label: t('language.traditional_chinese'), icon: tcIcon},
+])
 
 const currentLanguageInRoute = () => {
   const first = route.path.split('/')[1]
@@ -39,7 +42,7 @@ const changeLanguage = (language) => {
       :items="languages"
       :currentInRoute="currentLanguageInRoute"
       :changeFunc="changeLanguage"
-      defaultText="切换语言"
+      :defaultText="$t('language.switch')"
       :defaultIcon="transferIcon"
   />
 </template>

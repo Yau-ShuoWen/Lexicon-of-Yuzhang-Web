@@ -66,7 +66,7 @@ const fetchHanzi = async () => {
   } catch (e) {
     loading.value = false
     if (e.message.includes("not found")) {
-      showError('未找到资料，请确认是否是从结果页正确跳转的')
+      showError(t('search_detail.entry_missing'))
     } else {
       console.error(e)
       showError(e.message)
@@ -146,7 +146,7 @@ watch(
 
           </div>
           <h3 class="pinyin-title">
-            注释
+            {{ $t('search_detail.notes') }}
           </h3>
           <div
               v-for="(n,i) in info.note"
@@ -164,7 +164,7 @@ watch(
           v-if="data.ref && data.ref.length"
       >
 
-        <h3 class="pinyin-title">辞书</h3>
+        <h3 class="pinyin-title">{{ $t('search_detail.dictionary') }}</h3>
 
 
         <div

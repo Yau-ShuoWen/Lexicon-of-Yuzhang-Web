@@ -19,13 +19,12 @@ const now = new Date()
 const today = formatDate(now)
 const currentMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const keyword = ref('')
-const users = ref([])
 const selectedUser = ref(null)
 const records = ref({})
 const overview = ref(null)
 const selectedDate = ref(null)
 const selectedStatus = ref('completed')
-const loadingUsers = ref(false)
+const loadingUser = ref(false)
 const loadingOverview = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -98,26 +97,33 @@ const weeks = computed(() => {
 })
 const selectedRecord = computed(() => selectedDate.value ? records.value[selectedDate.value] || null : null)
 
-const searchUsers = async () => {
+const searchUser = async () => {
   if (!keyword.value.trim()) {
     error.value = '请输入用户名、手机号或用户编号'
-    users.value = []
     return
   }
 
-  loadingUsers.value = true
+  loadingUser.value = true
   error.value = ''
   try {
     const response = await axios.get('/api/admin/study/streak/users', {
       params: {t: getToken(), keyword: keyword.value.trim()}
     })
     if (!response.data.success) throw new Error(response.data.message || '查询用户失败')
-    users.value = response.data.data || []
-    if (users.value.length === 0) error.value = '没有找到匹配的用户'
+    const user = response.data.data?.[0]
+    if (!user) {
+      selectedUser.value = null
+      overview.value = null
+      records.value = {}
+      selectedDate.value = null
+      error.value = '没有找到匹配的用户'
+      return
+    }
+    selectUser(user)
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '查询用户失败'
   } finally {
-    loadingUsers.value = false
+    loadingUser.value = false
   }
 }
 
@@ -198,21 +204,14 @@ useHead({title: '用户连胜管理'})
   <div class="broaden-layout streak-admin">
     <header class="page-header">
       <h1>用户连胜管理</h1>
-      <p>选择用户后，直接在日历中点击需要调整的日期。</p>
+      <p>查询用户后，直接在日历中点击需要调整的日期。</p>
     </header>
 
     <section class="panel search-panel">
-      <form class="search-form" @submit.prevent="searchUsers">
+      <form class="search-form" @submit.prevent="searchUser">
         <input v-model="keyword" class="ordinary-input" placeholder="用户名、手机号或用户 ID" />
-        <button type="submit" :disabled="loadingUsers">{{ loadingUsers ? '查询中……' : '查询用户' }}</button>
+        <button type="submit" :disabled="loadingUser">{{ loadingUser ? '查询中……' : '查询用户' }}</button>
       </form>
-      <div v-if="users.length" class="user-list">
-        <button v-for="user in users" :key="user.id" class="user-item"
-                :class="{selected: selectedUser?.id === user.id}" @click="selectUser(user)">
-          <strong>{{ user.username }}</strong>
-          <span>ID：{{ user.id }} · {{ user.phone || '未绑定手机号' }}</span>
-        </button>
-      </div>
     </section>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -344,10 +343,7 @@ button { padding: 9px 16px; border: 0; border-radius: 999px; color: var(--color-
 button:hover:not(:disabled) { background: #d7ecd8; }
 button:disabled { cursor: not-allowed; opacity: .45; }
 .search-form button, .primary-button { color: white; background: var(--color-primary); }
-.user-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 16px; }
-.user-item { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left; border: 1px solid #d7e8d8; border-radius: 12px; }
-.user-item.selected { border-color: var(--color-primary); background: #e4f3e5; }
-.user-item span, .calendar-hint { color: var(--color-text-light); font-size: .85rem; }
+.calendar-hint { color: var(--color-text-light); font-size: .85rem; }
 .error-text { margin: 18px 0 0; color: #b42318; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 h2 { margin: 0; color: var(--color-primary-dark); font-size: 1.25rem; }

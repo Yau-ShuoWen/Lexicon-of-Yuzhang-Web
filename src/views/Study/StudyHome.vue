@@ -2,22 +2,24 @@
 import { ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth'
 import StreakSummary from './StreakSummary.vue'
 
 const route = useRoute()
 const router = useRouter()
+const {t} = useI18n()
 const starting = ref(false)
 const error = ref('')
 
-useHead({title: '学习路线 · 词典'})
+useHead({title: () => t('study.home.page_title')})
 
 const startStudy = async () => {
   if (starting.value) return
 
   const token = getToken()
   if (!token) {
-    error.value = '请先登录后再开始学习。'
+    error.value = t('study.common.login_required')
     return
   }
 
@@ -33,7 +35,7 @@ const startStudy = async () => {
     })
   } catch (e) {
     starting.value = false
-    error.value = '暂时无法打开学习页面，请稍后再试。'
+    error.value = t('study.home.open_failed')
   }
 }
 
@@ -47,11 +49,11 @@ const startStudy = async () => {
 
 
     <section class="start-card">
-      <p class="page-kicker">STUDY</p>
-      <h1>开始学习</h1>
-      <p class="intro">用一组词语配对练习，熟悉当前方言的读音。</p>
+      <p class="page-kicker">{{ $t('study.home.kicker') }}</p>
+      <h1>{{ $t('study.home.title') }}</h1>
+      <p class="intro">{{ $t('study.home.intro') }}</p>
       <button class="start-button" :disabled="starting" @click="startStudy">
-        {{ starting ? '准备中……' : '开始学习' }}
+        {{ starting ? $t('study.home.preparing') : $t('study.home.title') }}
       </button>
       <p v-if="error" class="error-message">{{ error }}</p>
     </section>

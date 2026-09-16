@@ -2,6 +2,9 @@
 
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   traditionalText: {type: String, default: ''},
@@ -28,10 +31,10 @@ const isTcDirty = ref(false)
 const isScDirty = ref(false)
 
 const hint = computed(() => {
-  if (isScDirty.value && isTcDirty.value)  return {icon: '❌', title: '错误状态，请刷新页面'};
-  if (!isScDirty.value && !isTcDirty.value) return {icon: '✅', title: '简繁对应状态正确'};
-  if (isScDirty.value) return {icon: '简', title: '校对简体中，按下Ctrl+Enter或点击「同步」保存，字数需要相等'};
-  if (isTcDirty.value) return {icon: '繁', title: '编辑繁体中，按下Ctrl+Enter或点击「同步」自动翻译简体'};
+  if (isScDirty.value && isTcDirty.value) return {icon: '❌', title: t('sc_tc_text.invalid_state')};
+  if (!isScDirty.value && !isTcDirty.value) return {icon: '✅', title: t('sc_tc_text.synced')};
+  if (isScDirty.value) return {icon: t('sc_tc_text.simplified_short'), title: t('sc_tc_text.proofreading_simplified')};
+  if (isTcDirty.value) return {icon: t('sc_tc_text.traditional_short'), title: t('sc_tc_text.editing_traditional')};
 })
 
 // 是否有待同步的内容（决定手动同步按钮是否可用）
@@ -250,19 +253,19 @@ defineExpose({clearAll})
     <!-- 小型布局：单行双输入框 -->
     <div v-if="layout === 'small'" class="sc-tc-row">
 
-      <input type="text" class="form-control sc-tc-input sc-tc-input--small" placeholder="繁體"
+      <input type="text" class="form-control sc-tc-input sc-tc-input--small" :placeholder="$t('sc_tc_text.traditional')"
              :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
              @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
 
-      <input type="text" class="form-control sc-tc-input sc-tc-input--small" placeholder="簡體"
+      <input type="text" class="form-control sc-tc-input sc-tc-input--small" :placeholder="$t('sc_tc_text.simplified')"
              :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
              @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
 
       <div v-if="!disabled" class="sc-tc-actions">
         <button type="button" class="sc-tc-btn sc-tc-btn--sync"
                 :disabled="isSubmitting || !hasPendingSync"
-                title="手动同步（等同 Ctrl+Enter）" @click="manualSync">同步</button>
-        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">清除</button>
+                :title="$t('sc_tc_text.sync_title')" @click="manualSync">{{ $t('sc_tc_text.sync') }}</button>
+        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">{{ $t('sc_tc_text.clear') }}</button>
         <span class="sc-tc-status" :title="hint.title">{{ hint.icon }}</span>
       </div>
     </div>
@@ -271,11 +274,11 @@ defineExpose({clearAll})
     <div v-else-if="layout === 'middle'" class="sc-tc-group">
 
       <div class="sc-tc-fields">
-        <input type="text" class="form-control sc-tc-input sc-tc-input--middle" placeholder="繁體"
+        <input type="text" class="form-control sc-tc-input sc-tc-input--middle" :placeholder="$t('sc_tc_text.traditional')"
                :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
                @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
 
-        <input type="text" class="form-control sc-tc-input sc-tc-input--middle" placeholder="簡體"
+        <input type="text" class="form-control sc-tc-input sc-tc-input--middle" :placeholder="$t('sc_tc_text.simplified')"
                :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
                @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
       </div>
@@ -283,8 +286,8 @@ defineExpose({clearAll})
       <div v-if="!disabled" class="sc-tc-actions sc-tc-actions--column">
         <button type="button" class="sc-tc-btn sc-tc-btn--sync"
                 :disabled="isSubmitting || !hasPendingSync"
-                title="手动同步（等同 Ctrl+Enter）" @click="manualSync">同步</button>
-        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">清除</button>
+                :title="$t('sc_tc_text.sync_title')" @click="manualSync">{{ $t('sc_tc_text.sync') }}</button>
+        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">{{ $t('sc_tc_text.clear') }}</button>
         <span class="sc-tc-status" :title="hint.title">{{ hint.icon }}</span>
       </div>
     </div>
@@ -293,24 +296,24 @@ defineExpose({clearAll})
     <div v-else-if="layout === 'mobile'" class="sc-tc-mobile">
 
       <div class="sc-tc-mobile__bar">
-        <div class="sc-tc-toggle" title="切换简体/繁体" @click="toggleViewMode">
+        <div class="sc-tc-toggle" :title="$t('sc_tc_text.switch_title')" @click="toggleViewMode">
           <span class="sc-tc-toggle__thumb" :class="{'is-sc': viewMode === 'sc'}"></span>
-          <span class="sc-tc-toggle__label" :class="{'is-active': viewMode === 'tc'}">繁</span>
-          <span class="sc-tc-toggle__label" :class="{'is-active': viewMode === 'sc'}">简</span>
+          <span class="sc-tc-toggle__label" :class="{'is-active': viewMode === 'tc'}">{{ $t('sc_tc_text.traditional_short') }}</span>
+          <span class="sc-tc-toggle__label" :class="{'is-active': viewMode === 'sc'}">{{ $t('sc_tc_text.simplified_short') }}</span>
         </div>
 
         <div v-if="!disabled" class="sc-tc-mobile__actions">
           <button type="button" class="sc-tc-btn sc-tc-btn--sync"
                   :disabled="isSubmitting || !hasPendingSync"
-                  title="手动同步（等同 Ctrl+Enter）" @click="manualSync">同步</button>
-          <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">清除</button>
+                  :title="$t('sc_tc_text.sync_title')" @click="manualSync">{{ $t('sc_tc_text.sync') }}</button>
+          <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">{{ $t('sc_tc_text.clear') }}</button>
         </div>
 
         <span v-if="!disabled" class="sc-tc-status" :title="hint.title">{{ hint.icon }}</span>
       </div>
 
       <textarea class="form-control sc-tc-textarea sc-tc-mobile__textarea"
-                :placeholder="viewMode === 'tc' ? '繁體' : '簡體'"
+                :placeholder="viewMode === 'tc' ? $t('sc_tc_text.traditional') : $t('sc_tc_text.simplified')"
                 :value="viewMode === 'tc' ? newTc : newSc"
                 :maxlength="maxLength" :rows="rows" :disabled="disabled || mobileLocked"
                 @input="onMobileCheck" @keydown="onMobileUpdate"/>
@@ -321,12 +324,12 @@ defineExpose({clearAll})
 
       <div class="sc-tc-fields">
         <textarea
-            placeholder="繁體" class="form-control sc-tc-textarea" ref="tcBox"
+            :placeholder="$t('sc_tc_text.traditional')" class="form-control sc-tc-textarea" ref="tcBox"
             :value="newTc" :maxlength="maxLength" :rows="rows" :disabled="disabled || tcLocked"
             @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
 
         <textarea
-            placeholder="簡體" class="form-control sc-tc-textarea" ref="scBox"
+            :placeholder="$t('sc_tc_text.simplified')" class="form-control sc-tc-textarea" ref="scBox"
             :value="newSc" :maxlength="maxLength" :rows="rows" :disabled="disabled || scLocked"
             @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
       </div>
@@ -334,8 +337,8 @@ defineExpose({clearAll})
       <div v-if="!disabled" class="sc-tc-actions sc-tc-actions--column">
         <button type="button" class="sc-tc-btn sc-tc-btn--sync"
                 :disabled="isSubmitting || !hasPendingSync"
-                title="手动同步（等同 Ctrl+Enter）" @click="manualSync">同步</button>
-        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">清除</button>
+                :title="$t('sc_tc_text.sync_title')" @click="manualSync">{{ $t('sc_tc_text.sync') }}</button>
+        <button type="button" class="sc-tc-btn sc-tc-btn--ghost" @click="clearAll">{{ $t('sc_tc_text.clear') }}</button>
         <span class="sc-tc-status" :title="hint.title">{{ hint.icon }}</span>
       </div>
     </div>

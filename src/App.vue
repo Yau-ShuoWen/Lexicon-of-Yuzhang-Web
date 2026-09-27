@@ -1,21 +1,19 @@
 <!-- App.vue -->
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import MainNav from "./components/Layout/MainNav.vue"
 import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
 import ToastWindow from "./components/Window/ToastWindow.vue";
-import { initNoteTooltip } from "./utils/noteTooltip.js";
-import { initPinyinBlock } from "./utils/pinyinBlock.js";
+import RichTextOverlayHost from "./components/Text/RichTextOverlayHost.vue";
+import { useSiteSeo } from "./utils/seo.js";
 
 const route = useRoute()
 const showMainNav = computed(() => route.meta?.hideNav !== true)
 
-onMounted(() => {
-  initNoteTooltip();
-  initPinyinBlock();
-});
+useSiteSeo(route)
+
 </script>
 
 
@@ -29,6 +27,7 @@ onMounted(() => {
       <router-view/>
       <ConfirmWindow/>
       <ToastWindow/>
+      <RichTextOverlayHost/>
     </main>
   </div>
 </template>

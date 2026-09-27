@@ -26,7 +26,7 @@
 
 .rt-pinyin {
     font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
-    font-size: 1.1em;
+    font-size: 1.15em;
     word-break: normal;
     overflow-wrap: normal;
     line-height: 1.6;
@@ -34,7 +34,7 @@
 
 .rt-ipa {
     font-family: 'Charis SIL', serif;
-    font-size: 1.1em;
+    font-size: 1.15em;
     word-break: normal;
     overflow-wrap: normal;
     line-height: 1.6;
@@ -88,7 +88,7 @@
 
     top: -6px;
 
-    left: 20px;
+    left: var(--arrow-left, 20px);
 
     width: 8.5px;
     height: 8.5px;
@@ -125,6 +125,7 @@
 
 .rt-pinyin-block {
     display: inline-block;
+    padding:0 2px;
 }
 
 .rt-pinyin-trigger {
@@ -156,7 +157,7 @@
     height: 1px;
     background: repeating-linear-gradient(
             to right,
-            #999 0 3px,
+            #bbbbbb 0 3px,
             transparent 3px 5px
     );
     pointer-events: none;
@@ -303,6 +304,11 @@
 
 .rt-pinyin-popup-value {
     display: table-cell;
+    width: auto;
+    border: 0;
+    border-radius: 0;
+    color: inherit;
+    background: transparent;
     font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
     font-size: 1.05em;
     word-break: break-all;
@@ -312,6 +318,10 @@
     vertical-align: middle;
     user-select: none;
     -webkit-user-select: none;
+}
+
+.rt-pinyin-popup-unit {
+    white-space: nowrap;
 }
 
 /* 值和复制按钮视为一体：hover 值联动复制按钮变色 */
@@ -332,10 +342,160 @@
     text-align: center;
 
     transition: color 0.15s;
+    border: 0;
+    background: transparent;
+}
+
+.rt-pinyin-copy-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 .rt-pinyin-copy-btn:hover {
     color: #2d7be3;
+}
+
+.rt-pinyin-popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.38);
+}
+
+.rt-pinyin-popup-close {
+    display: none;
+}
+
+/* 桌面端按表格内容展开，避免拼音和国际音标在宽屏上仍被强制断行。 */
+@media (min-width: 769px) {
+    .rt-pinyin-popup {
+        width: max-content;
+        max-width: calc(100vw - 30px);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .rt-pinyin-popup-inner {
+        width: max-content;
+    }
+
+    .rt-pinyin-popup-value {
+        white-space: nowrap;
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+
+    .rt-pinyin-popup-value-grid-aligned {
+        display: inline-grid;
+        align-items: baseline;
+        column-gap: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    .rt-pinyin-popup.rt-pinyin-popup-mobile {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: max-content;
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 48px);
+        overflow: auto;
+        transform: translate(-50%, -50%);
+        animation: none;
+    }
+
+    .rt-pinyin-popup-mobile::before {
+        display: none;
+    }
+
+    .rt-pinyin-popup-mobile .rt-pinyin-popup-close {
+        position: absolute;
+        top: 8px;
+        left: 10px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        color: #666;
+        background: transparent;
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .rt-pinyin-popup-mobile .rt-pinyin-popup-close:active {
+        background: #f0f0f0;
+    }
+
+    .rt-pinyin-popup-mobile .rt-pinyin-popup-inner {
+        width: max-content;
+        margin-top: 50px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .rt-pinyin-popup-mobile .rt-pinyin-popup-value {
+        white-space: nowrap;
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+
+    /* 测量两列表格的自然宽度，再由脚本决定是否切换为单列。 */
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-measuring {
+        max-width: none;
+        visibility: hidden;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column {
+        width: min(420px, calc(100vw - 32px));
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-popup-inner {
+        display: block;
+        width: 100%;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-popup-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 36px;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-popup-row:not(:last-child) {
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-popup-label {
+        display: block;
+        grid-column: 1 / -1;
+        padding: 10px 14px 4px;
+        border-right: 0;
+        border-bottom: 0;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-popup-value {
+        display: block;
+        min-width: 0;
+        padding: 4px 8px 12px 14px;
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: anywhere;
+        border-bottom: 0;
+    }
+
+    .rt-pinyin-popup-mobile.rt-pinyin-popup-single-column .rt-pinyin-copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        padding: 4px 8px 12px 4px;
+        border-bottom: 0;
+    }
 }
 
 @keyframes rt-pinyin-pop {

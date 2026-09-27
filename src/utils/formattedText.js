@@ -2,13 +2,13 @@ import { formatRichText } from './textFormatter.js'
 
 export default {
     mounted(el, binding) {
-        if (binding.value) {
-            el.innerHTML = formatRichText(binding.value)
-        }
+        render(el, binding.value)
     },
     updated(el, binding) {
-        if (binding.value) {
-            el.innerHTML = formatRichText(binding.value)
-        }
+        if (binding.value !== binding.oldValue) render(el, binding.value)
     }
+}
+
+function render(el, value) {
+    el.innerHTML = formatRichText(typeof value === 'string' ? value : '')
 }

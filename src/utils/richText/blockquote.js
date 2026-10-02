@@ -1,5 +1,15 @@
 import { BLOCKQUOTE_TAG_MAP } from '../blockquote.js'
 
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/\\/g, '&#92;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
 export function consumeBlockquote(lines, start, renderInline) {
     if (!/^\s*```/.test(lines[start])) return null
 
@@ -36,11 +46,15 @@ function renderBlockquote(content, nextIndex, renderInline) {
 
     if (config && normalized.length >= 2) {
         const title = renderInline(normalized[1])
-        const body = normalized.slice(2).map(renderInline).join('<br>')
+        const bodyLines = tagName === 'dm' ? content.slice(2) : normalized.slice(2)
+        const body = bodyLines
+            .map(line => tagName === 'dm' ? escapeHtml(line) : renderInline(line))
+            .join('<br>')
         const style = `--bq-accent:${config.accent};--bq-bg:${config.bg};--bq-header-bg:${config.headerBg};--bq-icon-bg:${config.iconBg};--bq-text:${config.text || config.accent}`
+        const modifierClass = tagName === 'dm' ? ' rt-blockquote-tag--dm' : ''
         return {
             nextIndex,
-            html: `<blockquote class="rt-blockquote rt-blockquote-tag" style="${style}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${config.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`
+            html: `<blockquote class="rt-blockquote rt-blockquote-tag${modifierClass}" style="${style}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${config.icon}" alt="${tagName}"><span class="rt-blockquote__title">${title}</span></div>${body ? `<div class="rt-blockquote__body">${body}</div>` : ''}</blockquote>`
         }
     }
 

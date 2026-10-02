@@ -598,6 +598,16 @@
     padding: 10px 14px 12px;
 }
 
+/* dm 正文按代码原样展示；西文使用等宽字体，汉字回退到站点默认字体。 */
+.rt-blockquote-tag--dm .rt-blockquote__body {
+    overflow-x: auto;
+
+    font-family: Consolas, "Cascadia Mono", "Microsoft JhengHei", "HanaMinB", sans-serif;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
 /* ========================富文本表格====================== */
 
 .rt-table-wrap {

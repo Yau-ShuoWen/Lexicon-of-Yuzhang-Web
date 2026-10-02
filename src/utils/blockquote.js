@@ -35,8 +35,8 @@ export const BLOCKQUOTE_TAG_MAP = {
         headerBg: '#c1ebc7',
         iconBg: '#97d8a0',
     },
-    yl: {
-        icon: new URL('../assets/icons/blockquoteTag/医疗.svg', import.meta.url).href,
+    dm: {
+        icon: new URL('../assets/icons/blockquoteTag/代码.svg', import.meta.url).href,
         accent: '#5da8d1',
         bg: '#e8f6ff',
         headerBg: '#cce6f6',

@@ -24,12 +24,14 @@ function splitDisplayTarget(text, requireTarget = false) {
 function renderTag(tag, inner, context, renderInline) {
     const render = value => renderInline(value, {...context, insideTag: true})
 
-    if (tag === 'code') return `<code class="rt-code">${escapeHtml(inner)}</code>`
+    if (tag === 'code') return `<code class="rt-code">${escapeHtml(inner).replace(/\n/g, '<br>')}</code>`
     if (tag === 'b') return `<b>${render(inner)}</b>`
     if (tag === 'i') return `<i>${render(inner)}</i>`
     if (tag === 'd') return `<del>${render(inner)}</del>`
     if (tag === 'h') return `<span class="rt-h">${render(inner)}</span>`
-    if (tag === 's' || tag === 'a' || tag === 'p' || tag === 'v') return render(inner)
+    if (tag === 's' || tag === 'a' || tag === 'p' || tag === 'v') {
+        return context.renderContent ? context.renderContent(inner) : render(inner)
+    }
 
     if (tag === 'n') {
         if (context.insideTag) return `{n ${inner}}`

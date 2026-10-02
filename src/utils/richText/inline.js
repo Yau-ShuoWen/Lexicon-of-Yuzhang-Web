@@ -36,6 +36,12 @@ export function parseInline(text, context = getRouteContext()) {
             continue
         }
 
+        if (text[index] === '\n') {
+            html += '<br>'
+            index++
+            continue
+        }
+
         html += text[index]
         index++
     }

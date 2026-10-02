@@ -2,6 +2,27 @@ import { consumeBlockquote } from './blockquote.js'
 import { getRouteContext, parseInline } from './inline.js'
 import { consumeTable } from './table.js'
 
+function splitStructuralLines(text) {
+    const lines = []
+    let current = ''
+    let curlyDepth = 0
+
+    for (let index = 0; index < text.length; index++) {
+        const char = text[index]
+        if (char === '{' && (curlyDepth > 0 || /^\{[a-z]+\s/.test(text.slice(index)))) curlyDepth++
+        if (char === '}' && curlyDepth > 0) curlyDepth--
+
+        if (char === '\n' && curlyDepth === 0) {
+            lines.push(current)
+            current = ''
+        } else {
+            current += char
+        }
+    }
+    lines.push(current)
+    return lines
+}
+
 function renderLine(line, orderedIndex, context) {
     if (/^[ \t]*-{5,}[ \t]*$/.test(line)) {
         return {html: '<hr class="rt-hr">', orderedIndex: 0, consumesBreak: true}
@@ -55,14 +76,15 @@ function joinParts(parts) {
 }
 
 export function renderRichText(text, context = getRouteContext()) {
-    const lines = text.replace(/\r/g, '').split('\n')
+    const lines = splitStructuralLines(text.replace(/\r/g, ''))
     const parts = []
     let index = 0
     let orderedIndex = 0
+    const renderContent = value => renderRichText(value, context)
+    const inlineContext = {...context, renderContent}
+    const renderInline = value => parseInline(value, inlineContext)
 
     while (index < lines.length) {
-        const renderInline = value => parseInline(value, context)
-        const renderContent = value => renderRichText(value, context)
         const blockquote = consumeBlockquote(lines, index, renderInline, renderContent)
         if (blockquote) {
             parts.push({html: blockquote.html, block: true, kind: 'blockquote'})
@@ -86,7 +108,7 @@ export function renderRichText(text, context = getRouteContext()) {
             continue
         }
 
-        const rendered = renderLine(lines[index], orderedIndex, context)
+        const rendered = renderLine(lines[index], orderedIndex, inlineContext)
         orderedIndex = rendered.orderedIndex
         parts.push(rendered)
         index++

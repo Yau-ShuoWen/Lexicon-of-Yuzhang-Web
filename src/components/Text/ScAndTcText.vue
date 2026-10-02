@@ -3,6 +3,7 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 
 const { t } = useI18n()
 
@@ -80,16 +81,22 @@ function cpLen(str) {
 
 // ============ 初始化 ============
 onMounted(() => {
-  if (props.traditionalText && props.simplifiedText) {
-    if (cpLen(props.traditionalText) !== cpLen(props.simplifiedText)) {
+  const normalizedTc = normalizeRichTextSyntax(props.traditionalText || '')
+  const normalizedSc = normalizeRichTextSyntax(props.simplifiedText || '')
+
+  if (normalizedTc && normalizedSc) {
+    if (cpLen(normalizedTc) !== cpLen(normalizedSc)) {
       throw new Error("初始化繁简长度不一致，这是设计缺陷")
     }
   }
 
-  oldTc.value = props.traditionalText || ''
-  oldSc.value = props.simplifiedText || ''
-  newTc.value = props.traditionalText || ''
-  newSc.value = props.simplifiedText || ''
+  oldTc.value = normalizedTc
+  oldSc.value = normalizedSc
+  newTc.value = normalizedTc
+  newSc.value = normalizedSc
+
+  if (normalizedTc !== props.traditionalText) emit('update:traditionalText', normalizedTc)
+  if (normalizedSc !== props.simplifiedText) emit('update:simplifiedText', normalizedSc)
 })
 
 // ============ 繁体框检查 ============
@@ -117,6 +124,25 @@ function onMobileCheck(e) {
     isScDirty.value = true
     emit('update:simplifiedText', newSc.value)
   }
+}
+
+function normalizeTraditionalSyntax() {
+  const normalized = normalizeRichTextSyntax(newTc.value)
+  if (normalized === newTc.value) return
+  newTc.value = normalized
+  emit('update:traditionalText', normalized)
+}
+
+function normalizeSimplifiedSyntax() {
+  const normalized = normalizeRichTextSyntax(newSc.value)
+  if (normalized === newSc.value) return
+  newSc.value = normalized
+  emit('update:simplifiedText', normalized)
+}
+
+function normalizeMobileSyntax() {
+  if (viewMode.value === 'tc') normalizeTraditionalSyntax()
+  else normalizeSimplifiedSyntax()
 }
 
 // ============ 移动端 Ctrl + Enter（按当前视图分发） ============
@@ -255,11 +281,11 @@ defineExpose({clearAll})
 
       <input type="text" class="form-control sc-tc-input sc-tc-input--small" :placeholder="$t('sc_tc_text.traditional')"
              :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
-             @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
+              @input="onTraditionalCheck" @blur="normalizeTraditionalSyntax" @keydown="onTraditionalUpdate"/>
 
       <input type="text" class="form-control sc-tc-input sc-tc-input--small" :placeholder="$t('sc_tc_text.simplified')"
              :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
-             @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+              @input="onSimplifiedCheck" @blur="normalizeSimplifiedSyntax" @keydown="onSimplifiedUpdate"/>
 
       <div v-if="!disabled" class="sc-tc-actions">
         <button type="button" class="sc-tc-btn sc-tc-btn--sync"
@@ -276,11 +302,11 @@ defineExpose({clearAll})
       <div class="sc-tc-fields">
         <input type="text" class="form-control sc-tc-input sc-tc-input--middle" :placeholder="$t('sc_tc_text.traditional')"
                :value="newTc" :maxlength="maxLength" :disabled="disabled || tcLocked"
-               @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
+               @input="onTraditionalCheck" @blur="normalizeTraditionalSyntax" @keydown="onTraditionalUpdate"/>
 
         <input type="text" class="form-control sc-tc-input sc-tc-input--middle" :placeholder="$t('sc_tc_text.simplified')"
                :value="newSc" :maxlength="maxLength" :disabled="disabled || scLocked"
-               @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+               @input="onSimplifiedCheck" @blur="normalizeSimplifiedSyntax" @keydown="onSimplifiedUpdate"/>
       </div>
 
       <div v-if="!disabled" class="sc-tc-actions sc-tc-actions--column">
@@ -316,7 +342,7 @@ defineExpose({clearAll})
                 :placeholder="viewMode === 'tc' ? $t('sc_tc_text.traditional') : $t('sc_tc_text.simplified')"
                 :value="viewMode === 'tc' ? newTc : newSc"
                 :maxlength="maxLength" :rows="rows" :disabled="disabled || mobileLocked"
-                @input="onMobileCheck" @keydown="onMobileUpdate"/>
+                 @input="onMobileCheck" @blur="normalizeMobileSyntax" @keydown="onMobileUpdate"/>
     </div>
 
     <!-- 大型布局：双文本框 + 右侧操作列 -->
@@ -326,12 +352,12 @@ defineExpose({clearAll})
         <textarea
             :placeholder="$t('sc_tc_text.traditional')" class="form-control sc-tc-textarea" ref="tcBox"
             :value="newTc" :maxlength="maxLength" :rows="rows" :disabled="disabled || tcLocked"
-            @input="onTraditionalCheck" @keydown="onTraditionalUpdate"/>
+            @input="onTraditionalCheck" @blur="normalizeTraditionalSyntax" @keydown="onTraditionalUpdate"/>
 
         <textarea
             :placeholder="$t('sc_tc_text.simplified')" class="form-control sc-tc-textarea" ref="scBox"
             :value="newSc" :maxlength="maxLength" :rows="rows" :disabled="disabled || scLocked"
-            @input="onSimplifiedCheck" @keydown="onSimplifiedUpdate"/>
+            @input="onSimplifiedCheck" @blur="normalizeSimplifiedSyntax" @keydown="onSimplifiedUpdate"/>
       </div>
 
       <div v-if="!disabled" class="sc-tc-actions sc-tc-actions--column">

@@ -616,7 +616,7 @@
     overscroll-behavior-inline: contain;
 }
 
-/* 全部为 ! 的紧凑表格，外框也随内容收缩，避免右侧留下大片空白。 */
+/* 全部为限制宽度列的紧凑表格，外框也随内容收缩，避免右侧留下大片空白。 */
 .rt-table-compact-wrap {
     width: fit-content;
 }
@@ -695,7 +695,7 @@
 
 /* 表格模式 */
 
-/* 全部都是 ! */
+/* 全部都是限制宽度列（--- 或旧写法 ---!） */
 
 .rt-table-compact {
     width: max-content;

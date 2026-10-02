@@ -236,7 +236,7 @@ onMounted(() => {
         <CopyButton text="書既可以读作[_]（老派音），也可以读作[_]（新派音），原因是新派更接近普通話
 相關的規則是：一部分漢字老派讀作[jyu qyu xyu]的時候，新派讀作[zu cu su]，比如：
 |字|老派音|新派音|
-|---!|---!|---!|
+|---|---|---|
 |豬|[jyu1]|[zu1]|
 |主|[jyu3]|[zu3]|
 |處|[qyu3]|[cu3]|
@@ -294,7 +294,7 @@ onMounted(() => {
 
         <CopyButton text="用法對應普通話的「」" hint="普通話同義詞的模板" class="dev-normal-button dev-btn-middle"/>
         <CopyButton text="南昌話里自然的口語表達里不會出現「」這個詞語，而是用這個詞代替。" hint="南昌話不會這麼表達的模板" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="|---!|---*|
+        <CopyButton text="|---|---*|
 |例句||
 |說法||
 |讀音||

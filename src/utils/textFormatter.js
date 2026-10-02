@@ -17,6 +17,36 @@ export function formatRichText(text) {
     return text;
 }
 
+// 保存前统一表格列宽写法：旧的 ---! 仍可读取，但正式写法统一为 ---。
+// 只处理整行都是表格分隔符的内容，避免误改正文、代码和普通横线。
+export function normalizeRichTextSyntax(text) {
+    if (!text || typeof text !== "string") return text;
+
+    let inCodeBlock = false;
+
+    return text.replace(/^.*(?:\r?\n|$)/gm, line => {
+        const content = line.replace(/\r?\n$/, "");
+
+        if (/^\s*```/.test(content)) {
+            inCodeBlock = !inCodeBlock;
+            return line;
+        }
+
+        if (inCodeBlock || !/^\s*\|.+\|\s*$/.test(content)) return line;
+
+        const cells = content
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map(cell => cell.trim());
+
+        if (!cells.every(cell => /^:?-{2,}(?:[!*+]:?|:[!*+]?)?$/.test(cell))) return line;
+
+        return line.replace(/!/g, "");
+    });
+}
+
 // 处理空格
 function processSpaces(text) {
     return text.replace(/ {2,}/g, (spaces) => "&nbsp;".repeat(spaces.length));
@@ -402,7 +432,7 @@ function processTable(text) {
             i++;
         }
 
-        // 根据列宽标记选择整体布局模式：全紧凑、含长列、普通自适应
+        // 默认列和旧的 ! 列限制为内容宽度；+ 使用自动分配宽度；* 保持固定长列。
         const widthTypes = aligns.map(info => info.widthType || "normal");
         const tableMode = widthTypes.length > 0 && widthTypes.every(type => type === "nowrap")
             ? "rt-table-compact"
@@ -479,8 +509,8 @@ function processTable(text) {
         const cells = splitTableRow(line);
 
         return cells.every(cell =>
-            /^:?-{2,}[!*]?:?$/.test(cell.trim()) ||
-            /^:?-{2,}:?[!*]?$/.test(cell.trim())
+            /^:?-{2,}[!*+]?:?$/.test(cell.trim()) ||
+            /^:?-{2,}:?[!*+]?$/.test(cell.trim())
         );
     }
 
@@ -512,10 +542,10 @@ function processTable(text) {
                 align = "right";
             }
 
-            let widthType = "normal";
+            let widthType = "nowrap";
 
-            if (c.includes("!")) widthType = "nowrap";
-            else if (c.includes("*")) widthType = "long";
+            if (c.includes("*")) widthType = "long";
+            else if (c.includes("+")) widthType = "normal";
 
 
             return {

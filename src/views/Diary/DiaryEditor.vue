@@ -7,6 +7,7 @@ import TextDiffEditor from '../../components/Compare/TextDiffEditor.vue'
 import { confirm } from '../../services/confirmService.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { hasPermission } from '../../utils/auth.js'
+import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 import { getDiaryForEdit, updateDiary } from './diaryApi.js'
 
 const route = useRoute()
@@ -75,7 +76,7 @@ function normalizeForm(value) {
     id: value?.id ?? null,
     date: value?.date ?? '',
     sort: value?.sort ?? 1,
-    content: value?.content ?? '',
+    content: normalizeRichTextSyntax(value?.content ?? ''),
     forFriend: value?.forFriend ?? null,
     forStranger: value?.forStranger ?? null,
     startDate: value?.startDate ?? '',

@@ -10,7 +10,7 @@ function escapeHtml(text) {
         .replace(/'/g, '&#39;')
 }
 
-export function consumeBlockquote(lines, start, renderInline) {
+export function consumeBlockquote(lines, start, renderInline, renderContent) {
     if (!/^\s*```/.test(lines[start])) return null
 
     const openingRemainder = lines[start].replace(/^\s*```/, '')
@@ -19,7 +19,8 @@ export function consumeBlockquote(lines, start, renderInline) {
         return renderBlockquote(
             openingRemainder.slice(0, sameLineEnd).trim().split('\n'),
             start + 1,
-            renderInline
+            renderInline,
+            renderContent
         )
     }
     const content = openingRemainder ? [openingRemainder] : []
@@ -35,10 +36,10 @@ export function consumeBlockquote(lines, start, renderInline) {
     const closingPrefix = lines[index].replace(/```\s*$/, '')
     if (closingPrefix) content.push(closingPrefix)
 
-    return renderBlockquote(content, index + 1, renderInline)
+    return renderBlockquote(content, index + 1, renderInline, renderContent)
 }
 
-function renderBlockquote(content, nextIndex, renderInline) {
+function renderBlockquote(content, nextIndex, renderInline, renderContent) {
     const normalized = content.join('\n').trim().split('\n').map(line => line.trim())
     const firstLine = normalized[0] || ''
     const tagName = /^[a-z][a-z0-9]*$/.test(firstLine) ? firstLine : null
@@ -47,9 +48,9 @@ function renderBlockquote(content, nextIndex, renderInline) {
     if (config && normalized.length >= 2) {
         const title = renderInline(normalized[1])
         const bodyLines = tagName === 'dm' ? content.slice(2) : normalized.slice(2)
-        const body = bodyLines
-            .map(line => tagName === 'dm' ? escapeHtml(line) : renderInline(line))
-            .join('<br>')
+        const body = tagName === 'dm'
+            ? bodyLines.map(escapeHtml).join('<br>')
+            : renderContent(bodyLines.join('\n'))
         const style = `--bq-accent:${config.accent};--bq-bg:${config.bg};--bq-header-bg:${config.headerBg};--bq-icon-bg:${config.iconBg};--bq-text:${config.text || config.accent}`
         const modifierClass = tagName === 'dm' ? ' rt-blockquote-tag--dm' : ''
         return {
@@ -60,6 +61,6 @@ function renderBlockquote(content, nextIndex, renderInline) {
 
     return {
         nextIndex,
-        html: `<blockquote class="rt-blockquote">${normalized.map(renderInline).join('<br>')}</blockquote>`
+        html: `<blockquote class="rt-blockquote">${renderContent(normalized.join('\n'))}</blockquote>`
     }
 }

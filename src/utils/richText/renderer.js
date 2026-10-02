@@ -62,7 +62,8 @@ export function renderRichText(text, context = getRouteContext()) {
 
     while (index < lines.length) {
         const renderInline = value => parseInline(value, context)
-        const blockquote = consumeBlockquote(lines, index, renderInline)
+        const renderContent = value => renderRichText(value, context)
+        const blockquote = consumeBlockquote(lines, index, renderInline, renderContent)
         if (blockquote) {
             parts.push({html: blockquote.html, block: true, kind: 'blockquote'})
             index = blockquote.nextIndex

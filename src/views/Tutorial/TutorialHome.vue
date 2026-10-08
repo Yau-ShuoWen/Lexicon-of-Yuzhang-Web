@@ -2,6 +2,7 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@vueuse/head'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
 
 const router = useRouter()
@@ -13,6 +14,13 @@ const activeChapterId = ref(null)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
+
+useHead({
+  title: '语言教程',
+  meta: [
+    { key: 'description', name: 'description', content: '豫章词语言教程目录，包含读音、词汇与方言相关资料。' }
+  ]
+})
 
 onMounted(async () => {
   loading.value = true

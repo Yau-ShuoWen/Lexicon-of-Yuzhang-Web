@@ -2,12 +2,20 @@
 
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import { useHead } from '@vueuse/head'
 import { showError } from "../../services/ToastService.js";
 
 const route = useRoute()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
+
+useHead({
+  title: '语言字母表',
+  meta: [
+    { key: 'description', name: 'description', content: '查看不同语言及拼音方案的字母表、读音和转写说明。' }
+  ]
+})
 
 /* ======== 数据 ======== */
 

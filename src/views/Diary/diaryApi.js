@@ -160,6 +160,13 @@ export async function queryDiaries(language, filters = {}, view = 'stranger') {
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
+export async function searchDiaries(language, keyword, view = 'stranger') {
+    const data = await fetchJson(`/api/diary/search/${language}${buildDiaryQuery(view, {
+        q: keyword
+    })}`)
+    return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
+}
+
 export async function getDiaryByDate(language, date, view = 'stranger') {
     const data = await fetchJson(`/api/diary/item/${language}/date/${date}${buildDiaryQuery(view)}`)
     return normalizeDiaryText(data, language)
@@ -173,6 +180,17 @@ export async function getDiaryById(language, id, view = 'stranger') {
 export async function getDiaryForEdit(id) {
     const data = await fetchJson(`/api/diary/edit/${id}${buildDiaryQuery()}`)
     return normalizeDiaryEdit(assertApiSuccess(data, '加载日记编辑内容失败'))
+}
+
+export async function createDiary(payload) {
+    const data = await fetchJson(`/api/diary/edit${buildDiaryQuery()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    return normalizeDiaryEdit(assertApiSuccess(data, '创建日记失败'))
 }
 
 export async function updateDiary(id, payload) {

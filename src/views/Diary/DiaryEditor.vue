@@ -225,7 +225,8 @@ function goBack() {
       language: route.params.language,
       dialect: route.params.dialect,
       id: diaryId.value
-    }
+    },
+    query: { view: 'self' }
   })
 }
 
@@ -239,7 +240,7 @@ onMounted(loadDiary)
         <h1>{{ $t('diary.editor.title') }}</h1>
       </div>
       <div class="diary-editor-header-actions">
-        <button class="dev-normal-button dev-btn-small" type="button" @click="router.back()">{{ $t('diary.editor.back_detail') }}</button>
+        <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">{{ $t('diary.editor.back_detail') }}</button>
         <button
           v-if="form"
           class="dev-add-btn dev-btn-small"

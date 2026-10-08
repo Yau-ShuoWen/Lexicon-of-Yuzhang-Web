@@ -2,13 +2,17 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
+import searchIcon from '../../assets/icons/search.svg'
 import DiaryArchive from './DiaryArchive.vue'
-import { showError } from '../../services/ToastService.js'
-import { getDiaryVisibilityLevel } from '../../utils/auth.js'
+import UnifiedModal from '../../components/Window/UnifiedModal.vue'
+import { showError, showSuccess } from '../../services/ToastService.js'
+import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
+  createDiary,
   formatDateLabel,
   getDiaryCatalog,
-  queryDiaries
+  queryDiaries,
+  searchDiaries
 } from './diaryApi.js'
 
 const route = useRoute()
@@ -20,6 +24,7 @@ const diaryLevel = computed(() => getDiaryVisibilityLevel())
 const canSelfView = computed(() => diaryLevel.value >= 3)
 const canFriendView = computed(() => diaryLevel.value >= 2)
 const canStrangerView = computed(() => diaryLevel.value >= 1)
+const canEdit = computed(() => hasPermission('diary.edit'))
 const viewOptions = computed(() => {
   if (canSelfView.value) {
     return [
@@ -63,7 +68,11 @@ const text = computed(() => (
           friend: '朋友',
           stranger: '陌生人',
           full: '完整版',
-          public: '公開版'
+          public: '公開版',
+          search: '搜尋日記', searchPlaceholder: '輸入關鍵詞', clearSearch: '清除搜尋', noSearchResult: '沒有找到相關日記',
+          add: '新增日記', create: '建立空白日記', cancel: '取消', date: '日期', dateInput: '手動輸入日期',
+          dateHint: '格式：yyyy-mm-dd（也支援 yyyymmdd）', sort: '排序 sort', creating: '建立中……', createSuccess: '日記建立成功',
+          invalidDate: '請輸入有效日期（yyyy-mm-dd）', invalidSort: 'sort 必須是大於 0 的整數'
         }
         : {
           title: '日记',
@@ -75,7 +84,11 @@ const text = computed(() => (
           friend: '朋友',
           stranger: '陌生人',
           full: '完整版',
-          public: '公开版'
+          public: '公开版',
+          search: '搜索日记', searchPlaceholder: '输入关键词', clearSearch: '清除搜索', noSearchResult: '没有找到相关日记',
+          add: '添加日记', create: '创建空白日记', cancel: '取消', date: '日期', dateInput: '手动输入日期',
+          dateHint: '格式：yyyy-mm-dd（也支持 yyyymmdd）', sort: '排序 sort', creating: '创建中……', createSuccess: '日记创建成功',
+          invalidDate: '请输入有效日期（yyyy-mm-dd）', invalidSort: 'sort 必须是大于 0 的整数'
         }
 ))
 
@@ -91,8 +104,79 @@ const listRenderKey = ref(0)
 
 const catalog = ref([])
 const listItems = ref([])
+const searchInput = ref('')
+const activeSearch = computed(() => String(route.query.q || '').trim())
+const showCreateDialog = ref(false)
+const creating = ref(false)
+const createForm = ref({ date: '', dateText: '', sort: 1 })
 let catalogSkeletonTimer = null
 let listSkeletonTimer = null
+
+function parseManualDate(value) {
+  const normalizedInput = String(value || '').trim().replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$1$2$3')
+  const match = normalizedInput.match(/^(\d{4})(\d{2})(\d{2})$/)
+  if (!match) return ''
+  const normalized = `${match[1]}-${match[2]}-${match[3]}`
+  const date = new Date(`${normalized}T00:00:00`)
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === Number(match[1])
+    && date.getMonth() + 1 === Number(match[2]) && date.getDate() === Number(match[3])
+    ? normalized : ''
+}
+
+function openCreateDialog() {
+  const year = String(route.query.year || '')
+  const monthNumber = Number(route.query.month)
+  const hasValidYearMonth = /^\d{4}$/.test(year)
+    && Number.isInteger(monthNumber)
+    && monthNumber >= 1
+    && monthNumber <= 12
+  const today = new Date()
+  const defaultYear = hasValidYearMonth ? year : String(today.getFullYear())
+  const defaultMonth = hasValidYearMonth ? monthNumber : today.getMonth() + 1
+  const dateText = `${defaultYear}-${String(defaultMonth).padStart(2, '0')}-`
+  createForm.value = { date: '', dateText, sort: 1 }
+  showCreateDialog.value = true
+}
+
+function syncCreateDate() {
+  createForm.value.dateText = createForm.value.date
+}
+
+function syncCreateDateText() {
+  const date = parseManualDate(createForm.value.dateText)
+  if (date) createForm.value.date = date
+}
+
+async function submitCreate() {
+  const date = parseManualDate(createForm.value.dateText)
+  const sort = Number(createForm.value.sort)
+  if (!date) return showError(text.value.invalidDate)
+  if (!Number.isInteger(sort) || sort <= 0) return showError(text.value.invalidSort)
+
+  const editorWindow = window.open('', '_blank')
+  creating.value = true
+  try {
+    const created = await createDiary({ date, sort })
+    showCreateDialog.value = false
+    showSuccess(text.value.createSuccess)
+    const editorUrl = router.resolve({
+      name: 'DiaryEditor',
+      params: { language: language.value, dialect: dialect.value, id: String(created.id) }
+    }).href
+    if (editorWindow) {
+      editorWindow.location.href = editorUrl
+    } else {
+      window.open(editorUrl, '_blank', 'noopener')
+    }
+    await Promise.all([loadCatalog(), loadList()])
+  } catch (error) {
+    if (editorWindow) editorWindow.close()
+    console.error(error)
+    showError(error.message || text.value.invalidDate)
+  } finally {
+    creating.value = false
+  }
+}
 
 const filters = ref({
   year: '',
@@ -120,6 +204,7 @@ function setView(mode) {
     query: {
       ...(route.query.year ? { year: String(route.query.year) } : {}),
       ...(route.query.month ? { month: String(route.query.month) } : {}),
+      ...(activeSearch.value ? { q: activeSearch.value } : {}),
       view: nextMode
     }
   })
@@ -177,7 +262,9 @@ function stopListLoading() {
 async function loadList() {
   startListLoading()
   try {
-    listItems.value = await queryDiaries(language.value, filters.value, viewMode.value)
+    listItems.value = activeSearch.value
+      ? await searchDiaries(language.value, activeSearch.value, viewMode.value)
+      : await queryDiaries(language.value, filters.value, viewMode.value)
   } catch (error) {
     console.error(error)
     showError(error.message || '加载日记列表失败')
@@ -193,6 +280,32 @@ function syncFiltersFromQuery() {
     year: route.query.year ? String(route.query.year) : '',
     month: route.query.month ? String(route.query.month) : ''
   }
+  searchInput.value = activeSearch.value
+}
+
+function submitSearch() {
+  const keyword = searchInput.value.trim()
+  if (!keyword) {
+    clearSearch()
+    return
+  }
+  router.replace({
+    query: {
+      q: keyword,
+      view: viewMode.value
+    }
+  })
+}
+
+function clearSearch() {
+  searchInput.value = ''
+  router.replace({
+    query: {
+      ...(filters.value.year ? { year: filters.value.year } : {}),
+      ...(filters.value.month ? { month: filters.value.month } : {}),
+      view: viewMode.value
+    }
+  })
 }
 
 async function loadPage() {
@@ -205,7 +318,8 @@ let skipNextWatch = false
 
 // 点击归档的某年某月：筛选并刷新左侧列表，同时把筛选同步到 URL；
 // 再次点击当前月份则清除筛选，URL 回到不带年份/月份的形式
-function applyArchive({ year, month }) {
+async function applyArchive({ year, month }) {
+  searchInput.value = ''
   if (filters.value.year === year && filters.value.month === month) {
     filters.value.year = ''
     filters.value.month = ''
@@ -221,9 +335,8 @@ function applyArchive({ year, month }) {
   if (viewMode.value) query.view = viewMode.value
 
   skipNextWatch = true
-  router.replace({ query })
-
-  loadList()
+  await router.replace({ query })
+  await loadList()
 }
 
 function getDetailHref(item) {
@@ -263,7 +376,8 @@ watch(
     language.value,
     viewMode.value,
     route.query.year,
-    route.query.month
+    route.query.month,
+    route.query.q
   ],
   () => {
     // 本页通过归档点击主动推送的 query：列表已在 applyArchive 中刷新，跳过整页重载
@@ -300,6 +414,35 @@ onBeforeUnmount(() => {
 
         <div class="panel-head">
           <div class="panel-title" v-formatted-text="text.list"/>
+          <form class="diary-search" role="search" @submit.prevent="submitSearch">
+            <input
+              v-model="searchInput"
+              class="diary-search__input"
+              type="search"
+              maxlength="100"
+              :placeholder="text.searchPlaceholder"
+              :aria-label="text.search"
+            />
+            <button
+              v-if="activeSearch"
+              class="diary-search__clear"
+              type="button"
+              :aria-label="text.clearSearch"
+              :title="text.clearSearch"
+              @click="clearSearch"
+            >×</button>
+            <button
+              class="diary-search__submit"
+              type="submit"
+              :aria-label="text.search"
+              :title="text.search"
+            >
+              <img :src="searchIcon" alt="" aria-hidden="true" />
+            </button>
+          </form>
+          <button v-if="canEdit" class="dev-add-btn dev-btn-small diary-add-button" type="button" @click="openCreateDialog">
+            {{ text.add }}
+          </button>
           <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
             <span class="view-switch__label">{{ text.view }}</span>
             <div
@@ -362,10 +505,38 @@ onBeforeUnmount(() => {
             </article>
           </div>
 
-          <div v-else class="empty-box" v-formatted-text="text.noData"/>
+          <div v-else class="empty-box" v-formatted-text="activeSearch ? text.noSearchResult : text.noData"/>
         </section>
       </section>
     </div>
+
+    <UnifiedModal
+      v-model="showCreateDialog"
+      :title="text.create"
+      size="small"
+      :busy="creating"
+    >
+      <form id="diary-create-form" class="diary-create-form" @submit.prevent="submitCreate">
+        <label>
+          <span>{{ text.date }}</span>
+          <input v-model="createForm.date" class="ordinary-input" type="date" required @change="syncCreateDate" />
+        </label>
+        <label>
+          <span>{{ text.dateInput }}</span>
+          <input v-model="createForm.dateText" class="ordinary-input" type="text" inputmode="numeric" maxlength="10" placeholder="yyyy-mm-dd" required @input="syncCreateDateText" />
+          <small>{{ text.dateHint }}</small>
+        </label>
+        <label>
+          <span>{{ text.sort }}</span>
+          <input v-model.number="createForm.sort" class="ordinary-input" type="number" min="1" step="1" required />
+        </label>
+      </form>
+
+      <template #footer>
+        <button class="dev-normal-button dev-btn-small" type="button" :disabled="creating" @click="showCreateDialog = false">{{ text.cancel }}</button>
+        <button class="dev-add-btn dev-btn-small" type="submit" form="diary-create-form" :disabled="creating">{{ creating ? text.creating : text.create }}</button>
+      </template>
+    </UnifiedModal>
   </div>
 </template>
 
@@ -374,6 +545,25 @@ onBeforeUnmount(() => {
   padding-top: 20px;
   padding-bottom: 32px;
 }
+
+.diary-add-button { margin: 0 0 8px auto; }
+.diary-search { display: flex; align-items: center; min-width: min(360px, 100%); position: relative; }
+.diary-search__input { box-sizing: border-box; min-width: 0; width: 100%; height: 36px; padding: 7px 70px 7px 11px; border: 1px solid #cad8cc; border-radius: 8px; color: var(--color-text); background: var(--color-background); outline: none; }
+.diary-search__input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
+.diary-search__input::-webkit-search-cancel-button { appearance: none; }
+.diary-search__submit,
+.diary-search__clear { position: absolute; top: 50%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; transform: translateY(-50%); }
+.diary-search__submit { right: 4px; }
+.diary-search__submit img { width: 17px; height: 17px; opacity: .68; }
+.diary-search__submit:hover { background: rgba(46, 125, 50, .08); }
+.diary-search__submit:hover img { opacity: 1; }
+.diary-search__clear { right: 35px; color: var(--color-text-light); font-size: 20px; line-height: 1; }
+.diary-search__clear:hover { color: var(--color-primary-dark); background: rgba(46, 125, 50, .08); }
+.diary-create-form { display: grid; gap: 14px; }
+.diary-create-form label { display: flex; flex-direction: column; gap: 7px; color: var(--color-text); font-size: .84rem; font-weight: 600; }
+.diary-create-form small { color: var(--color-text-light); font-weight: 400; }
+.diary-create-form .ordinary-input { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cad8cc; border-radius: 8px; outline: none; }
+.diary-create-form .ordinary-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
 
 .diary-layout {
   display: grid;
@@ -696,6 +886,8 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 500px) {
+  .panel-head { align-items: stretch; }
+  .diary-search { order: 3; width: 100%; min-width: 100%; }
   .diary-card__top {
     flex-direction: column;
     align-items: flex-start;

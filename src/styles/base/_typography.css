@@ -1,6 +1,7 @@
 /* _typography.css */
 *{
-    font-family: system_ui,MiSansOnlyLatin, /*"Cambria",*//*"HanaMinA",*/ "HanaMinB"/*,monospace*/;
+    /* 明确指定中文字体，避免 html 的 zh-CN/zh-Hant 影响系统字体选择。 */
+    font-family: MiSansOnlyLatin, "Microsoft JhengHei", "HanaMinB", sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6 {

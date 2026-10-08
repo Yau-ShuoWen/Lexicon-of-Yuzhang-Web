@@ -192,6 +192,8 @@ export default {
     },
     pinyin_table: {
         title: "方言拼音表",
+        detail_title: "拼音詳情",
+        play_audio: "播放讀音",
         subtitle: "按聲母、韻母分組排列，點擊任意方格查看讀音與示例",
         hint: "點擊方格查看詳細信息",
         legend_clickable: "可點擊查看詳情",

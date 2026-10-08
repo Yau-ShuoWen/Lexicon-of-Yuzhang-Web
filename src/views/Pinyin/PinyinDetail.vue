@@ -1,7 +1,6 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
-import { formatRichText } from "../../utils/textFormatter.js";
-import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import UnifiedModal from "../../components/Window/UnifiedModal.vue";
 import audioIcon from "../../assets/icons/audio.svg"
 
 const props = defineProps({
@@ -18,6 +17,10 @@ const detail = ref(null)
 
 const audioRef = ref(null)
 const currentAudio = ref('')
+
+function closeModal() {
+  emit('close')
+}
 
 /* =========================
    2. 拉取 detail + 批量音频映射（并行）
@@ -97,126 +100,55 @@ watch(() => [props.pinyinKey, props.show], () => {
 
 
 <template>
-  <div v-if="show" class="overlay" @click.self="emit('close')">
-    <div class="modal">
+  <UnifiedModal
+      :model-value="show"
+      :title="$t('pinyin_table.detail_title')"
+      size="medium"
+      :loading="loading"
+      :loading-text="$t('status.loading')"
+      @update:model-value="value => !value && closeModal()"
+  >
+    <div v-if="detail" class="pinyin-detail-content">
+      <div v-for="item in detail.info" :key="item.key" class="pinyin-detail-block">
+        <div class="standard-row">
+          <h2 class="standard" v-formatted-text="item.standard"/>
 
-      <button class="close-btn" @click="emit('close')">
-        ✕
-      </button>
-
-      <LoadingIcon v-if="loading"/>
-
-      <!-- content -->
-      <div v-else-if="detail">
-
-        <div v-for="item in detail.info" :key="item.key" class="block">
-
-          <div class="standard-row">
-            <h2 class="standard" v-formatted-text="item.standard"/>
-
-            <button
-                v-if="item.hasAudio"
-                class="play-btn btn-settings"
-                @click="playAudio(item)"
-                aria-label="play audio"
-            >
-              <img :src="audioIcon" class="audio-icon" />
-            </button>
-          </div>
-
-          <div class="label" v-formatted-text="item.note"/>
-
-          <!--          辞书国际音标-->
-          <!--          &lt;!&ndash; ipa &ndash;&gt;-->
-          <!--          <table class="table">-->
-          <!--            <tr v-for="(value, key) in item.ipa" :key="key">-->
-          <!--              <td class="ipa-key">{{ key }}</td>-->
-          <!--              <td class="ipa-value" v-formatted-text="value"/>-->
-          <!--            </tr>-->
-          <!--          </table>-->
-
-
+          <button
+              v-if="item.hasAudio"
+              class="play-btn btn-settings"
+              type="button"
+              :aria-label="$t('pinyin_table.play_audio')"
+              @click="playAudio(item)"
+          >
+            <img :src="audioIcon" class="audio-icon" alt="" />
+          </button>
         </div>
-      </div>
 
-      <div v-else class="no-results-high">
-        {{ $t('status.no_data') }}
+        <div class="label" v-formatted-text="item.note"/>
       </div>
-
     </div>
-    <audio
-        ref="audioRef"
-        :src="currentAudio"
-        preload="auto"
-    />
-  </div>
+
+    <div v-else class="no-results-high">
+      {{ $t('status.no_data') }}
+    </div>
+  </UnifiedModal>
+
+  <audio ref="audioRef" :src="currentAudio" preload="auto" />
 </template>
 
 
-<style>
-/* 遮罩 */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-}
-
-/* 彈窗 */
-.modal {
-  position: relative;
-
-  width: 90%;
-  max-width: 520px;
-  max-height: 80vh;
-  overflow-y: auto;
-
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-}
-
-.close-btn {
-  position: sticky;
-  top: 8px;
-
-  float: right;
-
-  z-index: 20;
-
-  border: none;
-  background: rgba(255, 255, 255, 0.95);
-
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-
-  cursor: pointer;
-  font-size: 20px;
-}
-
-.close-btn:hover {
-  color: #000;
-}
-
-/* 區塊 */
-.block {
-  margin-bottom: 20px;
-}
-
+<style scoped>
 .standard-row {
   display: flex;
   align-items: center;
-  gap: 20px; /* 控制文字和图标距离 */
+  gap: 20px;
+  margin-left: 5px;
 }
 
 .standard {
-  margin: 0; /* 去掉默认 margin，避免错位 */
+  margin: 0;
   font-size: 30px;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 .play-btn {
@@ -234,55 +166,23 @@ watch(() => [props.pinyinKey, props.show], () => {
   height: 18px;
   display: block;
 }
-/* standard */
-.standard {
-  margin: 0 0 10px;
-  font-size: 30px;
-}
 
-/* notation */
-.notation-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 10px 0;
-
-  table-layout: fixed; /* ⭐關鍵 */
-}
-
-.table td {
-  border: 1px solid #ddd;
-  padding: 6px 8px;
-}
-
-.ipa-key {
-  background: #f7f7f7;
-  width: 75%; /* 3 */
-}
-
-.ipa-value {
-  width: 25%; /* 1 */
-}
-
-.empty {
-  text-align: center;
-  padding: 20px;
-}
-
-.block {
+.pinyin-detail-block {
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #9a9a9a;
+  border-bottom: 2px solid #dcdcdc;
 }
 
-.block:last-child {
+.pinyin-detail-block:last-child {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+.no-results-high {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  color: var(--color-text-light);
 }
 </style>

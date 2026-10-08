@@ -99,8 +99,8 @@ watch(dialect, fetchTable)
     <header class="pinyin-hero">
 
       <h1 class="hero-title">
-        <span class="hero-dialect">{{ $t('dialect.' + dialect) }}</span>
-        <span class="hero-title-main">{{ $t('pinyin_table.title') }}</span>
+        <span class="hero-dialect">{{ $t('pinyin_table.title') }}</span>
+        <span class="hero-title-main">{{ $t('dialect.' + dialect) }}</span>
       </h1>
 
       <p class="hero-subtitle">{{ $t('pinyin_table.subtitle') }}</p>
@@ -289,38 +289,6 @@ watch(dialect, fetchTable)
   justify-content: center;
 }
 
-/* ======== 图例 ======== */
-.legend-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  padding: 4px 4px 6px;
-  font-size: 13px;
-  color: var(--color-text-light);
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.legend-dot {
-  width: 13px;
-  height: 13px;
-  border-radius: 4px;
-}
-
-.valid-dot {
-  background: linear-gradient(180deg, #ffffff 0%, #e6f4e2 100%);
-  border: 1px solid var(--color-primary-light);
-}
-
-.invalid-dot {
-  background: #fafbfc;
-  border: 1px dashed #cbd2d9;
-}
-
 /* ======== 分组卡片 ======== */
 .attribute-group {
   background: #fff;
@@ -335,7 +303,7 @@ watch(dialect, fetchTable)
 
 
 .attribute-group:hover {
-  box-shadow: var(--shadow-md);
+  /*box-shadow: var(--shadow-md);*/
 }
 
 .group-header {
@@ -543,7 +511,7 @@ watch(dialect, fetchTable)
 
 .pinyin-layout {
   width: 1088px;
-  margin-bottom: 50px;
+  padding-bottom: 100px;
 }
 
 @media (max-width: 1105px ) {

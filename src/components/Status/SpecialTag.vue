@@ -37,6 +37,7 @@ const iconSrc = computed(() => {
 
 // 文本
 const text = computed(() => {
+  if (props.type === 'hanzi' && props.special === 4) return t('linguistic.special.hanziConflict')
   return t(`linguistic.special.${key.value}`, {
     type: t(`linguistic.${props.type}`),
     dialect: t(`dialect.${props.dialect}`)

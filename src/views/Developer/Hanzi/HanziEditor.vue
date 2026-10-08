@@ -1,374 +1,265 @@
-<!--HanziEditor.vue-->
-
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
-import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
-import DraggableList from "../../../components/Layout/DraggableList.vue";
-import { showError, showSuccess } from "../../../services/ToastService.js";
-import RichText from "../../../components/Text/RichText.vue";
-import { getToken } from "../../../utils/auth.js";
+import {computed, onMounted, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
+import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
+import DraggableList from '../../../components/Layout/DraggableList.vue'
+import DraggableGrid from '../../../components/Layout/DraggableGrid.vue'
+import RichText from '../../../components/Text/RichText.vue'
+import {showError, showSuccess} from '../../../services/ToastService.js'
+import {getToken} from '../../../utils/auth.js'
 
-// 路由
 const route = useRoute()
 const router = useRouter()
-const id = route.params.id
-
-// 语言、方言和路径
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (id) => `/${language.value}/${dialect.value}/dev/hanzi-editor/${id}`
+const getPath = id => `/${language.value}/${dialect.value}/dev/hanzi-editor/${id}`
 
-const updateData = ref({
+const emptyData = () => ({
   id: null,
   hanzi: {sc: '', tc: ''},
-  mainPy: '',
+  pinyin: [],
   special: 0,
   similar: [],
-  variantPy: [],
-  mandarin: [],
   note: [],
   status: 1
 })
 
-const prevId = ref(null)   // 前一个的编号
-const nextId = ref(null)       // 后一个的编号
-const mandarinOptions = ref([])// 普通话读音的选择
+const updateData = ref(emptyData())
+const mandarinOptions = ref([])
+const wordSuggestions = ref([])
+const suggestionsLoading = ref(false)
+const suggestionsFailed = ref(false)
+const prevId = ref(null)
+const nextId = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 
-const originalMandarin = ref([])        // 保存从后端加载的原始 mandarin 数据
-
 const tagOptions = [
-  {sc: "待定", tc: "待定"},
-  {sc: "文读", tc: "文讀"},
-  {sc: "白读", tc: "白讀"},
-  {sc: "老派", tc: "老派"},
-  {sc: "新派", tc: "新派"},
-  {sc: "普化音", tc: "普化音"},
-  {sc: "理论读音", tc: "理論讀音"},
-  {sc: "连读音", tc: "連讀音"},
-  {sc: "语流音变", tc: "語流音變"}
+  {sc: '待定', tc: '待定'}, {sc: '文读', tc: '文讀'}, {sc: '白读', tc: '白讀'},
+  {sc: '老派', tc: '老派'}, {sc: '新派', tc: '新派'}, {sc: '普化音', tc: '普化音'},
+  {sc: '理论读音', tc: '理論讀音'}, {sc: '连读音', tc: '連讀音'}, {sc: '语流音变', tc: '語流音變'}
 ]
 
-// 方法：加载汉字详情
-const loadHanzi = async (id) => {
+const noteTags = [
+  {code: 'usage', name: '用法說明'},
+  {code: 'pronun', name: '讀音說明'},
+  {code: 'struct', name: '詞語結構'},
+  {code: 'source', name: '字源考證'},
+  {code: 'history', name: '歷史演變'},
+  {code: 'proverb', name: '相關俗語'}
+]
 
+const isKnownNoteTag = value => noteTags.some(tag => tag.code === value)
+
+const isAutomaticMapping = computed(() =>
+    updateData.value.pinyin.length === 1 && mandarinOptions.value.length === 1)
+
+const loadMandarinOptions = async () => {
+  const {sc, tc} = updateData.value.hanzi
+  if (!sc || !tc) return
+  const response = await fetch(`/api/edit/hanzi/get-mandarin/${dialect.value}?sc=${encodeURIComponent(sc)}&tc=${encodeURIComponent(tc)}`, {
+    headers: {'X-Auth-Token': getToken() || ''}
+  })
+  if (!response.ok) throw new Error('普通话读音加载失败')
+  mandarinOptions.value = await response.json()
+}
+
+const loadNearBy = async id => {
+  const response = await fetch(`/api/edit/hanzi/get-nearby/${dialect.value}?id=${id}`, {
+    headers: {'X-Auth-Token': getToken() || ''}
+  })
+  const json = await response.json()
+  if (!response.ok || !json.success) throw new Error(json?.message || '加载上下条失败')
+  prevId.value = json.data.left.empty ? null : json.data.left.value
+  nextId.value = json.data.right.empty ? null : json.data.right.value
+}
+
+const loadWordSuggestions = async id => {
+  suggestionsLoading.value = true
+  suggestionsFailed.value = false
+  try {
+    const response = await fetch(`/api/edit/hanzi/get-word-suggestions/${dialect.value}?id=${encodeURIComponent(id)}&language=${language.value}`, {
+      headers: {'X-Auth-Token': getToken() || ''}
+    })
+    const json = await response.json().catch(() => null)
+    if (!response.ok || !json?.success) throw new Error(json?.message || '建议加载失败')
+    wordSuggestions.value = json.data ?? []
+  } catch (error) {
+    wordSuggestions.value = []
+    suggestionsFailed.value = true
+    console.error('词语读音建议加载失败', error)
+  } finally {
+    suggestionsLoading.value = false
+  }
+}
+
+const loadHanzi = async id => {
   isLoading.value = true
   try {
     const response = await fetch(`/api/edit/hanzi/get-info/${dialect.value}?id=${id}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    if (!response.ok) throw new Error('加载失败')
-    const apiResponse = await response.json()
-    if (!apiResponse.success) throw new Error(apiResponse.message || '加载失败')
-    if (apiResponse.data.empty) throw new Error('未找到数据')
-
-    console.log('完整响应:', apiResponse)
-    const data = apiResponse.data.value
-
-
-    originalMandarin.value = data.mandarin || []    // 保存原始的 mandarin 数据
-    updateData.value = data // 转换数据格式以匹配前端界面
-    await loadMandarinOptions()                     // 加载详情后自动加载普通话选项并设置选中状态
-    await loadNearBy(id)
+    const json = await response.json().catch(() => null)
+    if (!response.ok || !json?.success) throw new Error(json?.message || '加载失败')
+    if (json.data.empty) throw new Error('未找到数据')
+    updateData.value = json.data.value
+    updateData.value.pinyin ??= []
+    updateData.value.pinyin.forEach(item => item.mandarin ??= [])
+    await Promise.all([loadMandarinOptions(), loadNearBy(id), loadWordSuggestions(id)])
   } catch (error) {
-    console.error('加载汉字详情失败:', error)
     showError('加载失败：' + error.message)
-  }
-  finally {
+  } finally {
     isLoading.value = false
   }
 }
 
-// 找到上一个和下一个词条
-const loadNearBy = async (id) => {
-  try {
-    const res = await fetch(`/api/edit/hanzi/get-nearby/${dialect.value}?id=${id}`, {
-      headers: {'X-Auth-Token': getToken() || ''}
-    })
-    if (!res.ok) throw new Error('加载上下文失败')
+const usedByOther = (mandarinId, currentIndex) => updateData.value.pinyin.some(
+    (item, index) => index !== currentIndex && item.mandarin?.includes(mandarinId))
 
-    const json = await res.json()
-    if (!json.success) throw new Error(json.message)
-
-    const data = json.data
-
-    prevId.value = data.left.empty ? null : data.left.value
-    nextId.value = data.right.empty ? null : data.right.value
-
-  } catch (err) {
-    console.error(err)
-  }
-}
-
-// 方法：加载普通话选项并设置选中状态
-const loadMandarinOptions = async () => {
-  try {
-    const response = await fetch(`/api/edit/hanzi/get-mandarin/${dialect.value}?sc=${encodeURIComponent(updateData.value.hanzi.sc)}&tc=${encodeURIComponent(updateData.value.hanzi.tc)}`, {
-      headers: {'X-Auth-Token': getToken() || ''}
-    })
-    if (response.ok) {
-      const options = await response.json()
-      mandarinOptions.value = options
-
-
-      // 设置选中状态：将后端返回的 mandarin 数据与选项列表匹配
-      setMandarinSelection(options)
-    }
-  } catch (error) {
-    console.error('加载普通话选项失败:', error)
-  }
-}
-
-// 方法：设置普通话读音的选中状态
-const setMandarinSelection = (options) => {
-
-  // 编辑模式：将原始 mandarin 数据与选项列表匹配
-  const selectedItems = []
-
-  // 根据 info 字段进行匹配，或者根据 mandarinId 和 dialectId 进行匹配（更精确）
-  // 如果找到匹配的选项，就添加到选中列表中
-  originalMandarin.value.forEach(originalItem => {
-    const matchedOption = options.find(option =>
-        option.info === originalItem.info ||
-        (option.mandarinId === originalItem.mandarinId && option.dialectId === originalItem.dialectId)
-    )
-
-    if (matchedOption) selectedItems.push(matchedOption)
-  })
-  updateData.value.mandarin = selectedItems
-}
-
-// 切换到其他词条，清空保存的结果
-const shiftToOther = async (newId) => {
-  await router.replace(getPath(`${newId}`))
-}
-
-// 方法：保存数据
 const saveData = async () => {
   isSaving.value = true
-
   try {
-    // 转换数据格式以匹配后端
-    const backendData = updateData.value
-
-    console.log('准备保存的数据:', JSON.stringify(backendData, null, 2))
-
+    if (isAutomaticMapping.value) updateData.value.pinyin[0].mandarin = []
     const response = await fetch(`/api/edit/hanzi/submit/${dialect.value}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': getToken() || ''
-      },
-      body: JSON.stringify(backendData)
+      headers: {'Content-Type': 'application/json', 'X-Auth-Token': getToken() || ''},
+      body: JSON.stringify(updateData.value)
     })
     const json = await response.json().catch(() => null)
-
-    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    if (!json.success) throw new Error(json.message || '保存失败')
-
+    if (!response.ok || !json?.success) throw new Error(json?.message || `HTTP错误: ${response.status}`)
     showSuccess('保存成功！')
+    await loadHanzi(route.params.id)
   } catch (error) {
     showError(error.message)
-    console.error('保存失败:', error)
-  }
-  finally {
+  } finally {
     isSaving.value = false
   }
 }
 
-watch(
-    [() => updateData.value.hanzi.sc, () => updateData.value.hanzi.tc],
-    () => {
-      if (updateData.value.hanzi.sc && updateData.value.hanzi.tc) loadMandarinOptions()
-    }
-)
-
-// 监听路由变化，当ID变化时重新加载数据
-watch(() => route.params.id, (newId) => {
-  if (newId) loadHanzi(newId)
+watch(() => route.params.id, id => id && loadHanzi(id))
+watch([() => updateData.value.hanzi.sc, () => updateData.value.hanzi.tc], () => {
+  loadMandarinOptions().catch(error => showError(error.message))
 })
-
-watch(
-    () => updateData.value.variantPy.map(item => item.pinyin?.trim()),
-    (newList) => {
-      const validList = newList.filter(p => p)
-
-      const current = updateData.value.mainPy?.trim()
-
-      // 当前 mainPy 仍然有效 → 不动
-      if (current && validList.includes(current)) return
-
-      // 自动修正 mainPy
-      if (validList.length > 0) updateData.value.mainPy = validList[0]
-      else updateData.value.mainPy = ''
-    },
-    {deep: true, immediate: true}
-)
-
-// 初始化
-onMounted(() => {
-  loadHanzi(id)
-})
+onMounted(() => loadHanzi(route.params.id))
 </script>
 
 <template>
   <div class="broaden-layout">
-
     <div class="nav-buttons">
-
-      <button
-          :disabled="!prevId"
-          class="dev-nav-button dev-btn dev-btn-small"
-          @click="shiftToOther(prevId)"
-      >{{ prevId ? '上一条' : '第一条' }}
+      <button :disabled="!prevId" class="dev-nav-button dev-btn dev-btn-small" @click="router.replace(getPath(prevId))">
+        {{ prevId ? '上一条' : '第一条' }}
       </button>
-
-      <button
-          :disabled="!nextId"
-          class="dev-nav-button dev-btn-small"
-          @click="shiftToOther(nextId)"
-      >{{ nextId ? '下一条' : '最后一条' }}
+      <button :disabled="!nextId" class="dev-nav-button dev-btn-small" @click="router.replace(getPath(nextId))">
+        {{ nextId ? '下一条' : '最后一条' }}
       </button>
-
-      <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
+      <button :disabled="isSaving" class="dev-add-btn dev-btn-small" @click="saveData">
         {{ isSaving ? '保存中...' : '保存修改' }}
       </button>
     </div>
 
     <LoadingIcon v-if="isLoading" :show-text="true"/>
-
     <div v-else class="edit-form">
-      <div class="form-section">
-        <div class="form-grid">
-
-          <div class="form-field">
-            <h4>繁體：{{ updateData.hanzi.tc }}</h4>
-            <h4>簡體：{{ updateData.hanzi.sc }}</h4>
-          </div>
-
-          <div class="form-field">
-            <label>特殊性標記</label>
-            <select v-model="updateData.special" class="short-input">
-              <option value="0">普通漢字</option>
-              <option value="1">特殊方言字</option>
-              <option value="2">罕見漢字</option>
-              <option value="3">不使用漢字</option>
-            </select>
-          </div>
-
-          <div class="form-field">
-            <label>词条状态</label>
-            <select v-model="updateData.status" class="short-input">
-
-              <option value="1">刚刚创建词条</option>
-              <option value="2">需要补充内容</option>
-              <option value="3">基本完成</option>
-              <option value="4">存疑</option>
-            </select>
-          </div>
+      <div class="form-section form-grid">
+        <div><h4>繁體：{{ updateData.hanzi.tc }}</h4><h4>簡體：{{ updateData.hanzi.sc }}</h4></div>
+        <div class="form-field">
+          <label>特殊性標記</label>
+          <select v-model.number="updateData.special" class="short-input">
+            <option :value="0">普通漢字</option><option :value="1">特殊方言字</option>
+            <option :value="2">罕見漢字</option><option :value="3">不使用漢字</option>
+            <option :value="4">迁移冲突待处理</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>词条状态</label>
+          <select v-model.number="updateData.status" class="short-input">
+            <option :value="1">刚刚创建词条</option><option :value="2">需要补充内容</option>
+            <option :value="3">基本完成</option><option :value="4">存疑</option>
+          </select>
         </div>
       </div>
 
       <div class="form-section">
-        <div class="section-header">
-          <h3>拼音</h3>
-        </div>
+        <h3>拼音</h3>
+        <DraggableGrid v-model="updateData.pinyin"
+          :createItem="() => ({tag:{sc:'待定',tc:'待定'},pinyin:'',code:null,mandarin:[]})">
+          <template #default="{item,index}">
+            <div class="pinyin-item">
+              <div class="array-item">
+                <select class="form-control small-input" :value="JSON.stringify(item.tag)"
+                        @change="e => item.tag=JSON.parse(e.target.value)">
+                  <option v-for="opt in tagOptions" :key="opt.sc" :value="JSON.stringify(opt)">{{ opt.tc }}</option>
+                </select>
+                <input v-model="item.pinyin" class="form-control small-input" type="text">
+                <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
+                          :model-value="item.pinyin"/>
+              </div>
 
-        <!-- 主拼音单选按钮组 -->
-        <div class="main-pinyin-selector">
-          <span class="selector-label">主拼音：</span>
-          <div class="radio-group">
-            <div v-for="(item, index) in updateData.variantPy" :key="index" class="radio-item">
-              <template v-if="item.pinyin && item.pinyin.trim()">
-                <input type="radio" :id="'mainPy-' + index"
-                    :name="'mainPyRadio'" :value="item.pinyin.trim()"
-                    class="big-check" v-model="updateData.mainPy"
-                />
-                <label :for="'mainPy-' + index">{{ item.pinyin.trim() }}</label>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <DraggableList
-            v-model="updateData.variantPy"
-            :createItem="() => ({tag: { sc: '待定', tc: '待定' },pinyin:'',sort: updateData.variantPy.length + 1})"
-        >
-          <template #default="{ item }">
-
-            <div class="array-item">
-              <span>{{ item.sort }}</span>
-
-              <select
-                  class="form-control small-input" :value="JSON.stringify(item.tag)"
-                  @change="e => item.tag = JSON.parse(e.target.value)"
-              >
-                <option v-for="opt in tagOptions" :key="opt.sc" :value="JSON.stringify(opt)" v-text="opt.tc"/>
-              </select>
-
-              <input class="form-control small-input" type="text" v-model="item.pinyin">
-              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
-                        :model-value="item.pinyin"/>
+              <div class="mandarin-line">
+                <span class="mandarin-label">普通話：</span>
+                <div v-if="isAutomaticMapping" class="gray-text compact-hint">
+                  <span v-formatted-text="mandarinOptions[0].info"/>（自动）
+                </div>
+                <div v-else-if="mandarinOptions.length" class="mandarin-options">
+                  <label v-for="option in mandarinOptions" :key="option.mandarinId" class="checkbox-item">
+                    <input v-model="item.mandarin" type="checkbox" :value="option.mandarinId"
+                           :disabled="usedByOther(option.mandarinId,index)" class="big-check">
+                    <span v-formatted-text="option.info"/>
+                  </label>
+                </div>
+                <div v-else class="gray-text compact-hint">暂无</div>
+              </div>
             </div>
           </template>
-        </DraggableList>
-      </div>
+        </DraggableGrid>
 
-
-      <div class="form-section">
-        <h3>普通話讀音對應</h3>
-        <div v-if="mandarinOptions.length > 0" class="checkbox-group">
-          <div v-for="option in mandarinOptions" :key="option.info" class="checkbox-item">
-            <input type="checkbox" :id="'mdr-' + option.info" :value="option"
-                   v-model="updateData.mandarin" class="big-check"/>
-            <label :for="'mdr-' + option.info" v-formatted-text="option.info"/>
+        <div class="word-suggestions">
+          <h4>词语中的未收录读音</h4>
+          <p class="suggestion-hint">这里只提供建议，不会修改或保存到汉字数据。</p>
+          <div v-if="suggestionsLoading" class="gray-text compact-hint">正在检查词语读音……</div>
+          <div v-else-if="suggestionsFailed" class="gray-text compact-hint">暂时无法加载建议，不影响编辑和保存。</div>
+          <div v-else-if="wordSuggestions.length" class="suggestion-list">
+            <div v-for="suggestion in wordSuggestions" :key="suggestion.pinyin" class="suggestion-item">
+              <strong v-formatted-text="suggestion.pinyin"/>
+              <div class="suggestion-words">
+                <span v-for="word in suggestion.words" :key="word.id" class="suggestion-word">
+                  <span v-formatted-text="word.word"/>
+                  <small v-formatted-text="word.pinyin"/>
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div v-else class="gray-text">
-          {{ `${updateData.hanzi.sc} / ${updateData.hanzi.tc}:暫無對應讀音` }}
+          <div v-else class="gray-text compact-hint">暂无未收录读音</div>
         </div>
       </div>
 
       <div class="form-section">
         <h3>相似漢字</h3>
-        <DraggableList
-            v-model="updateData.similar"
-            :createItem="() => ({ text: { sc: '', tc: '' }})"
-            :draggable="false"
-        >
-          <template #default="{ item, index }">
-            <div class="array-item">
-
-              <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
-                           :layout="'small'" :dialect="dialect.toString()"/>
-
-            </div>
+        <DraggableList v-model="updateData.similar" :createItem="() => ({text:{sc:'',tc:''}})" :draggable="false">
+          <template #default="{item}">
+            <div class="array-item"><ScAndTcText v-model:traditionalText="item.text.tc"
+              v-model:simplifiedText="item.text.sc" layout="small" :dialect="dialect.toString()"/></div>
           </template>
         </DraggableList>
       </div>
 
       <div class="form-section">
         <h3>註釋</h3>
-        <DraggableList
-            v-model="updateData.note"
-            :createItem="() => ({ left: { sc: '', tc: '' }, right: { sc: '', tc: '' }})"
-        >
-          <template #default="{ item, index }">
+        <DraggableList v-model="updateData.note"
+          :createItem="() => ({left:'usage',right:{sc:'',tc:''}})">
+          <template #default="{item}">
             <div class="array-item complex-item">
-
-              <ScAndTcText v-model:traditionalText="item.left.tc" v-model:simplifiedText="item.left.sc"
-                           :layout="'small'" :dialect="dialect.toString()"/>
+              <select v-model="item.left" class="short-input">
+                <option v-if="!isKnownNoteTag(item.left)" :value="item.left">
+                  待處理：{{ item.left || '空標籤' }}
+                </option>
+                <option v-for="tag in noteTags" :key="tag.code" :value="tag.code">{{ tag.name }}</option>
+              </select>
               <ScAndTcText v-model:traditionalText="item.right.tc" v-model:simplifiedText="item.right.sc"
-                           :layout="'large'" :dialect="dialect.toString()"/>
-
+                           layout="large" :dialect="dialect.toString()"  rows="10"/>
               <h4>预览</h4>
               <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
                         :model-value="item.right.tc"/>
-              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
-                        :model-value="item.right.sc"/>
             </div>
           </template>
         </DraggableList>
@@ -378,59 +269,8 @@ onMounted(() => {
 </template>
 
 <style>
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-/* 主拼音选择器样式 */
-.main-pinyin-selector {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: #f9f9f9;
-  border-radius: 4px;
-}
-
-.selector-label {
-  font-weight: bold;
-  color: #333;
-  margin-right: 10px;
-  white-space: nowrap;
-}
-
-.radio-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.radio-item input[type="radio"] {
-  margin: 0;
-}
-
-.radio-item label {
-  cursor: pointer;
-  user-select: none;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-}
-
-/* 输入框样式 */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.form-field{display:flex;flex-direction:column;gap:6px}
 .short-input {
   padding: 6px 8px;
   border: 1px solid #ccc;
@@ -438,43 +278,17 @@ onMounted(() => {
   width: 120px;
   min-width: 120px;
 }
-
-.array-item {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-  align-items: center;
-}
-
-.array-item input {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.complex-item {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 8px;
-}
-
-.big-check
-{
-  transform: scale(1.5);  /* 调整大小，比如 1.2 / 1.5 / 1.8 */
-  margin-right: 6px;      /* 防止放大后贴太近 */
-  cursor: pointer;
-}
-
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+.pinyin-item{min-width:0}
+.array-item{display:flex;gap:8px;margin-bottom:10px;align-items:center}.array-item input{padding:6px 8px}
+.complex-item{flex-direction:column;align-items:stretch}
+.mandarin-line{display:flex;align-items:center;gap:8px;min-height:28px;flex-wrap:wrap}
+.mandarin-label{font-size:14px;color:var(--color-text-light);white-space:nowrap}
+.compact-hint{font-size:14px}.mandarin-options{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.checkbox-group{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.checkbox-item{display:flex;align-items:center;gap:6px}.big-check{transform:scale(1.3)}
+.word-suggestions{margin-top:18px;padding:14px 16px;border:1px dashed var(--color-border);border-radius:var(--border-radius-md);background:rgba(255,255,255,.45)}
+.word-suggestions h4{margin:0 0 4px}.suggestion-hint{margin:0 0 12px;font-size:13px;color:var(--color-text-light)}
+.suggestion-list{display:flex;flex-direction:column;gap:10px}.suggestion-item{display:flex;align-items:flex-start;gap:14px;padding:10px 12px;border-radius:8px;background:var(--color-background)}
+.suggestion-item>strong{min-width:72px;color:var(--color-primary-dark)}.suggestion-words{display:flex;flex-wrap:wrap;gap:8px}.suggestion-word{display:inline-flex;align-items:baseline;gap:5px}.suggestion-word small{color:var(--color-text-light)}
+@media(max-width:560px){.array-item{align-items:stretch;flex-direction:column}.mandarin-line{align-items:flex-start}}
 </style>

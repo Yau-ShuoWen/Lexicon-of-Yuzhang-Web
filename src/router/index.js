@@ -177,6 +177,12 @@ const routes = [
                         component: () => import('../views/Developer/Tool/TestOss.vue')
                     },
                     {
+                        path: 'test/image',
+                        name: 'TestImage',
+                        component: () => import('../views/Developer/Tool/TestImage.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'tool/special-symbol',
                         name: 'specialSymbol',
                         component: () => import('../views/Developer/Tool/SpecialSymbol.vue')

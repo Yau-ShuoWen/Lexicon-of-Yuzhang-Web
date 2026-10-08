@@ -11,6 +11,7 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue"
 import RichText from "../../../components/Text/RichText.vue"
 import KeywordEnhancer from "./KeywordEnhancer.vue";
 import { getToken } from "../../../utils/auth.js";
+import axios from "axios"
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +33,146 @@ const nextSort = ref(null)
 const pageInfoTitle = ref('')
 const pageInfoNumber = ref('')
 
+const pageImage = ref(null)
+const imageLoading = ref(false)
+const imageUploading = ref(false)
+const imageInput = ref(null)
+const pendingImage = ref(null)
+const imageDropActive = ref(false)
+let imageDragDepth = 0
+const viewerOpen = ref(false)
+const zoom = ref(1)
+const offset = ref({ x: 0, y: 0 })
+const draggingImage = ref(false)
+let dragOrigin = null
+
+const imageHeaders = () => ({ "X-Auth-Token": getToken() || "" })
+const imageEndpoint = computed(() => `/api/ref/page-image/${encodeURIComponent(dictionary.value)}`)
+const imageError = (error) => error?.response?.data?.message || error?.message || "操作失败"
+
+function resetViewer() {
+  zoom.value = 1
+  offset.value = { x: 0, y: 0 }
+}
+
+function setZoom(value) {
+  zoom.value = Math.min(5, Math.max(0.25, value))
+  if (zoom.value <= 1) offset.value = { x: 0, y: 0 }
+}
+
+function onViewerWheel(event) {
+  setZoom(zoom.value + (event.deltaY < 0 ? 0.2 : -0.2))
+}
+
+function startImageDrag(event) {
+  if (zoom.value <= 1) return
+  draggingImage.value = true
+  dragOrigin = { x: event.clientX - offset.value.x, y: event.clientY - offset.value.y }
+  event.currentTarget.setPointerCapture(event.pointerId)
+}
+
+function moveImage(event) {
+  if (!draggingImage.value || !dragOrigin) return
+  offset.value = { x: event.clientX - dragOrigin.x, y: event.clientY - dragOrigin.y }
+}
+
+function stopImageDrag() {
+  draggingImage.value = false
+  dragOrigin = null
+}
+
+async function loadPageImage() {
+  if (!page.value?.frontSort) return
+  imageLoading.value = true
+  try {
+    const response = await axios.get(imageEndpoint.value, {
+      params: { sort: page.value.frontSort },
+      headers: imageHeaders()
+    })
+    if (!response.data.success) throw new Error(response.data.message)
+    pageImage.value = response.data.data
+  } catch (error) {
+    pageImage.value = null
+    showError("原件加载失败：" + imageError(error))
+  } finally {
+    imageLoading.value = false
+  }
+}
+
+function selectPageImage(file) {
+  if (!file) return
+  pendingImage.value = null
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    showError("只支持 10 MB 以内的 JPEG、PNG、WebP 图片")
+    return
+  }
+  pendingImage.value = file
+}
+
+function onImageInputChange(event) {
+  selectPageImage(event.target.files?.[0])
+  event.target.value = ""
+}
+
+function openImagePicker() {
+  if (!imageUploading.value) imageInput.value?.click()
+}
+
+function onImageDragEnter(event) {
+  event.preventDefault()
+  if (imageUploading.value) return
+  imageDragDepth += 1
+  imageDropActive.value = true
+}
+
+function onImageDragLeave(event) {
+  event.preventDefault()
+  imageDragDepth = Math.max(0, imageDragDepth - 1)
+  if (!imageDragDepth) imageDropActive.value = false
+}
+
+function onImageDrop(event) {
+  event.preventDefault()
+  imageDragDepth = 0
+  imageDropActive.value = false
+  if (!imageUploading.value) selectPageImage(event.dataTransfer?.files?.[0])
+}
+
+async function uploadPageImage() {
+  const file = pendingImage.value
+  if (!file || !page.value) return
+  if (pageImage.value) {
+    const ok = await confirm({
+      title: "替换页面原件",
+      message: "新图片上传成功后会替换当前原件，确定继续吗？",
+      actions: [
+        { key: true, text: "确认替换", class: "dev-btn-small dev-add-btn" },
+        { key: false, text: "取消", class: "dev-btn-small dev-normal-button" }
+      ]
+    })
+    if (!ok) return
+  }
+  imageUploading.value = true
+  try {
+    const form = new FormData()
+    form.append("file", file)
+    const response = await axios.post(imageEndpoint.value, form, {
+      params: { sort: page.value.frontSort },
+      headers: imageHeaders()
+    })
+    if (!response.data.success) throw new Error(response.data.message)
+    pageImage.value = response.data.data
+    pendingImage.value = null
+    viewerOpen.value = true
+    resetViewer()
+    showSuccess("原件已保存")
+  } catch (error) {
+    showError("原件上传失败：" + imageError(error))
+  } finally {
+    imageUploading.value = false
+  }
+}
+
 // ==================== 是否有未保存修改 ====================
 const hasUnsavedChanges = computed(() => {
   if (!page.value || !backupPage.value) return false
@@ -43,6 +184,12 @@ const hasUnsavedChanges = computed(() => {
 // ==================== 加载页面 ====================
 async function loadPage() {
   loading.value = true
+  pendingImage.value = null
+  imageDropActive.value = false
+  imageDragDepth = 0
+  viewerOpen.value = false
+  pageImage.value = null
+  resetViewer()
   try {
     const res = await fetch(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`, {
       headers: {'X-Auth-Token': getToken() || ''}
@@ -54,6 +201,7 @@ async function loadPage() {
     backupPage.value = JSON.parse(JSON.stringify(json.data))   // 深拷贝作为备份
 
     await loadNearby()
+    await loadPageImage()
   } catch (e) {
     showError('加载失败：' + e.message)
   }
@@ -433,6 +581,78 @@ function handleEscClose(e) {
     <LoadingIcon v-if="loading"/>
 
     <div v-else-if="page" class="editor-body">
+      <aside class="source-sidebar">
+        <h3>页面原件</h3>
+        <button
+          class="source-tab"
+          :class="{ active: !viewerOpen }"
+          @click="viewerOpen = false"
+        >文字编辑</button>
+        <button
+          class="source-tab"
+          :class="{ active: viewerOpen }"
+          :disabled="!pageImage"
+          @click="viewerOpen = true; resetViewer()"
+        >{{ pageImage ? "查看原件" : "暂无原件" }}</button>
+        <div v-if="pageImage" class="source-thumb" @click="viewerOpen = true; resetViewer()">
+          <img :src="pageImage.url" alt="本页原件缩略图"/>
+        </div>
+        <p v-if="imageLoading" class="source-note">正在读取原件…</p>
+        <p v-else-if="!pageImage" class="source-note">本页尚未上传原件。</p>
+        <input ref="imageInput" class="source-file-input" type="file" accept="image/jpeg,image/png,image/webp" @change="onImageInputChange"/>
+        <div
+          class="source-drop-zone"
+          :class="{ 'source-drop-zone--active': imageDropActive, 'source-drop-zone--disabled': imageUploading }"
+          role="button"
+          tabindex="0"
+          :aria-disabled="imageUploading"
+          @click="openImagePicker"
+          @keydown.enter.prevent="openImagePicker"
+          @keydown.space.prevent="openImagePicker"
+          @dragenter="onImageDragEnter"
+          @dragover.prevent
+          @dragleave="onImageDragLeave"
+          @drop="onImageDrop"
+        >
+          <span class="source-drop-icon" aria-hidden="true">＋</span>
+          <strong>{{ imageDropActive ? "松开即可选中图片" : pendingImage ? pendingImage.name : "点击选择，或拖入图片" }}</strong>
+          <span>{{ pendingImage ? "点击可重新选择" : "JPEG、PNG、WebP · 最大 10 MB" }}</span>
+        </div>
+        <button class="dev-btn-small dev-add-btn source-upload" :disabled="imageUploading || !pendingImage" @click="uploadPageImage">
+          {{ imageUploading ? "上传中…" : pageImage ? "替换原件" : "上传原件" }}
+        </button>
+      </aside>
+
+      <main class="editor-main">
+      <div v-if="viewerOpen && pageImage" class="source-viewer">
+        <div class="viewer-toolbar">
+          <strong>页面原件</strong>
+          <div class="viewer-actions">
+            <button class="dev-btn-small dev-normal-button" @click="setZoom(zoom - 0.25)">缩小</button>
+            <span>{{ Math.round(zoom * 100) }}%</span>
+            <button class="dev-btn-small dev-normal-button" @click="setZoom(zoom + 0.25)">放大</button>
+            <button class="dev-btn-small dev-normal-button" @click="resetViewer">复位</button>
+          </div>
+        </div>
+        <div
+          class="viewer-canvas"
+          :class="{ 'viewer-canvas--dragging': draggingImage, 'viewer-canvas--zoomed': zoom > 1 }"
+          @wheel.prevent="onViewerWheel"
+          @pointerdown="startImageDrag"
+          @pointermove="moveImage"
+          @pointerup="stopImageDrag"
+          @pointercancel="stopImageDrag"
+          @dblclick="resetViewer"
+        >
+          <img
+            :src="pageImage.url"
+            alt="页面原件"
+            draggable="false"
+            :style="{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }"
+          />
+        </div>
+      </div>
+      <template v-else>
       <!-- Draft 模式 -->
       <div v-if="page.type === 'draft'" class="draft-mode">
         <textarea v-model="page.content" class="draft-textarea" placeholder="使用空行分段..."/>
@@ -568,6 +788,8 @@ function handleEscClose(e) {
           </template>
         </DraggableList>
       </div>
+      </template>
+      </main>
 
     </div>
   </div>
@@ -576,6 +798,39 @@ function handleEscClose(e) {
 <style scoped>
 .ref-editor {
   padding: 20px;
+}
+
+.editor-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
+.source-sidebar { position: sticky; top: 20px; padding: 16px; border: 1px solid #dce4dc; border-radius: 10px; background: #fff; }
+.source-sidebar h3 { margin: 0 0 14px; font-size: 16px; }
+.source-tab { display: block; width: 100%; margin-bottom: 7px; padding: 8px 10px; border: 1px solid #d4ded5; border-radius: 6px; background: #fff; text-align: left; cursor: pointer; }
+.source-tab.active { border-color: #438754; background: #edf6ee; color: #276439; font-weight: 600; }
+.source-tab:disabled { color: #999; cursor: default; }
+.source-thumb { margin: 12px 0; border: 1px solid #e2e8e2; border-radius: 6px; cursor: pointer; overflow: hidden; }
+.source-thumb img { display: block; width: 100%; max-height: 160px; object-fit: contain; }
+.source-note { color: #768177; font-size: 12px; line-height: 1.5; }
+.source-file-input { display: none; }
+.source-upload { width: 100%; margin-top: 8px; }
+.source-drop-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 150px; padding: 14px 8px; border: 2px dashed #a9c6b0; border-radius: 12px; background: #f8fbf8; text-align: center; cursor: pointer; transition: background .15s, border-color .15s; }
+.source-drop-zone:hover, .source-drop-zone--active { border-color: #397a48; background: #eaf5ec; }
+.source-drop-zone:focus-visible { outline: 3px solid #82b98d; outline-offset: 3px; }
+.source-drop-zone--disabled { opacity: .6; cursor: default; }
+.source-drop-zone strong { max-width: 100%; color: #284c32; font-size: 13px; overflow-wrap: anywhere; }
+.source-drop-zone span:last-child { color: #66736b; font-size: 12px; }
+.source-drop-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #dceee0; color: #397a48; font-size: 2rem; line-height: 1; }
+.editor-main { min-width: 0; }
+.source-viewer { width: 100%; min-height: 650px; border: 1px solid #dce4dc; border-radius: 10px; overflow: hidden; background: #f7f8f7; }
+.viewer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #dce4dc; background: #fff; }
+.viewer-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.viewer-actions span { min-width: 48px; text-align: center; }
+.viewer-canvas { display: flex; align-items: center; justify-content: center; height: min(75vh, 900px); min-height: 560px; overflow: hidden; cursor: default; touch-action: none; }
+.viewer-canvas--zoomed { cursor: grab; }
+.viewer-canvas--dragging { cursor: grabbing; }
+.viewer-canvas img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center; user-select: none; pointer-events: none; }
+@media (max-width: 800px) {
+  .editor-body { grid-template-columns: 1fr; }
+  .source-sidebar { position: static; }
+  .viewer-canvas { min-height: 430px; }
 }
 
 /* 顶部高级编辑模式开关 */

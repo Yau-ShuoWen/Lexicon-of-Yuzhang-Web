@@ -6,6 +6,7 @@ import { showError } from "../../services/ToastService.js"
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import SpecialTag from "../../components/Status/SpecialTag.vue";
+import { isAdminUser, user } from '../../utils/auth.js'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -17,13 +18,22 @@ const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 const notFound = ref(false)
+const isAdmin = computed(() => isAdminUser(user.value))
+const seoDescription = computed(() => data.value
+    ? `${data.value.ciyu}的方言读音、释义和相关词语。`
+    : '查询词语的方言读音、释义和相关词语。')
 
 useHead({
   title: () => {
     if (data.value) return `${t('linguistic.ciyu')}：${data.value.ciyu}`;
     else if (loading.value) return `${t('common.loading')}`
     else if(notFound.value) return `${t('linguistic.ciyu')}（未找到）`
-  }
+  },
+  meta: [
+    { key: 'description', name: 'description', content: seoDescription },
+    { key: 'og-description', property: 'og:description', content: seoDescription },
+    { key: 'robots', name: 'robots', content: computed(() => notFound.value ? 'noindex, nofollow' : 'index, follow') }
+  ]
 })
 
 const getSearchConfig = () => {
@@ -92,7 +102,14 @@ watch(
 
     <div v-else-if="data" class="detail-content">
 
-      <div class="block-pinyin">
+      <div class="block-pinyin detail-main-card">
+        <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑词条" title="编辑词条"
+                     :to="{name: 'CiyuEditor', params: {language, dialect, id: data.id}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </router-link>
         <div class="hanzi-char" v-formatted-text="data.ciyu"/>
         <div class="pinyin-title" v-formatted-text="data.mainPy"/>
 
@@ -176,6 +193,39 @@ watch(
   margin: 30px 0 24px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-primary-dark);
+}
+
+.detail-main-card {
+  position: relative;
+}
+
+.detail-edit-button {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  color: var(--color-primary-dark);
+  background: #edf5e8;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-edit-button:hover {
+  background: #dcebd4;
+}
+
+.detail-edit-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .pinyin-title {

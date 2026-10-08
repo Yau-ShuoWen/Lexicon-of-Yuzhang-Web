@@ -1,53 +1,50 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import LoadingIcon from "../../components/Status/LoadingIcon.vue";
-import { showError } from "../../services/ToastService.js";
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
-import SpecialTag from "../../components/Status/SpecialTag.vue";
+import LoadingIcon from '../../components/Status/LoadingIcon.vue'
+import SpecialTag from '../../components/Status/SpecialTag.vue'
+import { showError } from '../../services/ToastService.js'
+import { isAdminUser, user } from '../../utils/auth.js'
 
 const {t} = useI18n()
-
 const route = useRoute()
-const router = useRouter()
-
 const loading = ref(false)
+const notFound = ref(false)
 const data = ref(null)
-
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
+const isAdmin = computed(() => isAdminUser(user.value))
+
+const seoDescription = computed(() => data.value
+    ? `${data.value.hanzi}的方言读音、释义与相关词语。`
+    : '查询汉字的方言读音、释义与相关词语。')
 
 useHead({
-  title: () => {
-    if (data.value) return `${t('linguistic.hanzi')}：${data.value.hanzi}`;
-    else if (loading.value) return `${t('common.loading')}`
-  }
+  title: () => data.value ? `${t('linguistic.hanzi')}：${data.value.hanzi}` : t('common.loading'),
+  meta: [
+    { key: 'description', name: 'description', content: seoDescription },
+    { key: 'og-description', property: 'og:description', content: seoDescription },
+    { key: 'robots', name: 'robots', content: computed(() => notFound.value ? 'noindex, nofollow' : 'index, follow') }
+  ]
 })
 
-// 读取搜索配置
 const getSearchConfig = () => {
   try {
     const cached = localStorage.getItem('search_page_config')
     if (cached) return JSON.parse(cached)
-  } catch (e) {
-    console.error('读取搜索配置失败', e)
+  } catch (error) {
+    console.error('读取搜索配置失败', error)
   }
-  return {
-    phonogram: 1,
-    toneStyle: 1,
-    syllableStyle: 1
-  }
+  return {phonogram: 1, toneStyle: 1, syllableStyle: 1}
 }
 
-/**
- * 获取汉字详情
- */
 const fetchHanzi = async () => {
   loading.value = true
-
   data.value = null
+  notFound.value = false
   try {
     const config = getSearchConfig()
     const params = new URLSearchParams({
@@ -58,254 +55,372 @@ const fetchHanzi = async () => {
     })
     const response = await fetch(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`)
     const json = await response.json().catch(() => null)
-
     if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    if (!json.success) throw new Error(json.message || '查询失败')
-
+    if (!json?.success) throw new Error(json?.message || t('search_detail.load_failed'))
     data.value = json.data
-  } catch (e) {
-    loading.value = false
-    if (e.message.includes("not found")) {
-      showError(t('search_detail.entry_missing'))
-    } else {
-      console.error(e)
-      showError(e.message)
+  } catch (error) {
+    if (error.message.includes('not found')) notFound.value = true
+    else {
+      console.error(error)
+      showError(error.message)
     }
   }
   finally {
     loading.value = false
   }
 }
-/**
- * 路由变化重新加载
- */
-watch(
-    () => route.params.query,
-    () => {
-      fetchHanzi()
-    },
-    {immediate: true}
-)
-</script>
-<template>
-  <div class="middle-layout">
 
+watch(() => route.params.query, fetchHanzi, {immediate: true})
+</script>
+
+<template>
+  <div class="broaden-layout padding-top-reset">
     <LoadingIcon v-if="loading"/>
 
     <div v-else-if="data" class="detail-content">
-      <div class="hanzi-header">
-        <h1 class="hanzi-char">{{ data.hanzi }}</h1>
+      <div class="block-pinyin detail-main-card">
+        <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑汉字词条" title="编辑汉字词条"
+                     :to="{name: 'HanziEditor', params: {language, dialect, id: data.id}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </router-link>
+        <div class="hanzi-char" v-formatted-text="data.hanzi"/>
+        <div class="pinyin-summary">
+          <span v-for="(item,index) in data.pinyin" :key="index" class="summary-item"
+                v-formatted-text="item.pinyin"/>
+        </div>
+        <div v-if="data.similar?.length" class="similar-row">
+          <span>{{ language === 'sc' ? '相似字：' : '相似字：' }}</span>
+          <span v-for="(item,index) in data.similar" :key="index" v-formatted-text="item"/>
+        </div>
+        <SpecialTag :special="data.special" type="hanzi" :dialect="dialect"/>
       </div>
 
-      <!-- 每个读音 -->
-      <div
-          v-for="(info,index) in data.info"
-          :key="index"
-          class="pronunciation-block"
-      >
-
-
-        <h2 class="pinyin-title" v-formatted-text="$t(info.mainPy)"/>
-
-        <div class="detail-grid">
-
-          <div class="left-block">
-            <h3 class="section-title" v-text="$t('linguistic.pronun.pronun_and_type')"/>
-            <table
-                v-if="info.variantPy && info.variantPy.length"
-                class="table"
-            >
-              <tr v-for="(v,i) in info.variantPy" :key="'v'+i">
-                <td class="cell-label" v-formatted-text="v.left"/>
-                <td class="cell-value" v-formatted-text="v.right"/>
-              </tr>
-            </table>
-          </div>
-
-          <div
-              v-if="info.mdrInfo && info.mdrInfo.length"
-              class="right-block"
-          >
-            <h3 class="section-title" v-text="$t('linguistic.pronun.correspond_mdr')"/>
-            <table class="table">
-              <tr v-for="(m,i) in info.mdrInfo" :key="'m'+i">
-                <td class="cell-equal" v-formatted-text="$t(m.left)"/>
-                <td class="cell-equal" v-formatted-text="$t(m.right)"/>
-              </tr>
-            </table>
-          </div>
-        </div>
-
-        <SpecialTag :special="info.special" type="hanzi" :dialect="dialect"/>
-
-        <div
-            v-if="info.note && info.note.length"
-            class="section"
-        >
-          <div class="group-header">
-
-          </div>
-          <h3 class="pinyin-title">
-            {{ $t('search_detail.notes') }}
-          </h3>
-          <div
-              v-for="(n,i) in info.note"
-              :key="i"
-              class="note-row"
-          >
-            <div class="note-title" v-formatted-text="n.left"/>
-            <div class="note-content" v-formatted-text="n.right"/>
+      <div v-if="data.pinyin?.length" class="block-pronunciation">
+        <h3 class="section-title">{{ $t('linguistic.pronun.pronun_and_type') }}</h3>
+        <div class="pronunciation-list">
+          <div v-for="(item,index) in data.pinyin" :key="index" class="pronunciation-item">
+            <div class="pronunciation-head">
+              <span class="pronunciation-pinyin" v-formatted-text="item.pinyin"/>
+              <span class="pronunciation-tag" v-formatted-text="item.tag"/>
+            </div>
+            <div v-if="item.mandarin?.length" class="mandarin-row">
+              <span class="mandarin-label">{{ $t('linguistic.pronun.correspond_mdr') }}：</span>
+              <span v-for="(mandarin,mandarinIndex) in item.mandarin" :key="mandarinIndex"
+                    class="mandarin-item">
+                <span v-formatted-text="mandarin.pinyin"/>
+                <span class="mandarin-zhuyin" v-formatted-text="mandarin.zhuyin"/>
+              </span>
+            </div>
+            <div v-if="item.words?.length" class="word-capsules">
+              <router-link v-for="word in item.words" :key="word.id" class="word-item"
+                           :to="`/${language}/${dialect}/dict/c/${encodeURIComponent(word.word)}`">
+                <span v-formatted-text="word.word"/>
+              </router-link>
+            </div>
           </div>
         </div>
       </div>
 
-      <div
-          class="pronunciation-block"
-          v-if="data.ref && data.ref.length"
-      >
-
-        <h3 class="pinyin-title">{{ $t('search_detail.dictionary') }}</h3>
-
-
-        <div
-            v-for="(r, i) in data.ref"
-            :key="i"
-            class="ref-row"
-        >
-          <div class="ref-content" v-if="r.content" v-formatted-text="r.content"/>
-          <div class="ref-source " v-if="r.source " v-formatted-text="r.source "/>
-          <div class="ref-content" v-if="r.note   " v-formatted-text="r.note   "/>
-
+      <div v-if="data.note?.length" class="block-note">
+        <h3 class="section-title">{{ $t('search_detail.notes') }}</h3>
+        <div class="content-list">
+          <div v-for="(item,index) in data.note" :key="index" class="note-item">
+            <div class="note-title" v-formatted-text="item.left"/>
+            <div v-formatted-text="item.right"/>
+          </div>
         </div>
+      </div>
+
+      <div v-if="data.ref?.length" class="block-ref">
+        <h3 class="section-title">{{ $t('search_detail.dictionary') }}</h3>
+        <div class="content-list">
+          <div v-for="(item,index) in data.ref" :key="index" class="ref-item">
+            <div v-if="item.content" class="ref-content" v-formatted-text="item.content"/>
+            <div v-if="item.source" class="ref-source" v-formatted-text="item.source"/>
+            <div v-if="item.note" class="ref-note" v-formatted-text="item.note"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="notFound" class="detail-content">
+      <div class="block-pinyin">
+        <h2>{{ query }}：{{ $t('search_detail.entry_missing') }}</h2>
+        <p class="missing-text">{{ $t('search_detail.no_definition') }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <style>
-.hanzi-header {
-  text-align: center;
-  margin: 20px;
+.block-pinyin, .block-pronunciation, .block-note, .block-ref {
+  border-radius: var(--border-radius-lg);
+  padding: 28px;
+  margin-bottom: 20px
+}
+
+.block-pinyin {
+  background: var(--color-background);
+  margin-top: 30px;
+  border: 1px solid var(--color-primary-dark);
+  box-shadow: var(--shadow-sm)
+}
+
+.detail-main-card {
+  position: relative;
+}
+
+.detail-edit-button {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  color: var(--color-primary-dark);
+  background: #edf5e8;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-edit-button:hover {
+  background: #dcebd4;
+}
+
+.detail-edit-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.block-pronunciation {
+  background: #d7eac0;
+  border: 1px solid #aed581
+}
+
+.block-note {
+  background: #d0e5fa;
+  border: 1px solid #90caf9
+}
+
+.block-ref {
+  background: #c3eae4;
+  border: 1px solid #7bc3b6
 }
 
 .hanzi-char {
-  font-size: 60px;
+  font-size: 56px;
   font-weight: 400;
-  color: var(--color-text);
+  color: var(--color-primary-dark);
+  letter-spacing: .05em
 }
 
-.pronunciation-block {
-  background: var(--color-background);
-  border: 2px solid var(--color-primary-light);
-  border-radius: var(--border-radius-md);
-  padding: 24px;
-  margin-bottom: 20px;
+.pinyin-summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed #c8e6c9
 }
 
-.section {
-  margin-bottom: 18px;
+.summary-item {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e5721
+}
+
+.summary-item:not(:last-child)::after {
+  content: '／';
+  margin-left: 10px;
+  color: var(--color-text-light)
+}
+
+.similar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--color-text-light);
+  margin-bottom: 8px
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.pinyin-title {
-  font-size: 26px;
-  font-weight: 700;
-  margin-left: 5px;
-  margin-bottom: 20px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 10px 0;
-  table-layout: fixed;
-}
-
-.table td {
-  border: 1px solid #ddd;
-  padding: 6px 8px;
-}
-
-/* variantPy 左侧标签 */
-.cell-label {
-  background: #f7f7f7;
-  width: 50%;
-  font-weight: 500;
-}
-
-/* variantPy 右侧拼音 */
-.cell-value {
-  width: 50%;
-}
-
-/* mdrInfo 两边等宽 */
-.cell-equal {
-  width: 50%;
-}
-
-/* 横向布局 */
-.detail-grid {
+  margin-bottom: 14px;
+  color: var(--color-text);
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 10px
 }
 
-.detail-grid {
+.section-title::before {
+  content: '';
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--color-primary)
+}
+
+.block-pronunciation .section-title::before {
+  background: #58972c
+}
+
+.block-note .section-title::before {
+  background: #1565c0
+}
+
+.block-ref .section-title::before {
+  background: #2c98a8
+}
+
+.pronunciation-list {
   display: grid;
-
-  /* 关键：10等分布局 */
-  grid-template-columns: 3fr 1fr 3fr 3fr;
-
-  align-items: start;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap: 16px
 }
 
-/* 左块占第1列 */
-.left-block {
-  grid-column: 1;
+.pronunciation-item, .note-item, .ref-item {
+  padding: 16px 20px;
+  background: var(--color-background);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08)
 }
 
-/* 右块占第3列 */
-.right-block {
-  grid-column: 3;
+.pronunciation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px
 }
 
-.note-row {
-  margin-bottom: 10px;
+.pronunciation-pinyin {
+  font-size: 25px;
+  font-weight: 700;
+  color: #1e5721
+}
+
+.pronunciation-tag {
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: #edf6e5;
+  color: #43682d;
+  white-space: nowrap
+}
+
+.mandarin-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border)
+}
+
+.mandarin-label {
+  font-size: 14px;
+  color: var(--color-text-light)
+}
+
+.mandarin-item {
+  display: inline-flex;
+  gap: 7px
+}
+
+.mandarin-zhuyin {
+  color: var(--color-text-light)
+}
+
+.word-capsules {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border)
+}
+
+.word-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid rgba(73, 125, 49, .2);
+  border-radius: 999px;
+  color: #315f27;
+  background: rgba(255, 255, 255, .78);
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(42, 84, 31, .08)
+}
+
+.word-item:hover {
+  background: #fff;
+  border-color: rgba(73, 125, 49, .38)
+}
+
+.content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px
 }
 
 .note-title {
   font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.note-content {
-  line-height: 1.5;
-}
-
-.ref-row {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  color: #0d47a1
 }
 
 .ref-content {
-  margin-bottom: 4px;
+  font-size: 18px;
+  line-height: 1.6
 }
 
 .ref-source {
+  margin-top: 8px;
+  font-size: 13px;
   color: var(--color-text-light);
+  font-style: italic
+}
+
+.ref-source::before {
+  content: '— '
+}
+
+.ref-note {
+  margin-top: 8px
+}
+
+.missing-text {
+  margin-top: 10px;
+  color: var(--color-text-light)
 }
 
 @media (max-width: 768px) {
-  .detail-grid {
-    display: block; /* 直接取消 grid */
+  .block-pinyin, .block-pronunciation, .block-note, .block-ref {
+    padding: 22px 16px
   }
 
-  .table {
-    width: 70%;
+  .hanzi-char {
+    font-size: 48px
+  }
+
+  .pronunciation-list {
+    grid-template-columns:1fr
+  }
+
+  .summary-item {
+    font-size: 23px
   }
 }
 </style>

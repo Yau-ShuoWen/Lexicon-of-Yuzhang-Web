@@ -13,7 +13,7 @@ import { installNetworkRecovery } from './services/networkRecovery.js'
 // 导入全局样式
 import './styles/main.css'
 
-// 后端暂时不可用时，统一处理超时、刷新和恢复探测。
+// 保留网络错误分类入口；不再全局设置超时或刷新页面。
 installNetworkRecovery()
 
 const app = createApp(App)
@@ -30,7 +30,6 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 app.use(router)
 
-// 初始化认证状态
-initializeAuth().then(() => {
-    app.mount('#app')
-})
+// 页面渲染不能依赖后端认证请求完成，否则调试断点会让整个应用白屏。
+app.mount('#app')
+void initializeAuth()

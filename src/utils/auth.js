@@ -4,6 +4,7 @@ import { isBackendUnavailableError } from '../services/networkRecovery.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
+const AUTH_CHECK_TIMEOUT_MS = 3_000
 
 const isAuthenticated = ref(false)
 const user = ref(null)
@@ -145,7 +146,8 @@ const initializeAuth = async () => {
 
     try {
         const response = await axios.get('/api/user/check-auth', {
-            params: { t: savedToken }
+            params: { t: savedToken },
+            timeout: AUTH_CHECK_TIMEOUT_MS
         })
 
         if (response.data?.success) {
@@ -154,7 +156,8 @@ const initializeAuth = async () => {
             user.value = savedUser
             if (!savedUser) {
                 const profileRes = await axios.get('/api/user/me', {
-                    params: { t: savedToken }
+                    params: { t: savedToken },
+                    timeout: AUTH_CHECK_TIMEOUT_MS
                 })
                 if (profileRes.data?.success && profileRes.data?.data) {
                     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(profileRes.data.data))

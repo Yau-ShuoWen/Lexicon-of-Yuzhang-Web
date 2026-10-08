@@ -10,6 +10,7 @@ const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
 
 const DEFAULT_LANGUAGE = 'sc'
 const DEFAULT_DIALECT = 'lac'
+const AUTH_CHECK_TIMEOUT_MS = 3_000
 
 const routes = [
     {
@@ -170,7 +171,6 @@ const routes = [
                         name: 'TestOss',
                         component: () => import('../views/Developer/Tool/TestOss.vue')
                     },
-
                     {
                         path: 'tool/special-symbol',
                         name: 'specialSymbol',
@@ -457,12 +457,14 @@ router.beforeEach(async (to, from, next) => {
     try {
 
         const res = await axios.get('/api/user/check-auth', {
-            params: {t: token}
+            params: {t: token},
+            timeout: AUTH_CHECK_TIMEOUT_MS
         })
 
         if (res.data.success) {
             const userRes = await axios.get('/api/user/me', {
-                params: {t: token}
+                params: {t: token},
+                timeout: AUTH_CHECK_TIMEOUT_MS
             })
 
             if (userRes.data.success && userRes.data.data) {

@@ -703,6 +703,11 @@
     white-space: nowrap;
 }
 
+.rt-table .rt-cell-merged {
+    text-align: center;
+    vertical-align: middle;
+}
+
 /* 表格模式 */
 
 /* 全部都是限制宽度列（--- 或旧写法 ---!） */

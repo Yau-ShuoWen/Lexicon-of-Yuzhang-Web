@@ -1,10 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { getToken } from '../../utils/auth'
 import bookIcon from '../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
 import bookmarkIcon from '../../assets/icons/calendar/bookmark.svg'
+import toLeftIcon from '../../assets/icons/to-left.svg'
+import toRightIcon from '../../assets/icons/to-right.svg'
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false}
@@ -95,15 +98,26 @@ watch([visible, currentMonth], () => {
 </script>
 
 <template>
-  <div v-if="visible" class="calendar-backdrop" @click.self="visible = false">
-    <section class="calendar-dialog" role="dialog" aria-modal="true" :aria-label="$t('study.streak.calendar')">
-      <header class="calendar-header">
-        <button class="month-button" :aria-label="$t('study.streak.previous_month')" @click="changeMonth(-1)">‹</button>
-        <h2>{{ monthTitle }}</h2>
-        <button class="month-button" :aria-label="$t('study.streak.next_month')" @click="changeMonth(1)">›</button>
-        <button class="close-button" :aria-label="$t('study.streak.close_calendar')" @click="visible = false">×</button>
-      </header>
-      <div class="weekday-row"><span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span></div>
+  <UnifiedModal
+    v-model="visible"
+    :title="$t('study.streak.calendar')"
+    size="medium"
+    lock-top
+  >
+    <div class="calendar-toolbar">
+      <button type="button" class="month-button" :aria-label="$t('study.streak.previous_month')" @click="changeMonth(-1)">
+        <img :src="toLeftIcon" alt="" aria-hidden="true">
+      </button>
+      <h3>{{ monthTitle }}</h3>
+      <button type="button" class="month-button" :aria-label="$t('study.streak.next_month')" @click="changeMonth(1)">
+        <img :src="toRightIcon" alt="" aria-hidden="true">
+      </button>
+    </div>
+    <div class="weekday-row"><span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span></div>
+    <div
+      class="calendar-grid-shell"
+      :class="`calendar-grid-shell--${weeks.length}`"
+    >
       <p v-if="loading" class="calendar-state">{{ $t('study.streak.loading') }}</p>
       <p v-else-if="error" class="calendar-state error">{{ error }}</p>
       <div v-else class="calendar-grid">
@@ -124,66 +138,41 @@ watch([visible, currentMonth], () => {
           </div>
         </div>
       </div>
-    </section>
-  </div>
+    </div>
+  </UnifiedModal>
 </template>
 
 <style scoped>
-.calendar-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(32, 59, 36, .35);
-  backdrop-filter: blur(5px);
-}
-
-.calendar-dialog {
-  width: min(620px, 100%);
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, .9);
-  border-radius: 25px;
-  background: #fbfffb;
-  box-shadow: 0 25px 80px rgba(30, 70, 35, .25);
-}
-
-.calendar-header {
+.calendar-toolbar {
   display: grid;
-  grid-template-columns: 40px 1fr 40px 36px;
+  grid-template-columns: 40px 1fr 40px;
   align-items: center;
   gap: 8px;
   margin-bottom: 20px;
 }
 
-h2 {
+.calendar-toolbar h3 {
   margin: 0;
   color: #24522c;
   text-align: center;
   font-size: 1.25rem;
 }
 
-.month-button, .close-button {
+.month-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 0;
-  border-radius: 50%;
-  color: #397345;
-  background: #edf7ed;
+  background: transparent;
   cursor: pointer;
 }
 
-.month-button {
-  width: 36px;
-  height: 36px;
-  font-size: 1.8rem;
-  line-height: 1;
-}
-
-.close-button {
-  width: 30px;
-  height: 30px;
-  font-size: 1.4rem;
+.month-button img {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .weekday-row, .calendar-week {
@@ -197,6 +186,18 @@ h2 {
   font-size: .75rem;
   text-align: center;
 }
+
+.calendar-grid-shell {
+  position: relative;
+  overflow: hidden;
+  transition: height .2s cubic-bezier(.22, .8, .3, 1);
+}
+
+.calendar-grid-shell--4 { height: 216px; }
+.calendar-grid-shell--5 { height: 270px; }
+.calendar-grid-shell--6 { height: 324px; }
+
+.calendar-grid { height: 100%; }
 
 .calendar-week {
   position: relative;
@@ -265,7 +266,10 @@ h2 {
 }
 
 .calendar-state {
-  padding: 45px 0;
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 0;
   color: #77907b;
   text-align: center;
 }
@@ -275,14 +279,9 @@ h2 {
 }
 
 @media (max-width: 520px) {
-  .calendar-backdrop {
-    padding: 10px;
-  }
-
-  .calendar-dialog {
-    padding: 17px 11px;
-    border-radius: 20px;
-  }
+  .calendar-grid-shell--4 { height: 184px; }
+  .calendar-grid-shell--5 { height: 230px; }
+  .calendar-grid-shell--6 { height: 276px; }
 
   .calendar-day {
     min-height: 46px;

@@ -28,11 +28,19 @@ function renderLine(line, orderedIndex, context) {
         return {html: '<hr class="rt-hr">', orderedIndex: 0, consumesBreak: true}
     }
     if (line.startsWith('- ')) {
-        return {html: `<span class="rt-li-dot">●</span>  ${parseInline(line.slice(2), context)}`, orderedIndex: 0}
+        return {
+            html: `<span class="rt-list-item"><span class="rt-list-marker rt-li-dot">●</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            orderedIndex: 0,
+            block: true,
+        }
     }
     if (line.startsWith('+ ')) {
         const next = orderedIndex + 1
-        return {html: `${next}. ${parseInline(line.slice(2), context)}`, orderedIndex: next}
+        return {
+            html: `<span class="rt-list-item"><span class="rt-list-marker rt-list-number">${next}.</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            orderedIndex: next,
+            block: true,
+        }
     }
     return {html: parseInline(line, context), orderedIndex: 0}
 }

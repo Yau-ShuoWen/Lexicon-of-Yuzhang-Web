@@ -15,13 +15,28 @@
     height: 0.8em;
 }
 
-/*富文本无序列表*/
+/* 富文本列表：标记与正文分列，正文换行后保持与首行对齐。 */
+.rt-list-item {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 0.4em;
+    width: 100%;
+}
+
+.rt-list-marker {
+    white-space: nowrap;
+}
+
+.rt-list-content {
+    min-width: 0;
+}
+
 .rt-li-dot {
     font-family: PMingLiU, sans-serif;
     color: #1f6722;
     font-size: 12px;
     vertical-align: 0.2em;
-    padding-right: 5px;
 }
 
 .rt-pinyin {

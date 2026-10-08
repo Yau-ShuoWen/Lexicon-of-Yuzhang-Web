@@ -162,6 +162,11 @@ const routes = [
                         component: () => import('../views/Developer/Tool/TestPinyinIPA.vue')
                     },
                     {
+                        path: 'test/modal',
+                        name: 'ModalPreview',
+                        component: () => import('../views/Developer/Tool/ModalPreview.vue')
+                    },
+                    {
                         path: 'test/audio',
                         name: 'TestAudio',
                         component: () => import('../views/Developer/Tool/TestAudio.vue')

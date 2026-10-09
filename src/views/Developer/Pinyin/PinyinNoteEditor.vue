@@ -9,6 +9,7 @@ import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import {useHead} from "@vueuse/head";
 import CopyButton from "../../../components/Button/CopyButton.vue";
 import {getToken} from "../../../utils/auth.js";
+import {request} from '../../../services/request.js'
 
 useHead({
   title: () => `拼音註釋編輯`
@@ -389,14 +390,10 @@ const loadKeys = async () => {
   loadingKeys.value = true
 
   try {
-    const res = await fetch(
+    keyList.value = await request(
         `/api/edit/pinyin/filter/${dialect.value}`,
         {headers: {'X-Auth-Token': getToken() || ''}}
     )
-
-    if (!res.ok) throw new Error('加載失敗')
-
-    keyList.value = await res.json()
 
     if (keyList.value.length > 0) {
       await selectKey(keyList.value[0])
@@ -418,14 +415,10 @@ const selectKey = async (key) => {
   loadingNote.value = true
 
   try {
-    const res = await fetch(
+    note.value = await request(
         `/api/edit/pinyin/get-note/${dialect.value}?key=${encodeURIComponent(key)}`,
         {headers: {'X-Auth-Token': getToken() || ''}}
     )
-
-    if (!res.ok) throw new Error('讀取失敗')
-
-    note.value = await res.json()
   }
   catch (err) {
     showError(err.message)
@@ -445,7 +438,7 @@ const saveNote = async () => {
   saving.value = true
 
   try {
-    const res = await fetch(
+    await request(
         `/api/edit/pinyin/update-note/${dialect.value}?key=${encodeURIComponent(selectedKey.value)}`,
         {
           method: 'POST',
@@ -456,8 +449,6 @@ const saveNote = async () => {
           body: JSON.stringify(note.value)
         }
     )
-
-    if (!res.ok) throw new Error('保存失敗')
 
     showSuccess('保存成功')
   }

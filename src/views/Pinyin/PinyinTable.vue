@@ -8,6 +8,7 @@ import PinyinDetail from "./PinyinDetail.vue";
 import TableSkeleton from "../../components/Status/TableSkeleton.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
+import { request } from '../../services/request.js'
 
 
 const route = useRoute()
@@ -51,10 +52,7 @@ onMounted(fetchTable)
 async function fetchTable() {
   try {
     startLoading()
-    const res = await fetch(`/api/pinyin/table/${dialect.value}/${language.value}`)
-    if (!res.ok) throw new Error(res.status)
-
-    const data = await res.json()
+    const data = await request(`/api/pinyin/table/${dialect.value}/${language.value}`)
     pinyinData.value = data.table
 
   } catch (e) {

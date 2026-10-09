@@ -12,6 +12,7 @@ import RichText from "../../../components/Text/RichText.vue"
 import KeywordEnhancer from "./KeywordEnhancer.vue";
 import { getToken } from "../../../utils/auth.js";
 import axios from "axios"
+import { request } from '../../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -191,14 +192,11 @@ async function loadPage() {
   pageImage.value = null
   resetViewer()
   try {
-    const res = await fetch(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`, {
+    const data = await request(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await res.json()
-    if (!json.success) throw new Error(json.message || '加载失败')
-
-    page.value = json.data
-    backupPage.value = JSON.parse(JSON.stringify(json.data))   // 深拷贝作为备份
+    page.value = data
+    backupPage.value = JSON.parse(JSON.stringify(data))   // 深拷贝作为备份
 
     await loadNearby()
     await loadPageImage()
@@ -214,7 +212,7 @@ async function loadNearby() {
   if (!page.value) return
   const body = {left: page.value.frontSort, right: page.value.endSort}
   try {
-    const res = await fetch(`/api/ref/get-nearby/${dictionary.value}`, {
+    const nearby = await request(`/api/ref/get-nearby/${dictionary.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,11 +220,8 @@ async function loadNearby() {
       },
       body: JSON.stringify(body)
     })
-    const json = await res.json()
-    if (json.success) {
-      prevSort.value = json.data.left?.empty ? null : json.data.left?.value
-      nextSort.value = json.data.right?.empty ? null : json.data.right?.value
-    }
+    prevSort.value = nearby.left
+    nextSort.value = nearby.right
   } catch (e) {
     console.error(e)
   }
@@ -251,7 +246,7 @@ async function saveDraft() {
   saving.value = true
   try {
     syncPageInfo()
-    const res = await fetch(`/api/ref/update-page/${dictionary.value}`, {
+    await request(`/api/ref/update-page/${dictionary.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -259,14 +254,8 @@ async function saveDraft() {
       },
       body: JSON.stringify(page.value)
     })
-    const json = await res.json()
-
-    if (json.success) {
-      showSuccess('草稿保存成功')
-      backupPage.value = JSON.parse(JSON.stringify(page.value))  // 保存成功后更新备份
-    } else {
-      showError(json.message)
-    }
+    showSuccess('草稿保存成功')
+    backupPage.value = JSON.parse(JSON.stringify(page.value))  // 保存成功后更新备份
   } catch (e) {
     showError('保存失败：' + e.message)
   }
@@ -280,7 +269,7 @@ async function saveProof() {
   saving.value = true
   try {
     syncPageInfo()
-    const res = await fetch(`/api/ref/edit-page/${dictionary.value}`, {
+    await request(`/api/ref/edit-page/${dictionary.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -288,14 +277,8 @@ async function saveProof() {
       },
       body: JSON.stringify(page.value)
     })
-    const json = await res.json()
-
-    if (json.success) {
-      showSuccess('校对保存成功')
-      backupPage.value = JSON.parse(JSON.stringify(page.value))
-    } else {
-      showError(json.message)
-    }
+    showSuccess('校对保存成功')
+    backupPage.value = JSON.parse(JSON.stringify(page.value))
   } catch (e) {
     showError('保存失败：' + e.message)
   }
@@ -379,18 +362,13 @@ async function lockPage() {
 
   loading.value = true
   try {
-    const res = await fetch(`/api/ref/lock-page/${dictionary.value}?sort=${encodeURIComponent(page.value.frontSort)}`, {
+    const data = await request(`/api/ref/lock-page/${dictionary.value}?sort=${encodeURIComponent(page.value.frontSort)}`, {
       method: 'POST',
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await res.json()
-    if (json.success) {
-      page.value = json.data
-      backupPage.value = JSON.parse(JSON.stringify(json.data))
-      showSuccess('已切换到校对模式')
-    } else {
-      throw new Error(json.message || '锁定失败')
-    }
+    page.value = data
+    backupPage.value = JSON.parse(JSON.stringify(data))
+    showSuccess('已切换到校对模式')
   } catch (e) {
     showError('锁定失败：' + e.message)
   }
@@ -424,17 +402,12 @@ async function insertPage(before) {
   })
 
   try {
-    const res = await fetch(`/api/ref/create-page/${dictionary.value}?${params}`, {
+    const data = await request(`/api/ref/create-page/${dictionary.value}?${params}`, {
       method: 'POST',
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await res.json()
-    if (json.success) {
-      await router.replace(getPath(json.data.frontSort))
-      showSuccess('新页面创建成功')
-    } else {
-      showError(json.message || '创建失败')
-    }
+    await router.replace(getPath(data.frontSort))
+    showSuccess('新页面创建成功')
   } catch (e) {
     showError('插入失败：' + e.message)
   }
@@ -454,17 +427,12 @@ async function deleteCurrentPage() {
 
   loading.value = true
   try {
-    const res = await fetch(`/api/ref/delete-page/${dictionary.value}?frontSort=${encodeURIComponent(page.value.frontSort)}`, {
+    const data = await request(`/api/ref/delete-page/${dictionary.value}?frontSort=${encodeURIComponent(page.value.frontSort)}`, {
       method: 'POST',
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await res.json()
-    if (json.success) {
-      await router.replace(getPath(json.data.frontSort))
-      showSuccess('页面删除成功')
-    } else {
-      showError(json.message || '删除失败')
-    }
+    await router.replace(getPath(data.frontSort))
+    showSuccess('页面删除成功')
   } catch (e) {
     showError('删除失败：' + e.message)
   }

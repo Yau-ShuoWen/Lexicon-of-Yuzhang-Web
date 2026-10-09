@@ -3,6 +3,7 @@ import {ref, watch, computed} from 'vue'
 import {ElMessage} from 'element-plus'
 import {useI18n} from 'vue-i18n'
 import {getToken} from '../../utils/auth.js'
+import {request} from '../../services/request.js'
 
 const {t} = useI18n()
 
@@ -142,15 +143,9 @@ const loadDictionaries = async () => {
 
   loading.value = true
   try {
-    const response = await fetch(getApiUrl(), {
+    const data = await request(getApiUrl(), {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const result = await response.json()
-
-    const data = result?.success === false
-        ? []
-        : result?.data ?? result
-
     dictionaries.value = processDictionaries(data)
 
     if (dictionaries.value.length) {

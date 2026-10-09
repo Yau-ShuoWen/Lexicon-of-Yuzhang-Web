@@ -2,6 +2,7 @@
 import { ref, watch, nextTick } from 'vue'
 import UnifiedModal from "../../components/Window/UnifiedModal.vue";
 import audioIcon from "../../assets/icons/audio.svg"
+import { HTTP_CODE, request } from '../../services/request.js'
 
 const props = defineProps({
   show: Boolean,
@@ -32,19 +33,12 @@ async function fetchDetail() {
     loading.value = true
 
     // ⭐ detail 与音频映射并行请求，互不依赖，缩短总等待时间
-    const [res, audioRes] = await Promise.all([
-      fetch(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?key=${props.pinyinKey}`),
+    const params = new URLSearchParams({key: props.pinyinKey})
+    const [data, audioRes] = await Promise.all([
+      request(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?${params}`),
       fetch(`/api/pinyin/audio/batch?dialect=${props.dialect}`)
     ])
-
-    const data = await res.json()
-
-    if (data.empty) {
-      detail.value = null
-      return
-    }
-
-    detail.value = data.value
+    detail.value = data
 
     // 用批量结果给每个 item 标记 hasAudio / 缓存签名 url
     let urlMap = {}
@@ -60,7 +54,7 @@ async function fetchDetail() {
     })
 
   } catch (e) {
-    console.error(e)
+    if (e.code !== HTTP_CODE.NOT_FOUND) console.error(e)
     detail.value = null
   }
   finally {

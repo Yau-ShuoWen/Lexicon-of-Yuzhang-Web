@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth'
 import LoadingPage from '../../components/Status/LoadingPage.vue'
 import { prepareLoadingText } from '../../services/loadingTextCache.js'
+import { request } from '../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,16 +96,10 @@ const loadLevel = async () => {
     const levelPath = configuredLevelId
         ? `/api/study/level/start/${language.value}/${dialect.value}/${encodeURIComponent(configuredLevelId)}`
         : `/api/study/level/start/${language.value}/${dialect.value}`
-    const response = await fetch(
+    const data = await request(
         `${levelPath}?t=${encodeURIComponent(token)}`,
         {method: 'POST'}
     )
-    const result = await response.json()
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || t('study.question.load_failed'))
-    }
-
-    const data = result.data || {}
     attemptId.value = data.attemptId || ''
     questions.value = Array.isArray(data.questions) ? data.questions : []
     if (!attemptId.value) throw new Error(t('study.question.attempt_failed'))
@@ -174,7 +169,7 @@ const finishLevel = async () => {
   phase.value = 'finishing'
   error.value = ''
   try {
-    const response = await fetch(
+    const data = await request(
         `/api/study/level/finish?t=${encodeURIComponent(getToken())}`,
         {
           method: 'POST',
@@ -182,17 +177,12 @@ const finishLevel = async () => {
           body: JSON.stringify({attemptId: attemptId.value})
         }
     )
-    const result = await response.json()
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || t('study.question.save_failed'))
-    }
-
     report.value = {
       questionCount: questions.value.length,
       completedCount: completedQuestionCount.value,
       mistakeCount: mistakeCount.value,
       results: [...questionResults.value],
-      streakSettled: result.data?.streakSettled === true
+      streakSettled: data?.streakSettled === true
     }
     phase.value = 'result'
   } catch (e) {

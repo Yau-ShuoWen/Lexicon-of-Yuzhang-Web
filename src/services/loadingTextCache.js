@@ -1,3 +1,5 @@
+import { request } from './request.js'
+
 const DEFAULT_LOADING_TEXT = '方言是我们能听见的历史'
 const CACHE_PREFIX = 'study-loading-text:'
 const requests = new Map()
@@ -16,13 +18,11 @@ const refreshLoadingText = (language, dialect) => {
   const key = cacheKey(language, dialect)
   if (requests.has(key)) return requests.get(key)
 
-  const request = fetch(`/api/study/loading-text/${language}/${dialect}`)
-      .then(async response => {
-        const result = await response.json()
-        if (!response.ok || !result.success) throw new Error(result.message || '加载提示语失败')
-        if (typeof result.data === 'string' && result.data.trim()) {
+  const pending = request(`/api/study/loading-text/${language}/${dialect}`)
+      .then(text => {
+        if (typeof text === 'string' && text.trim()) {
           try {
-            localStorage.setItem(key, result.data)
+            localStorage.setItem(key, text)
           } catch {
             // 本地存储不可用时不影响主要加载流程。
           }
@@ -31,8 +31,8 @@ const refreshLoadingText = (language, dialect) => {
       .catch(error => console.warn('加载提示语更新失败：', error))
       .finally(() => requests.delete(key))
 
-  requests.set(key, request)
-  return request
+  requests.set(key, pending)
+  return pending
 }
 
 export const prepareLoadingText = (language, dialect) => {

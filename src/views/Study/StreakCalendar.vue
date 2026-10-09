@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { getToken } from '../../utils/auth'
+import { request } from '../../services/request.js'
 import bookIcon from '../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
 import bookmarkIcon from '../../assets/icons/calendar/bookmark.svg'
@@ -78,10 +79,8 @@ const load = async () => {
   error.value = ''
   try {
     const {from, to} = monthRange.value
-    const response = await fetch(`/api/study/streak?t=${encodeURIComponent(getToken())}&from=${from}&to=${to}`)
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || t('study.streak.load_failed'))
-    records.value = Object.fromEntries((result.data.records || []).map(item => [item.date, item.status]))
+    const data = await request(`/api/study/streak?t=${encodeURIComponent(getToken())}&from=${from}&to=${to}`)
+    records.value = Object.fromEntries((data.records || []).map(item => [item.date, item.status]))
   } catch (e) {
     error.value = e.message || t('study.streak.load_failed')
   }

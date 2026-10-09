@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { getToken } from '../../utils/auth'
+import { request } from '../../services/request.js'
 import StreakCalendar from './StreakCalendar.vue'
 import bookIcon from '../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
@@ -16,13 +17,10 @@ const loadStreak = async () => {
   if (!token) return
 
   try {
-    const response = await fetch(`/api/study/streak?t=${encodeURIComponent(token)}`)
-    const result = await response.json()
-    if (response.ok && result.success) {
-      streak.value = result.data?.currentStreak || 0
-      todayStatus.value = result.data?.todayStatus || null
-      loaded.value = true
-    }
+    const data = await request(`/api/study/streak?t=${encodeURIComponent(token)}`)
+    streak.value = data?.currentStreak || 0
+    todayStatus.value = data?.todayStatus || null
+    loaded.value = true
   } catch (e) {
     // 连胜信息只是首页辅助内容，读取失败时继续保持占位但不显示错误状态。
   }

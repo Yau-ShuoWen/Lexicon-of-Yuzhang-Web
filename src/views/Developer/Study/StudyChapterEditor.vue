@@ -7,6 +7,7 @@ import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
 import {getToken} from '../../../utils/auth.js'
 import {showError, showSuccess} from '../../../services/ToastService.js'
+import {request} from '../../../services/request.js'
 
 const route = useRoute()
 const dialect = computed(() => route.params.dialect)
@@ -34,10 +35,8 @@ const url = () => `/api/study/curriculum/manage/${dialect.value}/parts/${partId.
 const load = async () => {
   loading.value = true
   try {
-    const response = await fetch(url())
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '加载失败')
-    chapters.value = (result.data || []).map((chapter, index) => ({...chapter, sort: index + 1}))
+    const data = await request(url())
+    chapters.value = (data || []).map((chapter, index) => ({...chapter, sort: index + 1}))
   } catch (error) {
     showError(`加载章节失败：${error.message}`)
   } finally {
@@ -54,13 +53,11 @@ const save = async () => {
       title: chapter.title,
       description: chapter.description
     }))
-    const response = await fetch(url(), {
+    await request(url(), {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     })
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存失败')
     showSuccess('章节保存成功')
     await load()
   } catch (error) {
@@ -80,9 +77,7 @@ const removeChapter = async chapter => {
   }
   deletingId.value = chapter.id
   try {
-    const response = await fetch(`${url().replace(/\?.*$/, '')}/${chapter.id}?t=${encodeURIComponent(getToken() || '')}`, {method: 'DELETE'})
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '删除失败')
+    await request(`${url().replace(/\?.*$/, '')}/${chapter.id}?t=${encodeURIComponent(getToken() || '')}`, {method: 'DELETE'})
     showSuccess('章节删除成功')
     await load()
   } catch (error) {

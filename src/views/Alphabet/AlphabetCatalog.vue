@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute } from "vue-router";
 import { useHead } from '@vueuse/head'
 import { showError } from "../../services/ToastService.js";
+import { request } from '../../services/request.js'
 
 const route = useRoute()
 
@@ -100,10 +101,7 @@ async function fetchCatalog() {
   loading.value = true
 
   try {
-    const res = await fetch(`/api/alphabet/catalog/${language.value}`)
-
-    if (!res.ok) throw new Error(res.status)
-    catalog.value = await res.json()
+    catalog.value = await request(`/api/alphabet/catalog/${language.value}`)
 
     totalCount.value = catalog.value.reduce((n, g) => n + g.right.length, 0)
 

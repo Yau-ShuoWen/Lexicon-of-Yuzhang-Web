@@ -4,6 +4,7 @@
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
+import { request } from '../../services/request.js'
 
 const { t } = useI18n()
 
@@ -171,7 +172,7 @@ async function translateTcToSc() {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(
+    const data = await request(
         `/api/proofread/sc-tc-translate/${props.dialect}`,
         {
           method: 'POST',
@@ -184,24 +185,17 @@ async function translateTcToSc() {
         }
     )
 
-    const data = await res.json()
+    oldTc.value = data.tc
+    oldSc.value = data.sc
 
-    if (data.success) {
+    newTc.value = data.tc
+    newSc.value = data.sc
 
-      oldTc.value = data.data.tc
-      oldSc.value = data.data.sc
+    emit('update:traditionalText', newTc.value)
+    emit('update:simplifiedText', newSc.value)
 
-      newTc.value = data.data.tc
-      newSc.value = data.data.sc
-
-      emit('update:traditionalText', newTc.value)
-      emit('update:simplifiedText', newSc.value)
-
-      isTcDirty.value = false
-      isScDirty.value = false
-    } else {
-      console.log(data)
-    }
+    isTcDirty.value = false
+    isScDirty.value = false
 
   } catch (error) {
     console.error('保存失败:', error)

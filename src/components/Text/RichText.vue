@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   modelValue: {type: String, required: true},
@@ -51,7 +52,7 @@ const check = async () => {
     if (props.dict) params.append('dict', props.dict)
 
 
-    const res = await fetch(
+    const data = await request(
         `/api/proofread/check/${props.language}/${props.dialect}`,
         {
           method: 'POST',
@@ -59,8 +60,6 @@ const check = async () => {
           body: params
         }
     )
-
-    const data = await res.json()
 
     isValid.value = data.left
     result.value = data.right

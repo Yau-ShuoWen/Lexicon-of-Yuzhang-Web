@@ -5,6 +5,7 @@
 <script setup>
 import { ref, computed, watch } from "vue"
 import { formatRichText } from "../../utils/textFormatter"
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   dialect: { type: String, required: true },
@@ -19,14 +20,10 @@ const formattedText = computed(() => formatRichText(text.value))
 async function fetchText() {
   try {
 
-    const res = await fetch(
+    text.value = await request(
         `/api/info/get-text/${props.dialect}/${props.language}/${props.textKey}`,
         { cache: "no-store" }
     )
-
-    if (!res.ok) throw new Error(res.status)
-
-    text.value = await res.json()
 
   } catch (e) {
     console.error("info text fetch failed", e)

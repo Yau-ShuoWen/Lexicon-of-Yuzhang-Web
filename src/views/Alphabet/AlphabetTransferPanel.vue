@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from '../../components/Status/LoadingIcon.vue'
 import AlphabetTransferItem from './AlphabetTransferItem.vue'
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -15,10 +16,7 @@ const transferList = ref([])
 async function fetchTransfers() {
   try {
     loading.value = true
-    const res = await fetch(`/api/alphabet/trans/${props.code}/${props.language}`)
-    if (!res.ok) throw new Error(res.status)
-
-    const data = await res.json()
+    const data = await request(`/api/alphabet/trans/${props.code}/${props.language}`)
     transferList.value = data.map(item => ({
       name: item.left,
       funName: item.right

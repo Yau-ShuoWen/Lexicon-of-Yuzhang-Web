@@ -1,4 +1,5 @@
 export const HTTP_CODE = {
+    NOT_FOUND: 404,
     NOT_LOGIN: 401,
     NO_PERMISSION: 403
 }

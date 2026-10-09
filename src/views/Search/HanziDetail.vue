@@ -7,6 +7,7 @@ import LoadingIcon from '../../components/Status/LoadingIcon.vue'
 import SpecialTag from '../../components/Status/SpecialTag.vue'
 import { showError } from '../../services/ToastService.js'
 import { isAdminUser, user } from '../../utils/auth.js'
+import { HTTP_CODE, request } from '../../services/request.js'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -53,13 +54,9 @@ const fetchHanzi = async () => {
       syllableStyle: config.syllableStyle,
       toneStyle: config.toneStyle
     })
-    const response = await fetch(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`)
-    const json = await response.json().catch(() => null)
-    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    if (!json?.success) throw new Error(json?.message || t('search_detail.load_failed'))
-    data.value = json.data
+    data.value = await request(`/api/search/${language.value}/${dialect.value}/hanzi?${params}`)
   } catch (error) {
-    if (error.message.includes('not found')) notFound.value = true
+    if (error.code === HTTP_CODE.NOT_FOUND) notFound.value = true
     else {
       console.error(error)
       showError(error.message)

@@ -8,6 +8,7 @@ import DraggableGrid from '../../../components/Layout/DraggableGrid.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import {showError, showSuccess} from '../../../services/ToastService.js'
 import {getToken} from '../../../utils/auth.js'
+import {request} from '../../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,33 +59,29 @@ const isAutomaticMapping = computed(() =>
 const loadMandarinOptions = async () => {
   const {sc, tc} = updateData.value.hanzi
   if (!sc || !tc) return
-  const response = await fetch(`/api/edit/hanzi/get-mandarin/${dialect.value}?sc=${encodeURIComponent(sc)}&tc=${encodeURIComponent(tc)}`, {
+  const params = new URLSearchParams({sc, tc})
+  mandarinOptions.value = await request(`/api/edit/hanzi/get-mandarin/${dialect.value}?${params}`, {
     headers: {'X-Auth-Token': getToken() || ''}
   })
-  if (!response.ok) throw new Error('普通话读音加载失败')
-  mandarinOptions.value = await response.json()
 }
 
 const loadNearBy = async id => {
-  const response = await fetch(`/api/edit/hanzi/get-nearby/${dialect.value}?id=${id}`, {
+  const params = new URLSearchParams({id})
+  const nearby = await request(`/api/edit/hanzi/get-nearby/${dialect.value}?${params}`, {
     headers: {'X-Auth-Token': getToken() || ''}
   })
-  const json = await response.json()
-  if (!response.ok || !json.success) throw new Error(json?.message || '加载上下条失败')
-  prevId.value = json.data.left.empty ? null : json.data.left.value
-  nextId.value = json.data.right.empty ? null : json.data.right.value
+  prevId.value = nearby.left
+  nextId.value = nearby.right
 }
 
 const loadWordSuggestions = async id => {
   suggestionsLoading.value = true
   suggestionsFailed.value = false
   try {
-    const response = await fetch(`/api/edit/hanzi/get-word-suggestions/${dialect.value}?id=${encodeURIComponent(id)}&language=${language.value}`, {
+    const params = new URLSearchParams({id, language: language.value})
+    wordSuggestions.value = await request(`/api/edit/hanzi/get-word-suggestions/${dialect.value}?${params}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await response.json().catch(() => null)
-    if (!response.ok || !json?.success) throw new Error(json?.message || '建议加载失败')
-    wordSuggestions.value = json.data ?? []
   } catch (error) {
     wordSuggestions.value = []
     suggestionsFailed.value = true
@@ -97,13 +94,10 @@ const loadWordSuggestions = async id => {
 const loadHanzi = async id => {
   isLoading.value = true
   try {
-    const response = await fetch(`/api/edit/hanzi/get-info/${dialect.value}?id=${id}`, {
+    const params = new URLSearchParams({id})
+    updateData.value = await request(`/api/edit/hanzi/get-info/${dialect.value}?${params}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    const json = await response.json().catch(() => null)
-    if (!response.ok || !json?.success) throw new Error(json?.message || '加载失败')
-    if (json.data.empty) throw new Error('未找到数据')
-    updateData.value = json.data.value
     updateData.value.pinyin ??= []
     updateData.value.pinyin.forEach(item => item.mandarin ??= [])
     await Promise.all([loadMandarinOptions(), loadNearBy(id), loadWordSuggestions(id)])
@@ -121,13 +115,11 @@ const saveData = async () => {
   isSaving.value = true
   try {
     if (isAutomaticMapping.value) updateData.value.pinyin[0].mandarin = []
-    const response = await fetch(`/api/edit/hanzi/submit/${dialect.value}`, {
+    await request(`/api/edit/hanzi/submit/${dialect.value}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-Auth-Token': getToken() || ''},
       body: JSON.stringify(updateData.value)
     })
-    const json = await response.json().catch(() => null)
-    if (!response.ok || !json?.success) throw new Error(json?.message || `HTTP错误: ${response.status}`)
     showSuccess('保存成功！')
     await loadHanzi(route.params.id)
   } catch (error) {

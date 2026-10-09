@@ -6,6 +6,7 @@ import { showError, showWarning } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import ideaIcon from "../../assets/icons/special/idea.svg"
+import { request } from '../../services/request.js'
 
 const {t} = useI18n()
 
@@ -53,10 +54,7 @@ const handleSearch = async (query) => {
       query: query.trim()
     })
 
-    const res = await fetch(`/api/search/${language.value}/${dialect.value}/query?${params}`)
-    if (!res.ok) throw new Error('查询失败，请稍后重试')
-
-    results.value = await res.json()
+    results.value = await request(`/api/search/${language.value}/${dialect.value}/query?${params}`)
 
     const mainCount = results.value?.[0]?.length || 0
     const extraCount = results.value?.[1]?.length || 0

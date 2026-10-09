@@ -8,6 +8,7 @@ import { useRoute, useRouter } from "vue-router";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
 import { getToken } from "../../../utils/auth.js";
+import { request } from '../../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,11 +29,10 @@ const searchCharacter = async () => {
   characterList.value = null
 
   try {
-    const res = await fetch(`/api/edit/hanzi/get-character/${dialect.value}?pinyin=${encodeURIComponent(searchPinyin.value)}`, {
+    const params = new URLSearchParams({pinyin: searchPinyin.value})
+    characterList.value = await request(`/api/edit/hanzi/get-character/${dialect.value}?${params}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-
-    characterList.value = await res.json()
   } catch (e) {
     showError("查询失败：" + e.message)
   }
@@ -40,7 +40,7 @@ const searchCharacter = async () => {
 
 const submit = async () => {
   try {
-    const res = await fetch(`/api/edit/hanzi/create/${dialect.value}`, {
+    await request(`/api/edit/hanzi/create/${dialect.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,10 +49,7 @@ const submit = async () => {
       body: JSON.stringify(createData.value)
     })
 
-    const data = await res.json()
-
-    if (data.success) showSuccess("提交成功")
-    else showError("提交失败：" + data.message)
+    showSuccess("提交成功")
 
   } catch (e) {
     showError("请求失败" + e.message)

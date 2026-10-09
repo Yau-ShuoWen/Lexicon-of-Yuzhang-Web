@@ -8,6 +8,7 @@ import { useRoute, useRouter } from "vue-router";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
 import { getToken } from "../../../utils/auth.js";
+import { request } from '../../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,7 +22,7 @@ const createData = ref({
 
 const submit = async () => {
   try {
-    const res = await fetch(`/api/edit/ciyu/create/${dialect.value}`, {
+    await request(`/api/edit/ciyu/create/${dialect.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,10 +31,7 @@ const submit = async () => {
       body: JSON.stringify(createData.value)
     })
 
-    const data = await res.json()
-
-    if (data.success) showSuccess("提交成功")
-    else showError("提交失败：" + data.message)
+    showSuccess("提交成功")
 
   } catch (e) {
     showError("请求失败" + e.message)

@@ -5,6 +5,7 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import { request } from '../../services/request.js'
 
 const route = useRoute()
 
@@ -35,11 +36,9 @@ const load = async () => {
   loading.value = true
 
   try {
-    const res = await fetch(
+    const data = await request(
         `/api/course/text/${dialect.value}/${language.value}/${id.value}`
     )
-    const data = await res.json()
-
     title.value = data.left
     content.value = data.right
   }

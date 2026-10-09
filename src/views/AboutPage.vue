@@ -7,6 +7,7 @@ import DialectSelector from "../components/Select/DialectSelector.vue";
 import LanguageSelector from "../components/Select/LanguageSelector.vue";
 import { useHead } from '@vueuse/head'
 import { isAdminUser } from '../utils/auth.js'
+import { request } from '../services/request.js'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -36,9 +37,7 @@ const fetchAbout = async () => {
   loading.value = true
 
   try {
-    const res = await fetch(`/api/info/about-page/${dialect.value}/${language.value}`)
-    if (!res.ok) throw new Error(t('common.loadingError'))
-    result.value = await res.json()
+    result.value = await request(`/api/info/about-page/${dialect.value}/${language.value}`)
   } catch (err) {
     console.error(err)
     showError(err.message)

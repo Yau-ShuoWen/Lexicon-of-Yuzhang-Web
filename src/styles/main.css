@@ -12,6 +12,7 @@
 @import './components/_cards.css';
 @import "./components/_text.css";
 @import "./components/_richtext.css";
+@import "./components/_dictionary-detail.css";
 
 /* 导入布局样式 */
 @import './layouts/_container.css';

@@ -48,7 +48,7 @@ const text = computed(() => {
 <template>
   <div class="special-box" :data-type="key">
     <div class="icon-wrapper">
-      <img :src="iconSrc" class="icon-clickable" />
+      <img :src="iconSrc" class="icon-clickable" alt="" aria-hidden="true" />
     </div>
     <div class="content">
       <span class="text" v-formatted-text="text" />
@@ -56,39 +56,40 @@ const text = computed(() => {
   </div>
 </template>
 <style scoped>
-.icon-clickable {
-  width: 32px;
-  height: 32px;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
 .special-box {
+  --special-accent: #199e2d;
+  --special-header-bg: #c1ebc7;
+  --special-icon-bg: #97d8a0;
+
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 
-  padding: 12px 14px;
-  margin: 16px 0;
+  padding: 10px 14px;
+  margin: 12px 0;
 
-  border: 1px solid #e0e0e0;
-  border-left: 4px solid #aaa;
+  border: 1px solid var(--special-header-bg);
+  border-left: 4px solid var(--special-accent);
   border-radius: 6px;
-
-  background-color: #fafafa;
+  background: var(--special-header-bg);
 }
 
 /* 左侧图标区域 */
 .icon-wrapper {
   flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  box-sizing: content-box;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border-radius: 20%;
+  background: var(--special-icon-bg);
 }
 
 .icon-clickable {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 /* 右侧内容 */
@@ -98,38 +99,43 @@ const text = computed(() => {
 
 .text {
   font-size: var(--font-size-base);
+  font-weight: 600;
   line-height: 1.8;
-  color: #333;
+  color: var(--special-accent);
 }
 
 /* 基本相同 */
 .special-box[data-type="l0"] {
-  border-left-color: #4caf50;
-  background: #f6fbf7;
+  --special-accent: #199e2d;
+  --special-header-bg: #c1ebc7;
+  --special-icon-bg: #97d8a0;
 }
 
 /* 特殊词汇 */
 .special-box[data-type="l1"] {
-  border-left-color: #2196f3;
-  background: #f4f8fd;
+  --special-accent: #3b82f6;
+  --special-header-bg: #cbdffd;
+  --special-icon-bg: #a7c8fb;
 }
 
 /* 使用减少 */
 .special-box[data-type="l2"] {
-  border-left-color: #ff9800;
-  background: #fff8f2;
+  --special-accent: #f97316;
+  --special-header-bg: #fee0c4;
+  --special-icon-bg: #fdc297;
 }
 
 /* 不使用 */
 .special-box[data-type="l3"] {
-  border-left-color: #9e9e9e;
-  background: #f5f5f5;
-  color: #777;
+  --special-accent: #737a76;
+  --special-header-bg: #e7e9e8;
+  --special-icon-bg: #cfd3d1;
 }
 
 /* 百科 */
 .special-box[data-type="l4"] {
-  border-left-color: #673ab7;
-  background: #f7f5fb;
+  --special-accent: #7f72ea;
+  --special-header-bg: #d1cefb;
+  --special-icon-bg: #bcb7f7;
 }
 </style>

@@ -74,7 +74,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
   <div class="broaden-layout padding-top-reset">
     <LoadingIcon v-if="loading"/>
 
-    <div v-else-if="data" class="detail-content">
+    <div v-else-if="data" class="detail-content dictionary-detail-style">
       <div class="block-pinyin detail-main-card">
         <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑汉字词条" title="编辑汉字词条"
                      :to="{name: 'HanziEditor', params: {language, dialect, id: data.id}}">
@@ -143,7 +143,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
       </div>
     </div>
 
-    <div v-else-if="notFound" class="detail-content">
+    <div v-else-if="notFound" class="detail-content dictionary-detail-style">
       <div class="block-pinyin">
         <h2>{{ query }}：{{ $t('search_detail.entry_missing') }}</h2>
         <p class="missing-text">{{ $t('search_detail.no_definition') }}</p>
@@ -227,7 +227,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
   flex-wrap: wrap;
   margin: 8px 0 16px;
   padding-bottom: 14px;
-  border-bottom: 2px dashed #c8e6c9
+  border-bottom: 0
 }
 
 .summary-item {
@@ -420,4 +420,5 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
     font-size: 23px
   }
 }
+
 </style>

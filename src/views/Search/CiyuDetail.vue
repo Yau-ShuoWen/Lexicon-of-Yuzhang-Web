@@ -95,7 +95,7 @@ watch(
 
     <LoadingIcon v-if="loading"/>
 
-    <div v-else-if="data" class="detail-content">
+    <div v-else-if="data" class="detail-content dictionary-detail-style">
 
       <div class="block-pinyin detail-main-card">
         <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑词条" title="编辑词条"
@@ -144,7 +144,7 @@ watch(
 
     </div>
 
-    <div v-else-if="notFound" class="detail-content">
+    <div v-else-if="notFound" class="detail-content dictionary-detail-style">
 
       <div class="block-pinyin">
         <div class="section">
@@ -229,7 +229,7 @@ watch(
   color: #1e5721;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 2px dashed #c8e6c9;
+  border-bottom: 0;
   cursor: pointer;
   user-select: none;
 }
@@ -370,4 +370,5 @@ watch(
     padding: 14px 16px;
   }
 }
+
 </style>

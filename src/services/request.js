@@ -23,6 +23,7 @@ export async function request(url, options = {}) {
     try {
         response = await fetch(url, options)
     } catch (error) {
+        if (error?.name === 'AbortError') throw error
         throw new APIError(error.message || '网络连接失败')
     }
 

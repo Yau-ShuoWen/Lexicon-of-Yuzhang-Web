@@ -1,3 +1,8 @@
+export const HTTP_CODE = {
+    NOT_LOGIN: 401,
+    NO_PERMISSION: 403
+}
+
 export class APIError extends Error {
     constructor(message, code = 0, status = 0) {
         super(message)

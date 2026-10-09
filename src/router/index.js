@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 import { AUTH_TOKEN_KEY, clearAuth, hasPermission, isAdminUser, saveAuth } from '../utils/auth'
 import { isBackendUnavailableError } from '../services/networkRecovery.js'
+import { HTTP_CODE } from '../services/request.js'
 
 const VALID_LANGUAGES = ['sc', 'tc'] // 两门语言：简体中文、繁体中文（不区分地区）
 const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
@@ -472,26 +473,35 @@ router.beforeEach(async (to, from, next) => {
             timeout: AUTH_CHECK_TIMEOUT_MS
         })
 
-        if (res.data.success) {
-            const userRes = await axios.get('/api/user/me', {
-                params: {t: token},
-                timeout: AUTH_CHECK_TIMEOUT_MS
-            })
-
-            if (userRes.data.success && userRes.data.data) {
-                saveAuth(userRes.data.data, token)
-
-                if (isAdminUser(userRes.data.data)) {
-                    return next()
+        if (!res.data.success) {
+            if (res.data.code === HTTP_CODE.NOT_LOGIN) clearAuth()
+            return next({
+                name: 'DevHidden',
+                params: {
+                    language: to.params.language,
+                    dialect: to.params.dialect
                 }
+            })
+        }
+
+        const userRes = await axios.get('/api/user/me', {
+            params: {t: token},
+            timeout: AUTH_CHECK_TIMEOUT_MS
+        })
+
+        if (userRes.data.success && userRes.data.data) {
+            saveAuth(userRes.data.data, token)
+
+            if (isAdminUser(userRes.data.data)) {
+                return next()
             }
         }
 
     } catch (e) {
         const status = e.response?.status
-        const isExplicitAuthFailure = status === 401 || status === 403
+        const code = e.response?.data?.code || status
 
-        if (isBackendUnavailableError(e) || !isExplicitAuthFailure) {
+        if (isBackendUnavailableError(e) || ![HTTP_CODE.NOT_LOGIN, HTTP_CODE.NO_PERMISSION].includes(code)) {
             // 后端暂时不可用不清除 Token，允许当前页面保留，恢复后可继续校验。
             if (isAdminUser()) return next()
             return next({
@@ -503,11 +513,10 @@ router.beforeEach(async (to, from, next) => {
             })
         }
 
+        if (code === HTTP_CODE.NOT_LOGIN) clearAuth()
+
         console.error(e)
     }
-
-    // ===== 5. token 失效处理 =====
-    clearAuth()
 
     return next({
         name: 'DevHidden',

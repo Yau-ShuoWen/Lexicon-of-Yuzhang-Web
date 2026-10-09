@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { isBackendUnavailableError } from '../services/networkRecovery.js'
+import { HTTP_CODE } from '../services/request.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
@@ -172,11 +173,16 @@ const initializeAuth = async () => {
             preserveAuthForBackendUnavailable(savedToken, savedUser, '认证响应格式异常')
             return
         }
+
+        if (response.data.code !== HTTP_CODE.NOT_LOGIN) {
+            preserveAuthForBackendUnavailable(savedToken, savedUser, response.data.message)
+            return
+        }
     } catch (error) {
         const status = error.response?.status
-        const isExplicitAuthFailure = status === 401 || status === 403
+        const code = error.response?.data?.code || status
 
-        if (isBackendUnavailableError(error) || !isExplicitAuthFailure) {
+        if (isBackendUnavailableError(error) || code !== HTTP_CODE.NOT_LOGIN) {
             preserveAuthForBackendUnavailable(savedToken, savedUser, error)
             return
         }

@@ -8,7 +8,6 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import {useHead} from "@vueuse/head";
 import CopyButton from "../../../components/Button/CopyButton.vue";
-import {getToken} from "../../../utils/auth.js";
 import {request} from '../../../services/request.js'
 
 useHead({
@@ -63,14 +62,9 @@ const loadAudioList = async () => {
   loadingAudio.value = true
 
   try {
-    const res = await fetch(
-        `/api/pinyin/audio/list?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`,
-        {headers: {'X-Auth-Token': getToken() || ''}}
-    )
-
-    if (!res.ok) throw new Error('加載音頻列表失敗')
-
-    audioList.value = await res.json()
+    audioList.value = await request(
+        `/api/pinyin/audio/list?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`
+    ) || []
 
     // 音频细节只打印到控制台，界面不展示名称等
     if (audioList.value.length > 0) {
@@ -99,16 +93,13 @@ const uploadFile = async (file) => {
     const form = new FormData()
     form.append('file', file)
 
-    const res = await fetch(
+    await request(
         `/api/pinyin/audio/upload?dialect=${dialect.value}&code=${encodeURIComponent(selectedKey.value)}`,
         {
           method: 'POST',
-          headers: {'X-Auth-Token': getToken() || ''},
           body: form
         }
     )
-
-    if (!res.ok) throw new Error('上傳失敗')
 
     showSuccess('上傳成功')
     await loadAudioList()
@@ -303,12 +294,7 @@ const formatRecordTime = (sec) => {
 // 删除音频
 const deleteAudio = async (id) => {
   try {
-    const res = await fetch(`/api/pinyin/audio/${id}`, {
-      method: 'DELETE',
-      headers: {'X-Auth-Token': getToken() || ''}
-    })
-
-    if (!res.ok) throw new Error('刪除失敗')
+    await request(`/api/pinyin/audio/${id}`, {method: 'DELETE'})
 
     showSuccess('刪除成功')
     stopCurrentPlay()
@@ -390,10 +376,7 @@ const loadKeys = async () => {
   loadingKeys.value = true
 
   try {
-    keyList.value = await request(
-        `/api/edit/pinyin/filter/${dialect.value}`,
-        {headers: {'X-Auth-Token': getToken() || ''}}
-    )
+    keyList.value = await request(`/api/edit/pinyin/filter/${dialect.value}`)
 
     if (keyList.value.length > 0) {
       await selectKey(keyList.value[0])
@@ -416,8 +399,7 @@ const selectKey = async (key) => {
 
   try {
     note.value = await request(
-        `/api/edit/pinyin/get-note/${dialect.value}?key=${encodeURIComponent(key)}`,
-        {headers: {'X-Auth-Token': getToken() || ''}}
+        `/api/edit/pinyin/get-note/${dialect.value}?key=${encodeURIComponent(key)}`
     )
   }
   catch (err) {
@@ -442,10 +424,7 @@ const saveNote = async () => {
         `/api/edit/pinyin/update-note/${dialect.value}?key=${encodeURIComponent(selectedKey.value)}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Auth-Token': getToken() || ''
-          },
+          headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(note.value)
         }
     )

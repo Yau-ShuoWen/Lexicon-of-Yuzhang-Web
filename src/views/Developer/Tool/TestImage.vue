@@ -1,8 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue"
-import axios from "axios"
-import { getToken } from "../../../utils/auth.js"
 import { showError, showSuccess, showWarning } from "../../../services/ToastService.js"
+import { request } from "../../../services/request.js"
 
 const file = ref(null)
 const fileInput = ref(null)
@@ -13,15 +12,11 @@ const loading = ref(false)
 const images = ref([])
 const selected = ref(null)
 
-const headers = () => ({ "X-Auth-Token": getToken() || "" })
-
 function reportError(error, action) {
-  const data = error?.response?.data
-  const status = error?.response?.status
-  const reason = typeof data === "string" ? data
-    : data?.message || (status === 400 ? "图片或请求参数不符合要求"
+  const status = error?.status
+  const reason = error?.message || (status === 400 ? "图片或请求参数不符合要求"
       : status === 403 ? "管理员权限不足"
-        : status === 413 ? "图片大小超过上传限制" : error?.message)
+        : status === 413 ? "图片大小超过上传限制" : null)
   showError(`${action}失败：${reason || "请稍后重试"}`)
 }
 
@@ -73,9 +68,7 @@ function onDrop(event) {
 async function loadImages() {
   loading.value = true
   try {
-    const response = await axios.get("/api/image/list", { headers: headers() })
-    if (!response.data.success) throw new Error(response.data.message)
-    images.value = response.data.data || []
+    images.value = await request("/api/image/list") || []
   } catch (error) {
     reportError(error, "查询图片")
   } finally {
@@ -100,11 +93,10 @@ async function upload() {
   try {
     const form = new FormData()
     form.append("file", file.value)
-    const response = await axios.post("/api/image/upload", form, { headers: headers() })
-    if (!response.data.success) throw new Error(response.data.message)
+    const uploaded = await request("/api/image/upload", {method: "POST", body: form})
     file.value = null
     if (fileInput.value) fileInput.value.value = ""
-    selected.value = response.data.data
+    selected.value = uploaded
     showSuccess("图片上传成功")
     await loadImages()
   } catch (error) {
@@ -116,9 +108,7 @@ async function upload() {
 
 async function view(image) {
   try {
-    const response = await axios.get(`/api/image/${image.id}`, { headers: headers() })
-    if (!response.data.success) throw new Error(response.data.message)
-    selected.value = response.data.data
+    selected.value = await request(`/api/image/${image.id}`)
   } catch (error) {
     reportError(error, "查看图片")
   }
@@ -127,8 +117,7 @@ async function view(image) {
 async function remove(image) {
   if (!window.confirm(`确定删除图片“${image.originalName}”吗？`)) return
   try {
-    const response = await axios.delete(`/api/image/${image.id}`, { headers: headers() })
-    if (!response.data.success) throw new Error(response.data.message)
+    await request(`/api/image/${image.id}`, {method: "DELETE"})
     if (selected.value?.id === image.id) selected.value = null
     showSuccess("图片已删除")
     await loadImages()

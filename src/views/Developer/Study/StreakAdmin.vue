@@ -1,9 +1,13 @@
 <script setup>
 import {computed, ref, watch} from 'vue'
-import axios from 'axios'
 import {useHead} from '@vueuse/head'
 import {getToken} from '../../../utils/auth.js'
 import {showError, showSuccess} from '../../../services/ToastService.js'
+import {
+  getStreakOverview,
+  searchStreakUsers,
+  updateStreakRecord
+} from '../../../services/streakAdminApi.js'
 import bookIcon from '../../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../../assets/icons/calendar/book-gray.svg'
 import bookmarkIcon from '../../../assets/icons/calendar/bookmark.svg'
@@ -106,11 +110,8 @@ const searchUser = async () => {
   loadingUser.value = true
   error.value = ''
   try {
-    const response = await axios.get('/api/admin/study/streak/users', {
-      params: {t: getToken(), keyword: keyword.value.trim()}
-    })
-    if (!response.data.success) throw new Error(response.data.message || '查询用户失败')
-    const user = response.data.data?.[0]
+    const users = await searchStreakUsers(getToken(), keyword.value.trim())
+    const user = users?.[0]
     if (!user) {
       selectedUser.value = null
       overview.value = null
@@ -121,7 +122,7 @@ const searchUser = async () => {
     }
     selectUser(user)
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '查询用户失败'
+    error.value = e.message || '查询用户失败'
   } finally {
     loadingUser.value = false
   }
@@ -133,14 +134,10 @@ const loadOverview = async () => {
   error.value = ''
   try {
     const {from, to} = monthRange.value
-    const response = await axios.get(`/api/admin/study/streak/${selectedUser.value.id}/overview`, {
-      params: {t: getToken(), from, to}
-    })
-    if (!response.data.success) throw new Error(response.data.message || '读取连胜数据失败')
-    overview.value = response.data.data
+    overview.value = await getStreakOverview(getToken(), selectedUser.value.id, from, to)
     records.value = Object.fromEntries((overview.value.records || []).map(record => [record.date, record]))
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '读取连胜数据失败'
+    error.value = e.message || '读取连胜数据失败'
   } finally {
     loadingOverview.value = false
   }
@@ -175,18 +172,18 @@ const saveSelectedDate = async () => {
   saving.value = true
   error.value = ''
   try {
-    const response = await axios.patch(
-      `/api/admin/study/streak/${selectedUser.value.id}/record`,
-      {date: selectedDate.value, status: selectedStatus.value},
-      {params: {t: getToken()}}
+    await updateStreakRecord(
+      getToken(),
+      selectedUser.value.id,
+      selectedDate.value,
+      selectedStatus.value
     )
-    if (!response.data.success) throw new Error(response.data.message || '修改连胜记录失败')
     const changedDate = selectedDate.value
     await loadOverview()
     selectedDate.value = null
     showSuccess(`${changedDate} 已修改为${statusLabel(selectedStatus.value)}`)
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '修改连胜记录失败'
+    error.value = e.message || '修改连胜记录失败'
     showError(error.value)
   } finally {
     saving.value = false

@@ -34,17 +34,14 @@ async function fetchDetail() {
 
     // ⭐ detail 与音频映射并行请求，互不依赖，缩短总等待时间
     const params = new URLSearchParams({key: props.pinyinKey})
-    const [data, audioRes] = await Promise.all([
+    const [data, audioMap] = await Promise.all([
       request(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?${params}`),
-      fetch(`/api/pinyin/audio/batch?dialect=${props.dialect}`)
+      request(`/api/pinyin/audio/batch?dialect=${props.dialect}`).catch(() => ({}))
     ])
     detail.value = data
 
     // 用批量结果给每个 item 标记 hasAudio / 缓存签名 url
-    let urlMap = {}
-    try {
-      urlMap = await audioRes.json()
-    } catch { /* 音频查询失败时全部视为无音频 */ }
+    const urlMap = audioMap || {}
 
     detail.value.info.forEach((item) =>
     {

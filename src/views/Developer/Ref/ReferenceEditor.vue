@@ -10,8 +10,6 @@ import DraggableList from "../../../components/Layout/DraggableList.vue"
 import ScAndTcText from "../../../components/Text/ScAndTcText.vue"
 import RichText from "../../../components/Text/RichText.vue"
 import KeywordEnhancer from "./KeywordEnhancer.vue";
-import { getToken } from "../../../utils/auth.js";
-import axios from "axios"
 import { request } from '../../../services/request.js'
 
 const route = useRoute()
@@ -47,9 +45,8 @@ const offset = ref({ x: 0, y: 0 })
 const draggingImage = ref(false)
 let dragOrigin = null
 
-const imageHeaders = () => ({ "X-Auth-Token": getToken() || "" })
 const imageEndpoint = computed(() => `/api/ref/page-image/${encodeURIComponent(dictionary.value)}`)
-const imageError = (error) => error?.response?.data?.message || error?.message || "操作失败"
+const imageError = (error) => error?.message || "操作失败"
 
 function resetViewer() {
   zoom.value = 1
@@ -86,12 +83,8 @@ async function loadPageImage() {
   if (!page.value?.frontSort) return
   imageLoading.value = true
   try {
-    const response = await axios.get(imageEndpoint.value, {
-      params: { sort: page.value.frontSort },
-      headers: imageHeaders()
-    })
-    if (!response.data.success) throw new Error(response.data.message)
-    pageImage.value = response.data.data
+    const params = new URLSearchParams({sort: page.value.frontSort})
+    pageImage.value = await request(`${imageEndpoint.value}?${params}`)
   } catch (error) {
     pageImage.value = null
     showError("原件加载失败：" + imageError(error))
@@ -157,12 +150,11 @@ async function uploadPageImage() {
   try {
     const form = new FormData()
     form.append("file", file)
-    const response = await axios.post(imageEndpoint.value, form, {
-      params: { sort: page.value.frontSort },
-      headers: imageHeaders()
+    const params = new URLSearchParams({sort: page.value.frontSort})
+    pageImage.value = await request(`${imageEndpoint.value}?${params}`, {
+      method: 'POST',
+      body: form
     })
-    if (!response.data.success) throw new Error(response.data.message)
-    pageImage.value = response.data.data
     pendingImage.value = null
     viewerOpen.value = true
     resetViewer()
@@ -192,9 +184,7 @@ async function loadPage() {
   pageImage.value = null
   resetViewer()
   try {
-    const data = await request(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`, {
-      headers: {'X-Auth-Token': getToken() || ''}
-    })
+    const data = await request(`/api/ref/get-page/${dictionary.value}?sort=${encodeURIComponent(sortParam.value)}`)
     page.value = data
     backupPage.value = JSON.parse(JSON.stringify(data))   // 深拷贝作为备份
 
@@ -214,10 +204,7 @@ async function loadNearby() {
   try {
     const nearby = await request(`/api/ref/get-nearby/${dictionary.value}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': getToken() || ''
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
     })
     prevSort.value = nearby.left
@@ -248,10 +235,7 @@ async function saveDraft() {
     syncPageInfo()
     await request(`/api/ref/update-page/${dictionary.value}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': getToken() || ''
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(page.value)
     })
     showSuccess('草稿保存成功')
@@ -271,10 +255,7 @@ async function saveProof() {
     syncPageInfo()
     await request(`/api/ref/edit-page/${dictionary.value}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': getToken() || ''
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(page.value)
     })
     showSuccess('校对保存成功')
@@ -363,8 +344,7 @@ async function lockPage() {
   loading.value = true
   try {
     const data = await request(`/api/ref/lock-page/${dictionary.value}?sort=${encodeURIComponent(page.value.frontSort)}`, {
-      method: 'POST',
-      headers: {'X-Auth-Token': getToken() || ''}
+      method: 'POST'
     })
     page.value = data
     backupPage.value = JSON.parse(JSON.stringify(data))
@@ -403,8 +383,7 @@ async function insertPage(before) {
 
   try {
     const data = await request(`/api/ref/create-page/${dictionary.value}?${params}`, {
-      method: 'POST',
-      headers: {'X-Auth-Token': getToken() || ''}
+      method: 'POST'
     })
     await router.replace(getPath(data.frontSort))
     showSuccess('新页面创建成功')
@@ -428,8 +407,7 @@ async function deleteCurrentPage() {
   loading.value = true
   try {
     const data = await request(`/api/ref/delete-page/${dictionary.value}?frontSort=${encodeURIComponent(page.value.frontSort)}`, {
-      method: 'POST',
-      headers: {'X-Auth-Token': getToken() || ''}
+      method: 'POST'
     })
     await router.replace(getPath(data.frontSort))
     showSuccess('页面删除成功')

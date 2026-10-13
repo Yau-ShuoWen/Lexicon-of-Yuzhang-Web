@@ -9,7 +9,7 @@ function splitStructuralLines(text) {
 
     for (let index = 0; index < text.length; index++) {
         const char = text[index]
-        if (char === '{' && (curlyDepth > 0 || /^\{[a-z]+\s/.test(text.slice(index)))) curlyDepth++
+        if (char === '{' && (curlyDepth > 0 || /^\{[a-z][a-z0-9]*\s/.test(text.slice(index)))) curlyDepth++
         if (char === '}' && curlyDepth > 0) curlyDepth--
 
         if (char === '\n' && curlyDepth === 0) {
@@ -42,7 +42,25 @@ function renderLine(line, orderedIndex, context) {
             block: true,
         }
     }
-    return {html: parseInline(line, context), orderedIndex: 0}
+    const isHeading = /^\s*\{h1\s[\s\S]*}\s*$/.test(line)
+    return {
+        html: parseInline(line, context),
+        orderedIndex: 0,
+        ...(isHeading ? {block: true, kind: 'heading'} : {}),
+    }
+}
+
+function normalizeHeadingWhitespace(parts) {
+    return parts.filter((part, index) => {
+        if (!part.empty) return true
+
+        let previous = index - 1
+        while (previous >= 0 && parts[previous].empty) previous--
+        let next = index + 1
+        while (next < parts.length && parts[next].empty) next++
+
+        return parts[previous]?.kind !== 'heading' && parts[next]?.kind !== 'heading'
+    })
 }
 
 function joinParts(parts) {
@@ -122,5 +140,5 @@ export function renderRichText(text, context = getRouteContext()) {
         index++
     }
 
-    return joinParts(parts).replace(/\\\\/g, '<br>')
+    return joinParts(normalizeHeadingWhitespace(parts)).replace(/\\\\/g, '<br>')
 }

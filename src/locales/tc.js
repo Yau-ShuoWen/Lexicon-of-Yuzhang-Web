@@ -99,7 +99,7 @@ export default {
         random: '隨機', mode_select: '選擇顯示模式', beginner: '入門', standard: '標準（推薦）', professional: '專業', beginner_desc: '適合初學者', standard_desc: '適合學習者', professional_desc: '適合研究者，展示國際音標，支援自訂顯示樣式'
     },
     search_result: {
-        back_to_home: '←返回首頁',
+        back_to_home: '返回首頁',
         random_again: '再隨機一個',
         more_result: '載入更多結果',
         no_more: '資料持續錄入中，沒有找到的內容請耐心等待',

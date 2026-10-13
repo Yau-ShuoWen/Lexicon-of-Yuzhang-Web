@@ -13,7 +13,7 @@ function findClosingBrace(text, start) {
 
 function splitDisplayTarget(text, requireTarget = false) {
     const separator = text.indexOf('=>')
-    const stripTags = value => value.replace(/\{[a-z]+\s+([^{}]+)}/g, '$1').trim()
+    const stripTags = value => value.replace(/\{[a-z][a-z0-9]*\s+([^{}]+)}/g, '$1').trim()
     if (separator === -1) return requireTarget ? null : {display: text.trim(), target: stripTags(text)}
 
     const display = text.slice(0, separator).trim()
@@ -29,6 +29,8 @@ function renderTag(tag, inner, context, renderInline) {
     if (tag === 'i') return `<i>${render(inner)}</i>`
     if (tag === 'd') return `<del>${render(inner)}</del>`
     if (tag === 'h') return `<span class="rt-h">${render(inner)}</span>`
+    if (tag === 'h1') return `<span class="rt-h rt-h1">${render(inner)}</span>`
+    if (tag === 'dot') return `<span class="rt-dot">${render(inner)}</span>`
     if (tag === 's' || tag === 'a' || tag === 'p' || tag === 'v') {
         return context.renderContent ? context.renderContent(inner) : render(inner)
     }
@@ -64,7 +66,7 @@ function renderTag(tag, inner, context, renderInline) {
 
 export function consumeCurlyTag(text, start, context, renderInline) {
     if (text[start] !== '{') return null
-    const match = text.slice(start).match(/^\{([a-z]+)\s/)
+    const match = text.slice(start).match(/^\{([a-z][a-z0-9]*)\s/)
     if (!match) return null
     const end = findClosingBrace(text, start)
     if (end === -1) return null

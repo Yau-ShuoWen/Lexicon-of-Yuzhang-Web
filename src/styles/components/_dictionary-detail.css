@@ -52,56 +52,128 @@
     box-shadow: 0 5px 15px rgba(38, 67, 42, .065);
 }
 
-.dictionary-detail-style .rt-blockquote {
+.detail-ready {
+    animation: dictionaryDetailReady .32s ease both;
+}
+
+.detail-skeleton {
+    padding-top: 30px;
+}
+
+.detail-skeleton-card {
+    border-radius: var(--border-radius-lg);
+    margin-bottom: 20px;
+    padding: 28px;
+    background: #eef3eb;
+    box-shadow: var(--dictionary-card-shadow);
+}
+
+.detail-skeleton-main {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    min-height: 118px;
+    background: #f7f9f6;
+}
+
+.detail-skeleton-character {
+    width: 62px;
+    height: 70px;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: rgba(76, 118, 70, .14);
+}
+
+.detail-skeleton-copy {
+    width: min(420px, 68%);
+}
+
+.detail-skeleton-line {
     position: relative;
-    min-height: 34px;
-    padding: 14px 16px 14px 56px;
-    border: 0;
-    border-radius: 12px;
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--dictionary-card-accent) 9%, #fff);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dictionary-card-accent) 14%, transparent),
-        0 5px 14px color-mix(in srgb, var(--dictionary-card-accent) 10%, transparent);
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(76, 118, 70, .13);
 }
 
-.dictionary-detail-style .rt-blockquote::before {
-    content: '“';
-    position: absolute;
-    top: 12px;
-    left: 14px;
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    color: var(--dictionary-card-accent);
-    background: color-mix(in srgb, var(--dictionary-card-accent) 17%, #fff);
-    font-family: Georgia, serif;
-    font-size: 25px;
-    font-weight: 700;
-    line-height: 1;
+.detail-skeleton-title {
+    width: min(230px, 68%);
+    height: 28px;
+    margin-bottom: 14px;
 }
 
-.dictionary-detail-style .rt-blockquote-tag {
-    padding: 0;
-    border: 0;
+.detail-skeleton-summary {
+    width: min(340px, 92%);
+    height: 18px;
 }
 
-.dictionary-detail-style .rt-blockquote-tag::before {
-    content: none;
+.detail-skeleton-section {
+    min-height: 178px;
+    background: #dcebcf;
 }
 
-.dictionary-detail-style .rt-blockquote-tag .rt-blockquote__header {
-    background: color-mix(in srgb, var(--bq-accent) 13%, #fff);
-    border-bottom-color: color-mix(in srgb, var(--bq-accent) 10%, transparent);
+.detail-skeleton-section-short {
+    min-height: 118px;
+    background: #dbe9f4;
 }
 
-.dictionary-detail-style .rt-blockquote-tag .rt-blockquote__icon {
-    width: 22px;
+.detail-skeleton-heading {
+    width: 128px;
     height: 22px;
-    padding: 5px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--bq-accent) 18%, #fff);
+    margin-bottom: 20px;
+}
+
+.detail-skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.detail-skeleton-inner {
+    padding: 18px 20px;
+    border-radius: var(--border-radius-md);
+    background: rgba(255, 255, 255, .58);
+}
+
+.detail-skeleton-inner-title {
+    width: 42%;
+    height: 21px;
+    margin-bottom: 13px;
+}
+
+.detail-skeleton-text {
+    width: 78%;
+    height: 16px;
+}
+
+.detail-skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.detail-skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .68), transparent);
+    animation: dictionaryDetailShimmer 1.25s ease-in-out infinite;
+}
+
+@keyframes dictionaryDetailShimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes dictionaryDetailReady {
+    from {
+        opacity: 0;
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
 }
 
 @media (max-width: 768px) {
@@ -112,5 +184,41 @@
     .dictionary-detail-style .block-ref {
         box-shadow: 0 7px 20px rgba(46, 91, 52, .08),
             0 2px 6px rgba(31, 62, 36, .05);
+    }
+
+    .detail-skeleton {
+        padding-top: 24px;
+    }
+
+    .detail-skeleton-card {
+        padding: 22px 16px;
+    }
+
+    .detail-skeleton-main {
+        gap: 16px;
+    }
+
+    .detail-skeleton-character {
+        width: 52px;
+        height: 62px;
+    }
+
+    .detail-skeleton-copy {
+        width: min(320px, 72%);
+    }
+
+    .detail-skeleton-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-skeleton-grid .detail-skeleton-inner:last-child {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .detail-ready,
+    .detail-skeleton-shimmer::after {
+        animation: none;
     }
 }

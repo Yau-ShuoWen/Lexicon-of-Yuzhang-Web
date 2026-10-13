@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
-import LoadingIcon from '../../components/Status/LoadingIcon.vue'
 import SpecialTag from '../../components/Status/SpecialTag.vue'
 import { showError } from '../../services/ToastService.js'
 import { isAdminUser, user } from '../../utils/auth.js'
@@ -72,9 +71,30 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
 
 <template>
   <div class="broaden-layout padding-top-reset">
-    <LoadingIcon v-if="loading"/>
+    <div v-if="loading" class="detail-skeleton dictionary-detail-style" aria-hidden="true">
+      <div class="detail-skeleton-card detail-skeleton-main">
+        <div class="detail-skeleton-character detail-skeleton-shimmer"/>
+        <div class="detail-skeleton-copy">
+          <div class="detail-skeleton-line detail-skeleton-title detail-skeleton-shimmer"/>
+          <div class="detail-skeleton-line detail-skeleton-summary detail-skeleton-shimmer"/>
+        </div>
+      </div>
+      <div class="detail-skeleton-card detail-skeleton-section">
+        <div class="detail-skeleton-line detail-skeleton-heading detail-skeleton-shimmer"/>
+        <div class="detail-skeleton-grid">
+          <div v-for="index in 2" :key="index" class="detail-skeleton-inner">
+            <div class="detail-skeleton-line detail-skeleton-inner-title detail-skeleton-shimmer"/>
+            <div class="detail-skeleton-line detail-skeleton-text detail-skeleton-shimmer"/>
+          </div>
+        </div>
+      </div>
+      <div class="detail-skeleton-card detail-skeleton-section detail-skeleton-section-short">
+        <div class="detail-skeleton-line detail-skeleton-heading detail-skeleton-shimmer"/>
+        <div class="detail-skeleton-line detail-skeleton-text detail-skeleton-shimmer"/>
+      </div>
+    </div>
 
-    <div v-else-if="data" class="detail-content dictionary-detail-style">
+    <div v-else-if="data" class="detail-content dictionary-detail-style detail-ready">
       <div class="block-pinyin detail-main-card">
         <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑汉字词条" title="编辑汉字词条"
                      :to="{name: 'HanziEditor', params: {language, dialect, id: data.id}}">

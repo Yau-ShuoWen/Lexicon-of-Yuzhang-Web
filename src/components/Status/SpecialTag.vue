@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { BLOCKQUOTE_TAG_MAP } from '../../utils/blockquote.js'
 
 // props
 const props = defineProps({
@@ -35,6 +36,32 @@ const iconSrc = computed(() => {
   return iconMap[key.value]
 })
 
+const neutralTheme = {
+  accent: '#737a76',
+  bg: '#f5f5f5',
+  headerBg: '#e7e9e8',
+  iconBg: '#cfd3d1'
+}
+
+const themeMap = {
+  l0: BLOCKQUOTE_TAG_MAP.bq,
+  l1: BLOCKQUOTE_TAG_MAP.pyq,
+  l2: BLOCKQUOTE_TAG_MAP.warn,
+  l3: neutralTheme,
+  l4: BLOCKQUOTE_TAG_MAP.sl
+}
+
+const themeStyle = computed(() => {
+  const theme = themeMap[key.value] || neutralTheme
+  return {
+    '--bq-accent': theme.accent,
+    '--bq-bg': theme.bg,
+    '--bq-header-bg': theme.headerBg,
+    '--bq-icon-bg': theme.iconBg,
+    '--bq-text': theme.text || theme.accent
+  }
+})
+
 // 文本
 const text = computed(() => {
   if (props.type === 'hanzi' && props.special === 4) return t('linguistic.special.hanziConflict')
@@ -46,96 +73,10 @@ const text = computed(() => {
 </script>
 
 <template>
-  <div class="special-box" :data-type="key">
-    <div class="icon-wrapper">
-      <img :src="iconSrc" class="icon-clickable" alt="" aria-hidden="true" />
+  <blockquote class="rt-blockquote rt-blockquote-tag" :style="themeStyle">
+    <div class="rt-blockquote__header">
+      <img :src="iconSrc" class="rt-blockquote__icon" alt="" aria-hidden="true" />
+      <span class="rt-blockquote__title" v-formatted-text="text" />
     </div>
-    <div class="content">
-      <span class="text" v-formatted-text="text" />
-    </div>
-  </div>
+  </blockquote>
 </template>
-<style scoped>
-.special-box {
-  --special-accent: #199e2d;
-  --special-header-bg: #c1ebc7;
-  --special-icon-bg: #97d8a0;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  padding: 10px 14px;
-  margin: 12px 0;
-
-  border: 1px solid var(--special-header-bg);
-  border-left: 4px solid var(--special-accent);
-  border-radius: 6px;
-  background: var(--special-header-bg);
-}
-
-/* 左侧图标区域 */
-.icon-wrapper {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  box-sizing: content-box;
-  width: 20px;
-  height: 20px;
-  padding: 2px;
-  border-radius: 20%;
-  background: var(--special-icon-bg);
-}
-
-.icon-clickable {
-  width: 20px;
-  height: 20px;
-}
-
-/* 右侧内容 */
-.content {
-  flex: 1;
-}
-
-.text {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  line-height: 1.8;
-  color: var(--special-accent);
-}
-
-/* 基本相同 */
-.special-box[data-type="l0"] {
-  --special-accent: #199e2d;
-  --special-header-bg: #c1ebc7;
-  --special-icon-bg: #97d8a0;
-}
-
-/* 特殊词汇 */
-.special-box[data-type="l1"] {
-  --special-accent: #3b82f6;
-  --special-header-bg: #cbdffd;
-  --special-icon-bg: #a7c8fb;
-}
-
-/* 使用减少 */
-.special-box[data-type="l2"] {
-  --special-accent: #f97316;
-  --special-header-bg: #fee0c4;
-  --special-icon-bg: #fdc297;
-}
-
-/* 不使用 */
-.special-box[data-type="l3"] {
-  --special-accent: #737a76;
-  --special-header-bg: #e7e9e8;
-  --special-icon-bg: #cfd3d1;
-}
-
-/* 百科 */
-.special-box[data-type="l4"] {
-  --special-accent: #7f72ea;
-  --special-header-bg: #d1cefb;
-  --special-icon-bg: #bcb7f7;
-}
-</style>

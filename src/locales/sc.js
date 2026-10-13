@@ -99,7 +99,7 @@ export default {
         random: '随机', mode_select: '选择显示模式', beginner: '入门', standard: '标准（推荐）', professional: '专业', beginner_desc: '适合初学者', standard_desc: '适合学习者', professional_desc: '适合研究者，展示国际音标，支持自定义显示样式'
     },
     search_result: {
-        back_to_home:'←返回首页',
+        back_to_home:'返回首页',
         random_again: '再随机一个',
         more_result: '加载更多结果',
         no_more: '数据持续录入中，没有找到的内容请耐心等待',

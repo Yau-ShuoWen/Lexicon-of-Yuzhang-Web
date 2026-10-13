@@ -9,6 +9,22 @@
     display: inline;
 }
 
+.rt-h1 {
+    display: block;
+    margin-top: 1.6em;
+}
+
+.rt-h1:first-child {
+    margin-top: 0;
+}
+
+.rt-dot {
+    -webkit-text-emphasis: filled dot;
+    -webkit-text-emphasis-position: under;
+    text-emphasis: filled dot;
+    text-emphasis-position: under;
+}
+
 /*富文本空行*/
 .rt-empty-line {
     display: block;

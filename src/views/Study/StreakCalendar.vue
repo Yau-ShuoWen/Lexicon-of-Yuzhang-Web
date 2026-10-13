@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { getToken } from '../../utils/auth'
@@ -9,6 +9,7 @@ import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
 import bookmarkIcon from '../../assets/icons/calendar/bookmark.svg'
 import toLeftIcon from '../../assets/icons/to-left.svg'
 import toRightIcon from '../../assets/icons/to-right.svg'
+import { getUserSettings } from '../../utils/userSettings.js'
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false}
@@ -23,7 +24,13 @@ const currentMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(
 const records = ref({})
 const loading = ref(false)
 const error = ref('')
-const weekdays = computed(() => tm('study.streak.weekdays'))
+const weekdayStyle = ref(getUserSettings().weekdayStyle)
+const weekdays = computed(() => weekdayStyle.value === 'youbi'
+  ? ['月', '火', '水', '木', '金', '土', '日']
+  : tm('study.streak.weekdays'))
+const syncWeekdayStyle = event => {
+  weekdayStyle.value = event?.detail?.weekdayStyle || getUserSettings().weekdayStyle
+}
 
 const monthTitle = computed(() => t('study.streak.month_title', {
   year: currentMonth.value.getFullYear(),
@@ -94,6 +101,8 @@ const changeMonth = (offset) => {
 watch([visible, currentMonth], () => {
   if (visible.value) load()
 }, {immediate: true})
+onMounted(() => window.addEventListener('yuzhang-settings-change', syncWeekdayStyle))
+onBeforeUnmount(() => window.removeEventListener('yuzhang-settings-change', syncWeekdayStyle))
 </script>
 
 <template>

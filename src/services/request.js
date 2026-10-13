@@ -13,6 +13,19 @@ export class APIError extends Error {
     }
 }
 
+const AUTH_TOKEN_KEY = 'auth-token'
+
+function prepareOptions(options) {
+    const headers = new Headers(options.headers || {})
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+
+    if (token && !headers.has('X-Auth-Token')) {
+        headers.set('X-Auth-Token', token)
+    }
+
+    return {...options, headers}
+}
+
 /**
  * 统一完成请求、JSON 解析和 APIResponse 解包。
  * 迁移期间遇到旧接口的裸数据时，会直接返回原数据。
@@ -21,7 +34,7 @@ export async function request(url, options = {}) {
     let response
 
     try {
-        response = await fetch(url, options)
+        response = await fetch(url, prepareOptions(options))
     } catch (error) {
         if (error?.name === 'AbortError') throw error
         throw new APIError(error.message || '网络连接失败')
@@ -35,6 +48,10 @@ export async function request(url, options = {}) {
             result?.code || response.status,
             response.status
         )
+    }
+
+    if (result === null && response.status !== 204) {
+        throw new APIError('服务器响应格式错误', 0, response.status)
     }
 
     if (typeof result?.success === 'boolean') {

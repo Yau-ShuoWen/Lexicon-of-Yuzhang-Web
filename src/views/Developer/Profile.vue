@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { showError, showSuccess } from '../../services/ToastService.js'
-import { logout as authLogout, getToken } from '../../utils/auth.js'
+import { clearAuth, logout as authLogout, getToken } from '../../utils/auth.js'
 import { updatePassword as updatePasswordRequest, updateUsername as updateUsernameRequest } from '../../services/authApi.js'
 
 const router = useRouter()
@@ -35,7 +35,9 @@ const logout = async () => {
 const updateUsername = async () => {
   try {
     await updateUsernameRequest(getToken(), newUsername.value)
+    clearAuth()
     showSuccess(t('developer.updated'))
+    await router.push({path: getLoginPath()})
 
   } catch (e) {
     console.error(e)
@@ -46,7 +48,9 @@ const updateUsername = async () => {
 const updatePassword = async () => {
   try {
     await updatePasswordRequest(getToken(), oldPassword.value, newPassword.value)
+    clearAuth()
     showSuccess(t('developer.updated'))
+    await router.push({path: getLoginPath()})
 
   } catch (e) {
     console.error(e)

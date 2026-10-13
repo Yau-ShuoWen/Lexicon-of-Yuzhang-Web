@@ -35,3 +35,6 @@ export const updateUsername = (token, newUsername) =>
 
 export const updatePassword = (token, oldPassword, newPassword) =>
     post('/api/user/update-password', {t: token, oldPassword, newPassword})
+
+export const getAdminDashboard = (token) =>
+    request(withQuery('/api/admin/dashboard', {t: token}))

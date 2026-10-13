@@ -162,15 +162,20 @@ const getResultLink = (result) => {
         <span v-formatted-text="$t('search_result.back_to_home')"/>
       </router-link>
 
-      <button v-if="isRandom" @click="handleRetry"
-              class="dev-btn-middle dev-add-btn"
-              v-formatted-text="$t('search_result.random_again')"
-      />
+      <button v-if="isRandom" type="button" class="search-action-button random-again-button" @click="handleRetry">
+        <span class="search-action-button__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"/>
+            <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/>
+          </svg>
+        </span>
+        <span v-formatted-text="$t('search_result.random_again')"/>
+      </button>
     </div>
 
 
     <div v-if="loading" class="results-section search-result-skeleton" aria-hidden="true">
-      <div v-for="index in 4" :key="index" class="search-result-item skeleton-result-card">
+      <div v-for="index in (isRandom ? 1 : 4)" :key="index" class="search-result-item skeleton-result-card">
         <div class="result-content">
           <div class="result-main">
             <div class="skeleton-line skeleton-title-line shimmer"/>
@@ -245,10 +250,17 @@ const getResultLink = (result) => {
 
         <button
             v-if="hasMoreExtraResults"
-            class="dev-btn-middle dev-nav-button load-more-btn"
+            type="button"
+            class="search-action-button load-more-btn"
             @click="loadMoreExtraResults"
-            v-formatted-text="$t('search_result.more_result')"
-        />
+        >
+          <span class="search-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </span>
+          <span v-formatted-text="$t('search_result.more_result')"/>
+        </button>
 
       </div>
       <div v-if="shouldShowEndTip&&!isRandom" class="search-end-tip">
@@ -320,6 +332,59 @@ const getResultLink = (result) => {
   fill: none;
   stroke: currentColor;
   stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.search-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 5px 14px 5px 6px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--color-text);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(46, 91, 52, .09), 0 2px 6px rgba(31, 62, 36, .05);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .22s ease, box-shadow .22s ease, filter .22s ease;
+}
+
+.search-action-button:hover,
+.search-action-button:focus-visible {
+  outline: none;
+  background: #f8fbf6;
+  box-shadow: 0 9px 23px rgba(46, 91, 52, .14), 0 3px 8px rgba(31, 62, 36, .06);
+}
+
+.search-action-button:active {
+  filter: brightness(.975);
+}
+
+.search-action-button__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  color: var(--color-primary-dark);
+  background: #dcebd3;
+}
+
+.search-action-button__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-action-button__icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -402,6 +467,7 @@ const getResultLink = (result) => {
   align-self: center;
   min-width: 180px;
   margin-top: 2px;
+  padding-right: 18px;
 }
 
 /* =========================
@@ -592,6 +658,10 @@ const getResultLink = (result) => {
     margin-bottom: 18px;
   }
 
+  .search-action-button {
+    min-height: 40px;
+  }
+
   .result-content {
     min-height: 78px;
     padding: 15px 16px;
@@ -620,6 +690,7 @@ const getResultLink = (result) => {
 
 @media (prefers-reduced-motion: reduce) {
   .search-result-item,
+  .search-action-button,
   .result-arrow,
   .result-expand-enter-active {
     transition: none;

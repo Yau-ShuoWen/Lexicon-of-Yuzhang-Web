@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatRichText } from '../../utils/textFormatter.js'
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -31,14 +32,12 @@ async function transferText() {
   }
 
   try {
-    const res = await fetch(
+    output.value = await request(
       `/api/alphabet/transfer/${props.code}/${props.language}` +
       `?funName=${encodeURIComponent(props.funName)}` +
       `&s=${encodeURIComponent(input.value)}`
     )
 
-    if (!res.ok) throw new Error(res.status)
-    output.value = await res.text()
   } catch (e) {
     console.error(e)
     output.value = t('alphabet_transfer.failed')

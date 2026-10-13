@@ -1,9 +1,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
-import { getStoredUser, getToken, logout as authLogout, saveAuth } from '../../utils/auth.js'
+import { clearAuth, getStoredUser, getToken, logout as authLogout, saveAuth } from '../../utils/auth.js'
+import {
+  createVerificationCode,
+  getCurrentUser,
+  getRecentVerificationCodes,
+  loginByCode,
+  loginByPhone,
+  loginByUsername,
+  updatePassword as updatePasswordRequest,
+  updateUsername as updateUsernameRequest
+} from '../../services/authApi.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,22 +52,14 @@ onMounted(() => {
 })
 
 const saveSession = async (token) => {
-  const profileRes = await axios.get('/api/user/me', { params: { t: token } })
-  saveAuth(profileRes.data.success ? profileRes.data.data : null, token)
+  const profile = await getCurrentUser(token)
+  saveAuth(profile || null, token)
   syncSession()
 }
 
-const loginWithUsername = () => axios.post('/api/user/login', null, {
-  params: { username: username.value.trim(), password: password.value }
-})
-
-const loginWithPhonePassword = () => axios.post('/api/user/login-by-phone', null, {
-  params: { phone: phone.value.trim(), password: password.value }
-})
-
-const loginWithPhoneCode = () => axios.post('/api/user/login-by-code', null, {
-  params: { phone: phone.value.trim(), code: code.value.trim() }
-})
+const loginWithUsername = () => loginByUsername(username.value.trim(), password.value)
+const loginWithPhonePassword = () => loginByPhone(phone.value.trim(), password.value)
+const loginWithPhoneCode = () => loginByCode(phone.value.trim(), code.value.trim())
 
 const login = async () => {
   if (loginMode.value === 'username') {
@@ -80,9 +81,8 @@ const login = async () => {
         ? await loginWithPhonePassword()
         : await loginWithPhoneCode()
 
-    if (!res.data.success) throw new Error(res.data.message || '登录失败')
-
-    await saveSession(res.data.data)
+    if (!res) throw new Error('登录失败')
+    await saveSession(res)
     showSuccess('登录成功')
   } catch (e) {
     console.error(e)
@@ -97,8 +97,7 @@ const sendCode = async () => {
 
   sendingCode.value = true
   try {
-    const res = await axios.post('/api/user/code/create', null, { params: { phone: phone.value.trim() } })
-    if (!res.data.success) throw new Error(res.data.message || '生成失败')
+    await createVerificationCode(phone.value.trim())
     showSuccess('验证码已生成')
     await refreshRecentCodes()
   } catch (e) {
@@ -113,11 +112,7 @@ const refreshRecentCodes = async () => {
   if (!phone.value.trim()) return showError('请先输入手机号')
 
   try {
-    const res = await axios.get('/api/user/code/recent', {
-      params: { phone: phone.value.trim(), limit: 5 }
-    })
-    if (!res.data.success) throw new Error(res.data.message || '读取失败')
-    recentCodes.value = res.data.data || []
+    recentCodes.value = await getRecentVerificationCodes(phone.value.trim(), 5) || []
   } catch (e) {
     console.error(e)
     showError(e.message || '读取失败')
@@ -132,9 +127,8 @@ const refreshProfile = async () => {
   }
 
   try {
-    const res = await axios.get('/api/user/me', { params: { t: token } })
-    if (!res.data.success) throw new Error(res.data.message || '读取失败')
-    saveAuth(res.data.data || null, token)
+    const profile = await getCurrentUser(token)
+    saveAuth(profile || null, token)
     syncSession()
     showSuccess('已刷新当前登录状态')
   } catch (e) {
@@ -162,15 +156,11 @@ const updateUsername = async () => {
 
   savingUsername.value = true
   try {
-    const res = await axios.post('/api/user/update-username', null, {
-      params: {
-        t: getToken(),
-        newUsername: newUsername.value.trim()
-      }
-    })
-    if (!res.data.success) throw new Error(res.data.message || '修改用户名失败')
-    await refreshProfile()
+    await updateUsernameRequest(getToken(), newUsername.value.trim())
+    clearAuth()
+    syncSession()
     newUsername.value = ''
+    showSuccess('修改成功，请重新登录')
   } catch (e) {
     console.error(e)
     showError(e.message || '修改用户名失败')
@@ -185,15 +175,10 @@ const updatePassword = async () => {
 
   savingPassword.value = true
   try {
-    const res = await axios.post('/api/user/update-password', null, {
-      params: {
-        t: getToken(),
-        oldPassword: oldPassword.value,
-        newPassword: newPassword.value
-      }
-    })
-    if (!res.data.success) throw new Error(res.data.message || '修改密码失败')
-    showSuccess(res.data.message || '修改成功')
+    await updatePasswordRequest(getToken(), oldPassword.value, newPassword.value)
+    clearAuth()
+    syncSession()
+    showSuccess('修改成功，请重新登录')
     oldPassword.value = ''
     newPassword.value = ''
   } catch (e) {

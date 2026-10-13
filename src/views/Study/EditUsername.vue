@@ -3,9 +3,9 @@ import { computed, ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { clearAuth, getStoredUser, getToken } from '../../utils/auth.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
+import { updateUsername } from '../../services/authApi.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,10 +26,7 @@ const save = async () => {
   saving.value = true
   try {
     const token = getToken()
-    const response = await axios.post('/api/user/update-username', null, {
-      params: {t: token, newUsername: value}
-    })
-    if (!response.data?.success) throw new Error(response.data?.message || t('account.username.failed'))
+    await updateUsername(token, value)
 
     // 后端修改用户名后会注销该账号的全部会话，需要重新登录。
     clearAuth()
@@ -37,7 +34,7 @@ const save = async () => {
     await router.replace(`/${route.params.language}/${route.params.dialect}/login`)
   } catch (exception) {
     console.error(exception)
-    showError(exception.response?.data?.message || exception.message || t('account.username.failed'))
+    showError(exception.message || t('account.username.failed'))
   } finally {
     saving.value = false
   }

@@ -3,8 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import axios from 'axios'
-import { getToken } from '../../../utils/auth.js'
+import { request } from '../../../services/request.js'
 import { showError, showSuccess } from '../../../services/ToastService.js'
 import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 
@@ -49,20 +48,6 @@ const normalizeItem = (item) => {
   }
   normalized._original = clone({tip: normalized.tip, tag: normalized.tag})
   return normalized
-}
-
-const request = async (url, options = {}) => {
-  const token = getToken()
-  const response = await axios({
-    url,
-    method: options.method || 'GET',
-    params: {t: token},
-    headers: {...options.headers, 'X-Auth-Token': token},
-    data: options.body ? JSON.parse(options.body) : undefined
-  })
-  const result = response.data
-  if (!result.success) throw new Error(result.message || '请求失败')
-  return result.data
 }
 
 const requestErrorMessage = (error, fallback) => {

@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth.js'
+import { request } from '../../services/request.js'
 
 const { t } = useI18n()
 
@@ -591,23 +592,15 @@ async function compare() {
     const token = getToken()
     if (token) headers['X-Auth-Token'] = token
 
-    const response = await fetch(props.compareUrl, {
+    const data = await request(props.compareUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({ source: sourceSnapshot, target: targetSnapshot }),
       signal: abortController.signal
     })
-    const json = await response.json().catch(() => null)
-
-    if (!response.ok) {
-      throw new Error(json?.message || t('text_diff.compare_http_failed', { status: response.status }))
-    }
-    if (!json?.success) {
-      throw new Error(json?.message || t('text_diff.compare_failed'))
-    }
     if (sequence !== compareSequence) return
 
-    diffData.value = normalizeResponse(json.data, sourceSnapshot, targetSnapshot)
+    diffData.value = normalizeResponse(data, sourceSnapshot, targetSnapshot)
     activeChangeIndex.value = diffData.value.changes.length ? 0 : -1
     compareState.value = 'idle'
     emit('compared', diffData.value)

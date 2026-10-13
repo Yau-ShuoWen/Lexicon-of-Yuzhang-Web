@@ -6,6 +6,7 @@ import { useHead } from '@vueuse/head'
 import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
+import { request } from '../../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,10 +30,7 @@ const loadCard = async () => {
   if (isNew.value) return
   loading.value = true
   try {
-    const response = await fetch(`/api/study/edit/${dialect.value}/${id.value}`)
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '加载失败')
-    form.value = result.data
+    form.value = await request(`/api/study/edit/${dialect.value}/${id.value}`)
   } catch (error) {
     showError(`加载词卡失败：${error.message}`)
   }
@@ -44,13 +42,11 @@ const loadCard = async () => {
 const save = async () => {
   saving.value = true
   try {
-    const response = await fetch(`/api/study/edit/${dialect.value}`, {
+    await request(`/api/study/edit/${dialect.value}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({...form.value, id: isNew.value ? null : form.value.id})
     })
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存失败')
     showSuccess('保存成功')
     await router.push(`/${language.value}/${dialect.value}/dev/study-word-card`)
   } catch (error) {

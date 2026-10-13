@@ -5,6 +5,7 @@ import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js"
 import CopyButton from "../../../components/Button/CopyButton.vue";
 import { getToken } from "../../../utils/auth.js";
+import { HTTP_CODE, request } from '../../../services/request.js'
 
 const props = defineProps({
   source: String,
@@ -44,19 +45,14 @@ async function fetchLink(word, pinyin) {
   loadingSet.value.add(word)
 
   try {
-    const res = await fetch(
+    const id = await request(
         `/api/edit/ciyu/get-link/${props.dialect}/${props.dict}?ciyu=${encodeURIComponent(word)}`,
         {headers: {'X-Auth-Token': getToken() || ''}}
     )
-    const json = await res.json()
-
-    if (json.success && !json.data.empty) {
-      keywordMap.value.set(word, {id: json.data.value, pinyin})
-    } else {
-      keywordMap.value.set(word, {id: null, pinyin})
-    }
+    keywordMap.value.set(word, {id, pinyin})
   } catch (e) {
-    console.error(e)
+    keywordMap.value.set(word, {id: null, pinyin})
+    if (e.code !== HTTP_CODE.NOT_FOUND) console.error(e)
   }
   finally {
     loadingSet.value.delete(word)
@@ -107,7 +103,7 @@ function openCreate(word, pinyin) {
 // 提交
 async function submit() {
   try {
-    const res = await fetch(`/api/edit/ciyu/create/${props.dialect}`, {
+    await request(`/api/edit/ciyu/create/${props.dialect}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -116,19 +112,11 @@ async function submit() {
       body: JSON.stringify(createData.value)
     })
 
-    const data = await res.json()
+    showSuccess("创建成功")
+    showModal.value = false
 
-    if (data.success) {
-      showSuccess("创建成功")
-      showModal.value = false
-
-      // 🔥 重新查询 → 立即变链接
-      keywordMap.value.delete(currentWord.value)
-      await fetchLink(currentWord.value, currentPinyin.value)
-
-    } else {
-      showError(data.message)
-    }
+    keywordMap.value.delete(currentWord.value)
+    await fetchLink(currentWord.value, currentPinyin.value)
   } catch (e) {
     showError(e.message)
   }

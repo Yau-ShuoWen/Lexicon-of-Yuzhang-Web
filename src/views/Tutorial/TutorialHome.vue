@@ -4,6 +4,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import { request } from '../../services/request.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,10 +25,9 @@ useHead({
 
 onMounted(async () => {
   loading.value = true
-  const res = await fetch(
+  const data = await request(
       `/api/course/catalog/${dialect.value}/${language.value}`
   )
-  const data = await res.json()
   catalog.value = data.catalog
   loading.value = false
 })

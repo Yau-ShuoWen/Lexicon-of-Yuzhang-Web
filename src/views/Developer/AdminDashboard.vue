@@ -1,9 +1,9 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getToken } from '../../utils/auth.js'
+import { getAdminDashboard } from '../../services/authApi.js'
 
 const route = useRoute()
 const {t} = useI18n()
@@ -16,13 +16,7 @@ const loadDashboard = async () => {
   loading.value = true
   error.value = ''
   try {
-    const res = await axios.get('/api/admin/dashboard', {
-      params: { t: getToken() }
-    })
-    if (!res.data.success) {
-      throw new Error(res.data.message || t('developer.load_failed'))
-    }
-    dashboard.value = res.data.data
+    dashboard.value = await getAdminDashboard(getToken())
   } catch (e) {
     error.value = e.message || t('developer.load_failed')
   } finally {

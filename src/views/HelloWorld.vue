@@ -27,32 +27,28 @@
 import {ref} from 'vue'
 import {formatRichText} from "../utils/textFormatter.js"
 import JumpButton from "../components/Button/JumpButton.vue";
+import {request} from '../services/request.js'
 
 const message = ref('')
 const name = ref('')
 const traditionalText = ref('')
 const simplifiedText = ref('')
 
-function callHello() {
-  fetch('/api/hello')
-      .then(res => res.json())
-      .then(data => {
-        message.value = data.message
-      })
-      .catch(err => {
-        message.value = '请求失败: ' + err.message
-      })
+async function callHello() {
+  try {
+    message.value = await request('/api/hello')
+  } catch (error) {
+    message.value = '请求失败：' + error.message
+  }
 }
 
-function callHelloParam() {
-  fetch(`/api/hello/param?name=` + name.value)
-      .then(res => res.json())
-      .then(data => {
-        message.value = formatRichText(data.message);
-      })
-      .catch(err => {
-        message.value = '请求失败: ' + err.message
-      })
+async function callHelloParam() {
+  try {
+    const params = new URLSearchParams({name: name.value})
+    message.value = formatRichText(await request(`/api/hello?${params}`))
+  } catch (error) {
+    message.value = '请求失败：' + error.message
+  }
 }
 
 // 简繁体转换组件的事件处理

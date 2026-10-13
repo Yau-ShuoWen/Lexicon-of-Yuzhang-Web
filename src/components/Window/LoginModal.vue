@@ -1,9 +1,16 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { saveAuth } from '../../utils/auth.js'
+import {
+  createVerificationCode,
+  getCurrentUser,
+  getRecentVerificationCodes,
+  loginByCode,
+  loginByPhone,
+  loginByUsername
+} from '../../services/authApi.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -33,14 +40,14 @@ onMounted(() => { checkMobile(); window.addEventListener('resize', checkMobile) 
 onUnmounted(() => window.removeEventListener('resize', checkMobile))
 
 const saveSession = async (token) => {
-  const profileRes = await axios.get('/api/user/me', { params: { t: token } })
-  saveAuth(profileRes.data.success ? profileRes.data.data : null, token)
-  emit('logged-in', profileRes.data.success ? profileRes.data.data : null)
+  const profile = await getCurrentUser(token)
+  saveAuth(profile || null, token)
+  emit('logged-in', profile || null)
 }
 
-const loginWithUsername = () => axios.post('/api/user/login', null, { params: { username: username.value.trim(), password: password.value } })
-const loginWithPhonePassword = () => axios.post('/api/user/login-by-phone', null, { params: { phone: phone.value.trim(), password: password.value } })
-const loginWithPhoneCode = () => axios.post('/api/user/login-by-code', null, { params: { phone: phone.value.trim(), code: code.value.trim() } })
+const loginWithUsername = () => loginByUsername(username.value.trim(), password.value)
+const loginWithPhonePassword = () => loginByPhone(phone.value.trim(), password.value)
+const loginWithPhoneCode = () => loginByCode(phone.value.trim(), code.value.trim())
 
 const login = async () => {
   if (loginMode.value === 'username') {
@@ -62,8 +69,8 @@ const login = async () => {
         ? await loginWithPhonePassword()
         : await loginWithPhoneCode()
 
-    if (!res.data.success) throw new Error(res.data.message || t('account.login.failed_short'))
-    await saveSession(res.data.data)
+    if (!res) throw new Error(t('account.login.failed_short'))
+    await saveSession(res)
     showSuccess(t('account.login.success'))
     emit('close')
   } catch (e) {
@@ -78,8 +85,7 @@ const sendCode = async () => {
   if (!phone.value.trim()) return showError(t('account.login.phone_required'))
   sendingCode.value = true
   try {
-    const res = await axios.post('/api/user/code/create', null, { params: { phone: phone.value.trim() } })
-    if (!res.data.success) throw new Error(res.data.message || t('account.login.code_generation_failed'))
+    await createVerificationCode(phone.value.trim())
     showSuccess(t('account.login.code_generated'))
     await refreshRecentCodes()
   } catch (e) {
@@ -92,8 +98,7 @@ const sendCode = async () => {
 
 const refreshRecentCodes = async () => {
   if (!phone.value.trim()) return
-  const res = await axios.get('/api/user/code/recent', { params: { phone: phone.value.trim(), limit: 5 } })
-  if (res.data.success) recentCodes.value = res.data.data || []
+  recentCodes.value = await getRecentVerificationCodes(phone.value.trim(), 5) || []
 }
 </script>
 

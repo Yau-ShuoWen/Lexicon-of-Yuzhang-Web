@@ -11,6 +11,7 @@ import RichText from "../../../components/Text/RichText.vue";
 import { useHead } from '@vueuse/head'
 import CopyButton from "../../../components/Button/CopyButton.vue";
 import { getToken } from "../../../utils/auth.js";
+import { request } from '../../../services/request.js'
 
 // 路由
 const route = useRoute()
@@ -57,14 +58,10 @@ const loadCiyu = async (id) => {
   if (isNew.value) return
   isLoading.value = true
   try {
-    const res = await fetch(`/api/edit/ciyu/get-info/${dialect.value}?id=${id}`, {
+    const params = new URLSearchParams({id})
+    updateData.value = await request(`/api/edit/ciyu/get-info/${dialect.value}?${params}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    if (!res.ok) throw new Error('加载失败')
-    const json = await res.json()
-    if (!json.success || json.data.empty) throw new Error('未找到数据')
-
-    updateData.value = json.data.value
   } catch (err) {
     console.error(err)
     showError('加载失败：' + err.message)
@@ -84,7 +81,7 @@ const saveData = async () => {
       id: isNew.value ? null : updateData.value.id
     }
 
-    const response = await fetch(`/api/edit/ciyu/submit/${dialect.value}`, {
+    await request(`/api/edit/ciyu/submit/${dialect.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,11 +89,6 @@ const saveData = async () => {
       },
       body: JSON.stringify(payload)
     })
-
-    const json = await response.json().catch(() => null)
-
-    if (!response.ok) throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    if (!json.success) throw new Error(json.message || '保存失败')
 
     showSuccess('保存成功！')
 

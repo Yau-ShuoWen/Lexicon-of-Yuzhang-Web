@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showError } from '../../services/ToastService.js'
 import LoadingIcon from "../../components/Status/LoadingIcon.vue";
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   /* 字母表 code */
@@ -21,9 +22,7 @@ const lang = computed(() => props.language || route.params.language)
 async function fetchIntroduce() {
   try {
     loading.value = true
-    const res = await fetch(`/api/alphabet/introduce/${props.code}/${lang.value}`)
-    if (!res.ok) throw new Error(res.status)
-    data.value = await res.json()
+    data.value = await request(`/api/alphabet/introduce/${props.code}/${lang.value}`)
   } catch (e) {
     console.error(e)
     showError('加载介绍失败')

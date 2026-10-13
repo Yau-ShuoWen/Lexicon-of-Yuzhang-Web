@@ -8,6 +8,7 @@ import JumpButton from "../../../components/Button/JumpButton.vue";
 import { showError } from "../../../services/ToastService.js";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import { getToken } from "../../../utils/auth.js";
+import { request } from '../../../services/request.js'
 
 // 路由
 const router = useRouter()
@@ -40,15 +41,9 @@ const performSearch = async () => {
   searchResults.value = []
 
   try {
-    const response = await fetch(`/api/ref/find-content/${selectedDictionary.value}?query=${encodeURIComponent(searchText.value)}`, {
+    searchResults.value = await request(`/api/ref/find-content/${selectedDictionary.value}?query=${encodeURIComponent(searchText.value)}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    if (!response.ok) throw new Error(`HTTP错误: ${response.status}`)
-
-    const json = await response.json()
-    if (!json.success) throw new Error(json.message)
-
-    searchResults.value = json.data;
   } catch (e) {
     showError('搜索失败：' + e.message)
     searchResults.value = []
@@ -67,15 +62,10 @@ const fetchPageOptions = async () => {
   selectedPage.value = ''
 
   try {
-    const response = await fetch(`/api/ref/get-catalog/${selectedDictionary.value}`, {
+    const catalog = await request(`/api/ref/get-catalog/${selectedDictionary.value}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
-    if (!response.ok) throw new Error(`HTTP错误: ${response.status}`)
-
-    const json = await response.json()
-    if (!json.success) throw new Error(json.message)
-
-    pageOptions.value = json.data.map(item => ({
+    pageOptions.value = catalog.map(item => ({
       label: item.right,
       value: item.left
     }))

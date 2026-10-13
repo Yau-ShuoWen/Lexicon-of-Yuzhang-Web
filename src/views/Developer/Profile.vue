@@ -2,9 +2,9 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
-import { logout as authLogout, getToken } from '../../utils/auth.js'
+import { clearAuth, logout as authLogout, getToken } from '../../utils/auth.js'
+import { updatePassword as updatePasswordRequest, updateUsername as updateUsernameRequest } from '../../services/authApi.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -34,16 +34,10 @@ const logout = async () => {
 
 const updateUsername = async () => {
   try {
-    const res = await axios.post('/api/user/update-username', null, {
-      params: {
-        t: getToken(),
-        newUsername: newUsername.value
-      }
-    })
-
-    if (!res.data.success) throw new Error(res.data.message)
-
-    showSuccess(res.data.message || t('developer.updated'))
+    await updateUsernameRequest(getToken(), newUsername.value)
+    clearAuth()
+    showSuccess(t('developer.updated'))
+    await router.push({path: getLoginPath()})
 
   } catch (e) {
     console.error(e)
@@ -53,19 +47,10 @@ const updateUsername = async () => {
 
 const updatePassword = async () => {
   try {
-    const res = await axios.post('/api/user/update-password', null, {
-      params: {
-        t: getToken(),
-        oldPassword: oldPassword.value,
-        newPassword: newPassword.value
-      }
-    })
-
-    if (!res.data.success) {
-      throw new Error(res.data.message)
-    }
-
-    showSuccess(res.data.message || t('developer.updated'))
+    await updatePasswordRequest(getToken(), oldPassword.value, newPassword.value)
+    clearAuth()
+    showSuccess(t('developer.updated'))
+    await router.push({path: getLoginPath()})
 
   } catch (e) {
     console.error(e)

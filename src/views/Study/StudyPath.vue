@@ -4,6 +4,7 @@ import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import StreakSummary from './StreakSummary.vue'
+import { request } from '../../services/request.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,10 +46,9 @@ const normalize = (part) => ({
 
 const load = async () => {
   try {
-    const response = await fetch(`/api/study/curriculum/${language.value}/${dialect.value}`)
-    const result = await response.json()
-    if (!response.ok || !result.success || !Array.isArray(result.data) || !result.data.length) throw new Error()
-    parts.value = result.data.map(normalize)
+    const data = await request(`/api/study/curriculum/${language.value}/${dialect.value}`)
+    if (!Array.isArray(data) || !data.length) throw new Error()
+    parts.value = data.map(normalize)
   } catch {
     parts.value = demo
     usingDemo.value = true

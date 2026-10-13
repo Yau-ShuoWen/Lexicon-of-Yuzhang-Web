@@ -1,4 +1,5 @@
 import { getToken } from '../../utils/auth.js'
+import { HTTP_CODE, request } from '../../services/request.js'
 
 function isObject(value) {
     return value !== null && typeof value === 'object'
@@ -108,24 +109,6 @@ export function normalizeDiaryEdit(payload) {
     }
 }
 
-async function fetchJson(url, options = {}) {
-    const response = await fetch(url, options)
-    const json = await response.json().catch(() => null)
-
-    if (!response.ok) {
-        throw new Error(json?.message || `HTTP错误: ${response.status}`)
-    }
-
-    return json
-}
-
-function assertApiSuccess(data, fallbackMessage) {
-    if (!data?.success) {
-        throw new Error(data?.message || fallbackMessage)
-    }
-    return data.data
-}
-
 function buildDiaryQuery(view, extra = {}) {
     const params = new URLSearchParams()
     if (view) params.set('view', String(view))
@@ -143,17 +126,17 @@ function buildDiaryQuery(view, extra = {}) {
 }
 
 export async function getDiaryCatalog(view = 'stranger') {
-    const data = await fetchJson(`/api/diary/catalog${buildDiaryQuery(view)}`)
+    const data = await request(`/api/diary/catalog${buildDiaryQuery(view)}`)
     return normalizeCatalog(data)
 }
 
 export async function getRecentDiaries(language, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/recent/${language}${buildDiaryQuery(view)}`)
+    const data = await request(`/api/diary/recent/${language}${buildDiaryQuery(view)}`)
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
 export async function queryDiaries(language, filters = {}, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/query/${language}${buildDiaryQuery(view, {
+    const data = await request(`/api/diary/query/${language}${buildDiaryQuery(view, {
         year: filters.year,
         month: filters.month
     })}`)
@@ -161,47 +144,52 @@ export async function queryDiaries(language, filters = {}, view = 'stranger') {
 }
 
 export async function searchDiaries(language, keyword, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/search/${language}${buildDiaryQuery(view, {
+    const data = await request(`/api/diary/search/${language}${buildDiaryQuery(view, {
         q: keyword
     })}`)
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
 export async function getDiaryByDate(language, date, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/item/${language}/date/${date}${buildDiaryQuery(view)}`)
+    const data = await request(`/api/diary/item/${language}/date/${date}${buildDiaryQuery(view)}`)
     return normalizeDiaryText(data, language)
 }
 
 export async function getDiaryById(language, id, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/item/${language}/id/${id}${buildDiaryQuery(view)}`)
-    return normalizeDiaryText(data, language)
+    try {
+        const data = await request(`/api/diary/item/${language}/id/${id}${buildDiaryQuery(view)}`)
+        return normalizeDiaryText(data, language)
+    } catch (error) {
+        if (error.code === HTTP_CODE.NOT_FOUND) return null
+        throw error
+    }
 }
 
 export async function getDiaryForEdit(id) {
-    const data = await fetchJson(`/api/diary/edit/${id}${buildDiaryQuery()}`)
-    return normalizeDiaryEdit(assertApiSuccess(data, '加载日记编辑内容失败'))
+    const data = await request(`/api/diary/edit/${id}${buildDiaryQuery()}`)
+    return normalizeDiaryEdit(data)
 }
 
 export async function createDiary(payload) {
-    const data = await fetchJson(`/api/diary/edit${buildDiaryQuery()}`, {
+    const data = await request(`/api/diary/edit${buildDiaryQuery()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
     })
-    return normalizeDiaryEdit(assertApiSuccess(data, '创建日记失败'))
+    return normalizeDiaryEdit(data)
 }
 
 export async function updateDiary(id, payload) {
-    const data = await fetchJson(`/api/diary/edit/${id}${buildDiaryQuery()}`, {
+    const data = await request(`/api/diary/edit/${id}${buildDiaryQuery()}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
     })
-    return normalizeDiaryEdit(assertApiSuccess(data, '保存日记失败'))
+    return normalizeDiaryEdit(data)
 }
 
 function normalizeNearbyEntity(value) {
@@ -225,7 +213,7 @@ export function normalizeNearby(payload) {
 }
 
 export async function getNearbyDiaries(id, view = 'stranger') {
-    const data = await fetchJson(`/api/diary/item/nearby/${id}${buildDiaryQuery(view)}`)
+    const data = await request(`/api/diary/item/nearby/${id}${buildDiaryQuery(view)}`)
     return normalizeNearby(data)
 }
 

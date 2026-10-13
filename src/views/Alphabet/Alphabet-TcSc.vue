@@ -4,6 +4,7 @@ import {computed, ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {showError} from '../../services/ToastService.js'
+import {request} from '../../services/request.js'
 
 const route = useRoute()
 const {t} = useI18n()
@@ -109,7 +110,7 @@ async function convert() {
 
   loading.value = true
   try {
-    const res = await fetch(
+    output.value = await request(
         `/api/proofread/translate?from=${from.value}&to=${to.value}`,
         {
           method: 'POST',
@@ -117,9 +118,6 @@ async function convert() {
           body: input.value,
         }
     )
-    const data = await res.json()
-    if (!data.success) throw new Error(data.message || t('alphabet_tcsc.failed'))
-    output.value = data.data ?? ''
   } catch (e) {
     console.error(e)
     showError(e.message || t('alphabet_tcsc.failed'))

@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { getToken } from '../../../utils/auth.js'
 import { showError, showSuccess } from '../../../services/ToastService.js'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
+import { request } from '../../../services/request.js'
 
 const route = useRoute()
 const dialect = computed(() => route.params.dialect)
@@ -27,10 +28,7 @@ const authQuery = () => `?t=${encodeURIComponent(getToken() || '')}`
 const load = async () => {
   loading.value = true
   try {
-    const response = await fetch(`${manageUrl('/parts')}${authQuery()}`)
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '加载部分失败')
-    parts.value = result.data || []
+    parts.value = await request(`${manageUrl('/parts')}${authQuery()}`) || []
     selectPart(parts.value[0])
   } catch (error) {
     showError(`加载学习部分失败：${error.message}`)
@@ -47,10 +45,7 @@ const selectPart = (part) => {
 
 const selectLevel = async (level) => {
   try {
-    const response = await fetch(`${manageUrl(`/level/${level.id}`)}${authQuery()}`)
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '加载关卡失败')
-    selectedLevel.value = clone(result.data)
+    selectedLevel.value = clone(await request(`${manageUrl(`/level/${level.id}`)}${authQuery()}`))
     cardIdsText.value = (selectedLevel.value.cardIds || []).join(', ')
   } catch (error) {
     showError(`加载关卡失败：${error.message}`)
@@ -71,9 +66,7 @@ const newLevel = () => {
 const savePart = async () => {
   saving.value = true
   try {
-    const response = await fetch(`${manageUrl('/part')}${authQuery()}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(selectedPart.value)})
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存部分失败')
+    await request(`${manageUrl('/part')}${authQuery()}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(selectedPart.value)})
     showSuccess('部分保存成功')
     await load()
   } catch (error) { showError(`保存部分失败：${error.message}`) } finally { saving.value = false }
@@ -84,11 +77,9 @@ const saveLevel = async () => {
   saving.value = true
   try {
     const payload = {...selectedLevel.value, cardIds: cardIdsText.value.split(',').map(item => Number(item.trim())).filter(Number.isInteger)}
-    const response = await fetch(`${manageUrl('/level')}${authQuery()}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)})
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存关卡失败')
+    const data = await request(`${manageUrl('/level')}${authQuery()}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)})
     showSuccess('关卡保存成功')
-    selectedLevel.value = clone(result.data)
+    selectedLevel.value = clone(data)
     cardIdsText.value = (selectedLevel.value.cardIds || []).join(', ')
     await load()
     const part = parts.value.find(item => item.id === selectedLevel.value.partId)

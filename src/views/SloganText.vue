@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { formatRichText } from "../utils/textFormatter"
 import { showError } from "../services/ToastService.js";
+import { request } from '../services/request.js'
 
 const route = useRoute()
 
@@ -23,14 +24,10 @@ const formattedText = computed(() => formatRichText(text.value))
 async function fetchText() {
   try {
 
-    const res = await fetch(
+    text.value = await request(
         `/api/info/get-text/${dialect.value}/${language.value}/welcome`,
         {cache: "no-store"}
     )
-
-    if (!res.ok) throw new Error(res.status)
-
-    text.value = await res.json()
 
   } catch (e) {
     showError("网络连接错误")

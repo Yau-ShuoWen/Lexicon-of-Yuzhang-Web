@@ -6,6 +6,7 @@ import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import {getToken} from '../../../utils/auth.js'
 import {showError, showSuccess} from '../../../services/ToastService.js'
+import {request} from '../../../services/request.js'
 
 const route = useRoute()
 const language = computed(() => route.params.language)
@@ -43,10 +44,7 @@ const load = async () => {
   if (loaded.value) refreshing.value = true
   else loading.value = true
   try {
-    const response = await fetch(boardUrl())
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '載入失敗')
-    groups.value = result.data || []
+    groups.value = await request(boardUrl()) || []
     selectedIds.value = new Set()
     if (activeChapterId.value && !groups.value.some(group => group.chapterId === activeChapterId.value)) activeChapterId.value = null
   } catch (error) {
@@ -115,10 +113,7 @@ const saveOrder = async () => {
   savingOrder.value = true
   try {
     const payload = groups.value.map(group => ({chapterId: group.chapterId, wordCardIds: group.wordCards.map(card => card.id)}))
-    const response = await fetch(boardUrl(), {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)})
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存失敗')
-    groups.value = result.data || []
+    groups.value = await request(boardUrl(), {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}) || []
     selectedIds.value = new Set()
     showSuccess('詞卡排列已保存')
   } catch (error) {
@@ -153,9 +148,7 @@ const saveCard = async () => {
   const wasNew = editorIsNew.value
   try {
     const target = wasNew ? `${apiRoot()}/${editorChapterId.value}?t=${encodeURIComponent(getToken() || '')}` : `${apiRoot()}/edit?t=${encodeURIComponent(getToken() || '')}`
-    const response = await fetch(target, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(editorForm.value)})
-    const result = await response.json()
-    if (!response.ok || !result.success) throw new Error(result.message || '保存失敗')
+    await request(target, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(editorForm.value)})
     closeEditor()
     await load()
     showSuccess(wasNew ? '詞卡已新增' : '詞卡已更新')
@@ -173,9 +166,7 @@ const deleteIds = async ids => {
   deleting.value = true
   try {
     for (const card of cards) {
-      const response = await fetch(`${apiRoot()}/${card.id}?t=${encodeURIComponent(getToken() || '')}`, {method: 'DELETE'})
-      const result = await response.json()
-      if (!response.ok || !result.success) throw new Error(result.message || `刪除「${display(card.word)}」失敗`)
+      await request(`${apiRoot()}/${card.id}?t=${encodeURIComponent(getToken() || '')}`, {method: 'DELETE'})
     }
     await load()
     showSuccess(cards.length === 1 ? '詞卡已刪除' : `${cards.length} 張詞卡已刪除`)

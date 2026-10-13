@@ -7,6 +7,7 @@ import { showError } from "../../services/ToastService.js";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import { computed, onMounted, ref } from "vue";
+import { request } from '../../services/request.js'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -24,11 +25,7 @@ const fetchAbout = async () => {
   loading.value = true
 
   try {
-    const res = await fetch(`/api/personal/hello`)
-
-    if (!res.ok) throw new Error(t('common.loadingError'))
-
-    result.value = await res.json()
+    result.value = await request(`/api/personal/hello`)
   } catch (err) {
     console.error(err)
     showError(err.message);

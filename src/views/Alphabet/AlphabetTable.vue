@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { showError } from '../../services/ToastService.js'
 import AlphabetTableGrid from './AlphabetTableGrid.vue'
 import TableSkeleton from '../../components/Status/TableSkeleton.vue'
+import { request } from '../../services/request.js'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -34,10 +35,7 @@ function stopLoading() {
 async function fetchTable() {
   try {
     startLoading()
-    const res = await fetch(`/api/alphabet/table/new/${props.code}/${props.language}`)
-    if (!res.ok) throw new Error(res.status)
-
-    const data = await res.json()
+    const data = await request(`/api/alphabet/table/new/${props.code}/${props.language}`)
     pinyinData.value = data.table
   } catch (e) {
     console.error(e)

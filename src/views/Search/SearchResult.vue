@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, nextTick, onActivated, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { showError, showWarning } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import ideaIcon from "../../assets/icons/special/idea.svg"
 import { request } from '../../services/request.js'
+
+defineOptions({name: 'SearchResult'})
 
 const {t} = useI18n()
 
@@ -16,6 +18,8 @@ const results = ref([])
 const loading = ref(true)
 
 const extraVisibleCount = ref(0)
+const lastSearchKey = ref('')
+const savedScrollTop = ref(0)
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
@@ -44,12 +48,14 @@ useHead({
   }
 })
 
-const handleSearch = async (query) => {
+const handleSearch = async (query, searchKey) => {
   if (!query.trim()) return
 
   loading.value = true
   results.value = []
   extraVisibleCount.value = 0
+  savedScrollTop.value = 0
+  lastSearchKey.value = searchKey
 
   try {
     const params = new URLSearchParams({
@@ -86,15 +92,32 @@ const shouldShowEndTip = computed(() => {
  * 路由变化驱动搜索
  */
 watch(
-    () => [route.query.q, route.params.language],
-    ([newQuery]) => {
-      if (newQuery) {
-        searchQuery.value = newQuery
-        handleSearch(newQuery)
+    () => [route.name, route.query.q, route.params.language, route.params.dialect],
+    ([routeName, newQuery, newLanguage, newDialect]) => {
+      if (routeName !== 'Search' || typeof newQuery !== 'string' || !newQuery.trim()) return
+
+      const searchKey = `${newLanguage}/${newDialect}/${newQuery.trim()}`
+      searchQuery.value = newQuery
+
+      if (searchKey !== lastSearchKey.value) {
+        handleSearch(newQuery, searchKey)
       }
     },
     {immediate: true}
 )
+
+onBeforeRouteLeave(() => {
+  savedScrollTop.value = window.scrollY
+})
+
+onActivated(async () => {
+  if (route.name !== 'Search' || !lastSearchKey.value) return
+
+  await nextTick()
+  requestAnimationFrame(() => {
+    window.scrollTo({top: savedScrollTop.value, behavior: 'auto'})
+  })
+})
 
 /**
  * 加载更多补充结果
@@ -108,7 +131,8 @@ const loadMoreExtraResults = () => {
  */
 const handleRetry = () => {
   if (searchQuery.value.trim()) {
-    handleSearch(searchQuery.value)
+    const searchKey = `${language.value}/${dialect.value}/${searchQuery.value.trim()}`
+    handleSearch(searchQuery.value, searchKey)
   }
 }
 

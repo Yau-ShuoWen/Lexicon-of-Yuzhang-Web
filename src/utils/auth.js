@@ -1,7 +1,5 @@
 import { ref } from 'vue'
-import axios from 'axios'
-import { isBackendUnavailableError } from '../services/networkRecovery.js'
-import { HTTP_CODE } from '../services/request.js'
+import { HTTP_CODE, isBackendUnavailableError, request } from '../services/request.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
@@ -146,41 +144,25 @@ const initializeAuth = async () => {
     }
 
     try {
-        const response = await axios.get('/api/user/check-auth', {
-            params: { t: savedToken },
+        await request(`/api/user/check-auth?t=${encodeURIComponent(savedToken)}`, {
             timeout: AUTH_CHECK_TIMEOUT_MS
         })
 
-        if (response.data?.success) {
-            isAuthenticated.value = true
-            token.value = savedToken
-            user.value = savedUser
-            if (!savedUser) {
-                const profileRes = await axios.get('/api/user/me', {
-                    params: { t: savedToken },
-                    timeout: AUTH_CHECK_TIMEOUT_MS
-                })
-                if (profileRes.data?.success && profileRes.data?.data) {
-                    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(profileRes.data.data))
-                    user.value = profileRes.data.data
-                }
+        isAuthenticated.value = true
+        token.value = savedToken
+        user.value = savedUser
+        if (!savedUser) {
+            const profile = await request(`/api/user/me?t=${encodeURIComponent(savedToken)}`, {
+                timeout: AUTH_CHECK_TIMEOUT_MS
+            })
+            if (profile) {
+                localStorage.setItem(AUTH_USER_KEY, JSON.stringify(profile))
+                user.value = profile
             }
-            return
         }
-
-        // 代理异常有时会以 200 返回非 API 内容，不能把这种响应当成 Token 失效。
-        if (typeof response.data?.success !== 'boolean') {
-            preserveAuthForBackendUnavailable(savedToken, savedUser, '认证响应格式异常')
-            return
-        }
-
-        if (response.data.code !== HTTP_CODE.NOT_LOGIN) {
-            preserveAuthForBackendUnavailable(savedToken, savedUser, response.data.message)
-            return
-        }
+        return
     } catch (error) {
-        const status = error.response?.status
-        const code = error.response?.data?.code || status
+        const code = error.code || error.status
 
         if (isBackendUnavailableError(error) || code !== HTTP_CODE.NOT_LOGIN) {
             preserveAuthForBackendUnavailable(savedToken, savedUser, error)
@@ -197,9 +179,7 @@ const logout = async () => {
     const currentToken = token.value || localStorage.getItem(AUTH_TOKEN_KEY)
     if (currentToken) {
         try {
-            await axios.get('/api/user/logout', {
-                params: { t: currentToken }
-            })
+            await request(`/api/user/logout?t=${encodeURIComponent(currentToken)}`)
         } catch (error) {
             console.error('退出登录失败:', error)
         }

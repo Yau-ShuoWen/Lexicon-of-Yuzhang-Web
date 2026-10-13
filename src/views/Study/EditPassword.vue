@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { clearAuth, getToken } from '../../utils/auth.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
+import { updatePassword } from '../../services/authApi.js'
 import PasswordInput from '../../components/Form/PasswordInput.vue'
 
 const route = useRoute()
@@ -27,10 +27,7 @@ const save = async () => {
 
   saving.value = true
   try {
-    const response = await axios.post('/api/user/update-password', null, {
-      params: {t: getToken(), oldPassword: oldPassword.value, newPassword: newPassword.value}
-    })
-    if (!response.data?.success) throw new Error(response.data?.message || t('account.password.failed'))
+    await updatePassword(getToken(), oldPassword.value, newPassword.value)
 
     // 后端修改密码后会注销该账号的全部会话，需要重新登录。
     clearAuth()
@@ -38,7 +35,7 @@ const save = async () => {
     await router.replace(`/${route.params.language}/${route.params.dialect}/login`)
   } catch (exception) {
     console.error(exception)
-    showError(exception.response?.data?.message || exception.message || t('account.password.failed'))
+    showError(exception.message || t('account.password.failed'))
   } finally {
     saving.value = false
   }

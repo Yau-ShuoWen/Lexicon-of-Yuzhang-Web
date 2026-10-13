@@ -3,8 +3,14 @@ import { computed, ref } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { showError, showSuccess } from '../../services/ToastService.js'
+import {
+  createVerificationCode,
+  getCurrentUser,
+  loginByCode,
+  loginByPhone,
+  loginByUsername
+} from '../../services/authApi.js'
 import { saveAuth } from '../../utils/auth.js'
 import PasswordInput from '../../components/Form/PasswordInput.vue'
 import brandLogo from '../../assets/images/logov2/yuzhangci2-white.svg'
@@ -32,14 +38,11 @@ const getRedirectTarget = () => {
     : studyHome.value
 }
 
-const getErrorMessage = (exception) => exception.response?.data?.message || exception.message || t('account.login.failed')
+const getErrorMessage = (exception) => exception.message || t('account.login.failed')
 
 const finishLogin = async (token) => {
-  const profileResponse = await axios.get('/api/user/me', {params: {t: token}})
-  if (!profileResponse.data?.success) {
-    throw new Error(profileResponse.data?.message || t('account.login.profile_failed'))
-  }
-  saveAuth(profileResponse.data.data || null, token)
+  const profile = await getCurrentUser(token)
+  saveAuth(profile || null, token)
   showSuccess(t('account.login.success'))
   await router.replace(getRedirectTarget())
 }
@@ -58,22 +61,14 @@ const login = async () => {
   loading.value = true
   try {
     const value = account.value.trim()
-    const response = loginMode.value === 'code'
-      ? await axios.post('/api/user/login-by-code', null, {
-        params: {phone: phone.value.trim(), code: code.value.trim()}
-      })
+    const token = loginMode.value === 'code'
+      ? await loginByCode(phone.value.trim(), code.value.trim())
       : /^\d{11}$/.test(value)
-        ? await axios.post('/api/user/login-by-phone', null, {
-          params: {phone: value, password: password.value}
-        })
-        : await axios.post('/api/user/login', null, {
-          params: {username: value, password: password.value}
-        })
+        ? await loginByPhone(value, password.value)
+        : await loginByUsername(value, password.value)
 
-    if (!response.data?.success || !response.data?.data) {
-      throw new Error(response.data?.message || t('account.login.invalid_credentials'))
-    }
-    await finishLogin(response.data.data)
+    if (!token) throw new Error(t('account.login.invalid_credentials'))
+    await finishLogin(token)
   } catch (exception) {
     console.error(exception)
     error.value = getErrorMessage(exception)
@@ -93,11 +88,9 @@ const sendCode = async () => {
 
   sendingCode.value = true
   try {
-    const response = await axios.post('/api/user/code/create', null, {params: {phone: value}})
-    if (!response.data?.success || !response.data?.data?.code) {
-      throw new Error(response.data?.message || t('account.login.code_failed'))
-    }
-    showSuccess(t('account.login.code_message', {code: response.data.data.code}), 10000)
+    const verification = await createVerificationCode(value)
+    if (!verification?.code) throw new Error(t('account.login.code_failed'))
+    showSuccess(t('account.login.code_message', {code: verification.code}), 10000)
   } catch (exception) {
     console.error(exception)
     error.value = getErrorMessage(exception)

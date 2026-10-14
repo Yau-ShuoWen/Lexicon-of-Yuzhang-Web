@@ -96,7 +96,7 @@ export default {
         fuzzy_recognition: '模糊识别',
         noData: '暂无数据',
         pronunciation_choose: '读音标注',
-        random: '随机', mode_select: '选择显示模式', beginner: '入门', standard: '标准（推荐）', professional: '专业', beginner_desc: '适合初学者', standard_desc: '适合学习者', professional_desc: '适合研究者，展示国际音标，支持自定义显示样式'
+        random: '随机'
     },
     search_result: {
         back_to_home:'返回首页',

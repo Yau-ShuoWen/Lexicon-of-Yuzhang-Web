@@ -6,13 +6,19 @@ const SETTINGS_CHANGE_EVENT = 'yuzhang-settings-change'
 export const DEFAULT_USER_SETTINGS = Object.freeze({
   languageStyle: 'sc',
   mandarinNotation: 'pinyin',
-  dialectNotations: ['mandarinApproximation', 'standard', 'keyboard', 'alternate', 'dictionaryIpa', 'referenceIpa'],
-  pinnedDialectNotation: 'mandarinApproximation',
+  dialectNotations: ['putonghua', 'standard', 'keyboard', 'other', 'yzcIPA', 'dictIPA'],
+  pinnedDialectNotation: 'putonghua',
   soundEnabled: true,
   weekdayStyle: 'weekday'
 })
 
 const DIALECT_NOTATIONS = new Set(DEFAULT_USER_SETTINGS.dialectNotations)
+const LEGACY_DIALECT_NOTATIONS = {
+  mandarinApproximation: 'putonghua',
+  dictionaryIpa: 'yzcIPA',
+  alternate: 'other',
+  referenceIpa: 'dictIPA'
+}
 const VALID_VALUES = {
   languageStyle: new Set(['sc', 'tc']),
   mandarinNotation: new Set(['pinyin', 'zhuyin', 'parallel']),
@@ -23,10 +29,13 @@ export function getUserSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
     const dialectNotations = Array.isArray(stored.dialectNotations)
-      ? stored.dialectNotations.filter(item => DIALECT_NOTATIONS.has(item))
+      ? [...new Set(stored.dialectNotations
+          .map(item => LEGACY_DIALECT_NOTATIONS[item] || item)
+          .filter(item => DIALECT_NOTATIONS.has(item)))]
       : [...DEFAULT_USER_SETTINGS.dialectNotations]
-    const pinnedDialectNotation = dialectNotations.includes(stored.pinnedDialectNotation)
-      ? stored.pinnedDialectNotation
+    const storedPinned = LEGACY_DIALECT_NOTATIONS[stored.pinnedDialectNotation] || stored.pinnedDialectNotation
+    const pinnedDialectNotation = dialectNotations.includes(storedPinned)
+      ? storedPinned
       : dialectNotations[0] || DEFAULT_USER_SETTINGS.pinnedDialectNotation
 
     return {

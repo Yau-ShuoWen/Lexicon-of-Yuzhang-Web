@@ -4,6 +4,7 @@ import { useHead } from '@vueuse/head'
 import { CopyDocument } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
+import { PINYIN_NOTATIONS } from '../../utils/pinyinNotations.js'
 import { useLanguageSwitcher } from '../../utils/languageSwitcher.js'
 import languageIcon from '../../assets/icons/LanguageAndDialect/transfer_sc_tc.svg'
 import pronunciationIcon from '../../assets/icons/mode.svg'
@@ -31,14 +32,7 @@ const mandarinOptions = [
   {value: 'zhuyin', label: '注音', preview: 'ㄩˋ ㄓㄤ', icon: zhuyinIcon},
   {value: 'parallel', label: '并列', preview: 'yù zhāng / ㄩˋ ㄓㄤ', icon: listIcon}
 ]
-const dialectOptions = [
-  {value: 'mandarinApproximation', label: '读起来像普通话的', note: '普通话拟音', preview: '[lān→ còng↘]'},
-  {value: 'standard', label: '标准写法', preview: '[lān còng]'},
-  {value: 'keyboard', label: '键盘输入', preview: '[lan4 cong1]'},
-  {value: 'dictionaryIpa', label: '本词典使用 IPA', preview: "[lan_˧˥] [ts'ɔŋ_˦˨]"},
-  {value: 'alternate', label: '其他版拼音', note: '如果有', preview: '[lān] [ceòng]'},
-  {value: 'referenceIpa', label: '辞书对应版本 IPA', note: '如果有', preview: "[lan_˦˦˦] [ts'ɔŋ_˦˨]"}
-]
+const dialectOptions = PINYIN_NOTATIONS
 const weekdayOptions = [
   {value: 'weekday', label: '星期', preview: ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'], icon: calendarIcon},
   {value: 'youbi', label: '曜日', preview: ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'], icon: bookmarkIcon}

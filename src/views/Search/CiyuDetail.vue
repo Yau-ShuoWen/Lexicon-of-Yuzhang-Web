@@ -44,7 +44,6 @@ const getSearchConfig = () => {
     console.error('读取搜索配置失败', e)
   }
   return {
-    phonogram: 1,
     toneStyle: 1,
     syllableStyle: 1
   }
@@ -60,7 +59,6 @@ const fetchCiyu = async () => {
 
     const params = new URLSearchParams({
       query: query.value,
-      phonogram: config.phonogram,
       syllableStyle: config.syllableStyle,
       toneStyle: config.toneStyle
     })

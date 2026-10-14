@@ -3,7 +3,7 @@ export const STORAGE_KEY = 'search_page_config'
 
 /**
  * 获取并校验搜索配置
- * @returns {Object} { phonogram, toneStyle, syllableStyle, vague }
+ * @returns {Object} { toneStyle, syllableStyle, vague }
  */
 export function getValidatedSearchConfig() {
     try {
@@ -12,7 +12,6 @@ export function getValidatedSearchConfig() {
             const config = JSON.parse(cached)
 
             const validated = {
-                phonogram: [0, 1, 2].includes(config.phonogram) ? config.phonogram : 1,
                 toneStyle: [1, 2, 3].includes(config.toneStyle) ? config.toneStyle : 1,
                 syllableStyle: [1, 2].includes(config.syllableStyle) ? config.syllableStyle : 1,
                 vague: typeof config.vague === 'boolean' ? config.vague : true
@@ -20,14 +19,12 @@ export function getValidatedSearchConfig() {
 
             // 有修正则写回缓存
             const needsUpdate =
-                validated.phonogram !== config.phonogram ||
                 validated.toneStyle !== config.toneStyle ||
                 validated.syllableStyle !== config.syllableStyle ||
                 validated.vague !== config.vague
 
             if (needsUpdate) {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    phonogram: validated.phonogram,
                     toneStyle: validated.toneStyle,
                     syllableStyle: validated.syllableStyle,
                     vague: validated.vague
@@ -41,7 +38,6 @@ export function getValidatedSearchConfig() {
     }
 
     return {
-        phonogram: 1,
         toneStyle: 1,
         syllableStyle: 1,
         vague: true

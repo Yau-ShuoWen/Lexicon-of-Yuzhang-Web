@@ -42,7 +42,7 @@ const getSearchConfig = () => {
   } catch (error) {
     console.error('读取搜索配置失败', error)
   }
-  return {phonogram: 1, toneStyle: 1, syllableStyle: 1}
+  return {toneStyle: 1, syllableStyle: 1}
 }
 
 const fetchHanzi = async () => {
@@ -53,7 +53,6 @@ const fetchHanzi = async () => {
     const config = getSearchConfig()
     const params = new URLSearchParams({
       query: query.value,
-      phonogram: config.phonogram,
       syllableStyle: config.syllableStyle,
       toneStyle: config.toneStyle
     })

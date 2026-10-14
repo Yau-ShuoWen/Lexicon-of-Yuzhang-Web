@@ -1,3 +1,5 @@
+import { selectPinyinPairs } from '../pinyinNotations.js'
+
 export function consumePinyinBlock(text, start, context, renderInline) {
     if (text[start] !== '▕') return null
     const end = text.indexOf('▏', start + 1)
@@ -10,11 +12,17 @@ export function consumePinyinBlock(text, start, context, renderInline) {
     const pairs = []
 
     for (const part of pairSource.split('│').filter(Boolean)) {
-        const separator = part.indexOf('┆')
-        if (separator === -1) continue
-        const label = part.slice(0, separator).trim()
-        const value = part.slice(separator + 1).trim()
+        const firstSeparator = part.indexOf('┆')
+        if (firstSeparator === -1) continue
+        const secondSeparator = part.indexOf('┆', firstSeparator + 1)
+        const tagged = secondSeparator !== -1
+        const tag = tagged ? part.slice(0, firstSeparator).trim() : ''
+        const label = tagged
+            ? part.slice(firstSeparator + 1, secondSeparator).trim()
+            : part.slice(0, firstSeparator).trim()
+        const value = part.slice((tagged ? secondSeparator : firstSeparator) + 1).trim()
         pairs.push({
+            tag,
             label,
             valueHtml: renderInline(value, context),
             valueItems: value.split(/\s+/).filter(Boolean).map(item => renderInline(item, context)),
@@ -22,7 +30,8 @@ export function consumePinyinBlock(text, start, context, renderInline) {
         })
     }
 
-    const triggerHtml = renderInline(triggerRaw, context)
+    const visiblePairs = selectPinyinPairs(pairs)
+    const triggerHtml = visiblePairs[0]?.valueHtml || renderInline(triggerRaw, context)
     const payload = encodeURIComponent(JSON.stringify({trigger: triggerHtml, pairs}))
     return {
         nextIndex: end + 1,

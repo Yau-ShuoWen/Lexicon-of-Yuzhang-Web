@@ -1,16 +1,15 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CopyDocument } from '@element-plus/icons-vue'
+import AnchoredPopup from '../Window/AnchoredPopup.vue'
 import { showSuccess } from '../../services/ToastService.js'
 import { convertPinyinForCopy } from '../../utils/pinyinBlock.js'
+import { selectPinyinPairs } from '../../utils/pinyinNotations.js'
 
-const popupRef = ref(null)
 const visible = ref(false)
-const mobile = ref(false)
-const singleColumn = ref(false)
 const pairs = ref([])
-const position = ref({ left: '', top: '', arrowLeft: '' })
-
+const anchor = ref(null)
+const popupListRef = ref(null)
 let currentTrigger = null
 let locked = false
 let showTimer = null
@@ -36,76 +35,31 @@ async function open(trigger) {
 
   currentTrigger?.classList.remove('active')
   currentTrigger = trigger
+  anchor.value = trigger
   currentTrigger.classList.add('active')
-  pairs.value = payload.pairs || []
-  mobile.value = mobileQuery.matches
-  singleColumn.value = false
+  pairs.value = selectPinyinPairs(payload.pairs || [])
   visible.value = true
-
   await nextTick()
-  if (mobile.value) measureMobileLayout()
-  else alignDesktopValues()
-  await nextTick()
-  placePopup()
+  alignValueColumns()
 }
 
-function close() {
+function clearTrigger() {
   window.clearTimeout(showTimer)
   window.clearTimeout(hideTimer)
   currentTrigger?.classList.remove('active')
   currentTrigger = null
+  anchor.value = null
   locked = false
-  visible.value = false
   pairs.value = []
 }
 
-function placePopup() {
-  const popup = popupRef.value
-  if (!popup || !currentTrigger || mobile.value) {
-    position.value = { left: '', top: '', arrowLeft: '' }
-    return
-  }
-
-  const triggerRect = currentTrigger.getBoundingClientRect()
-  const popupRect = popup.getBoundingClientRect()
-  const left = Math.max(12, Math.min(
-    triggerRect.left + triggerRect.width / 2 - popupRect.width / 2,
-    window.innerWidth - popupRect.width - 12
-  ))
-  const below = triggerRect.bottom + 10
-  const top = Math.max(12, Math.min(
-    below + popupRect.height > window.innerHeight - 12
-      ? triggerRect.top - popupRect.height - 10
-      : below,
-    window.innerHeight - popupRect.height - 12
-  ))
-  const arrowLeft = Math.max(12, Math.min(
-    triggerRect.left + triggerRect.width / 2 - left - 4,
-    popupRect.width - 18
-  ))
-
-  position.value = {
-    left: `${left}px`,
-    top: `${top}px`,
-    arrowLeft: `${arrowLeft}px`
-  }
-}
-
-function measureMobileLayout() {
-  const popup = popupRef.value
-  if (!popup) return
-  popup.classList.add('rt-pinyin-popup-measuring')
-  const naturalWidth = popup.getBoundingClientRect().width
-  popup.classList.remove('rt-pinyin-popup-measuring')
-  singleColumn.value = naturalWidth > window.innerWidth - 32
-}
-
-function alignDesktopValues() {
-  const grids = [...(popupRef.value?.querySelectorAll('.rt-pinyin-popup-value-grid') || [])]
+function alignValueColumns() {
+  if (mobileQuery?.matches) return
+  const grids = [...(popupListRef.value?.querySelectorAll('.pinyin-popup-values') || [])]
   const widths = []
 
   for (const grid of grids) {
-    ;[...grid.querySelectorAll('.rt-pinyin-popup-unit')].forEach((unit, index) => {
+    ;[...grid.querySelectorAll('.pinyin-popup-unit')].forEach((unit, index) => {
       widths[index] = Math.max(widths[index] || 0, unit.getBoundingClientRect().width)
     })
   }
@@ -113,7 +67,7 @@ function alignDesktopValues() {
   if (!widths.length) return
   const columns = widths.map(width => `${Math.ceil(width)}px`).join(' ')
   grids.forEach(grid => {
-    grid.classList.add('rt-pinyin-popup-value-grid-aligned')
+    grid.classList.add('pinyin-popup-values--aligned')
     grid.style.gridTemplateColumns = columns
   })
 }
@@ -139,18 +93,17 @@ async function copyPair(pair) {
 
 function onDocumentClick(event) {
   const trigger = findTrigger(event.target)
-  if (trigger) {
-    event.stopPropagation()
-    if (currentTrigger === trigger && (mobileQuery.matches || locked)) {
-      close()
-      return
-    }
-    void open(trigger)
-    locked = !mobileQuery.matches
-    window.clearTimeout(hideTimer)
+  if (!trigger) return
+  event.preventDefault()
+  event.stopPropagation()
+  window.clearTimeout(showTimer)
+  window.clearTimeout(hideTimer)
+  if (currentTrigger === trigger && (mobileQuery.matches || locked)) {
+    visible.value = false
     return
   }
-  if (!popupRef.value?.contains(event.target)) close()
+  void open(trigger)
+  locked = !mobileQuery.matches
 }
 
 function onTriggerEnter(event) {
@@ -169,96 +122,192 @@ function onTriggerLeave(event) {
   window.clearTimeout(showTimer)
   window.clearTimeout(hideTimer)
   hideTimer = window.setTimeout(() => {
-    if (!popupRef.value?.matches(':hover')) close()
-  }, 100)
+    if (!document.querySelector('.anchored-popup:hover')) visible.value = false
+  }, 120)
 }
 
 function onPopupEnter() {
-  if (!mobile.value) window.clearTimeout(hideTimer)
+  if (!mobileQuery.matches) window.clearTimeout(hideTimer)
 }
 
 function onPopupLeave() {
-  if (mobile.value || locked) return
+  if (mobileQuery.matches || locked) return
   window.clearTimeout(hideTimer)
-  hideTimer = window.setTimeout(close, 100)
+  hideTimer = window.setTimeout(() => {
+    visible.value = false
+  }, 120)
 }
 
-function onScroll() {
-  if (!mobileQuery.matches) close()
-}
+watch(visible, openState => {
+  if (!openState) clearTrigger()
+})
 
 onMounted(() => {
   mobileQuery = window.matchMedia('(max-width: 768px)')
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('mouseenter', onTriggerEnter, true)
   document.addEventListener('mouseleave', onTriggerLeave, true)
-  window.addEventListener('scroll', onScroll, true)
-  window.addEventListener('resize', close)
-  document.addEventListener('visibilitychange', close)
 })
-
 onBeforeUnmount(() => {
-  close()
+  clearTrigger()
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('mouseenter', onTriggerEnter, true)
   document.removeEventListener('mouseleave', onTriggerLeave, true)
-  window.removeEventListener('scroll', onScroll, true)
-  window.removeEventListener('resize', close)
-  document.removeEventListener('visibilitychange', close)
 })
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="visible && mobile"
-      class="rt-pinyin-popup-overlay"
-      style="display: block"
-      @click="close"
-    />
-    <div
-      v-if="visible"
-      ref="popupRef"
-      class="rt-pinyin-popup"
-      :class="{
-        'rt-pinyin-popup-mobile': mobile,
-        'rt-pinyin-popup-single-column': singleColumn
-      }"
-      :style="{
-        display: 'block',
-        left: position.left,
-        top: position.top,
-        '--arrow-left': position.arrowLeft
-      }"
-      @click.stop
-      @mouseenter="onPopupEnter"
-      @mouseleave="onPopupLeave"
-    >
-      <button type="button" class="rt-pinyin-popup-close" aria-label="关闭" @click="close">×</button>
-      <div class="rt-pinyin-popup-inner">
-        <div v-for="(pair, index) in pairs" :key="`${pair.label}-${index}`" class="rt-pinyin-popup-row">
-          <span class="rt-pinyin-popup-label">{{ pair.label }}</span>
-          <button
-            type="button"
-            class="rt-pinyin-popup-value"
-            title="复制"
-            @click="copyPair(pair)"
-          >
-            <span v-if="pair.valueItems?.length" class="rt-pinyin-popup-value-grid">
-              <span
-                v-for="(item, itemIndex) in pair.valueItems"
-                :key="itemIndex"
-                class="rt-pinyin-popup-unit"
-                v-html="item"
-              />
-            </span>
-            <span v-else v-html="pair.valueHtml" />
-          </button>
-          <button type="button" class="rt-pinyin-copy-btn" title="复制" @click="copyPair(pair)">
-            <CopyDocument aria-hidden="true" />
-          </button>
-        </div>
+  <AnchoredPopup
+    v-model="visible"
+    :anchor="anchor"
+    @mouseenter="onPopupEnter"
+    @mouseleave="onPopupLeave"
+  >
+    <div ref="popupListRef" class="pinyin-popup-list">
+      <div v-for="(pair, index) in pairs" :key="`${pair.tag}-${pair.label}-${index}`" class="pinyin-popup-row">
+        <span class="pinyin-popup-label" :class="{'pinyin-popup-cell--divided': index > 0}">{{ pair.label }}</span>
+        <button type="button" class="pinyin-popup-value" :class="{'pinyin-popup-cell--divided': index > 0}" title="复制" @click="copyPair(pair)">
+          <span v-if="pair.valueItems?.length" class="pinyin-popup-values">
+            <span
+              v-for="(item, itemIndex) in pair.valueItems"
+              :key="itemIndex"
+              class="pinyin-popup-unit"
+              v-html="item"
+            />
+          </span>
+          <span v-else v-html="pair.valueHtml" />
+        </button>
+        <button type="button" class="pinyin-popup-copy" :class="{'pinyin-popup-cell--divided': index > 0}" title="复制" aria-label="复制这一行拼音" @click="copyPair(pair)">
+          <CopyDocument aria-hidden="true" />
+        </button>
       </div>
     </div>
-  </Teleport>
+  </AnchoredPopup>
 </template>
+
+<style scoped>
+.pinyin-popup-list {
+  --pinyin-popup-divider: #cbd2cd;
+  display: grid;
+  grid-template-columns: minmax(128px, auto) minmax(90px, 1fr) 42px;
+  min-width: min(420px, calc(100vw - 26px));
+}
+
+.pinyin-popup-row {
+  display: contents;
+}
+
+.pinyin-popup-cell--divided {
+  border-top: 1px solid var(--pinyin-popup-divider);
+}
+
+.pinyin-popup-label,
+.pinyin-popup-value,
+.pinyin-popup-copy {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  box-sizing: border-box;
+}
+
+.pinyin-popup-label {
+  padding: 10px 14px;
+  border-right: 1px solid var(--pinyin-popup-divider);
+  color: #68716a;
+  background: #f6f6f6;
+  font-size: .88rem;
+  white-space: nowrap;
+}
+
+.pinyin-popup-value {
+  min-width: 0;
+  padding: 10px 8px 10px 16px;
+  border: 0;
+  color: #2d342f;
+  background: #fff;
+  font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+  font-size: 1.12rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pinyin-popup-value:hover {
+  color: #174f2b;
+  background: #f7faf8;
+}
+
+.pinyin-popup-copy {
+  justify-content: center;
+  width: 42px;
+  padding: 0;
+  border: 0;
+  color: #9aa29c;
+  background: #fff;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+
+.pinyin-popup-value:hover + .pinyin-popup-copy,
+.pinyin-popup-copy:hover {
+  color: #2e7245;
+  background: #f7faf8;
+}
+
+.pinyin-popup-copy svg {
+  width: 17px;
+  height: 17px;
+}
+
+.pinyin-popup-value.pinyin-popup-cell--divided,
+.pinyin-popup-copy.pinyin-popup-cell--divided {
+  border-top: 1px solid var(--pinyin-popup-divider);
+}
+
+.pinyin-popup-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.pinyin-popup-values--aligned {
+  display: inline-grid;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+.pinyin-popup-unit {
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .pinyin-popup-list {
+    grid-template-columns: minmax(0, 1fr) 42px;
+    min-width: 0;
+  }
+
+  .pinyin-popup-label {
+    grid-column: 1 / -1;
+    border-right: 0;
+    min-height: 0;
+    padding: 9px 14px 5px;
+  }
+
+  .pinyin-popup-value.pinyin-popup-cell--divided,
+  .pinyin-popup-copy.pinyin-popup-cell--divided {
+    border-top: 0;
+  }
+
+  .pinyin-popup-value,
+  .pinyin-popup-copy {
+    min-height: 44px;
+  }
+
+  .pinyin-popup-value {
+    padding: 5px 8px 12px 14px;
+  }
+
+  .pinyin-popup-copy {
+    padding-bottom: 7px;
+  }
+}
+</style>

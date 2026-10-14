@@ -1,9 +1,10 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { CopyDocument } from '@element-plus/icons-vue'
-import { getUserSettings, saveUserSettings } from '../../utils/userSettings.js'
-import BackButton from '../../components/Button/BackButton.vue'
+import { useRoute } from 'vue-router'
+import { saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
+import { useLanguageSwitcher } from '../../utils/languageSwitcher.js'
 import languageIcon from '../../assets/icons/LanguageAndDialect/transfer_sc_tc.svg'
 import pronunciationIcon from '../../assets/icons/mode.svg'
 import soundIcon from '../../assets/icons/audio.svg'
@@ -15,8 +16,10 @@ import pinyinIcon from '../../assets/icons/settings/pinyin.svg'
 import zhuyinIcon from '../../assets/icons/settings/zhuyin.svg'
 import listIcon from '../../assets/icons/settings/list.svg'
 
-const settings = reactive(getUserSettings())
-const pendingLanguageStyle = ref(settings.languageStyle)
+const settings = useUserSettings()
+const route = useRoute()
+const { currentLanguageInRoute, changeLanguage } = useLanguageSwitcher()
+const pendingLanguageStyle = ref(currentLanguageInRoute() || settings.languageStyle)
 useHead({title: '设置｜豫章词'})
 
 const languageOptions = [
@@ -44,6 +47,13 @@ const weekdayOptions = [
 const currentLanguage = computed(() => languageOptions.find(item => item.value === pendingLanguageStyle.value))
 const currentMandarin = computed(() => mandarinOptions.find(item => item.value === settings.mandarinNotation))
 const languageChanged = computed(() => pendingLanguageStyle.value !== settings.languageStyle)
+const homeRoute = computed(() => ({
+  name: 'Home',
+  params: {
+    language: currentLanguageInRoute() || 'sc',
+    dialect: route.params.dialect || 'lac'
+  }
+}))
 const todayIndex = (new Date().getDay() + 6) % 7
 const todayPreview = computed(() => weekdayOptions.find(item => item.value === settings.weekdayStyle).preview[todayIndex])
 const selectedDialectOptions = computed(() => {
@@ -70,15 +80,18 @@ function toggleDialectNotation(value) {
   } else settings.dialectNotations.push(value)
 }
 
-function saveLanguageStyle() {
+async function saveLanguageStyle() {
+  if (!languageChanged.value) return
   settings.languageStyle = pendingLanguageStyle.value
+  await nextTick()
+  await changeLanguage(pendingLanguageStyle.value, {reload: true})
 }
 </script>
 
 <template>
   <main class="settings-page">
     <header class="page-header">
-      <BackButton class="back-button"/>
+      <router-link class="back-button home-button" :to="homeRoute">返回首页</router-link>
       <div>
         <h1>设置</h1>
       </div>
@@ -204,6 +217,8 @@ function saveLanguageStyle() {
 @media(max-width:820px){.settings-page{width:min(100% - 28px,760px);padding:28px 0 56px}.settings-layout{grid-template-columns:1fr;gap:14px}.settings-sidebar{position:static;padding:7px;overflow-x:auto}.sidebar-title,.save-status{display:none}.settings-nav{display:flex;min-width:max-content}.settings-nav a{padding:9px 13px}.setting-row{grid-template-columns:1fr;gap:14px}}
 @media(max-width:560px){.settings-page{width:min(100% - 20px,520px);padding-top:22px}.page-header{margin-bottom:20px}.page-header h1{font-size:1.65rem}.page-summary{font-size:.86rem}.group-header,.setting-row{padding:18px 15px}.segmented-control--three{grid-template-columns:1fr}.dialect-layout{grid-template-columns:1fr}.check-label span{display:grid;gap:1px}.setting-row--simple{grid-template-columns:1fr auto}.setting-row--simple .setting-copy p{display:none}.switch-control>span:last-child{display:none}.preview-row{grid-template-columns:1fr;gap:3px}}
 .page-header{margin-bottom:22px}
+.home-button{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 12px;border:1px solid #ccd3ce;border-radius:4px;color:#58615a;background:#f8f9f8;font-size:.875rem;text-decoration:none;white-space:nowrap;transition:background .18s ease,border-color .18s ease,color .18s ease}
+.home-button:hover{border-color:#9fb7a6;color:#27683d;background:#edf5ef}
 .control-line{display:flex;align-items:stretch;gap:12px}
 .control-line .segmented-control{flex:0 0 auto}
 .setting-control--language .segmented-control,.setting-control--calendar .segmented-control{width:320px}

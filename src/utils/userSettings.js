@@ -1,4 +1,7 @@
+import { onBeforeUnmount, reactive } from 'vue'
+
 const STORAGE_KEY = 'yuzhang-user-settings'
+const SETTINGS_CHANGE_EVENT = 'yuzhang-settings-change'
 
 export const DEFAULT_USER_SETTINGS = Object.freeze({
   languageStyle: 'sc',
@@ -41,6 +44,42 @@ export function getUserSettings() {
 
 export function saveUserSettings(settings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-  window.dispatchEvent(new CustomEvent('yuzhang-settings-change', {detail: settings}))
+  window.dispatchEvent(new CustomEvent(SETTINGS_CHANGE_EVENT, {detail: settings}))
+}
+
+export function getUserSetting(key) {
+  if (!(key in DEFAULT_USER_SETTINGS)) return undefined
+  return getUserSettings()[key]
+}
+
+export function subscribeUserSettings(listener) {
+  const handleSettingsChange = event => listener(event?.detail || getUserSettings())
+  const handleStorageChange = event => {
+    if (event.key === STORAGE_KEY) listener(getUserSettings())
+  }
+
+  window.addEventListener(SETTINGS_CHANGE_EVENT, handleSettingsChange)
+  window.addEventListener('storage', handleStorageChange)
+  return () => {
+    window.removeEventListener(SETTINGS_CHANGE_EVENT, handleSettingsChange)
+    window.removeEventListener('storage', handleStorageChange)
+  }
+}
+
+export function useUserSettings() {
+  const settings = reactive(getUserSettings())
+  const unsubscribe = subscribeUserSettings(value => {
+    for (const [key, nextValue] of Object.entries(value)) {
+      if (key === 'dialectNotations') {
+        if (settings.dialectNotations.join('\0') !== nextValue.join('\0')) {
+          settings.dialectNotations = [...nextValue]
+        }
+      } else if (settings[key] !== nextValue) {
+        settings[key] = nextValue
+      }
+    }
+  })
+  onBeforeUnmount(unsubscribe)
+  return settings
 }
 

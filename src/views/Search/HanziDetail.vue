@@ -7,6 +7,7 @@ import SpecialTag from '../../components/Status/SpecialTag.vue'
 import { showError } from '../../services/ToastService.js'
 import { isAdminUser, user } from '../../utils/auth.js'
 import { HTTP_CODE, request } from '../../services/request.js'
+import { useUserSettings } from '../../utils/userSettings.js'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -17,6 +18,9 @@ const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 const isAdmin = computed(() => isAdminUser(user.value))
+const userSettings = useUserSettings()
+const showMandarinPinyin = computed(() => userSettings.mandarinNotation !== 'zhuyin')
+const showMandarinZhuyin = computed(() => userSettings.mandarinNotation !== 'pinyin')
 
 const seoDescription = computed(() => data.value
     ? `${data.value.hanzi}的方言读音、释义与相关词语。`
@@ -127,8 +131,9 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
               <span class="mandarin-label">{{ $t('linguistic.pronun.correspond_mdr') }}：</span>
               <span v-for="(mandarin,mandarinIndex) in item.mandarin" :key="mandarinIndex"
                     class="mandarin-item">
-                <span v-formatted-text="mandarin.pinyin"/>
-                <span class="mandarin-zhuyin" v-formatted-text="mandarin.zhuyin"/>
+                <span v-if="showMandarinPinyin" class="mandarin-script" v-formatted-text="mandarin.pinyin"/>
+                <span v-if="showMandarinPinyin && showMandarinZhuyin" class="mandarin-divider" aria-hidden="true">/</span>
+                <span v-if="showMandarinZhuyin" class="mandarin-script mandarin-zhuyin" v-formatted-text="mandarin.zhuyin"/>
               </span>
             </div>
             <div v-if="item.words?.length" class="word-capsules">
@@ -351,11 +356,32 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
 
 .mandarin-item {
   display: inline-flex;
-  gap: 7px
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 118px;
+  height: 28px;
+  color: #344038;
+  font-family: 'Cambria', 'Charis SIL', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 28px;
+  white-space: nowrap
+}
+
+.mandarin-script,
+.mandarin-script * {
+  font-family: inherit;
+  line-height: inherit
+}
+
+.mandarin-divider {
+  color: #7a827c;
+  font-weight: 500
 }
 
 .mandarin-zhuyin {
-  color: var(--color-text-light)
+  color: #344038
 }
 
 .word-capsules {

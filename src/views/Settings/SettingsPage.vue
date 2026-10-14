@@ -98,27 +98,28 @@ async function saveLanguageStyle() {
     </header>
 
     <div class="settings-content">
-        <section id="display-settings" class="settings-group">
-          <div class="group-header">
-            <span class="group-icon"><img :src="languageIcon" alt=""></span>
-            <div><h2>语言与显示</h2></div>
-          </div>
-          <div class="setting-row setting-row--stacked">
-            <div class="setting-control setting-control--language">
-              <div class="control-line">
-                <div class="segmented-control segmented-control--two" :style="{'--selected-index': pendingLanguageStyle === 'tc' ? 1 : 0}">
-                  <span class="selection-indicator" aria-hidden="true"></span>
-                  <label v-for="option in languageOptions" :key="option.value" :class="{selected: pendingLanguageStyle === option.value}">
+      <section id="display-settings" class="settings-group">
+        <div class="group-header">
+          <span class="group-icon"><img :src="languageIcon" alt=""></span>
+          <div><h2>语言与显示</h2></div>
+        </div>
+        <div class="setting-row setting-row--stacked">
+          <div class="setting-control setting-control--language">
+            <div class="control-line">
+              <div class="segmented-control segmented-control--two" :style="{'--selected-index': pendingLanguageStyle === 'tc' ? 1 : 0}">
+                <span class="selection-indicator" aria-hidden="true"></span>
+                <label v-for="option in languageOptions" :key="option.value" :class="{selected: pendingLanguageStyle === option.value}">
                   <input v-model="pendingLanguageStyle" type="radio" name="language-style" :value="option.value">
-                  <span class="option-icon"><img :src="option.icon" alt=""></span><span>{{ option.label }}</span>
-                  </label>
-                </div>
-                <div class="inline-preview"><strong>{{ currentLanguage.preview }}</strong></div>
+                  <span class="option-icon"><img :src="option.icon" alt=""></span>
+                  <span>{{ option.label }}</span>
+                </label>
               </div>
-              <button class="save-button" type="button" :disabled="!languageChanged" @click="saveLanguageStyle">保存语言设置</button>
+              <div class="inline-preview"><strong>{{ currentLanguage.preview }}</strong></div>
             </div>
+            <button class="save-button" type="button" :disabled="!languageChanged" @click="saveLanguageStyle">保存语言设置</button>
           </div>
-        </section>
+        </div>
+      </section>
 
         <section id="pronunciation-settings" class="settings-group">
           <div class="group-header">
@@ -221,8 +222,6 @@ async function saveLanguageStyle() {
 .home-button:hover{border-color:#9fb7a6;color:#27683d;background:#edf5ef}
 .control-line{display:flex;align-items:stretch;gap:12px}
 .control-line .segmented-control{flex:0 0 auto}
-.setting-control--language .segmented-control,.setting-control--calendar .segmented-control{width:320px}
-.setting-control .segmented-control--three{width:480px}
 .segmented-control{position:relative;padding:5px;isolation:isolate}
 .selection-indicator{position:absolute;z-index:0;top:5px;bottom:5px;left:5px;border:1px solid #cbd7ce;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(26,44,31,.08);transition:transform .28s cubic-bezier(.22,1,.36,1)}
 .segmented-control--two .selection-indicator{width:calc((100% - 14px)/2);transform:translateX(calc(var(--selected-index)* (100% + 4px)))}
@@ -235,7 +234,6 @@ async function saveLanguageStyle() {
 .save-button:disabled{color:#929994;background:#e5e9e6;cursor:not-allowed}
 .setting-row--simple{grid-template-columns:1fr auto}
 .setting-control--calendar{max-width:none}
-@media(max-width:680px){.control-line{display:grid;grid-template-columns:1fr}.setting-control--language .segmented-control,.setting-control--calendar .segmented-control,.setting-control .segmented-control--three{width:auto}.control-line .inline-preview{min-width:0}.save-button{width:100%;min-height:40px}.setting-row--simple{grid-template-columns:1fr auto}}
 .setting-control--language .segmented-control,.setting-control--calendar .segmented-control{width:360px}
 .setting-control .segmented-control--three{width:520px}
 .segmented-control label{font-size:1rem}
@@ -243,11 +241,10 @@ async function saveLanguageStyle() {
 .option-icon img{width:23px;height:23px}
 .control-line .inline-preview{flex:0 1 250px;width:250px;min-width:150px}
 .control-line .inline-preview strong{font-size:1rem}
-@media(max-width:680px){.setting-control--language .segmented-control,.setting-control--calendar .segmented-control,.setting-control .segmented-control--three{width:auto}.control-line .inline-preview{width:auto;min-width:0}}
 .settings-content{width:min(920px,100%);margin:0 auto}
 .page-header{width:min(920px,100%);margin-left:auto;margin-right:auto}
 .control-line .inline-preview{margin-left:auto;justify-content:flex-end;text-align:right}
-@media(max-width:680px){.segmented-control--three{grid-template-columns:repeat(3,minmax(0,1fr))}.control-line .inline-preview{margin-left:0;justify-content:flex-end;text-align:right}}
+@media(max-width:680px){.control-line{display:grid;grid-template-columns:1fr}.setting-control--language .segmented-control,.setting-control--calendar .segmented-control,.setting-control .segmented-control--three{width:auto}.segmented-control--three{grid-template-columns:repeat(3,minmax(0,1fr))}.control-line .inline-preview{width:auto;min-width:0;margin-left:0;justify-content:flex-end;text-align:right}.save-button{width:100%;min-height:40px}.setting-row--simple{grid-template-columns:1fr auto}}
 .pinyin-block-preview{min-width:0}
 .pinyin-block-preview>p{margin:0 0 10px;color:#747d76;font-size:.78rem;font-weight:600}
 .preview-trigger-wrap{display:block;padding:13px 15px;border-radius:8px;background:#e7f3ed;text-align:left}

@@ -82,4 +82,3 @@ export function useUserSettings() {
   onBeforeUnmount(unsubscribe)
   return settings
 }
-

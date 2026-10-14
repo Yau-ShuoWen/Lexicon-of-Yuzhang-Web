@@ -43,6 +43,11 @@ const routes = [
                         name: 'About',
                         component: () => import('../views/AboutPage.vue')
                     },
+                    {
+                        path: 'settings',
+                        name: 'Settings',
+                        component: () => import('../views/Settings/SettingsPage.vue')
+                    },
                     // 教程
                     {
                         path: 'tutorial',

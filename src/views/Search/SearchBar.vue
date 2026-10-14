@@ -137,6 +137,10 @@ const handleRandom = () => {
   })
 }
 
+const handleSettings = () => {
+  router.push(`/${language.value}/${dialect.value}/dict/settings`)
+}
+
 /**
  * 历史（预留）
  */
@@ -215,10 +219,10 @@ onMounted(() => {
 
         <!-- 右侧操作区 -->
         <div class="toolbar-right">
-
-          <!--          <button class="search-btn btn-settings" type="button" @click="handleHistory">-->
-          <!--            <img src="../../assets/icons/set.svg" alt="history" class="toolbar-icon-right">-->
-          <!--          </button>-->
+          <button class="capsule-btn settings-entry" type="button" @click="handleSettings">
+            <img src="../../assets/icons/set.svg" alt="" class="toolbar-icon-left">
+            <span>{{ $t('nav.settings') }}</span>
+          </button>
 
           <button
               class="search-btn btn-settings"

@@ -24,6 +24,7 @@ const route = useRoute()
 const { currentLanguageInRoute, changeLanguage } = useLanguageSwitcher()
 const pendingLanguageStyle = ref(currentLanguageInRoute() || settings.languageStyle)
 const draggedDialectNotation = ref('')
+const previewListRef = ref(null)
 useHead({title: '设置｜豫章词'})
 
 const languageOptions = [
@@ -64,6 +65,42 @@ const disabledDialectOptions = computed(() => {
 const pinnedDialectOption = computed(() => selectedDialectOptions.value[0])
 
 watch(settings, value => saveUserSettings({...value, dialectNotations: [...value.dialectNotations]}), {deep: true})
+watch(
+  () => [...settings.dialectNotations],
+  async () => {
+    await nextTick()
+    alignPreviewValueColumns()
+  },
+  {immediate: true}
+)
+
+function previewItems(option) {
+  return option.preview.trim().split(/\s+/).filter(Boolean)
+}
+
+function formattedPreviewItem(option, item) {
+  return option.value.toLowerCase().includes('ipa') ? `[_${item}]` : `[${item}]`
+}
+
+function alignPreviewValueColumns() {
+  const grids = [...(previewListRef.value?.querySelectorAll('.preview-pinyin-values') || [])]
+  const widths = []
+  grids.forEach(grid => {
+    grid.classList.remove('preview-pinyin-values--aligned')
+    grid.style.removeProperty('grid-template-columns')
+  })
+  for (const grid of grids) {
+    ;[...grid.querySelectorAll('.preview-pinyin-unit')].forEach((unit, index) => {
+      widths[index] = Math.max(widths[index] || 0, unit.getBoundingClientRect().width)
+    })
+  }
+  if (!widths.length) return
+  const columns = widths.map(width => `${Math.ceil(width)}px`).join(' ')
+  grids.forEach(grid => {
+    grid.classList.add('preview-pinyin-values--aligned')
+    grid.style.gridTemplateColumns = columns
+  })
+}
 
 function removeDialectNotation(value) {
   const index = settings.dialectNotations.indexOf(value)
@@ -213,10 +250,19 @@ async function saveLanguageStyle() {
                   <span v-if="pinnedDialectOption" class="rt-pinyin-trigger">{{ pinnedDialectOption.preview }}</span>
                 </span>
                 <div class="preview-popup">
-                  <div class="preview-pinyin-list">
+                  <div ref="previewListRef" class="preview-pinyin-list">
                     <div v-for="(option, index) in selectedDialectOptions" :key="option.value" class="preview-pinyin-row">
                       <span class="preview-pinyin-label" :class="{'preview-pinyin-divided': index > 0}">{{ option.label }}</span>
-                      <button type="button" class="preview-pinyin-value" :class="{'preview-pinyin-divided': index > 0}" title="复制" @click="copyPreviewNotation(option)">{{ option.preview }}</button>
+                      <button type="button" class="preview-pinyin-value" :class="{'preview-pinyin-divided': index > 0}" title="复制" @click="copyPreviewNotation(option)">
+                        <span class="preview-pinyin-values">
+                          <span
+                            v-for="(item, itemIndex) in previewItems(option)"
+                            :key="itemIndex"
+                            class="preview-pinyin-unit"
+                            v-formatted-text="formattedPreviewItem(option, item)"
+                          />
+                        </span>
+                      </button>
                       <button type="button" class="preview-pinyin-copy" :class="{'preview-pinyin-divided': index > 0}" title="复制" :aria-label="`复制${option.label}`" @click="copyPreviewNotation(option)"><CopyDocument aria-hidden="true"/></button>
                     </div>
                   </div>
@@ -306,7 +352,7 @@ async function saveLanguageStyle() {
 .pinyin-popup-empty{padding:16px;color:#8a918c;font-size:.82rem;text-align:center}
 @media(max-width:560px){.preview-trigger-wrap{padding:11px 12px}.preview-popup.rt-pinyin-popup{max-width:none}.preview-popup .rt-pinyin-popup-label,.preview-popup .rt-pinyin-popup-value{padding:9px 10px}}
 .dialect-selector{display:grid;gap:10px}.dialect-options--active .dialect-option{justify-content:flex-start;padding-left:9px;cursor:grab;transition:opacity .15s ease,background .15s ease}.dialect-options--active .dialect-option:active{cursor:grabbing}.dialect-options--active .dialect-option.dragging{opacity:.45;background:#edf5ef}.drag-handle{width:22px;flex:0 0 22px;color:#9aa39c;font-size:1.2rem;line-height:1;text-align:center}.dialect-option-copy{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}.dialect-option-copy strong{color:#343c36;font-size:.86rem;line-height:1.35}.dialect-option-copy small{color:#858d87;font-size:.72rem;white-space:nowrap}.notation-action{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;font-size:1.25rem;line-height:1;cursor:pointer;transition:.15s ease}.notation-action--remove{color:#8b615f}.notation-action--remove:hover:not(:disabled){border-color:#e2cfcd;background:#fbf1f0}.notation-action--remove:disabled{color:#c8cdca;cursor:not-allowed}.notation-action--add{color:#276c3e}.notation-action--add:hover{border-color:#c9ddcf;background:#edf6f0}.dialect-disabled{overflow:hidden;border:1px solid #d8ddda;border-radius:7px;background:#eef0ef}.dialect-disabled>p{margin:0;padding:8px 12px;border-bottom:1px solid #dadddb;color:#858c87;font-size:.72rem;font-weight:600}.dialect-option--disabled{justify-content:flex-start;min-height:48px;padding-left:13px;background:transparent}.dialect-option--disabled+.dialect-option--disabled{border-top:1px solid #dadddb}.dialect-option--disabled .dialect-option-copy strong{color:#818984}.dialect-disabled--empty{display:none}
-.preview-example{color:#4d5650;font-size:.9rem}.preview-trigger-wrap{display:inline-block;padding:0;background:transparent;text-align:left}.preview-trigger-wrap .rt-pinyin-trigger{font-size:1.12rem}.preview-trigger-wrap .rt-pinyin-trigger::after{bottom:-2px}.preview-popup{margin-top:12px;overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(24,32,26,.12)}.preview-pinyin-list{--pinyin-popup-divider:#cbd2cd;display:grid;grid-template-columns:minmax(128px,auto) minmax(90px,1fr) 42px;width:100%}.preview-pinyin-row{display:contents}.preview-pinyin-label,.preview-pinyin-value,.preview-pinyin-copy{display:flex;align-items:center;min-height:50px;box-sizing:border-box}.preview-pinyin-label{padding:10px 14px;border-right:1px solid var(--pinyin-popup-divider);color:#68716a;background:#f6f6f6;font-size:.88rem;white-space:nowrap}.preview-pinyin-value{min-width:0;padding:10px 8px 10px 16px;border:0;color:#2d342f;background:#fff;font-family:'Cambria','Cambria Math','Charis SIL',serif;font-size:1.12rem;text-align:left;cursor:pointer}.preview-pinyin-copy{justify-content:center;width:42px;padding:0;border:0;color:#9aa29c;background:#fff;cursor:pointer;transition:color .15s ease,background .15s ease}.preview-pinyin-value:hover{color:#174f2b;background:#f7faf8}.preview-pinyin-value:hover+.preview-pinyin-copy,.preview-pinyin-copy:hover{color:#2e7245;background:#f7faf8}.preview-pinyin-copy svg{width:17px;height:17px}.preview-pinyin-divided{border-top:1px solid var(--pinyin-popup-divider)}
+.preview-example{color:#4d5650;font-size:.9rem}.preview-trigger-wrap{display:inline-block;padding:0;background:transparent;text-align:left}.preview-trigger-wrap .rt-pinyin-trigger{font-size:1.12rem}.preview-trigger-wrap .rt-pinyin-trigger::after{bottom:-2px}.preview-popup{margin-top:12px;overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(24,32,26,.12)}.preview-pinyin-list{--pinyin-popup-divider:#cbd2cd;display:grid;grid-template-columns:minmax(128px,auto) minmax(90px,1fr) 42px;width:100%}.preview-pinyin-row{display:contents}.preview-pinyin-label,.preview-pinyin-value,.preview-pinyin-copy{display:flex;align-items:center;min-height:50px;box-sizing:border-box}.preview-pinyin-label{padding:10px 14px;border-right:1px solid var(--pinyin-popup-divider);color:#68716a;background:#f6f6f6;font-size:.88rem;white-space:nowrap}.preview-pinyin-value{min-width:0;padding:10px 8px 10px 16px;border:0;color:#2d342f;background:#fff;font-size:1.12rem;font-weight:400;text-align:left;cursor:pointer}.preview-pinyin-values{display:flex;align-items:baseline;gap:4px}.preview-pinyin-values--aligned{display:inline-grid;column-gap:4px}.preview-pinyin-unit{white-space:nowrap}.preview-pinyin-unit :deep(.rt-pinyin),.preview-pinyin-unit :deep(.rt-ipa){font-size:1em;line-height:inherit}.preview-pinyin-copy{justify-content:center;width:42px;padding:0;border:0;color:#9aa29c;background:#fff;cursor:pointer;transition:color .15s ease,background .15s ease}.preview-pinyin-value:hover{color:#174f2b;background:#f7faf8}.preview-pinyin-value:hover+.preview-pinyin-copy,.preview-pinyin-copy:hover{color:#2e7245;background:#f7faf8}.preview-pinyin-copy svg{width:17px;height:17px}.preview-pinyin-divided{border-top:1px solid var(--pinyin-popup-divider)}
 .dialect-setting-header{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialect-setting-header h3{margin:0}.reset-notations-button{padding:5px 3px;border:0;border-bottom:1px solid transparent;color:#4e765b;background:transparent;font-size:.84rem;cursor:pointer;transition:color .15s ease,border-color .15s ease}.reset-notations-button:hover{border-bottom-color:#5f8b6d;color:#245f38}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}.pinyin-block-preview{padding-top:0}.preview-trigger-wrap .rt-pinyin-trigger{color:#174f91;font-size:1.12rem}.preview-popup{margin-top:12px;box-shadow:0 8px 24px rgba(24,32,26,.12)}.preview-pinyin-label,.preview-pinyin-value,.preview-pinyin-copy{min-height:50px}.preview-pinyin-label{padding-left:14px;font-size:.88rem}.preview-pinyin-value{padding-left:16px;font-size:1.12rem}
 @media(max-width:560px){.preview-pinyin-list{grid-template-columns:minmax(0,1fr) 42px}.preview-pinyin-label{grid-column:1/-1;min-height:0;padding:9px 14px 5px;border-right:0}.preview-pinyin-value,.preview-pinyin-copy{min-height:44px}.preview-pinyin-value{padding:5px 8px 12px 14px}.preview-pinyin-copy{padding-bottom:7px}.preview-pinyin-value.preview-pinyin-divided,.preview-pinyin-copy.preview-pinyin-divided{border-top:0}}
 @media(max-width:820px){.dialect-layout{grid-template-columns:1fr;gap:20px}}

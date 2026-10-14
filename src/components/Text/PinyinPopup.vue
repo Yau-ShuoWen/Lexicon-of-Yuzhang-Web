@@ -225,8 +225,9 @@ onBeforeUnmount(() => {
   border: 0;
   color: #2d342f;
   background: #fff;
-  font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+  font-family: 'Charis SIL', 'Cambria', 'Cambria Math', serif;
   font-size: 1.12rem;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }
@@ -272,11 +273,17 @@ onBeforeUnmount(() => {
 .pinyin-popup-values--aligned {
   display: inline-grid;
   align-items: baseline;
-  column-gap: 8px;
+  column-gap: 4px;
 }
 
 .pinyin-popup-unit {
   white-space: nowrap;
+}
+
+.pinyin-popup-value :deep(.rt-pinyin),
+.pinyin-popup-value :deep(.rt-ipa) {
+  font-size: 1em;
+  line-height: inherit;
 }
 
 @media (max-width: 520px) {

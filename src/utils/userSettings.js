@@ -6,13 +6,13 @@ const SETTINGS_CHANGE_EVENT = 'yuzhang-settings-change'
 export const DEFAULT_USER_SETTINGS = Object.freeze({
   languageStyle: 'sc',
   mandarinNotation: 'pinyin',
-  dialectNotations: ['putonghua', 'standard', 'keyboard', 'other', 'yzcIPA', 'dictIPA'],
-  pinnedDialectNotation: 'putonghua',
+  dialectNotations: ['standard', 'keyboard', 'putonghua'],
+  pinnedDialectNotation: 'standard',
   soundEnabled: true,
   weekdayStyle: 'weekday'
 })
 
-const DIALECT_NOTATIONS = new Set(DEFAULT_USER_SETTINGS.dialectNotations)
+const DIALECT_NOTATIONS = new Set(['putonghua', 'standard', 'keyboard', 'other', 'yzcIPA', 'dictIPA'])
 const LEGACY_DIALECT_NOTATIONS = {
   mandarinApproximation: 'putonghua',
   dictionaryIpa: 'yzcIPA',

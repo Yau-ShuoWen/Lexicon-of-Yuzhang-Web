@@ -3,8 +3,10 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { CopyDocument } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
-import { saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
+import { DEFAULT_USER_SETTINGS, saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
 import { PINYIN_NOTATIONS } from '../../utils/pinyinNotations.js'
+import { convertPinyinForCopy } from '../../utils/pinyinBlock.js'
+import { showSuccess } from '../../services/ToastService.js'
 import { useLanguageSwitcher } from '../../utils/languageSwitcher.js'
 import languageIcon from '../../assets/icons/LanguageAndDialect/transfer_sc_tc.svg'
 import pronunciationIcon from '../../assets/icons/mode.svg'
@@ -21,6 +23,7 @@ const settings = useUserSettings()
 const route = useRoute()
 const { currentLanguageInRoute, changeLanguage } = useLanguageSwitcher()
 const pendingLanguageStyle = ref(currentLanguageInRoute() || settings.languageStyle)
+const draggedDialectNotation = ref('')
 useHead({title: '设置｜豫章词'})
 
 const languageOptions = [
@@ -51,27 +54,64 @@ const homeRoute = computed(() => ({
 const todayIndex = (new Date().getDay() + 6) % 7
 const todayPreview = computed(() => weekdayOptions.find(item => item.value === settings.weekdayStyle).preview[todayIndex])
 const selectedDialectOptions = computed(() => {
-  const selected = new Set(settings.dialectNotations)
-  return dialectOptions.filter(item => selected.has(item.value)).sort((a, b) => {
-    if (a.value === settings.pinnedDialectNotation) return -1
-    if (b.value === settings.pinnedDialectNotation) return 1
-    return 0
-  })
+  const options = new Map(dialectOptions.map(item => [item.value, item]))
+  return settings.dialectNotations.map(value => options.get(value)).filter(Boolean)
 })
-const pinnedDialectOption = computed(() => dialectOptions.find(item => item.value === settings.pinnedDialectNotation))
-const expandedDialectOptions = computed(() => selectedDialectOptions.value.filter(item => item.value !== settings.pinnedDialectNotation))
+const disabledDialectOptions = computed(() => {
+  const selected = new Set(settings.dialectNotations)
+  return dialectOptions.filter(item => !selected.has(item.value))
+})
+const pinnedDialectOption = computed(() => selectedDialectOptions.value[0])
 
 watch(settings, value => saveUserSettings({...value, dialectNotations: [...value.dialectNotations]}), {deep: true})
 
-function toggleDialectNotation(value) {
+function removeDialectNotation(value) {
   const index = settings.dialectNotations.indexOf(value)
-  if (index >= 0) {
-    if (settings.dialectNotations.length === 1) return
-    settings.dialectNotations.splice(index, 1)
-    if (settings.pinnedDialectNotation === value) {
-      settings.pinnedDialectNotation = selectedDialectOptions.value[0]?.value || dialectOptions[0].value
-    }
-  } else settings.dialectNotations.push(value)
+  if (index < 0 || settings.dialectNotations.length === 1) return
+  settings.dialectNotations.splice(index, 1)
+  settings.pinnedDialectNotation = settings.dialectNotations[0]
+}
+
+function addDialectNotation(value) {
+  if (settings.dialectNotations.includes(value)) return
+  settings.dialectNotations.push(value)
+  settings.pinnedDialectNotation = settings.dialectNotations[0]
+}
+
+function startDialectDrag(value, event) {
+  draggedDialectNotation.value = value
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', value)
+}
+
+function moveDialectNotation(beforeValue) {
+  const value = draggedDialectNotation.value
+  const from = settings.dialectNotations.indexOf(value)
+  const to = settings.dialectNotations.indexOf(beforeValue)
+  if (!value || from < 0 || to < 0 || from === to) return
+  settings.dialectNotations.splice(from, 1)
+  settings.dialectNotations.splice(to, 0, value)
+  settings.pinnedDialectNotation = settings.dialectNotations[0]
+}
+
+function finishDialectDrag() {
+  draggedDialectNotation.value = ''
+}
+
+function resetDialectNotations() {
+  settings.dialectNotations = [...DEFAULT_USER_SETTINGS.dialectNotations]
+  settings.pinnedDialectNotation = settings.dialectNotations[0]
+}
+
+async function copyPreviewNotation(option) {
+  const text = convertPinyinForCopy(option.preview, option.value.toLowerCase().includes('ipa'))
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    showSuccess('复制成功')
+  } catch (_) {
+    // 与实际拼音弹窗一致：剪贴板权限被拒绝时保持静默。
+  }
 }
 
 async function saveLanguageStyle() {
@@ -137,34 +177,48 @@ async function saveLanguageStyle() {
             </div>
           </div>
           <div class="setting-row setting-row--stacked">
-            <div class="setting-copy"><h3>方言拼音框</h3><p>勾选显示方案，图钉表示首选项。</p></div>
+            <div class="setting-copy dialect-setting-header">
+              <h3>方言拼音框</h3>
+              <button class="reset-notations-button" type="button" @click="resetDialectNotations">恢复默认</button>
+            </div>
             <div class="dialect-layout">
-              <div class="dialect-options">
-                <div v-for="option in dialectOptions" :key="option.value" class="dialect-option" :class="{disabled: !settings.dialectNotations.includes(option.value)}">
-                  <label class="check-label">
-                    <input type="checkbox" :checked="settings.dialectNotations.includes(option.value)" @change="toggleDialectNotation(option.value)">
-                    <span><strong>{{ option.label }}</strong><small v-if="option.note">{{ option.note }}</small></span>
-                  </label>
-                  <label class="pin-label" :title="settings.pinnedDialectNotation === option.value ? '已置顶' : '置顶'">
-                    <input v-model="settings.pinnedDialectNotation" type="radio" name="pinned-dialect" :value="option.value" :disabled="!settings.dialectNotations.includes(option.value)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.2 20.8 9.5l-2 2-1.1-1.1-3.5 4.9.7.7-1.6 1.6-3.1-3.1-5.4 5.4-.8-.8 5.4-5.4-3.1-3.1L7.9 9l.8.8 4.9-3.5-1.1-1.1z"/></svg>
-                    <span class="sr-only">置顶</span>
-                  </label>
+              <div class="dialect-selector">
+                <div class="dialect-options dialect-options--active">
+                  <div
+                    v-for="option in selectedDialectOptions"
+                    :key="option.value"
+                    class="dialect-option"
+                    :class="{dragging: draggedDialectNotation === option.value}"
+                    draggable="true"
+                    @dragstart="startDialectDrag(option.value, $event)"
+                    @dragover.prevent="moveDialectNotation(option.value)"
+                    @dragend="finishDialectDrag"
+                  >
+                    <span class="drag-handle" aria-hidden="true">⠿</span>
+                    <span class="dialect-option-copy"><strong>{{ option.label }}</strong><small v-if="option.note">{{ option.note }}</small></span>
+                    <button class="notation-action notation-action--remove" type="button" :disabled="selectedDialectOptions.length === 1" :aria-label="`停用${option.label}`" @click="removeDialectNotation(option.value)">−</button>
+                  </div>
+                </div>
+                <div class="dialect-disabled" :class="{'dialect-disabled--empty': !disabledDialectOptions.length}">
+                  <p>未显示</p>
+                  <div v-for="option in disabledDialectOptions" :key="option.value" class="dialect-option dialect-option--disabled">
+                    <span class="dialect-option-copy"><strong>{{ option.label }}</strong><small v-if="option.note">{{ option.note }}</small></span>
+                    <button class="notation-action notation-action--add" type="button" :aria-label="`启用${option.label}`" @click="addDialectNotation(option.value)">＋</button>
+                  </div>
                 </div>
               </div>
               <div class="pinyin-block-preview" aria-label="方言拼音框展开预览">
-                <p>显示预览</p>
-                <span class="rt-pinyin-block preview-trigger-wrap">
-                  <span class="rt-pinyin-trigger" v-formatted-text="pinnedDialectOption.preview"/>
+                <span class="preview-example">示例：南昌 </span>
+                <span class="rt-pinyin-block preview-trigger-wrap" aria-label="下划线默认显示">
+                  <span v-if="pinnedDialectOption" class="rt-pinyin-trigger">{{ pinnedDialectOption.preview }}</span>
                 </span>
-                <div class="rt-pinyin-popup preview-popup">
-                  <div class="rt-pinyin-popup-inner">
-                    <div v-for="option in expandedDialectOptions" :key="option.value" class="rt-pinyin-popup-row">
-                      <span class="rt-pinyin-popup-label">{{ option.label }}</span>
-                      <span class="rt-pinyin-popup-value" v-formatted-text="option.preview"/>
-                      <span class="rt-pinyin-copy-btn" aria-hidden="true"><CopyDocument/></span>
+                <div class="preview-popup">
+                  <div class="preview-pinyin-list">
+                    <div v-for="(option, index) in selectedDialectOptions" :key="option.value" class="preview-pinyin-row">
+                      <span class="preview-pinyin-label" :class="{'preview-pinyin-divided': index > 0}">{{ option.label }}</span>
+                      <button type="button" class="preview-pinyin-value" :class="{'preview-pinyin-divided': index > 0}" title="复制" @click="copyPreviewNotation(option)">{{ option.preview }}</button>
+                      <button type="button" class="preview-pinyin-copy" :class="{'preview-pinyin-divided': index > 0}" title="复制" :aria-label="`复制${option.label}`" @click="copyPreviewNotation(option)"><CopyDocument aria-hidden="true"/></button>
                     </div>
-                    <div v-if="!expandedDialectOptions.length" class="pinyin-popup-empty">没有其他已选择的方案</div>
                   </div>
                 </div>
               </div>
@@ -251,4 +305,9 @@ async function saveLanguageStyle() {
 .preview-popup .rt-pinyin-copy-btn{cursor:default}
 .pinyin-popup-empty{padding:16px;color:#8a918c;font-size:.82rem;text-align:center}
 @media(max-width:560px){.preview-trigger-wrap{padding:11px 12px}.preview-popup.rt-pinyin-popup{max-width:none}.preview-popup .rt-pinyin-popup-label,.preview-popup .rt-pinyin-popup-value{padding:9px 10px}}
+.dialect-selector{display:grid;gap:10px}.dialect-options--active .dialect-option{justify-content:flex-start;padding-left:9px;cursor:grab;transition:opacity .15s ease,background .15s ease}.dialect-options--active .dialect-option:active{cursor:grabbing}.dialect-options--active .dialect-option.dragging{opacity:.45;background:#edf5ef}.drag-handle{width:22px;flex:0 0 22px;color:#9aa39c;font-size:1.2rem;line-height:1;text-align:center}.dialect-option-copy{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}.dialect-option-copy strong{color:#343c36;font-size:.86rem;line-height:1.35}.dialect-option-copy small{color:#858d87;font-size:.72rem;white-space:nowrap}.notation-action{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;font-size:1.25rem;line-height:1;cursor:pointer;transition:.15s ease}.notation-action--remove{color:#8b615f}.notation-action--remove:hover:not(:disabled){border-color:#e2cfcd;background:#fbf1f0}.notation-action--remove:disabled{color:#c8cdca;cursor:not-allowed}.notation-action--add{color:#276c3e}.notation-action--add:hover{border-color:#c9ddcf;background:#edf6f0}.dialect-disabled{overflow:hidden;border:1px solid #d8ddda;border-radius:7px;background:#eef0ef}.dialect-disabled>p{margin:0;padding:8px 12px;border-bottom:1px solid #dadddb;color:#858c87;font-size:.72rem;font-weight:600}.dialect-option--disabled{justify-content:flex-start;min-height:48px;padding-left:13px;background:transparent}.dialect-option--disabled+.dialect-option--disabled{border-top:1px solid #dadddb}.dialect-option--disabled .dialect-option-copy strong{color:#818984}.dialect-disabled--empty{display:none}
+.preview-example{color:#4d5650;font-size:.9rem}.preview-trigger-wrap{display:inline-block;padding:0;background:transparent;text-align:left}.preview-trigger-wrap .rt-pinyin-trigger{font-size:1.12rem}.preview-trigger-wrap .rt-pinyin-trigger::after{bottom:-2px}.preview-popup{margin-top:12px;overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(24,32,26,.12)}.preview-pinyin-list{--pinyin-popup-divider:#cbd2cd;display:grid;grid-template-columns:minmax(128px,auto) minmax(90px,1fr) 42px;width:100%}.preview-pinyin-row{display:contents}.preview-pinyin-label,.preview-pinyin-value,.preview-pinyin-copy{display:flex;align-items:center;min-height:50px;box-sizing:border-box}.preview-pinyin-label{padding:10px 14px;border-right:1px solid var(--pinyin-popup-divider);color:#68716a;background:#f6f6f6;font-size:.88rem;white-space:nowrap}.preview-pinyin-value{min-width:0;padding:10px 8px 10px 16px;border:0;color:#2d342f;background:#fff;font-family:'Cambria','Cambria Math','Charis SIL',serif;font-size:1.12rem;text-align:left;cursor:pointer}.preview-pinyin-copy{justify-content:center;width:42px;padding:0;border:0;color:#9aa29c;background:#fff;cursor:pointer;transition:color .15s ease,background .15s ease}.preview-pinyin-value:hover{color:#174f2b;background:#f7faf8}.preview-pinyin-value:hover+.preview-pinyin-copy,.preview-pinyin-copy:hover{color:#2e7245;background:#f7faf8}.preview-pinyin-copy svg{width:17px;height:17px}.preview-pinyin-divided{border-top:1px solid var(--pinyin-popup-divider)}
+.dialect-setting-header{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialect-setting-header h3{margin:0}.reset-notations-button{padding:5px 3px;border:0;border-bottom:1px solid transparent;color:#4e765b;background:transparent;font-size:.84rem;cursor:pointer;transition:color .15s ease,border-color .15s ease}.reset-notations-button:hover{border-bottom-color:#5f8b6d;color:#245f38}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}.pinyin-block-preview{padding-top:0}.preview-trigger-wrap .rt-pinyin-trigger{color:#174f91;font-size:1.12rem}.preview-popup{margin-top:12px;box-shadow:0 8px 24px rgba(24,32,26,.12)}.preview-pinyin-label,.preview-pinyin-value,.preview-pinyin-copy{min-height:50px}.preview-pinyin-label{padding-left:14px;font-size:.88rem}.preview-pinyin-value{padding-left:16px;font-size:1.12rem}
+@media(max-width:560px){.preview-pinyin-list{grid-template-columns:minmax(0,1fr) 42px}.preview-pinyin-label{grid-column:1/-1;min-height:0;padding:9px 14px 5px;border-right:0}.preview-pinyin-value,.preview-pinyin-copy{min-height:44px}.preview-pinyin-value{padding:5px 8px 12px 14px}.preview-pinyin-copy{padding-bottom:7px}.preview-pinyin-value.preview-pinyin-divided,.preview-pinyin-copy.preview-pinyin-divided{border-top:0}}
+@media(max-width:820px){.dialect-layout{grid-template-columns:1fr;gap:20px}}
 </style>

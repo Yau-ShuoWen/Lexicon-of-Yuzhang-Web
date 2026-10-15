@@ -26,7 +26,7 @@ export function consumePinyinBlock(text, start, context, renderInline) {
             label,
             valueHtml: renderInline(value, context),
             valueItems: value.split(/\s+/).filter(Boolean).map(item => renderInline(item, context)),
-            isIPA: /\[[^\]]+_/.test(value)
+            isIPA: /\[-[^\]]*\]/.test(value)
         })
     }
 

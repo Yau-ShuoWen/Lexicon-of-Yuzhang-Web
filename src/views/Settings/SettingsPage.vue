@@ -79,7 +79,7 @@ function previewItems(option) {
 }
 
 function formattedPreviewItem(option, item) {
-  return option.value.toLowerCase().includes('ipa') ? `[_${item}]` : `[${item}]`
+  return option.value.toLowerCase().includes('ipa') ? `[-${item}]` : `[${item}]`
 }
 
 function alignPreviewValueColumns() {

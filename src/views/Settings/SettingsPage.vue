@@ -3,6 +3,8 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute } from 'vue-router'
 import { DEFAULT_USER_SETTINGS, saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
+import { accountSettings, setLegacyPinyinReadWrite } from '../../utils/accountSettings.js'
+import { isLoggedIn } from '../../utils/auth.js'
 import { PINYIN_NOTATIONS } from '../../utils/pinyinNotations.js'
 import { formatRichText } from '../../utils/textFormatter.js'
 import { useLanguageSwitcher } from '../../utils/languageSwitcher.js'
@@ -218,6 +220,16 @@ async function saveLanguageStyle() {
           <div class="group-header">
             <span class="group-icon group-icon--amber"><img :src="calendarIcon" alt=""></span>
             <div><h2>通用设置</h2></div>
+          </div>
+          <div class="setting-row setting-row--simple">
+            <div class="setting-copy setting-copy--icon">
+              <span class="row-icon"><img :src="pinyinIcon" alt=""></span>
+              <div><h3>使用旧版本南昌话拼音读写</h3><small v-if="accountSettings.error">{{ accountSettings.error }}</small><small v-else-if="!isLoggedIn()">登录后可用</small></div>
+            </div>
+            <label class="switch-control">
+              <input type="checkbox" aria-label="使用旧版本南昌话拼音读写" :checked="accountSettings.lacLegacyPinyinReadWrite" :disabled="!isLoggedIn() || accountSettings.loading || accountSettings.saving" @change="setLegacyPinyinReadWrite($event.target.checked)">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
           </div>
           <div class="setting-row setting-row--simple">
             <div class="setting-copy setting-copy--icon">

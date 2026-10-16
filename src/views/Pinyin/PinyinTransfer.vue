@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
           v-model="input"
           class="transfer-input"
           :class="{active: hasInput}"
-          rows="6"
+          rows="3"
           :placeholder="$t('pinyin_table.transfer_input_placeholder')"
           @input="handleInput"
         />
@@ -120,7 +120,7 @@ onBeforeUnmount(() => {
           </span>
         </div>
 
-        <PinyinResultTable v-if="rows.length" :pairs="rows" appearance="panel" compact-at="500" />
+        <PinyinResultTable v-if="rows.length" :pairs="rows" appearance="panel" />
         <div v-else class="result-empty">
           {{ failed ? $t('pinyin_table.transfer_failed') : $t('alphabet_transfer.result_placeholder') }}
         </div>
@@ -131,9 +131,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pinyin-transfer{margin-top:18px;padding:22px 20px;border:1px solid var(--color-border);border-radius:var(--border-radius-xl);background:#fff;box-shadow:var(--shadow-sm)}
-.transfer-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}.transfer-field{min-width:0}.pane-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}.pane-label{font-size:13px;font-weight:700;color:var(--color-text);letter-spacing:.4px}.pane-hint{font-size:12px;color:var(--color-text-light)}
-.transfer-input{display:block;width:100%;min-height:254px;margin:0;padding:14px 16px;resize:vertical;border:1px solid var(--color-border);border-radius:14px;background:#f3f6f8;color:var(--color-text);font:inherit;line-height:1.75;outline:none;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}.transfer-input.active,.transfer-input:focus{border-color:var(--color-secondary);background:#fff;box-shadow:0 0 0 4px rgba(74,111,200,.1)}.input-help{margin:8px 2px 0;color:var(--color-text-light);font-size:12px}
+.transfer-body{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}.transfer-field{min-width:0;width:100%}.pane-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}.pane-label{font-size:13px;font-weight:700;color:var(--color-text);letter-spacing:.4px}.pane-hint{font-size:12px;color:var(--color-text-light)}
+.transfer-input{display:block;width:100%;min-height:96px;margin:0;padding:14px 16px;resize:vertical;border:1px solid var(--color-border);border-radius:14px;background:#f3f6f8;color:var(--color-text);font:inherit;line-height:1.75;outline:none;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}.transfer-input.active,.transfer-input:focus{border-color:var(--color-secondary);background:#fff;box-shadow:0 0 0 4px rgba(74,111,200,.1)}.input-help{margin:8px 2px 0;color:var(--color-text-light);font-size:12px}
 .result-empty{display:flex;align-items:center;justify-content:center;min-height:254px;padding:14px 16px;border:1px dashed #d5dde5;border-radius:14px;background:#eef2f4;color:var(--color-text-light);font-size:14px;text-align:center}
-@media(max-width:750px){.transfer-body{grid-template-columns:1fr}.transfer-input,.result-empty{min-height:180px}}
+@media(max-width:750px){.transfer-input{min-height:96px}.result-empty{min-height:180px}}
 @media(max-width:500px){.pinyin-transfer{padding:18px 14px}}
 </style>

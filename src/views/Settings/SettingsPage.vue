@@ -207,7 +207,7 @@ async function saveLanguageStyle() {
                   <span v-if="pinnedDialectOption" class="rt-pinyin-trigger">{{ pinnedDialectOption.preview }}</span>
                 </span>
                 <div class="preview-popup">
-                  <PinyinResultTable :pairs="settingsPreviewPairs" appearance="preview" compact-at="560" />
+                  <PinyinResultTable :pairs="settingsPreviewPairs" appearance="preview" />
                 </div>
               </div>
             </div>

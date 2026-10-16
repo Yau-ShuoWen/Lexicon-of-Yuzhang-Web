@@ -120,6 +120,6 @@ onBeforeUnmount(() => {
     @mouseenter="onPopupEnter"
     @mouseleave="onPopupLeave"
   >
-    <PinyinResultTable :pairs="pairs" :disable-alignment-below="768" />
+    <PinyinResultTable :pairs="pairs" />
   </AnchoredPopup>
 </template>

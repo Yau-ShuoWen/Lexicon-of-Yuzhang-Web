@@ -151,6 +151,10 @@ onMounted(() => {
             <span>{{ $t('search.random') }}</span>
           </button>
 
+          <button class="capsule-btn settings-entry" type="button" @click="handleSettings">
+            <img src="../../assets/icons/set.svg" alt="" class="toolbar-icon-left">
+            <span>{{ $t('nav.settings') }}</span>
+          </button>
 <!--          <button-->
 <!--              class="capsule-btn"-->
 <!--              type="button"-->
@@ -168,10 +172,6 @@ onMounted(() => {
 
         <!-- 右侧操作区 -->
         <div class="toolbar-right">
-          <button class="capsule-btn settings-entry" type="button" @click="handleSettings">
-            <img src="../../assets/icons/set.svg" alt="" class="toolbar-icon-left">
-            <span>{{ $t('nav.settings') }}</span>
-          </button>
 
           <button
               class="search-btn btn-settings"

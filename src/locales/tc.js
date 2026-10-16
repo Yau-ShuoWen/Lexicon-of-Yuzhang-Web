@@ -198,7 +198,11 @@ export default {
         subtitle: "按聲母、韻母分組排列，點擊任意方格查看讀音與示例",
         hint: "點擊方格查看詳細信息",
         legend_clickable: "可點擊查看詳情",
-        legend_empty: "該位置無對應讀音"
+        legend_empty: "該位置無對應讀音",
+        transfer_input_placeholder: "請輸入方言拼音",
+        transfer_input_help: "直接輸入拼音即可，不需要添加方括號",
+        converting: "轉換中…",
+        transfer_failed: "轉換失敗，請檢查輸入內容"
     },
     account: {
         common: {

@@ -9,6 +9,7 @@ import TableSkeleton from "../../components/Status/TableSkeleton.vue";
 import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 import { request } from '../../services/request.js'
+import PinyinTransfer from './PinyinTransfer.vue'
 
 
 const route = useRoute()
@@ -155,6 +156,7 @@ watch(dialect, fetchTable)
         </div>
       </div>
     </div>
+    <PinyinTransfer :dialect="dialect.toString()" :language="language.toString()" />
   </div>
   <PinyinDetail
       :show="showDetail"

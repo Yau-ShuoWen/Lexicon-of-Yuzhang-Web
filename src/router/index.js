@@ -187,6 +187,18 @@ const routes = [
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
+                        path: 'reference-tsv',
+                        name: 'ReferenceTsvManager',
+                        component: () => import('../views/Developer/Ref/ReferenceTsvManager.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
+                        path: 'reference-tsv',
+                        name: 'ReferenceTsvManager',
+                        component: () => import('../views/Developer/Ref/ReferenceTsvManager.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'tool/special-symbol',
                         name: 'specialSymbol',
                         component: () => import('../views/Developer/Tool/SpecialSymbol.vue')

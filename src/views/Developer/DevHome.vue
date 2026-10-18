@@ -56,6 +56,7 @@ const sections = computed(() => [
       { path: "loading-text", title: t('devhome.loading_text'), description: t('devhome.loading_text_desc'), icon: MagicStick },
       { path: "pinyin-editor", title: t('devhome.edit_pinyin'), description: t('devhome.edit_pinyin_desc'), icon: Document },
       { path: "ref-filter", title: t('devhome.edit_reference'), description: t('devhome.edit_reference_desc'), icon: Collection },
+      { path: "reference-tsv", title: "字表原始资料", description: "上传版本、查看表格和查询内容", icon: Files },
     ],
   },
 ]);

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { request } from '../../../services/request.js'
 import { showError, showSuccess } from '../../../services/ToastService.js'
 import { confirm } from '../../../services/confirmService.js'
+import ReferenceTsvCompare from './ReferenceTsvCompare.vue'
 
 const base = '/api/admin/reference-tsv/versions'
 const versions = ref([])
@@ -213,6 +214,8 @@ onMounted(loadVersions)
         </div>
       </template>
     </section>
+
+    <ReferenceTsvCompare v-if="versions.length >= 2" :versions="versions" />
 
     <section v-if="selectedVersion" class="panel">
       <h2>{{ titleOf(selectedVersion) }}</h2>

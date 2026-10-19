@@ -18,11 +18,29 @@ const editingName = ref('')
 const uploading = ref(false)
 const loading = ref(false)
 const table = ref({ columns: [], rows: [], total: 0, page: 1, size: 50 })
+const classification = ref(null)
+const classifiedVersionId = ref('')
 const column = ref('all')
+const classFilter = ref('all')
 const searchText = ref('')
 const query = ref('')
 const page = ref(1)
 const selectedVersion = computed(() => versions.value.find(item => item.id === selectedId.value))
+
+function updateTable() {
+  const data = classification.value
+  if (!data) return
+  const index = data.columns.indexOf(column.value)
+  const filtered = data.rows.filter(row => {
+    if (classFilter.value === 'general' && !row.general) return false
+    if (classFilter.value === 'special' && row.general) return false
+    if (!query.value) return true
+    return (index < 0 ? row.values : [row.values[index]])
+      .some(value => String(value ?? '').includes(query.value))
+  })
+  table.value = { columns: data.columns, rows: filtered.slice((page.value - 1) * 50, page.value * 50),
+    total: filtered.length, page: page.value, size: 50 }
+}
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString('zh-CN') : ''
@@ -58,7 +76,11 @@ async function loadVersions(preferredId = '') {
     selectedId.value = [preferredId, selectedId.value, versions.value[0]?.id]
       .find(id => versions.value.some(item => item.id === id)) || ''
     if (selectedId.value) await loadRows()
-    else table.value = { columns: [], rows: [], total: 0, page: 1, size: 50 }
+    else {
+      classification.value = null
+      classifiedVersionId.value = ''
+      table.value = { columns: [], rows: [], total: 0, page: 1, size: 50 }
+    }
   } catch (error) {
     showError(`读取版本失败：${error.message}`)
   }
@@ -66,11 +88,18 @@ async function loadVersions(preferredId = '') {
 
 async function loadRows() {
   if (!selectedId.value) return
+  if (classifiedVersionId.value === selectedId.value && classification.value) {
+    updateTable()
+    return
+  }
+  const versionId = selectedId.value
   loading.value = true
   try {
-    const params = new URLSearchParams({column: column.value, query: query.value,
-      page: String(page.value), size: '50'})
-    table.value = await request(`${base}/${selectedId.value}/rows?${params}`)
+    const result = await request(`${base}/${versionId}/classify`)
+    if (selectedId.value !== versionId) return
+    classification.value = result
+    classifiedVersionId.value = versionId
+    updateTable()
   } catch (error) {
     showError(`读取表格失败：${error.message}`)
   } finally {
@@ -86,6 +115,7 @@ function search() {
 
 function changeVersion() {
   page.value = 1
+  table.value = { columns: [], rows: [], total: 0, page: 1, size: 50 }
   loadRows()
 }
 
@@ -219,20 +249,29 @@ onMounted(loadVersions)
 
     <section v-if="selectedVersion" class="panel">
       <h2>{{ titleOf(selectedVersion) }}</h2>
+        <p v-if="classification && classifiedVersionId === selectedId" class="hint">
+          一般汉字 {{ classification.generalCount }} 字 · 非一般汉字 {{ classification.specialCount }} 字
+        </p>
         <div class="controls search-controls">
           <select v-model="column" aria-label="查询列">
             <option value="all">全部列</option>
             <option v-for="name in table.columns" :key="name" :value="name">{{ name }}</option>
+          </select>
+          <select v-model="classFilter" aria-label="汉字分类" @change="page = 1; loadRows()">
+            <option value="all">全部汉字</option>
+            <option value="general">一般汉字</option>
+            <option value="special">非一般汉字</option>
           </select>
           <input v-model="searchText" type="search" placeholder="输入要查找的文字" @keyup.enter="search" />
           <button class="primary" :disabled="loading" @click="search">查询</button>
         </div>
         <div class="table-scroll" v-loading="loading">
           <table>
-            <thead><tr><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th></tr></thead>
+            <thead><tr><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th><th>分类标注</th></tr></thead>
             <tbody>
               <tr v-for="row in table.rows" :key="row.line">
                 <td>{{ row.line }}</td><td v-for="(value, index) in row.values" :key="index">{{ value }}</td>
+                <td><span :class="row.general ? 'general-tag' : 'special-tag'">{{ row.general ? '一般汉字' : '非一般汉字' }}</span><span v-if="row.reasons.length" class="reason">{{ row.reasons.join('、') }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -276,6 +315,10 @@ onMounted(loadVersions)
 .rename-controls { margin: 0; }
 .search-controls input { min-width: 240px; }
 .hint { color: var(--el-text-color-secondary, #666); }
+.general-tag, .special-tag { display: inline-block; padding: 2px 6px; border-radius: 5px; font-size: .8rem; white-space: nowrap; }
+.general-tag { background: #e8f3eb; color: #28643a; }
+.special-tag { background: #fff0dc; color: #8b5519; }
+.reason { display: inline-block; margin-left: 6px; white-space: normal; }
 .table-scroll { overflow: auto; min-height: 80px; }
 table { border-collapse: collapse; width: 100%; white-space: nowrap; }
 th, td { border: 1px solid #ddd; padding: 7px 10px; text-align: left; }

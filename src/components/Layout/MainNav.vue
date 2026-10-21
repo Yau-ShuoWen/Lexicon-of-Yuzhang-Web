@@ -51,13 +51,57 @@ const loadCurrentUser = () => {
   }
 }
 const isAdmin = computed(() => isAdminUser(currentUser.value))
+const isEditing = ref(false)
+let normalViewportHeight = 0
+
+function viewportHeight() {
+  return window.visualViewport?.height ?? window.innerHeight
+}
+
+function isTextEntry(target) {
+  if (!(target instanceof Element)) return false
+  const field = target.closest('input, textarea, [contenteditable="true"], [contenteditable=""]')
+  if (!field) return false
+  if (field.matches('textarea, [contenteditable="true"], [contenteditable=""]')) return true
+  return !['button', 'checkbox', 'radio', 'file', 'hidden', 'range', 'color', 'submit', 'reset'].includes(field.type)
+}
+
+function handleFocusIn(event) {
+  if (!isEditing.value) normalViewportHeight = viewportHeight()
+  isEditing.value = isTextEntry(event.target)
+}
+
+function handleFocusOut() {
+  requestAnimationFrame(() => {
+    isEditing.value = isTextEntry(document.activeElement)
+    if (!isEditing.value) normalViewportHeight = viewportHeight()
+  })
+}
+
+function handleViewportResize() {
+  const height = viewportHeight()
+  if (!isTextEntry(document.activeElement)) {
+    normalViewportHeight = height
+    isEditing.value = false
+  } else if (normalViewportHeight - height > 120) {
+    isEditing.value = true
+  } else if (normalViewportHeight - height < 60) {
+    isEditing.value = false
+  }
+}
 
 onMounted(() => {
   loadCurrentUser()
+  normalViewportHeight = viewportHeight()
+  isEditing.value = isTextEntry(document.activeElement)
   // 等 DOM 渲染完成后再定位指示条，避免首屏位置错误
   nextTick(updateIndicator)
   // 窗口尺寸变化（含字体加载完成后宽度变化）时重新对齐
   window.addEventListener('resize', updateIndicator)
+  window.addEventListener('resize', handleViewportResize)
+  window.visualViewport?.addEventListener('resize', handleViewportResize)
+  document.addEventListener('focusin', handleFocusIn)
+  document.addEventListener('focusout', handleFocusOut)
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(updateIndicator)
   }
@@ -65,6 +109,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateIndicator)
+  window.removeEventListener('resize', handleViewportResize)
+  window.visualViewport?.removeEventListener('resize', handleViewportResize)
+  document.removeEventListener('focusin', handleFocusIn)
+  document.removeEventListener('focusout', handleFocusOut)
 })
 
 // 路由切换后重新对齐指示条
@@ -75,7 +123,7 @@ watch(route, async () => {
 </script>
 
 <template>
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'dict'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'dict'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="getPath(`dict/home`)" class="nav-link">
       <span v-formatted-text="$t('nav.search')"/>
@@ -99,7 +147,7 @@ watch(route, async () => {
     </router-link>
   </nav>
 
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="getPath(`study/me`)" class="nav-link">
       <span v-formatted-text="$t('nav.start_study')"/>
@@ -115,7 +163,7 @@ watch(route, async () => {
     </router-link>
   </nav>
 
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="getPath(`dev/home`)" class="nav-link">
       <span v-formatted-text="$t('nav.developer_home')"/>
@@ -127,7 +175,7 @@ watch(route, async () => {
     </router-link>
   </nav>
 
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav">
+  <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
     <router-link :to="{ name: 'YswHome', params: { language: language } }" class="nav-link">
       <span v-formatted-text="$t('nav.ysw_home')"/>
@@ -147,7 +195,7 @@ watch(route, async () => {
     </router-link>
   </nav>
 
-  <div v-if="shouldShowNav" class="nav-fade" aria-hidden="true"></div>
+  <div v-if="shouldShowNav" class="nav-fade" :class="{ 'keyboard-hidden': isEditing }" aria-hidden="true"></div>
 </template>
 
 <style scoped>
@@ -277,6 +325,10 @@ watch(route, async () => {
 }
 
 @media (max-width: 768px) {
+  .keyboard-hidden {
+    visibility: hidden;
+  }
+
   .main-nav {
     top: auto;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));

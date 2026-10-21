@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>导航栏方案对比</title>
+  <style>
+    :root { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: #26352a; background: #e9f6e9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: clamp(24px, 5vw, 72px); }
+    h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 36px); font-weight: 650; }
+    .intro { margin: 0 0 36px; color: #617366; }
+    .comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+    .option { min-width: 0; }
+    .option h2 { margin: 0 0 6px; font-size: 18px; }
+    .option p { margin: 0 0 20px; color: #617366; font-size: 14px; }
+    .scene { position: relative; min-height: 390px; padding: 22px; border: 1px solid #d9eadb; border-radius: 24px; overflow: hidden; background: #e9f6e9; }
+    .nav { position: relative; z-index: 2; display: flex; align-items: center; width: max-content; max-width: 100%; margin: 0 auto; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav button { position: relative; z-index: 1; font: inherit; font-size: 15px; cursor: pointer; white-space: nowrap; transition: color .3s ease; }
+    .indicator { position: absolute; z-index: 0; left: 0; width: 0; pointer-events: none; transition: transform .35s cubic-bezier(.22,1,.36,1), width .35s cubic-bezier(.22,1,.36,1); }
+    .original .nav { gap: 4px; padding: 6px; border: 1px solid rgba(255,255,255,.85); border-radius: 999px; background: rgba(255,255,255,.72); box-shadow: 0 4px 6px rgba(46,125,50,.06), 0 12px 28px rgba(46,125,50,.14); backdrop-filter: blur(14px) saturate(1.4); }
+    .original .nav button { padding: 8px 16px; border: 0; border-radius: 999px; color: #303a31; background: transparent; }
+    .original .indicator { top: 6px; bottom: 6px; border-radius: 999px; background: linear-gradient(135deg,#4caf50,#2e7d32); box-shadow: 0 4px 12px rgba(46,125,50,.35); }
+    .original .nav button.active { color: white; }
+    .original .fade { position: absolute; z-index: 1; inset: 0 0 auto; height: 110px; pointer-events: none; background: rgba(233,246,233,.9); mask-image: linear-gradient(#000 65%, transparent); }
+    .revised .nav { gap: 2px; padding: 4px; border: 1px solid #cbdccd; border-radius: 13px; background: #f5faf5; }
+    .revised .nav button { padding: 10px 16px; border: 0; border-radius: 9px; color: #4b5c50; background: transparent; }
+    .revised .indicator { top: 4px; bottom: 4px; border-radius: 9px; background: #c7e4ca; }
+    .revised .nav button.active { color: #1c5924; font-weight: 650; }
+    .nav button:focus-visible { outline: 2px solid #2e7d32; outline-offset: 2px; }
+    .cards { display: grid; gap: 14px; margin-top: 52px; }
+    .card { padding: 20px; border: 1px solid #e3ede3; border-radius: 18px; background: white; box-shadow: 0 8px 24px rgba(35,94,43,.11); }
+    .card strong { display: block; margin-bottom: 7px; color: #245a2a; }
+    .card span { color: #718076; font-size: 14px; }
+    .card.small { width: 78%; }
+    .note { margin-top: 14px; font-size: 13px; color: #66796a; line-height: 1.6; }
+    @media (max-width: 900px) { .comparison { grid-template-columns: 1fr; } }
+    @media (max-width: 540px) { body { padding: 20px 14px; } .scene { padding: 15px; } .nav { width: 100%; } .nav button { flex: 1; } .original .nav button, .revised .nav button { padding-right: 10px; padding-left: 10px; font-size: 13px; } }
+  </style>
+</head>
+<body>
+  <h1>导航栏方案对比</h1>
+  <p class="intro">在相同的页面背景和阴影卡片上，对比导航自身的层次。</p>
+  <div class="comparison">
+    <section class="option original">
+      <h2>原版方案</h2>
+      <p>毛玻璃外壳、悬浮阴影、渐变滑块。</p>
+      <div class="scene">
+        <div class="fade"></div>
+        <nav class="nav" aria-label="原版导航">
+          <span class="indicator" aria-hidden="true"></span><button class="active" type="button">查询</button><button type="button">拼音</button><button type="button">关于</button><button type="button">学习</button><button type="button">开发者</button>
+        </nav>
+        <div class="cards"><div class="card"><strong>查询内容</strong><span>页面中的信息卡片仍保留阴影，以呈现实际搭配效果。</span></div><div class="card small"><strong>常用入口</strong><span>卡片与导航在同一画面中比较。</span></div></div>
+      </div>
+      <div class="note">导航外壳、选中滑块和内容卡片各自形成一层悬浮效果。</div>
+    </section>
+    <section class="option revised">
+      <h2>新方案 · 平面导航</h2>
+      <p>去掉导航阴影和模糊，用浅色底、细边框与稍深的色块标记当前页。</p>
+      <div class="scene">
+        <nav class="nav" aria-label="新方案导航">
+          <span class="indicator" aria-hidden="true"></span><button class="active" type="button">查询</button><button type="button">拼音</button><button type="button">关于</button><button type="button">学习</button><button type="button">开发者</button>
+        </nav>
+        <div class="cards"><div class="card"><strong>查询内容</strong><span>页面中的信息卡片仍保留阴影，以呈现实际搭配效果。</span></div><div class="card small"><strong>常用入口</strong><span>卡片与导航在同一画面中比较。</span></div></div>
+      </div>
+      <div class="note">导航作为页面控制条，视觉重点留给下方的内容卡片。</div>
+    </section>
+  </div>
+  <script>
+    document.querySelectorAll('.nav').forEach((nav) => {
+      const indicator = nav.querySelector('.indicator')
+      const updateIndicator = () => {
+        const active = nav.querySelector('button.active')
+        if (!active) return
+        indicator.style.transform = `translateX(${active.offsetLeft}px)`
+        indicator.style.width = `${active.offsetWidth}px`
+      }
+      nav.addEventListener('click', (event) => {
+        const button = event.target.closest('button')
+        if (!button) return
+        nav.querySelector('.active')?.classList.remove('active')
+        button.classList.add('active')
+        updateIndicator()
+      })
+      window.addEventListener('resize', updateIndicator)
+      updateIndicator()
+    })
+  </script>
+</body>
+</html>

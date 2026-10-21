@@ -20,7 +20,7 @@ useSiteSeo(route)
 <template>
   <div id="app">
 
-    <!-- 主导航（含顶部渐隐遮罩），样式与逻辑在 MainNav.vue 内部 -->
+    <!-- 主导航与渐隐层，样式与逻辑在 MainNav.vue 内部 -->
     <MainNav v-if="showMainNav"/>
 
     <main class="page-container" :class="{'no-main-nav': !showMainNav}">
@@ -36,5 +36,12 @@ useSiteSeo(route)
 .page-container.no-main-nav {
   max-width: none;
   padding-top: 0;
+}
+
+@media (max-width: 768px) {
+  .page-container:not(.no-main-nav) {
+    padding-top: 0;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
+  }
 }
 </style>

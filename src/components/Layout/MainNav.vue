@@ -1,9 +1,8 @@
-<!-- MainNav.vue -->
-
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { isAdminUser } from "../../utils/auth.js";
+import { Grid, House, Monitor, Notebook, User } from '@element-plus/icons-vue'
+import { isAdminUser } from '../../utils/auth.js'
 
 // 路由
 const route = useRoute()
@@ -24,7 +23,7 @@ const navType = computed(() => {
 })
 
 // ===== 导航滑动指示条 =====
-// 只有一个导航（normal/dev/ysw 之一）会被渲染，共用同一个 ref
+// 同时只渲染一套导航，共用同一个 ref
 const navRef = ref(null)
 const indicator = ref({x: 0, width: 0})
 
@@ -54,6 +53,7 @@ const loadCurrentUser = () => {
 const isAdmin = computed(() => isAdminUser(currentUser.value))
 
 onMounted(() => {
+  loadCurrentUser()
   // 等 DOM 渲染完成后再定位指示条，避免首屏位置错误
   nextTick(updateIndicator)
   // 窗口尺寸变化（含字体加载完成后宽度变化）时重新对齐
@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateIndicator)
 })
 
-// 路由切换（含 normal/dev/ysw 三种导航之间切换）后重新对齐指示条
+// 路由切换后重新对齐指示条
 watch(route, async () => {
   await nextTick()
   updateIndicator()
@@ -77,208 +77,236 @@ watch(route, async () => {
 <template>
   <nav ref="navRef" v-if="shouldShowNav && navType === 'dict'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.search')"/>
-    <router-link :to="getPath(`dict/pinyin`)" class="nav-link" v-formatted-text="$t('nav.pinyin')"/>
-    <router-link :to="getPath(`dict/about`)" class="nav-link" v-formatted-text="$t('nav.about')"/>
-    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="$t('nav.study')"/>
-    <router-link :to="getPath(`dev`)" class="nav-link" v-formatted-text="$t('nav.developer')" v-if="isAdmin"/>
-
+    <router-link :to="getPath(`dict/home`)" class="nav-link">
+      <span v-formatted-text="$t('nav.search')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`dict/pinyin`)" class="nav-link">
+      <span v-formatted-text="$t('nav.pinyin')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--pinyin" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`dict/about`)" class="nav-link">
+      <span v-formatted-text="$t('nav.about')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--about" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`study/me`)" class="nav-link">
+      <span v-formatted-text="$t('nav.study')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--study" aria-hidden="true"/>
+    </router-link>
+    <router-link v-if="isAdmin" :to="getPath(`dev`)" class="nav-link">
+      <span v-formatted-text="$t('nav.developer')"/>
+      <Monitor class="nav-icon" aria-hidden="true"/>
+    </router-link>
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`study/me`)" class="nav-link" v-formatted-text="$t('nav.start_study')"/>
-    <router-link :to="getPath(`study/profile`)" class="nav-link" v-formatted-text="$t('nav.profile_center')"/>
-    <router-link :to="getPath(`dict/home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
+    <router-link :to="getPath(`study/me`)" class="nav-link">
+      <span v-formatted-text="$t('nav.start_study')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--study" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`study/profile`)" class="nav-link">
+      <span v-formatted-text="$t('nav.profile_center')"/>
+      <User class="nav-icon" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`dict/home`)" class="nav-link">
+      <span v-formatted-text="$t('nav.dictionary')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
+    </router-link>
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`dev/home`)" class="nav-link" v-formatted-text="$t('nav.developer_home')"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
+    <router-link :to="getPath(`dev/home`)" class="nav-link">
+      <span v-formatted-text="$t('nav.developer_home')"/>
+      <Monitor class="nav-icon" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`home`)" class="nav-link">
+      <span v-formatted-text="$t('nav.dictionary')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
+    </router-link>
   </nav>
 
   <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav">
     <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="{ name: 'YswHome', params: { language: language } }"
-                 class="nav-link" v-formatted-text="$t('nav.ysw_home')"/>
-    <router-link :to="getPath(`ysw/alphabet`)" class="nav-link"
-                 v-formatted-text="$t('personal.alphabet_table.title_short')"
-    />
-    <router-link :to="getPath(`ysw/diary`)" class="nav-link" v-formatted-text="$t('nav.diary')"/>
-    <router-link :to="getPath(`home`)" class="nav-link" v-formatted-text="$t('nav.dictionary')"/>
+    <router-link :to="{ name: 'YswHome', params: { language: language } }" class="nav-link">
+      <span v-formatted-text="$t('nav.ysw_home')"/>
+      <House class="nav-icon" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`ysw/alphabet`)" class="nav-link">
+      <span v-formatted-text="$t('personal.alphabet_table.title_short')"/>
+      <Grid class="nav-icon" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`ysw/diary`)" class="nav-link">
+      <span v-formatted-text="$t('nav.diary')"/>
+      <Notebook class="nav-icon" aria-hidden="true"/>
+    </router-link>
+    <router-link :to="getPath(`home`)" class="nav-link">
+      <span v-formatted-text="$t('nav.dictionary')"/>
+      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
+    </router-link>
   </nav>
 
-  <!-- 顶部渐隐遮罩：内容滚动到导航下方之前先慢慢模糊淡出 -->
   <div v-if="shouldShowNav" class="nav-fade" aria-hidden="true"></div>
 </template>
 
 <style scoped>
-/*
- * 主导航：悬浮玻璃胶囊导航
- * 设计要点：
- * - 居中的毛玻璃胶囊，贴合站点绿色古典主题，视觉上更精致
- * - 当前页（router-link-active）以绿色渐变胶囊 + 白色文字高亮
- * - 悬停时文字染绿 + 淡绿底，过渡平滑
- */
+/* 平面导航：用细边框、轻阴影和稍深的选中色区分层级。 */
 .main-nav {
   position: fixed;
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-
   z-index: 1000;
-
   display: flex;
   align-items: center;
-  gap: 4px;
-
-  padding: 6px;
+  gap: 2px;
+  max-width: calc(100vw - 24px);
+  padding: 4px;
   user-select: none;
   -webkit-user-select: none;
-
-  /* 毛玻璃效果 */
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  backdrop-filter: blur(14px) saturate(1.4);
-
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 999px;
-
-  box-shadow: 0 4px 6px rgba(46, 125, 50, 0.06),
-  0 12px 28px rgba(46, 125, 50, 0.14);
-
-  transition: box-shadow var(--transition-base);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: #f5faf5;
+  border: 1px solid #cbdccd;
+  border-radius: 17px;
+  box-shadow: 0 2px 6px rgba(37, 84, 45, 0.05),
+    0 12px 28px rgba(37, 84, 45, 0.11);
 }
 
-.main-nav:hover {
-  box-shadow: 0 4px 6px rgba(46, 125, 50, 0.08),
-  0 16px 36px rgba(46, 125, 50, 0.2);
+.main-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
   position: relative;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-decoration: none;
-  color: var(--color-text);
+  color: #4b5c50;
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0.02em;
 
-  padding: 7px 18px;
-  border-radius: 999px;
+  padding: 10px 16px;
+  border-radius: 13px;
   white-space: nowrap;
 
-  transition: color var(--transition-base),
-  background-color var(--transition-base);
+  transition: color 0.3s ease;
+}
+
+.nav-icon {
+  order: 1;
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.nav-icon--asset {
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.nav-icon--search {
+  -webkit-mask-image: url('../../assets/icons/search.svg');
+  mask-image: url('../../assets/icons/search.svg');
+}
+
+.nav-icon--pinyin {
+  -webkit-mask-image: url('../../assets/icons/settings/pinyin.svg');
+  mask-image: url('../../assets/icons/settings/pinyin.svg');
+}
+
+.nav-icon--about {
+  -webkit-mask-image: url('../../assets/icons/about.svg');
+  mask-image: url('../../assets/icons/about.svg');
+}
+
+.nav-icon--study {
+  -webkit-mask-image: url('../../assets/icons/nav-study.svg');
+  mask-image: url('../../assets/icons/nav-study.svg');
+  transform: scale(1.2);
 }
 
 .nav-link:hover {
-  color: var(--color-primary);
-  background-color: rgba(46, 125, 50, 0.08);
+  color: #1c5924;
 }
 
-/* 当前页：文字保持白色，绿色渐变底由滑动指示条呈现 */
 .nav-link.router-link-active {
-  color: #ffffff;
+  color: #1c5924;
+  font-weight: 650;
 }
 
 .nav-link.router-link-active:hover {
-  color: #ffffff;
-  background-color: transparent;
+  color: #1c5924;
 }
 
-/*
- * 滑动指示条：跟随激活链接移动的绿色渐变胶囊
- * 位置由 MainNav.vue 根据激活链接的 offsetLeft / offsetWidth 计算
- */
+/* 沿用原有的位置计算和滑动缓动，只替换指示块的外观。 */
 .nav-indicator {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
+  top: 4px;
+  bottom: 4px;
   left: 0;
-
-  border-radius: 999px;
-  background: var(--gradient-primary);
-  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.35);
-
-  /* 滑动 + 宽度变化使用同一条缓动曲线，实现“吸附”到目标的效果 */
+  border-radius: 13px;
+  background: #c7e4ca;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-  width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform, width;
 }
 
-
-/*
- * 顶部渐隐遮罩：内容滚动到导航下方之前先慢慢模糊淡出
- * - 背景渐变（与页面背景同色）实现“淡出”
- * - 淡出在导航底边之前就完全结束，内容到达导航栏时已不可见
- * - backdrop-filter + mask 控制模糊强度，从顶部强模糊渐变到无
- * https://chatgpt.com/c/6a71b999-b2f4-83ee-8e86-fb5720e0fae7
- */
+/* 用页面底色淡化导航附近的内容，保留清晰轮廓。 */
 .nav-fade {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-
-  height: 100px;
-
   z-index: 990;
-
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 104px;
   pointer-events: none;
-
-  background: rgba(233, 246, 233, 0.9);
-
-  mask-image: linear-gradient(
-      to bottom,
-      black 0,
-      black 65px,
-      transparent 100px
-  );
-
-  -webkit-mask-image: linear-gradient(
-      to bottom,
-      black 0,
-      black 65px,
-      transparent 100px
-  );
+  background: var(--app-bg-color);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.64) 48%, transparent 100%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.64) 48%, transparent 100%);
 }
 
 @media (max-width: 768px) {
   .main-nav {
-    top: 10px;
-    gap: 2px;
-    padding: 5px;
+    top: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 20px);
+    max-width: 440px;
+    justify-content: space-around;
   }
 
   .nav-link {
-    padding: 6px 12px;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 4px 6px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.2;
   }
 
-  .nav-indicator {
-    top: 5px;
-    bottom: 5px;
+  .nav-icon {
+    order: -1;
+    width: 23px;
+    height: 23px;
   }
 
   .nav-fade {
-    height: 70px;
-
-    background: rgba(233, 246, 233, 0.92);
-
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        #000 0px,
-        #000 55px,
-        transparent 70px
-    );
-
-    mask-image: linear-gradient(
-        to bottom,
-        #000 0px,
-        #000 55px,
-        transparent 70px
-    );
+    top: auto;
+    bottom: 0;
+    height: calc(90px + env(safe-area-inset-bottom, 0px));
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.64) 52%, rgba(0, 0, 0, 0.82) 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.64) 52%, rgba(0, 0, 0, 0.82) 100%);
   }
 }
 </style>

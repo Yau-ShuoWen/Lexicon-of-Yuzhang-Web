@@ -24,9 +24,13 @@
     .original .indicator { top: 6px; bottom: 6px; border-radius: 999px; background: linear-gradient(135deg,#4caf50,#2e7d32); box-shadow: 0 4px 12px rgba(46,125,50,.35); }
     .original .nav button.active { color: white; }
     .original .fade { position: absolute; z-index: 1; inset: 0 0 auto; height: 110px; pointer-events: none; background: rgba(233,246,233,.9); mask-image: linear-gradient(#000 65%, transparent); }
-    .revised .nav { gap: 2px; padding: 4px; border: 1px solid #cbdccd; border-radius: 13px; background: #f5faf5; }
-    .revised .nav button { padding: 10px 16px; border: 0; border-radius: 9px; color: #4b5c50; background: transparent; }
-    .revised .indicator { top: 4px; bottom: 4px; border-radius: 9px; background: #c7e4ca; }
+    .revised .nav { gap: 2px; padding: 4px; border: 1px solid #cbdccd; border-radius: 17px; background: #f5faf5; box-shadow: 0 2px 6px rgba(37,84,45,.05), 0 12px 28px rgba(37,84,45,.11); }
+    .revised .scene { background: #f7faf8; }
+    .revised .fade { position: absolute; z-index: 1; inset: 0 0 auto; height: 104px; pointer-events: none; background: #f7faf8; mask-image: linear-gradient(to bottom, rgba(0,0,0,.82), rgba(0,0,0,.64) 48%, transparent); }
+    .revised .nav button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 0; border-radius: 13px; color: #4b5c50; background: transparent; }
+    .revised .nav-icon { order: 1; width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .revised .indicator { top: 4px; bottom: 4px; border-radius: 13px; background: #c7e4ca; }
+    .revised .nav button:nth-of-type(4) .nav-icon { transform: scale(1.2); }
     .revised .nav button.active { color: #1c5924; font-weight: 650; }
     .nav button:focus-visible { outline: 2px solid #2e7d32; outline-offset: 2px; }
     .cards { display: grid; gap: 14px; margin-top: 52px; }
@@ -36,10 +40,24 @@
     .card.small { width: 78%; }
     .note { margin-top: 14px; font-size: 13px; color: #66796a; line-height: 1.6; }
     @media (max-width: 900px) { .comparison { grid-template-columns: 1fr; } }
-    @media (max-width: 540px) { body { padding: 20px 14px; } .scene { padding: 15px; } .nav { width: 100%; } .nav button { flex: 1; } .original .nav button, .revised .nav button { padding-right: 10px; padding-left: 10px; font-size: 13px; } }
+    @media (max-width: 768px) {
+      .revised .nav { position: absolute; top: auto; right: 15px; bottom: 14px; left: 15px; width: auto; max-width: none; justify-content: space-around; margin: 0; }
+      .revised .nav button { flex: 1; flex-direction: column; gap: 4px; padding: 7px 4px 6px; text-align: center; font-size: 11px; }
+      .revised .nav-icon { order: -1; width: 23px; height: 23px; }
+      .revised .fade { top: auto; bottom: 0; height: 90px; mask-image: linear-gradient(to bottom, transparent, rgba(0,0,0,.64) 52%, rgba(0,0,0,.82)); }
+      .revised .cards { margin-top: 10px; }
+    }
+    @media (max-width: 540px) { body { padding: 20px 14px; } .scene { padding: 15px; } .nav { width: 100%; } .nav button { flex: 1; } .original .nav button { padding-right: 10px; padding-left: 10px; font-size: 13px; } .revised .nav button { padding-right: 4px; padding-left: 4px; } }
   </style>
 </head>
 <body>
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="icon-pinyin" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></symbol>
+    <symbol id="icon-about" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
+    <symbol id="icon-study" viewBox="0 0 24 24"><path d="M12 6c-2.5-2-5.5-2.3-9-1.5v14c3.5-.8 6.5-.5 9 1.5 2.5-2 5.5-2.3 9-1.5v-14c-3.5-.8-6.5-.5-9 1.5Zm0 0v14"/></symbol>
+    <symbol id="icon-dev" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+  </svg>
   <h1>导航栏方案对比</h1>
   <p class="intro">在相同的页面背景和阴影卡片上，对比导航自身的层次。</p>
   <div class="comparison">
@@ -57,14 +75,15 @@
     </section>
     <section class="option revised">
       <h2>新方案 · 平面导航</h2>
-      <p>去掉导航阴影和模糊，用浅色底、细边框与稍深的色块标记当前页。</p>
+      <p>长条保留轻柔阴影，顶部内容融入页面底色，选中项用稍深的色块标记。</p>
       <div class="scene">
+        <div class="fade"></div>
         <nav class="nav" aria-label="新方案导航">
-          <span class="indicator" aria-hidden="true"></span><button class="active" type="button">查询</button><button type="button">拼音</button><button type="button">关于</button><button type="button">学习</button><button type="button">开发者</button>
+          <span class="indicator" aria-hidden="true"></span><button class="active" type="button"><span>查询</span><svg class="nav-icon" aria-hidden="true"><use href="#icon-search"/></svg></button><button type="button"><span>拼音</span><svg class="nav-icon" aria-hidden="true"><use href="#icon-pinyin"/></svg></button><button type="button"><span>关于</span><svg class="nav-icon" aria-hidden="true"><use href="#icon-about"/></svg></button><button type="button"><span>学习</span><svg class="nav-icon" aria-hidden="true"><use href="#icon-study"/></svg></button><button type="button"><span>开发者</span><svg class="nav-icon" aria-hidden="true"><use href="#icon-dev"/></svg></button>
         </nav>
         <div class="cards"><div class="card"><strong>查询内容</strong><span>页面中的信息卡片仍保留阴影，以呈现实际搭配效果。</span></div><div class="card small"><strong>常用入口</strong><span>卡片与导航在同一画面中比较。</span></div></div>
       </div>
-      <div class="note">导航作为页面控制条，视觉重点留给下方的内容卡片。</div>
+      <div class="note">背景内容逐渐淡化但保留清晰轮廓，导航与下方卡片之间保留适度层次。</div>
     </section>
   </div>
   <script>

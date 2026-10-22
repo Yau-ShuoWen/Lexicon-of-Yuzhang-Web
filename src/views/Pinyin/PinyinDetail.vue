@@ -8,7 +8,8 @@ const props = defineProps({
   show: Boolean,
   dialect: String,
   language: String,
-  pinyinKey: String
+  pinyinKey: String,
+  documentChildren: {type: Array, default: null}
 })
 
 const emit = defineEmits(['close'])
@@ -35,7 +36,13 @@ async function fetchDetail() {
     // ⭐ detail 与音频映射并行请求，互不依赖，缩短总等待时间
     const params = new URLSearchParams({key: props.pinyinKey})
     const [data, audioMap] = await Promise.all([
-      request(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?${params}`),
+      props.documentChildren
+        ? Promise.resolve({info: props.documentChildren.map(child => ({
+            key: child.audioKey || child.key,
+            standard: child.title ? `[${child.title}]` : '',
+            notes: child.notes || []
+          }))})
+        : request(`/api/pinyin/pinyin-detail/${props.dialect}/${props.language}?${params}`),
       request(`/api/pinyin/audio/batch?dialect=${props.dialect}`).catch(() => ({}))
     ])
     detail.value = data
@@ -115,7 +122,13 @@ watch(() => [props.pinyinKey, props.show], () => {
           </button>
         </div>
 
-        <div class="label" v-formatted-text="item.note"/>
+        <div v-if="item.notes" class="explanation-list">
+          <div v-for="note in item.notes" :key="note.id" class="explanation-row">
+            <strong v-formatted-text="note.label?.[language] || note.label?.sc || ''" />
+            <span v-formatted-text="note.value?.[language] || note.value?.sc || ''" />
+          </div>
+        </div>
+        <div v-else class="label" v-formatted-text="item.note"/>
       </div>
     </div>
 
@@ -129,6 +142,9 @@ watch(() => [props.pinyinKey, props.show], () => {
 
 
 <style scoped>
+.explanation-list{display:grid;gap:0;border:1px solid #e0e6e0;border-radius:8px;overflow:hidden}
+.explanation-row{display:grid;grid-template-columns:minmax(80px,28%) 1fr;gap:12px;padding:10px 12px;border-bottom:1px solid #e0e6e0}
+.explanation-row:last-child{border-bottom:0}.explanation-row strong{font-weight:600}
 .standard-row {
   display: flex;
   align-items: center;

@@ -253,7 +253,7 @@ const routes = [
                     {
                         path: 'pinyin-editor',
                         name: 'PinyinEditor',
-                        component: () => import('../views/Developer/Pinyin/PinyinNoteEditor.vue'),
+                        component: () => import('../views/Developer/Pinyin/PinyinSectionEditor.vue'),
                     },
 
                     {

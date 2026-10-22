@@ -10,6 +10,7 @@ import { useHead } from '@vueuse/head'
 import { useI18n } from "vue-i18n";
 import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
+import {tableFromDocument} from '../../utils/pinyinDocument.js'
 
 
 const route = useRoute()
@@ -23,6 +24,7 @@ const loading = ref(true)
 const showSkeleton = ref(false)
 const showDetail = ref(false)
 const currentKey = ref('')
+const currentChildren = ref(null)
 let skeletonTimer = null
 
 const hasData = computed(() => pinyinData.value.length > 0)
@@ -53,8 +55,12 @@ onMounted(fetchTable)
 async function fetchTable() {
   try {
     startLoading()
-    const data = await request(`/api/pinyin/table/${dialect.value}/${language.value}`)
-    pinyinData.value = data.table
+    const document = await request(`/api/pinyin/document/${dialect.value}`)
+    if (document) pinyinData.value = tableFromDocument(document, language.value)
+    else {
+      const data = await request(`/api/pinyin/table/${dialect.value}/${language.value}`)
+      pinyinData.value = data.table
+    }
 
   } catch (e) {
     console.error(e)
@@ -69,6 +75,7 @@ function handleItemClick(item) {
   if (!item.exist) return
 
   currentKey.value = item.id
+  currentChildren.value = item.children || null
   showDetail.value = true
 }
 
@@ -87,7 +94,7 @@ function formatDisplay(item) {
 }
 
 /* ---------- 监听路由变化 ---------- */
-watch(dialect, fetchTable)
+watch([dialect, language], fetchTable)
 </script>
 
 
@@ -124,7 +131,7 @@ watch(dialect, fetchTable)
         <div class="this-table-block">
           <div
               v-for="(grid, gridIndex) in pinyinData"
-              :key="grid.code"
+              :key="grid.id || grid.code + '-' + gridIndex"
               class="attribute-group"
               :class="'accent-' + (gridIndex % 3)"
               :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
@@ -163,6 +170,7 @@ watch(dialect, fetchTable)
       :dialect="dialect.toString()"
       :language="language.toString()"
       :pinyinKey="currentKey"
+      :documentChildren="currentChildren"
       @close="showDetail = false"
   />
 </template>

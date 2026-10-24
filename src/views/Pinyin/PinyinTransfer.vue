@@ -118,11 +118,93 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.pinyin-transfer{margin-top:18px;padding:22px 20px;border:1px solid var(--color-border);border-radius:var(--border-radius-xl);background:#fff;box-shadow:var(--shadow-sm)}
-.transfer-heading{display:flex;align-items:center;gap:10px;margin-bottom:16px}.transfer-heading::before{content:'';width:6px;height:22px;border-radius:4px;background:var(--color-primary);box-shadow:0 2px 6px rgba(46,125,50,.3)}.transfer-heading h2{margin:0;color:#34495e;font-size:19px;font-weight:700;letter-spacing:1px}
-.transfer-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}.transfer-field{min-width:0;width:100%}
-.transfer-input{display:block;box-sizing:border-box;width:100%;height:78px;min-height:78px;margin:0;padding:12px 16px;resize:none;border:1px solid var(--color-border);border-radius:14px;background:#f3f6f8;color:var(--color-text);font:inherit;line-height:1.6;outline:none;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}.transfer-input.active,.transfer-input:focus{border-color:var(--color-secondary);background:#fff;box-shadow:0 0 0 4px rgba(74,111,200,.1)}
-.result-empty{display:flex;align-items:center;justify-content:center;min-height:254px;padding:14px 16px;border:1px dashed #d5dde5;border-radius:14px;background:#eef2f4;color:var(--color-text-light);font-size:20px;text-align:center}
-@media(max-width:750px){.result-empty{min-height:180px}}
-@media(max-width:500px){.pinyin-transfer{padding:18px 14px}}
+.pinyin-transfer {
+  margin-top: 18px;
+  padding: 22px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  background: #fff;
+  box-shadow: var(--pinyin-card-shadow);
+}
+
+.transfer-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.transfer-heading::before {
+  content: '';
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-primary);
+}
+
+.transfer-heading h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.transfer-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.transfer-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.transfer-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 78px;
+  min-height: 78px;
+  margin: 0;
+  padding: 12px 16px;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  background: #f7faf7;
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.6;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.transfer-input.active,
+.transfer-input:focus {
+  border-color: var(--color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, .14);
+}
+
+.result-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 254px;
+  padding: 14px 16px;
+  border: 1px dashed #d5dde5;
+  border-radius: 14px;
+  background: #eef2f4;
+  color: var(--color-text-light);
+  font-size: 20px;
+  text-align: center;
+}
+
+@media (max-width: 750px) {
+  .result-empty { min-height: 180px; }
+}
+
+@media (max-width: 500px) {
+  .pinyin-transfer { padding: 18px 14px; }
+}
 </style>

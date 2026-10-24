@@ -142,9 +142,36 @@ watch(() => [props.pinyinKey, props.show], () => {
 
 
 <style scoped>
-.explanation-list{display:grid;gap:0;border:1px solid #e0e6e0;border-radius:8px;overflow:hidden}
-.explanation-row{display:grid;grid-template-columns:minmax(80px,28%) 1fr;gap:12px;padding:10px 12px;border-bottom:1px solid #e0e6e0}
-.explanation-row:last-child{border-bottom:0}.explanation-row strong{font-weight:600}
+.pinyin-detail-content {
+  display: grid;
+  gap: 30px;
+}
+
+.explanation-list {
+  display: grid;
+  border: 1px solid #b9cdbb;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.explanation-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 21%) 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 12px;
+  border-bottom: 1px solid #d7e2d8;
+  line-height: 1.5;
+}
+
+.explanation-row:last-child {
+  border-bottom: 0;
+}
+
+.explanation-row strong {
+  font-weight: 600;
+}
 .standard-row {
   display: flex;
   align-items: center;
@@ -175,15 +202,7 @@ watch(() => [props.pinyinKey, props.show], () => {
 }
 
 .pinyin-detail-block {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #dcdcdc;
-}
-
-.pinyin-detail-block:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+  min-width: 0;
 }
 
 .no-results-high {

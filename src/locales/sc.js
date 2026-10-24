@@ -192,7 +192,7 @@ export default {
         github_project: "Github 项目"
     },
     pinyin_table: {
-        title: "方言拼音表",
+        title: "拼音表",
         detail_title: "拼音详情",
         play_audio: "播放读音",
         subtitle: "按声母、韵母分组排列，点击任意方格查看读音与示例",

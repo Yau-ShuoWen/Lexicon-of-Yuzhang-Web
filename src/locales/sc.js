@@ -61,9 +61,11 @@ export default {
     about_page: {
         about:  '关于',
         version:'版本',
-        contact: '联系',
         thanks: '致谢',
-        statistic: '统计信息',
+        statistic: '收录规模',
+        hanzi: '汉字',
+        words: '词语',
+        dictionary_sections: '辞书段落',
     },
     dialect: {
         select: '选择方言',

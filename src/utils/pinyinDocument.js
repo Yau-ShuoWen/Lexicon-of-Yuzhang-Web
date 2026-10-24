@@ -125,7 +125,7 @@ export function syncItemKeys(document) {
   const seen = new Set()
   for (const section of document.sections) for (const row of section.rows) for (const group of row.groups) for (const item of group.items) {
     const standard = item.standard?.trim()
-    if (!standard) throw new Error('请填写单格的显示文字')
+    if (!standard) throw new Error('请填写单格标题')
     const key = standard === '-' ? (item.key?.startsWith('empty-') ? item.key : `empty-${item.id}`) : `${section.code}-${standard}`
     if (seen.has(key)) throw new Error(`同一区域中“${standard}”重复，请修改后保存`)
     seen.add(key)

@@ -12,11 +12,11 @@ const language = computed(() => route.params.language === 'tc' ? 'tc' : 'sc')
 const documentData = ref(null)
 const loading = ref(true)
 const editingId = ref(null)
-const editingName = ref('')
-const nameInput = ref(null)
+const editingName = ref({sc: '', tc: ''})
 const draggingId = ref(null)
 const draggingKind = ref(null)
 const dragOverId = ref(null)
+const dropListId = ref(null)
 const selectedId = ref(null)
 const selectedKind = ref(null)
 const savedSnapshot = ref('')
@@ -24,6 +24,13 @@ const saving = ref(false)
 const editLevel = ref('section')
 const openedItemId = ref(null)
 const openedChildId = ref(null)
+const editingItemTitle = ref(false)
+const itemTitleDraft = ref('')
+const editingChildTitle = ref(false)
+const titleInput = ref(null)
+const childListRef = ref(null)
+const selectedEditorRef = ref(null)
+const childConnectorX = ref(28)
 const isUnplacedEditor = computed(() => openedItemId.value === '__unplaced__')
 const labelsOpen = ref(false)
 const mergeTargets = ref({})
@@ -81,8 +88,7 @@ async function load() {
 
 async function save() {
   if (editingId.value) {
-    const section = documentData.value.sections.find(section => section.id === editingId.value)
-    if (section) finishName(section)
+    if (!finishName()) return
   }
   try {
     syncItemKeys(documentData.value)
@@ -131,7 +137,7 @@ function rowEmpty(row) {
 }
 
 function addRow(section) {
-  section.rows.push({id: crypto.randomUUID(), groups: []})
+  section.rows.push({id: crypto.randomUUID(), name: {sc: '', tc: ''}, groups: []})
 }
 
 function removeRow(section, row) {
@@ -150,7 +156,9 @@ function addItem(group) {
 function openItem(item) {
   if (editLevel.value !== 'item') return
   openedItemId.value = item.id
-  openedChildId.value = item.children[0]?.id || null
+  openedChildId.value = null
+  editingItemTitle.value = false
+  editingChildTitle.value = false
   selectedId.value = null
   selectedKind.value = null
 }
@@ -160,11 +168,47 @@ function openUnplacedChild(child) {
   openedItemId.value = '__unplaced__'
   openedChildId.value = child.id
   focusedUnplacedId.value = child.id
+  nextTick(updateChildConnector)
 }
 
 function closeItem() {
   openedItemId.value = null
   openedChildId.value = null
+  editingItemTitle.value = false
+  editingChildTitle.value = false
+}
+
+async function editTitle(kind) {
+  if (kind === 'item') {
+    itemTitleDraft.value = openedItem.value.standard === '-' ? '（占位）' : openedItem.value.standard
+    editingItemTitle.value = true
+  } else editingChildTitle.value = true
+  await nextTick()
+  titleInput.value?.focus()
+  titleInput.value?.select()
+}
+
+function finishItemTitle(cancel = false) {
+  if (!cancel && openedItem.value) {
+    const title = itemTitleDraft.value.trim()
+    openedItem.value.standard = !title || title === '（占位）' ? '-' : title
+  }
+  editingItemTitle.value = false
+}
+
+function selectChild(child) {
+  openedChildId.value = child.id
+  editingChildTitle.value = false
+  nextTick(updateChildConnector)
+}
+
+function updateChildConnector() {
+  const child = Array.from(childListRef.value?.querySelectorAll('[data-child-id]') || [])
+    .find(element => element.dataset.childId === openedChildId.value)
+  if (!child || !selectedEditorRef.value) return
+  const source = child.getBoundingClientRect()
+  const target = selectedEditorRef.value.getBoundingClientRect()
+  childConnectorX.value = Math.max(18, Math.min(target.width - 18, source.left + source.width / 2 - target.left))
 }
 
 function addChild() {
@@ -180,6 +224,7 @@ function addChild() {
   openedItem.value.children.push(child)
   ensureNoteLabels(documentData.value)
   openedChildId.value = id
+  nextTick(updateChildConnector)
 }
 
 function startChildDrag(event, fromList, child) {
@@ -202,6 +247,7 @@ function dropChild(event, toList, index = toList.length, targetId = null) {
   childDropTarget.value = null
   if (openedItem.value) openedChildId.value = toList === openedItem.value.children ? child.id : openedItem.value.children[0]?.id || null
   if (targetId) selectedId.value = targetId
+  nextTick(updateChildConnector)
 }
 
 function dropOnChild(event, list, index) {
@@ -218,6 +264,7 @@ function removeChild(child) {
   if (!window.confirm('确定删除这个子项及其解释吗？')) return
   openedItem.value.children.splice(openedItem.value.children.indexOf(child), 1)
   openedChildId.value = openedItem.value.children[0]?.id || null
+  nextTick(updateChildConnector)
 }
 
 function addNote() {
@@ -293,10 +340,7 @@ function removeItem(group, item) {
 }
 
 function selectLevel(level) {
-  if (editingId.value) {
-    const section = documentData.value.sections.find(section => section.id === editingId.value)
-    if (section) finishName(section)
-  }
+  if (editingId.value) finishName()
   closeItem()
   editLevel.value = level
   selectedId.value = null
@@ -309,23 +353,23 @@ function removeGroup(row, group) {
   row.groups.splice(row.groups.indexOf(group), 1)
 }
 
-function editName(section) {
+function editName(target) {
   if (draggingId.value) return
-  editingId.value = section.id
-  editingName.value = sectionName(section)
-  nextTick(() => {
-    nameInput.value?.focus()
-    nameInput.value?.select()
-  })
+  editingId.value = target.id
+  editingName.value = {...(target.name || {sc: '', tc: ''})}
 }
 
-function finishName(section, cancel = false) {
-  if (editingId.value !== section.id) return
+function finishName(cancel = false) {
+  const target = documentData.value.sections.flatMap(section => [section, ...section.rows])
+    .find(entry => entry.id === editingId.value)
+  if (!target) return false
+  if (!cancel && (!editingName.value.sc.trim() || !editingName.value.tc.trim())) {
+    showError('请填写简体和繁体标题')
+    return false
+  }
+  if (!cancel) target.name = {sc: editingName.value.sc.trim(), tc: editingName.value.tc.trim()}
   editingId.value = null
-  if (cancel) return
-  const value = editingName.value.trim()
-  if (!value || value === sectionName(section)) return
-  section.name[language.value] = value
+  return true
 }
 
 function addSection() {
@@ -334,7 +378,11 @@ function addSection() {
     name: {sc: '新区域', tc: '新區域'}, rows: []
   }
   documentData.value.sections.push(section)
-  nextTick(() => editName(section))
+  editName(section)
+}
+
+function rowName(row) {
+  return row.name?.[language.value] || row.name?.sc || '未命名行'
 }
 
 function removeSection(section) {
@@ -377,15 +425,46 @@ function pointerMove(event) {
   const target = window.document.elementFromPoint(event.clientX, event.clientY)
     ?.closest(`[data-sort-kind="${press.kind}"]`)
   const id = target?.dataset.sortId
-  dragOverId.value = press.list.some(item => item.id === id) && id !== press.id ? id : null
+  dragOverId.value = id && id !== press.id ? id : null
+  const listTarget = window.document.elementFromPoint(event.clientX, event.clientY)
+    ?.closest(`[data-drop-list-kind="${press.kind}"]`)
+  dropListId.value = listTarget?.dataset.dropListId || null
+}
+
+function sortList(kind, id) {
+  if (kind === 'section') return documentData.value.sections
+  for (const section of documentData.value.sections) {
+    if (kind === 'line' && section.rows.some(row => row.id === id)) return section.rows
+    for (const row of section.rows) {
+      if (kind === 'group' && row.groups.some(group => group.id === id)) return row.groups
+      for (const group of row.groups) {
+        if (kind === 'item' && group.items.some(item => item.id === id)) return group.items
+      }
+    }
+  }
+  return null
+}
+
+function destinationList(kind, id) {
+  if (kind === 'line') return documentData.value.sections.find(section => section.id === id)?.rows
+  for (const section of documentData.value.sections) for (const row of section.rows) {
+    if (kind === 'group' && row.id === id) return row.groups
+    for (const group of row.groups) if (kind === 'item' && group.id === id) return group.items
+  }
+  return null
 }
 
 function pointerUp(event) {
   if (!press || event.pointerId !== press.pointerId) return
-  if (draggingId.value && dragOverId.value) {
+  if (draggingId.value && (dragOverId.value || dropListId.value)) {
     const source = press.list.findIndex(item => item.id === press.id)
-    const destination = press.list.findIndex(item => item.id === dragOverId.value)
-    if (source >= 0 && destination >= 0) press.list.splice(destination, 0, press.list.splice(source, 1)[0])
+    const targetList = dragOverId.value ? sortList(press.kind, dragOverId.value) : destinationList(press.kind, dropListId.value)
+    if (source >= 0 && targetList) {
+      const targetIndex = dragOverId.value ? targetList.findIndex(item => item.id === dragOverId.value) : targetList.length
+      const [moved] = press.list.splice(source, 1)
+      const destination = targetList === press.list && source < targetIndex ? targetIndex - 1 : targetIndex
+      targetList.splice(Math.max(0, destination), 0, moved)
+    }
   }
   removePointerListeners()
   removeDragPreview()
@@ -393,6 +472,7 @@ function pointerUp(event) {
   draggingId.value = null
   draggingKind.value = null
   dragOverId.value = null
+  dropListId.value = null
 }
 
 function pointerCancel() {
@@ -402,6 +482,7 @@ function pointerCancel() {
   draggingId.value = null
   draggingKind.value = null
   dragOverId.value = null
+  dropListId.value = null
 }
 
 function removePointerListeners() {
@@ -430,6 +511,12 @@ onUnmounted(pointerCancel)
           {{ saving ? '保存中…' : '保存' }}
         </button>
       </div>
+      <p class="editor-hint">
+        <template v-if="editLevel === 'section'">拖动区域可排序，双击标题可编辑。为便于排序，下层内容已折叠；切换到行、组或单可查看和编辑。</template>
+        <template v-else-if="editLevel === 'row'">拖动行可跨区域排序，双击标题可编辑。</template>
+        <template v-else-if="editLevel === 'group'">拖动组可跨行排序。</template>
+        <template v-else>拖动单格可跨组排序，双击单格可编辑文本。</template>
+      </p>
       <section v-if="editLevel === 'item'" class="unplaced-panel"
                @dragover.prevent
                @drop="dropChild($event, documentData.unplaced)">
@@ -457,27 +544,17 @@ onUnmounted(pointerCancel)
       >
         <header class="section-header">
           <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
-          <input
-            v-if="editingId === section.id"
-            ref="nameInput"
-            v-model="editingName"
-            class="name-input"
-            maxlength="50"
-            @keydown.enter.prevent="finishName(section)"
-            @keydown.esc.prevent="finishName(section, true)"
-            @blur="finishName(section)"
-          >
           <h3
-            v-else
             class="section-name"
             @dblclick.stop="editLevel === 'section' && editName(section)"
           >{{ sectionName(section) }}</h3>
           <button v-if="editLevel === 'section' && isEmpty(section)" class="remove-button" type="button" aria-label="删除空区域" @click="removeSection(section)">删除</button>
         </header>
-        <div v-if="editLevel !== 'section'" class="section-content">
+        <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id"
+             :class="{'list-drop-target': draggingKind === 'line' && dropListId === section.id && !dragOverId}">
           <div>
           <div
-            v-for="(row, rowIndex) in section.rows"
+            v-for="row in section.rows"
             :key="row.id"
             class="pinyin-line"
             data-sort-kind="line"
@@ -487,19 +564,22 @@ onUnmounted(pointerCancel)
           >
             <div class="line-actions">
               <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
-              <span>第 {{ rowIndex + 1 }} 行</span>
+              <span class="row-name" @dblclick.stop="editLevel === 'row' && editName(row)">{{ rowName(row) }}</span>
               <button v-if="editLevel === 'group'" type="button" @click="addGroup(row)">＋ 添加组</button>
               <button v-if="editLevel === 'row' && rowEmpty(row)" type="button" class="remove-button" @click="removeRow(section, row)">删除空行</button>
             </div>
             <div class="line-groups">
-              <div class="line-groups-inner">
+              <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id"
+                   :class="{'list-drop-target': draggingKind === 'group' && dropListId === row.id && !dragOverId}">
               <div
                 v-for="group in row.groups"
                 :key="group.id"
                 class="pinyin-group"
                 data-sort-kind="group"
                 :data-sort-id="group.id"
-                :class="{'editable-level': editLevel === 'group', 'sort-selected': selectedKind === 'group' && selectedId === group.id, 'sort-dragging': draggingKind === 'group' && draggingId === group.id, 'drop-target': dragOverId === group.id}"
+                data-drop-list-kind="item"
+                :data-drop-list-id="group.id"
+                :class="{'editable-level': editLevel === 'group', 'sort-selected': selectedKind === 'group' && selectedId === group.id, 'sort-dragging': draggingKind === 'group' && draggingId === group.id, 'drop-target': dragOverId === group.id, 'list-drop-target': draggingKind === 'item' && dropListId === group.id && !dragOverId}"
                 @pointerdown="editLevel === 'group' && pointerDown($event, 'group', row.groups, group.id)"
               >
                 <span v-if="editLevel === 'group'" class="group-handle" aria-hidden="true">⋮</span>
@@ -528,42 +608,49 @@ onUnmounted(pointerCancel)
       </section>
       </div>
       <button v-if="editLevel === 'section'" class="add-section" type="button" @click="addSection">＋ 添加区域</button>
+      <div v-if="editingId" class="modal-backdrop name-backdrop" @pointerdown.self="finishName(true)">
+        <section class="item-modal name-modal" role="dialog" aria-modal="true" aria-label="编辑标题">
+          <header class="modal-header"><h2>编辑标题</h2><button type="button" aria-label="关闭" @click="finishName(true)">×</button></header>
+          <ScAndTcText v-model:traditional-text="editingName.tc" v-model:simplified-text="editingName.sc"
+                       :dialect="dialect" layout="middle" />
+          <footer class="modal-footer"><button type="button" @click="finishName()">完成</button></footer>
+        </section>
+      </div>
       <div v-if="openedItem" class="modal-backdrop" @pointerdown.self="closeItem" @keydown.esc="closeItem">
         <section class="item-modal" role="dialog" aria-modal="true" aria-label="编辑拼音格子">
           <header class="modal-header">
-            <h2>{{ isUnplacedEditor ? '编辑未归类子项' : '编辑单格' }}</h2>
+            <h2 v-if="isUnplacedEditor">未归类子项</h2>
+            <input v-else-if="editingItemTitle" ref="titleInput" v-model="itemTitleDraft" class="inline-title-input"
+                   aria-label="单格标题" @blur="finishItemTitle()" @keydown.enter.prevent="finishItemTitle()"
+                   @keydown.esc.stop.prevent="finishItemTitle(true)">
+            <h2 v-else class="editable-title" @dblclick="editTitle('item')">{{ openedItem.standard === '-' ? '（占位）' : openedItem.standard || '未填写标题' }}</h2>
             <button type="button" aria-label="关闭弹窗" @click="closeItem">×</button>
           </header>
-          <div v-if="!isUnplacedEditor" class="item-fields">
-            <label>显示文字<input v-model="openedItem.standard"></label>
-          </div>
           <div class="modal-subheading"><h3>子项</h3><button v-if="!isUnplacedEditor" type="button" @click="addChild">＋ 添加子项</button></div>
           <div class="child-workspace" :class="{'unplaced-workspace': isUnplacedEditor}">
-            <div class="child-list" :class="{'child-drop-target': childDropTarget === 'opened'}"
-                 @dragover.prevent="childDropTarget = 'opened'" @drop="dropChild($event, openedItem.children)">
-              <div v-for="(child, index) in openedItem.children" :key="child.id" class="child-list-row"
+            <div ref="childListRef" class="child-list" :class="{'child-drop-target': childDropTarget === 'opened'}"
+                 @dragover.prevent="childDropTarget = 'opened'" @drop="dropChild($event, openedItem.children)" @scroll="updateChildConnector">
+              <div v-for="(child, index) in openedItem.children" :key="child.id" class="child-list-row" :data-child-id="child.id"
                    :class="{active: openedChildId === child.id, 'child-drop-target': childDropTarget === child.id}" draggable="true"
                    @dragstart="startChildDrag($event, openedItem.children, child)" @dragend="endChildDrag"
                    @dragover.prevent.stop="childDropTarget = child.id" @drop="dropOnChild($event, openedItem.children, index)">
                 <span class="child-grip" aria-hidden="true">⋮⋮</span>
-                <button type="button" @click="openedChildId = child.id">
+                <button type="button" @click="selectChild(child)">
                   <strong>{{ child.title || '未填写标题' }}</strong>
                 </button>
               </div>
               <span v-if="!openedItem.children.length" class="empty-hint">暂无子项</span>
             </div>
-            <div v-if="!isUnplacedEditor" class="unplaced-drop" :class="{'child-drop-target': childDropTarget === 'modal-unplaced'}"
-                 @dragover.prevent="childDropTarget = 'modal-unplaced'" @drop="dropChild($event, documentData.unplaced)">
-              <strong>未归类 <small>{{ documentData.unplaced.length }}</small></strong>
-              <div v-for="child in documentData.unplaced" :key="child.id" class="unplaced-child" draggable="true"
-                   @dragstart="startChildDrag($event, documentData.unplaced, child)" @dragend="endChildDrag">
-                <strong>{{ child.title || '未填写标题' }}</strong>
-              </div>
-            </div>
+            <div v-if="!isUnplacedEditor" class="overflow-drop" :class="{'child-drop-target': childDropTarget === 'modal-unplaced'}"
+                 aria-label="拖到这里移出格子" @dragover.prevent="childDropTarget = 'modal-unplaced'"
+                 @drop="dropChild($event, documentData.unplaced)">→</div>
           </div>
-          <template v-if="openedChild">
-            <div class="child-fields">
-              <label>标题<input v-model="openedChild.title" placeholder="子项标题"></label>
+          <section v-if="openedChild" :key="openedChild.id" ref="selectedEditorRef" class="selected-child-editor"
+                   :style="{'--connector-x': `${childConnectorX}px`}">
+            <div class="selected-child-header">
+              <input v-if="editingChildTitle" ref="titleInput" v-model="openedChild.title" class="inline-title-input"
+                     aria-label="子项标题" @blur="editingChildTitle = false" @keydown.enter.prevent="editingChildTitle = false">
+              <h3 v-else class="editable-title" @dblclick="editTitle('child')">{{ openedChild.title || '未填写标题' }}</h3>
               <button class="remove-button" type="button" @click="removeChild(openedChild)">删除子项</button>
             </div>
             <div class="modal-subheading">
@@ -574,14 +661,14 @@ onUnmounted(pointerCancel)
               <div v-for="(note, index) in openedChild.notes" :key="note.id" class="note-pair" :data-note-id="note.id">
                 <span class="note-number">{{ index + 1 }}</span>
                 <div class="note-fields">
-                  <label>名称
+                  <label>
                     <select :value="note.labelId" @change="selectLabel(note, $event.target.value)">
                       <option v-for="label in documentData.noteLabels" :key="label.id" :value="label.id">{{ label.text[language] || label.text.sc || '未命名' }}</option>
                     </select>
                   </label>
-                  <div>内容
+                  <div>
                     <ScAndTcText v-if="!repairIds.has(note.id)" :key="note.id" v-model:traditional-text="note.value.tc"
-                                 v-model:simplified-text="note.value.sc" :dialect="dialect" :rows="2" />
+                                 v-model:simplified-text="note.value.sc" :dialect="dialect" layout="middle" />
                     <div v-else class="pair-repair"><span>旧数据的简繁长度不同，请先核对：</span>
                       <textarea v-model="note.value.sc" rows="2" aria-label="简体内容"></textarea>
                       <textarea v-model="note.value.tc" rows="2" aria-label="繁体内容"></textarea>
@@ -595,7 +682,7 @@ onUnmounted(pointerCancel)
             <div class="note-actions">
               <button type="button" @click="addNote">＋ 添加一行</button>
             </div>
-          </template>
+          </section>
           <footer class="modal-footer"><button type="button" @click="closeItem">完成</button></footer>
         </section>
       </div>
@@ -640,8 +727,10 @@ onUnmounted(pointerCancel)
 </template>
 
 <style scoped>
-.pinyin-section-editor { box-sizing: border-box; width: 100%; max-width: 1500px; margin: 0 auto; padding: 24px 18px 60px; }
+:global(.page-container:has(.pinyin-section-editor)) { max-width: 1400px; }
+.pinyin-section-editor { box-sizing: border-box; width: 100%; max-width: 1600px; margin: 0 auto; padding: 24px 18px 60px; }
 .editor-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.editor-hint { margin: -4px 0 16px; color: #718278; font-size: 13px; }
 .level-picker { display: inline-flex; gap: 3px; padding: 4px; border: 1px solid #d7e5da; border-radius: 10px; background: #f4f7f4; }
 .level-picker button { min-width: 43px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: #68776c; cursor: pointer; }
 .level-picker button.active { background: #2e7d32; color: white; font-weight: 700; box-shadow: 0 1px 4px #1c382033; }
@@ -670,7 +759,9 @@ onUnmounted(pointerCancel)
 .accent-2 .sort-handle::before { background: #f36048; box-shadow: 0 2px 6px #f360484d; }
 .sort-handle.held { cursor: grabbing; }
 .section-name { margin: 0; flex: 1; color: #34495e; font-size: 19px; font-weight: 700; letter-spacing: 1px; user-select: none; }
-.name-input { flex: 1; min-width: 0; font-family: inherit; font-size: 19px; font-weight: 700; line-height: 1.3; color: #34495e; border: 1px solid #85b98d; border-radius: 5px; padding: 2px 5px; outline: none; }
+.row-name { cursor: text; border-bottom: 1px dashed transparent; }
+.pinyin-line.editable-level .row-name:hover, .section-card.editable-level .section-name:hover { border-bottom-color: #8fba97; }
+.list-drop-target { outline: 2px dashed #8bc6e4; outline-offset: 3px; }
 .remove-button { border: 0; background: transparent; color: #b45d5d; cursor: pointer; padding: 4px 6px; }
 .pinyin-line { border: 1px solid #dde8df; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fcfefc; }
 .pinyin-line.drop-target, .pinyin-group.drop-target { outline: 2px solid #85b98d; outline-offset: 2px; }
@@ -680,8 +771,10 @@ onUnmounted(pointerCancel)
 .structure-handle, .group-handle { border: 0; background: transparent; color: #789b7e; cursor: grab; touch-action: none; user-select: none; font-size: 18px; line-height: 1; }
 .structure-handle { width: 26px; height: 26px; }
 .line-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-height: 52px; }
-.line-groups-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; }
-.pinyin-group { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; }
+.line-groups-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-width: 100px; min-height: 42px; }
+.pinyin-group { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 5px; border: 1px solid transparent; border-radius: 9px; }
+.pinyin-group.editable-level { border-color: #cee1d2; background: #f7fbf8; }
+.pinyin-group.editable-level:hover { border-color: #94bea0; box-shadow: 0 2px 7px #294b2d14; }
 .group-handle { width: 16px; height: 32px; padding: 0; }
 .empty-group { width: 76px; height: 52px; border: 1px dashed #cbd8ce; border-radius: 10px; background: #f7faf7; color: #7b9280; cursor: pointer; }
 .add-line { border: 1px dashed #c8ddcb; border-radius: 8px; background: #fff; color: #397447; padding: 8px 14px; cursor: pointer; }
@@ -692,12 +785,18 @@ onUnmounted(pointerCancel)
 .add-section:hover { background: #f4faf4; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
 .item-modal { box-sizing: border-box; width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border-radius: 16px; background: white; padding: 22px; box-shadow: 0 18px 50px #1126184d; }
+.name-backdrop { z-index: 1002; }
+.name-modal { width: min(600px, 100%); }
+.name-modal :deep(.sc-tc-group) { margin-top: 18px; }
 .modal-header, .modal-subheading, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .modal-header { border-bottom: 1px solid #dfe8e1; padding-bottom: 12px; }
 .modal-header h2, .modal-subheading h3 { margin: 0; color: #34495e; }
 .modal-header button { border: 0; background: transparent; font-size: 25px; cursor: pointer; }
-.item-fields, .child-fields { display: flex; align-items: end; gap: 12px; margin: 16px 0; }
-.item-fields label, .child-fields label, .note-pair label { display: grid; gap: 5px; flex: 1; min-width: 0; color: #607167; font-size: 13px; }
+.note-pair label { display: grid; gap: 5px; flex: 1; min-width: 0; color: #607167; font-size: 13px; }
+.editable-title { min-width: 80px; cursor: text; border-bottom: 1px dashed transparent; }
+.editable-title:hover { border-bottom-color: #8fba97; }
+.inline-title-input { flex: 1; min-width: 0; font-size: 21px !important; font-weight: 700; }
+.selected-child-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .item-modal input, .item-modal textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd8ce; border-radius: 7px; padding: 8px 10px; color: #2a3a30; font-family: inherit; font-size: 15px; user-select: text; -webkit-user-select: text; }
 .item-modal textarea { resize: vertical; }
 .modal-subheading { margin: 20px 0 10px; }
@@ -711,21 +810,23 @@ onUnmounted(pointerCancel)
 .unplaced-child small { color: #a06336; }
 .child-drop-target { outline: 3px solid #8bc6e4 !important; background: #f1f9fd !important; }
 .child-count { position: absolute; bottom: 2px; right: 5px; font: 11px sans-serif; color: #45804d; }
-.child-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; max-height: 205px; }
+.child-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 8px; }
 .child-workspace.unplaced-workspace { grid-template-columns: 1fr; }
-.child-list, .unplaced-drop { overflow: auto; padding: 8px; border: 1px dashed #c6d7ca; border-radius: 9px; background: #fbfdfb; }
-.child-list-row { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; border: 1px solid #d4ded6; border-radius: 7px; background: white; cursor: grab; }
+.child-list { display: flex; gap: 7px; overflow-x: auto; padding: 8px; border: 1px dashed #c6d7ca; border-radius: 9px; background: #fbfdfb; min-height: 48px; }
+.overflow-drop { display: grid; place-items: center; border: 1px dashed #c6d7ca; border-radius: 9px; background: #fbfdfb; color: #809888; font-size: 25px; }
+.child-list-row { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; min-width: 88px; max-width: 180px; border: 1px solid #d4ded6; border-radius: 7px; background: white; cursor: grab; }
 .child-list-row.active { border-color: #2e7d32; background: #f2faf3; }
 .child-list-row button { display: grid; flex: 1; gap: 2px; border: 0; background: transparent; padding: 8px; text-align: left; cursor: pointer; }
 .child-list-row small { color: #708077; }
 .child-grip { padding-left: 8px; color: #809888; }
-.unplaced-drop { display: grid; align-content: start; gap: 5px; color: #748477; font-size: 12px; }
-.unplaced-drop .unplaced-child { min-width: 0; }
 .empty-hint { color: #819187; padding: 8px 0; }
+.selected-child-editor { position: relative; margin-top: 14px; padding: 14px; border: 1px solid #cbdcca; border-left: 3px solid #5eaa6b; border-radius: 9px; background: #fcfefc; }
+.selected-child-editor::before { content: ''; position: absolute; top: -15px; left: var(--connector-x); height: 14px; border-left: 2px solid #9ac9a2; }
+.selected-child-editor h3 { margin: 0; color: #34495e; font-size: 16px; }
 .note-list { display: grid; gap: 9px; }
-.note-pair { display: flex; align-items: end; gap: 9px; padding: 10px; border: 1px solid #e0e9e2; border-radius: 9px; background: #fbfdfb; }
+.note-pair { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border: 1px solid #e0e9e2; border-radius: 9px; background: white; }
 .note-number { color: #748477; align-self: start; padding-top: 5px; }
-.note-fields { display: grid; flex: 1; gap: 8px; }
+.note-fields { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); align-items: center; flex: 1; gap: 10px; }
 .note-actions { display: flex; gap: 8px; margin-top: 10px; }
 .modal-footer { border-top: 1px solid #e0e9e2; margin-top: 20px; padding-top: 14px; color: #748477; font-size: 13px; }
 .label-backdrop { z-index: 1001; }
@@ -744,8 +845,10 @@ onUnmounted(pointerCancel)
 .merge-row button { border: 1px solid #b7d1bc; border-radius: 6px; background: #f5faf5; color: #326d3b; padding: 6px 9px; cursor: pointer; }
 .note-fields select { width: 100%; padding: 8px 10px; border: 1px solid #cbd8ce; border-radius: 7px; background: #fff; color: #2a3a30; font-size: 15px; }
 .note-fields > div { color: #607167; font-size: 13px; }
-.note-fields :deep(.sc-tc-group) { margin-top: 6px; }
+.note-fields :deep(.sc-tc-group) { min-width: 0; }
+.note-fields :deep(.sc-tc-fields) { flex-direction: column; gap: 6px; }
+.note-fields :deep(.sc-tc-input--middle) { box-sizing: border-box; width: 100%; max-width: none; flex: none; }
 .pair-repair { display: grid; gap: 7px; color: #a06336; font-size: 13px; }
-@media (max-width: 700px) { .item-fields, .child-fields, .note-pair { flex-wrap: wrap; } .child-workspace { grid-template-columns: 1fr; max-height: none; } .child-list, .unplaced-drop { max-height: 170px; } }
+@media (max-width: 700px) { .note-pair { flex-wrap: wrap; } .note-fields { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .pinyin-section-editor { padding: 14px 10px 40px; } .section-card { padding: 14px; } .pinyin-line { gap: 14px; } .items-grid { grid-auto-columns: 56px; } .item-box { height: 46px; font-size: 21px; } }
 </style>

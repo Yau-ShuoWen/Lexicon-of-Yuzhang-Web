@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { request } from '../../../services/request.js'
 import { showError } from '../../../services/ToastService.js'
 
@@ -12,7 +12,8 @@ const loading = ref(false)
 const type = ref('changes')
 const searchText = ref('')
 const query = ref('')
-const page = ref(1)
+const selectedItems = ref(new Set())
+const allSelected = computed(() => !!result.value?.items.length && result.value.items.every((_, index) => selectedItems.value.has(index)))
 let requestNumber = 0
 
 const categories = [
@@ -50,9 +51,19 @@ async function compare() {
   loading.value = true
   try {
     const params = new URLSearchParams({from: fromId.value, to: toId.value,
-      type: type.value, query: query.value, page: String(page.value), size: '30'})
-    const data = await request(`${base}?${params}`)
-    if (current === requestNumber) result.value = data
+      type: type.value, query: query.value, size: '100'})
+    const first = await request(`${base}?${params}&page=1`)
+    const items = [...first.items]
+    for (let page = 2; items.length < first.total; page++) {
+      if (current !== requestNumber) return
+      const next = await request(`${base}?${params}&page=${page}`)
+      if (!next.items.length) throw new Error('差异数据未完整返回')
+      items.push(...next.items)
+    }
+    if (current === requestNumber) {
+      result.value = {...first, items}
+      selectedItems.value = new Set()
+    }
   } catch (error) {
     if (current === requestNumber) showError(`比较失败：${error.message}`)
   } finally {
@@ -67,23 +78,41 @@ function resetComparison() {
   type.value = 'changes'
   query.value = ''
   searchText.value = ''
-  page.value = 1
+  selectedItems.value = new Set()
 }
 
 function selectType(value) {
   type.value = value
-  page.value = 1
   compare()
 }
 
 function search() {
   query.value = searchText.value.trim()
-  page.value = 1
   compare()
+}
+
+function toggleItem(index) {
+  const next = new Set(selectedItems.value)
+  if (next.has(index)) next.delete(index)
+  else next.add(index)
+  selectedItems.value = next
+}
+
+function toggleAll() {
+  selectedItems.value = allSelected.value ? new Set() : new Set(result.value.items.map((_, index) => index))
 }
 
 function valuesOf(rows, column) {
   return rows.map(row => row.values[column] || '（空）').join('、')
+}
+
+function displayValuesOf(rows, column, name) {
+  return rows.map(row => {
+    const value = row.values[column]
+    if (!value) return '（空）'
+    if (name === '国际音标') return `[-${value}]`
+    return ['方言拼音', '汉语拼音', '官话拼音'].includes(name) ? `[${value}]` : value
+  }).join('、')
 }
 
 function hasChange(item, column) {
@@ -97,8 +126,7 @@ function lineNumbers(rows) {
 </script>
 
 <template>
-  <section class="panel compare-panel">
-    <h2>版本差异</h2>
+  <div class="compare-panel">
     <p class="hint">从旧版本到新版本比较。可能对应和待核对的记录不会自动视为确定修改；“本词”改名会暂列为移除和新增。</p>
     <div class="compare-selectors">
       <label>旧版本
@@ -135,13 +163,18 @@ function lineNumbers(rows) {
         <button class="primary" :disabled="loading" @click="search">查询</button>
       </div>
       <p v-if="!loading && !result.items.length" class="hint">这一类没有符合条件的记录。</p>
+      <div v-if="result.items.length" class="selection-actions">
+        <button :disabled="loading" @click="toggleAll">{{ allSelected ? '取消全选' : '全选' }}</button>
+        <span>已选 {{ selectedItems.size }} / {{ result.items.length }} 组</span>
+      </div>
       <div v-loading="loading" class="table-area">
         <table v-if="result.items.length" class="diff-table">
           <thead>
-            <tr><th class="type-column">差异</th><th class="line-column">行号</th><th v-for="name in result.columns" :key="name">{{ name }}</th></tr>
+            <tr><th class="select-column"><input type="checkbox" aria-label="全选差异" :checked="allSelected" :disabled="loading" @change="toggleAll" /></th><th class="type-column">差异</th><th class="line-column">行号</th><th v-for="name in result.columns" :key="name">{{ name }}</th></tr>
           </thead>
           <tbody>
-            <tr v-for="(item, index) in result.items" :key="`${page}-${index}`" :class="`row--${item.type}`">
+            <tr v-for="(item, index) in result.items" :key="index" :class="`row--${item.type}`">
+              <td><input type="checkbox" :aria-label="`选择第 ${index + 1} 组差异`" :checked="selectedItems.has(index)" @change="toggleItem(index)" /></td>
               <th class="type-cell"><span class="status" :class="`status--${item.type}`" :title="labels[item.type]">{{ shortLabels[item.type] }}</span></th>
               <td class="line-cell">
                 <span v-if="item.before.length">旧 {{ lineNumbers(item.before) }}</span>
@@ -149,28 +182,21 @@ function lineNumbers(rows) {
               </td>
               <td v-for="(name, cell) in result.columns" :key="name" :class="{'changed-cell': hasChange(item, cell)}">
                 <template v-if="hasChange(item, cell)">
-                  <span class="before-value">− {{ valuesOf(item.before, cell) }}</span>
-                  <span class="after-value">+ {{ valuesOf(item.after, cell) }}</span>
+                  <span class="before-value" v-formatted-text="`− ${displayValuesOf(item.before, cell, name)}`"></span>
+                  <span class="after-value" v-formatted-text="`+ ${displayValuesOf(item.after, cell, name)}`"></span>
                 </template>
-                <span v-else-if="item.after.length">{{ valuesOf(item.after, cell) }}</span>
-                <span v-else>{{ valuesOf(item.before, cell) }}</span>
+                <span v-else-if="item.after.length" v-formatted-text="displayValuesOf(item.after, cell, name)"></span>
+                <span v-else v-formatted-text="displayValuesOf(item.before, cell, name)"></span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="pagination">
-        <span>共 {{ result.total }} 组 · 第 {{ page }} / {{ Math.max(1, Math.ceil(result.total / 30)) }} 页</span>
-        <button :disabled="loading || page <= 1" @click="page--; compare()">上一页</button>
-        <button :disabled="loading || page * 30 >= result.total" @click="page++; compare()">下一页</button>
-      </div>
     </template>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.panel { margin-top: 20px; padding: 20px; border: 1px solid #dce6dd; border-radius: 12px; background: var(--el-bg-color, white); }
-.panel h2 { margin: 0 0 10px; }
 .hint { color: var(--el-text-color-secondary, #66736b); font-size: .9rem; }
 .compare-selectors, .filters, .pagination { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .compare-selectors { margin: 18px 0; }
@@ -183,6 +209,7 @@ button:disabled { opacity: .5; cursor: default; }
 .summary { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
 .summary span { padding: 7px 10px; border-radius: 7px; background: #edf5ee; }
 .filters { margin: 16px 0; }
+.selection-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 .filters input { min-width: 200px; }
 .status { display: inline-block; padding: 3px 5px; border-radius: 6px; background: #edf5ee; color: #386e44; font-size: .78rem; font-weight: 500; white-space: nowrap; }
 .status--possible, .status--conflict { background: #fff3dc; color: #885b0d; }
@@ -194,6 +221,7 @@ button:disabled { opacity: .5; cursor: default; }
 .diff-table thead th { background: #f3f7f3; }
 .diff-table tbody th { font-weight: normal; }
 .diff-table .type-column { width: 52px; }
+.diff-table .select-column { width: 38px; }
 .diff-table .line-column { width: 68px; }
 .diff-table .row--added { background: #f1faf3; }
 .diff-table .row--removed { background: #fff3f3; }

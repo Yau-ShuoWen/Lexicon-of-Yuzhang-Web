@@ -22,16 +22,18 @@ const loading = ref(false)
 const auditing = ref(false)
 const audit = ref(null)
 const auditVersionId = ref('')
-const table = ref({ columns: [], rows: [], total: 0, page: 1, size: 50 })
+const table = ref({ columns: [], rows: [], total: 0 })
 const classification = ref(null)
 const classifiedVersionId = ref('')
 const column = ref('all')
 const classFilter = ref('all')
 const auditFilter = ref('all')
 const showOriginalTable = ref(false)
+const openSection = ref('compare')
 const searchText = ref('')
 const query = ref('')
 const page = ref(1)
+const pageSize = ref(50)
 const selectedVersion = computed(() => versions.value.find(item => item.id === selectedId.value))
 const hiddenColumns = new Set(['词汇属性', '对应官话词', '官话拼音', '词频', '同义词'])
 const visibleColumns = computed(() => table.value.columns
@@ -159,16 +161,32 @@ function updateTable() {
     return (index < 0 ? group.values.flat() : group.values[index])
       .some(value => String(value).includes(query.value))
   })
-  table.value = { columns: data.columns, rows: filtered.slice((page.value - 1) * 50, page.value * 50),
-    total: filtered.length, page: page.value, size: 50 }
+  const start = (page.value - 1) * pageSize.value
+  table.value = { columns: data.columns, rows: filtered.slice(start, start + pageSize.value), total: filtered.length }
+}
+
+function resetPage() {
+  page.value = 1
+  loadRows()
 }
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString('zh-CN') : ''
 }
 
+function toggleSection(section) {
+  openSection.value = openSection.value === section ? '' : section
+}
+
 function titleOf(item) {
   return item.name || item.originalName.replace(/\.tsv$/i, '')
+}
+
+function displayCell(name, value, row) {
+  const text = name === '方言拼音' ? row.dialectDisplay || value : value
+  if (!text) return ''
+  if (name === '国际音标') return `[-${text}]`
+  return ['方言拼音', '汉语拼音', '官话拼音'].includes(name) ? `[${text}]` : text
 }
 
 function chooseFile(candidate) {
@@ -204,7 +222,7 @@ async function loadVersions(preferredId = '') {
     else {
       classification.value = null
       classifiedVersionId.value = ''
-      table.value = { columns: [], rows: [], total: 0, page: 1, size: 50 }
+      table.value = { columns: [], rows: [], total: 0 }
     }
   } catch (error) {
     showError(`读取版本失败：${error.message}`)
@@ -236,15 +254,14 @@ async function loadRows() {
 
 function search() {
   query.value = searchText.value.trim()
-  page.value = 1
-  loadRows()
+  resetPage()
 }
 
 function changeVersion() {
   page.value = 1
   audit.value = null
   auditVersionId.value = ''
-  table.value = { columns: [], rows: [], total: 0, page: 1, size: 50 }
+  table.value = { columns: [], rows: [], total: 0 }
   loadRows()
 }
 
@@ -343,11 +360,9 @@ onMounted(loadVersions)
 
 <template>
   <main class="tsv-manager">
-    <h1>字表原始资料</h1>
-    <p>上传 TSV 原件并查看各版本。这里的资料不会修改本地词典数据。</p>
-
     <section class="panel">
-      <h2>上传新版本</h2>
+      <button class="section-toggle" :aria-expanded="openSection === 'upload'" @click="toggleSection('upload')">上传新版本 <span>{{ openSection === 'upload' ? '收起' : '展开' }}</span></button>
+      <div v-if="openSection === 'upload'">
       <input ref="fileInput" class="file-input" type="file" accept=".tsv,text/tab-separated-values"
              aria-label="选择 TSV 文件" @change="onFileChange" />
       <div class="drop-zone" :class="{'drop-zone--active': dragging}" role="button" tabindex="0"
@@ -365,10 +380,12 @@ onMounted(loadVersions)
           {{ uploading ? '上传中…' : '上传版本' }}
         </button>
       </div>
+      </div>
     </section>
 
     <section class="panel">
-      <h2>版本列表</h2>
+      <button class="section-toggle" :aria-expanded="openSection === 'versions'" @click="toggleSection('versions')">版本列表 <span>{{ openSection === 'versions' ? '收起' : '展开' }}</span></button>
+      <div v-if="openSection === 'versions'">
       <p v-if="!versions.length">还没有上传版本。</p>
       <template v-else>
         <div v-for="item in versions" :key="item.id" class="version-item" :class="{'version-item--selected': item.id === selectedId}">
@@ -389,9 +406,13 @@ onMounted(loadVersions)
           </div>
         </div>
       </template>
+      </div>
     </section>
 
-    <ReferenceTsvCompare v-if="versions.length >= 2" :versions="versions" />
+    <section v-if="versions.length >= 2" class="panel">
+      <button class="section-toggle" :aria-expanded="openSection === 'compare'" @click="toggleSection('compare')">版本差异 <span>{{ openSection === 'compare' ? '收起' : '展开' }}</span></button>
+      <ReferenceTsvCompare v-if="openSection === 'compare'" :versions="versions" />
+    </section>
 
     <section v-if="selectedVersion" class="panel">
       <h2>{{ titleOf(selectedVersion) }}</h2>
@@ -401,7 +422,7 @@ onMounted(loadVersions)
             <option value="all">全部列</option>
             <option v-for="name in table.columns" :key="name" :value="name">{{ name }}</option>
           </select>
-          <select v-model="classFilter" aria-label="汉字分类" @change="page = 1; loadRows()">
+          <select v-model="classFilter" aria-label="汉字分类" @change="resetPage">
             <option value="all">全部汉字</option>
             <option value="general">一般汉字</option>
             <option value="special">非一般汉字</option>
@@ -413,14 +434,14 @@ onMounted(loadVersions)
             <option value="mandarin-missing">普通话读音未收录</option>
             <option value="not-character">不是单字</option>
           </select>
-          <select v-model="auditFilter" aria-label="后端数据" :disabled="auditing"
-                  @change="page = 1; loadRows()">
-            <option value="all">全部后端状态</option>
-            <option value="available">后端有数据</option>
-            <option value="normal">后端无异常</option>
-            <option value="missing">后端缺该字</option>
+          <select v-model="auditFilter" aria-label="数据库数据" :disabled="auditing"
+                  @change="resetPage">
+            <option value="all">全部数据库状态</option>
+            <option value="available">数据库有数据</option>
+            <option value="normal">数据库无异常</option>
+            <option value="missing">数据库缺该字</option>
             <option value="reading">读音问题</option>
-            <option value="surplus">后端多读音</option>
+            <option value="surplus">数据库多读音</option>
             <option value="form">简繁问题</option>
           </select>
           <input v-model="searchText" type="search" placeholder="输入要查找的文字" @keyup.enter="search" />
@@ -429,18 +450,18 @@ onMounted(loadVersions)
             {{ showOriginalTable ? '返回按字查看' : '查看原表格' }}
           </button>
         </div>
-        <p v-if="auditing" class="hint">正在核对后端字表…</p>
+        <p v-if="auditing" class="hint">正在核对数据库字表…</p>
         <p v-else-if="audit && auditVersionId === selectedId" class="hint">
-          已匹配后端字表 {{ audit.matchedBackendRows }} 条；后端缺 {{ new Set(audit.missingData.map(item => item.character)).size }} 字、后端缺读音 {{ audit.readingMismatches.length }} 条、后端多读音 {{ audit.backendSurplus?.length || 0 }} 条、简繁问题 {{ audit.formMismatches.length }} 条。
+          已匹配数据库字表 {{ audit.matchedBackendRows }} 条；数据库缺 {{ new Set(audit.missingData.map(item => item.character)).size }} 字、数据库缺读音 {{ audit.readingMismatches.length }} 条、数据库多读音 {{ audit.backendSurplus?.length || 0 }} 条、简繁问题 {{ audit.formMismatches.length }} 条。
         </p>
         <div class="table-scroll" v-loading="loading">
           <table v-if="showOriginalTable">
-            <thead><tr><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th><th>编辑后端字表</th></tr></thead>
+            <thead><tr><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th><th>编辑数据库字表</th></tr></thead>
             <tbody>
               <template v-for="group in table.rows" :key="group.character">
                 <tr v-for="row in group.rows" :key="row.line">
                   <td>{{ row.line }}</td>
-                  <td v-for="(value, index) in row.values" :key="index">{{ value }}</td>
+                  <td v-for="(value, index) in row.values" :key="index" v-formatted-text="displayCell(table.columns[index], value, row)"></td>
                   <td class="edit-cell"><router-link v-for="entry in audit?.backendEntries?.[group.character] || []" :key="entry.id"
                                                     :to="editLink(entry.id)" target="_blank">编辑 {{ entry.simplified }}／{{ entry.traditional }}</router-link>
                     <router-link v-if="missing(group)" :to="{name: 'HanziCreator', params: {language: route.params.language, dialect: route.params.dialect}}" target="_blank">新增该字</router-link>
@@ -450,36 +471,36 @@ onMounted(loadVersions)
             </tbody>
           </table>
           <table v-else>
-            <thead><tr><th>原文件行号</th><th v-for="item in visibleColumns" :key="item.name">{{ item.name }}</th><th>说明</th><th>编辑后端字表</th></tr></thead>
+            <thead><tr><th>原文件行号</th><th v-for="item in visibleColumns" :key="item.name">{{ item.name }}</th><th>说明</th><th>编辑数据库字表</th></tr></thead>
             <tbody>
               <tr v-for="group in table.rows" :key="group.character">
                 <td><div class="cell-list"><span v-for="line in group.lines" :key="line" class="cell-entry">{{ line }}</span></div></td>
                 <td v-for="item in visibleColumns" :key="item.index">
                   <div v-if="item.name === '方言拼音'" class="cell-list">
                     <div v-for="row in group.rows" :key="row.line" class="cell-entry">
-                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'dialectPinyin'), 'reading-tag--multiple': group.values[item.index].length > 1}">{{ row.values[item.index] }}<small v-if="missingReading(group, row.values[item.index], 'dialectPinyin')">后端缺</small></span>
+                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'dialectPinyin'), 'reading-tag--multiple': group.values[item.index].length > 1}"><span v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span><small v-if="missingReading(group, row.values[item.index], 'dialectPinyin')">数据库缺</small></span>
                     </div>
                   </div>
                   <div v-else-if="item.name === '汉语拼音'" class="cell-list">
                     <div v-for="row in group.rows" :key="row.line" class="cell-entry">
-                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'mandarinPinyin'), 'reading-tag--unmatched': !group.mandarinReadings.includes(row.values[item.index]), 'reading-tag--multiple': group.values[item.index].length > 1}">{{ row.values[item.index] }}<small v-if="!group.mandarinReadings.includes(row.values[item.index])">字典未对应</small><small v-if="missingReading(group, row.values[item.index], 'mandarinPinyin')">后端缺</small></span>
+                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'mandarinPinyin'), 'reading-tag--unmatched': !group.mandarinReadings.includes(row.values[item.index]), 'reading-tag--multiple': group.values[item.index].length > 1}"><span v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span><small v-if="!group.mandarinReadings.includes(row.values[item.index])">字典未对应</small><small v-if="missingReading(group, row.values[item.index], 'mandarinPinyin')">数据库缺</small></span>
                     </div>
                   </div>
-                  <div v-else class="cell-list"><span v-for="row in group.rows" :key="row.line" class="cell-entry">{{ row.values[item.index] }}</span></div>
+                  <div v-else class="cell-list"><span v-for="row in group.rows" :key="row.line" class="cell-entry" v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span></div>
                 </td>
                 <td class="annotation-cell">
-                  <span v-if="missing(group)" class="missing-tag">后端缺该字</span>
+                  <span v-if="missing(group)" class="missing-tag">数据库缺该字</span>
                   <span v-if="group.reasons.includes('简繁非一一对应')" class="audit-tag">简繁非一一对应</span>
                   <span v-for="relation in group.formRelations" :key="relation" class="reason">{{ relation }}</span>
                   <span v-for="reason in group.reasons.filter(value => value !== '多音字' && value !== '简繁非一一对应')" :key="reason" class="reason">{{ reason }}</span>
                   <template v-for="item in uniqueIssues(group, 'readings')" :key="`reading-${item.line}`">
-                    <span class="reason">{{ item.reason }}；后端已有：{{ item.backendReadings.join('、') || '无读音' }}</span>
+                    <span class="reason" v-formatted-text="`${item.reason}；数据库已有：${item.backendReadings.join('、') || '无读音'}`"></span>
                   </template>
-                  <span v-for="item in surplus(group)" :key="`${item.type}-${item.pinyin}`" class="reason">后端多{{ item.type }} {{ item.pinyin }}</span>
+                  <span v-for="item in surplus(group)" :key="`${item.type}-${item.pinyin}`" class="reason" v-formatted-text="`数据库多${item.type} [${item.pinyin}]`"></span>
                   <template v-for="item in uniqueIssues(group, 'forms')" :key="`form-${item.simplified}`">
                     <span class="audit-tag">简繁不完整</span>
-                    <span v-if="item.missingTraditional.length" class="reason">后端缺繁体 {{ item.missingTraditional.join('、') }}</span>
-                    <span v-if="item.unexpectedTraditional.length" class="reason">后端多繁体 {{ item.unexpectedTraditional.join('、') }}</span>
+                    <span v-if="item.missingTraditional.length" class="reason">数据库缺繁体 {{ item.missingTraditional.join('、') }}</span>
+                    <span v-if="item.unexpectedTraditional.length" class="reason">数据库多繁体 {{ item.unexpectedTraditional.join('、') }}</span>
                   </template>
                 </td>
                 <td class="edit-cell">
@@ -493,9 +514,17 @@ onMounted(loadVersions)
           <p v-if="!loading && !table.rows.length">没有符合条件的汉字。</p>
         </div>
         <div class="controls pagination">
-          <span>共 {{ table.total }} 字 · 第 {{ page }} / {{ Math.max(1, Math.ceil(table.total / 50)) }} 页</span>
+          <span>共 {{ table.total }} 字 · 第 {{ page }} / {{ Math.max(1, Math.ceil(table.total / pageSize)) }} 页</span>
+          <label for="page-size">每页</label>
+          <select id="page-size" v-model.number="pageSize" aria-label="每页字数" @change="resetPage">
+            <option :value="50">50 条</option>
+            <option :value="100">100 条</option>
+            <option :value="200">200 条</option>
+            <option :value="500">500 条</option>
+            <option :value="1000">1000 条</option>
+          </select>
           <button :disabled="loading || page <= 1" @click="page--; loadRows()">上一页</button>
-          <button :disabled="loading || page * 50 >= table.total" @click="page++; loadRows()">下一页</button>
+          <button :disabled="loading || page * pageSize >= table.total" @click="page++; loadRows()">下一页</button>
         </div>
     </section>
   </main>
@@ -506,6 +535,9 @@ onMounted(loadVersions)
 .tsv-manager h1 { margin-bottom: 8px; }
 .panel { margin-top: 20px; padding: 20px; border: 1px solid #dce6dd; border-radius: 12px; background: var(--el-bg-color, white); }
 .panel h2 { margin: 0 0 16px; }
+.section-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; font-weight: 600; text-align: left; cursor: pointer; }
+.section-toggle span { color: var(--el-text-color-secondary, #666); font-size: .9rem; font-weight: normal; }
+.section-toggle + div { margin-top: 16px; }
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
 .controls input, .controls select { padding: 8px; min-height: 36px; max-width: 100%; border: 1px solid #ccd9ce; border-radius: 7px; }
 .controls button { padding: 8px 16px; border: 1px solid #9bb8a1; border-radius: 7px; background: #fff; color: #2d6840; cursor: pointer; }
@@ -546,10 +578,10 @@ onMounted(loadVersions)
 .edit-cell a:hover { color: #174777; }
 .edit-cell a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .table-scroll { overflow: auto; min-height: 80px; }
+.pagination { justify-content: flex-end; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ddd; padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--el-fill-color-light, #f5f5f5); position: sticky; top: 0; }
-.pagination { justify-content: flex-end; }
 @media (max-width: 700px) {
   .version-item { align-items: flex-start; flex-direction: column; }
 }

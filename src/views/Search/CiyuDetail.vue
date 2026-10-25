@@ -88,7 +88,7 @@ watch(
 </script>
 
 <template>
-  <div class="broaden-layout padding-top-reset">
+  <div class="middle-layout padding-top-reset">
 
     <div v-if="loading" class="detail-skeleton dictionary-detail-style" aria-hidden="true">
       <div class="detail-skeleton-card detail-skeleton-main">
@@ -115,18 +115,19 @@ watch(
 
     <div v-else-if="data" class="detail-content dictionary-detail-style detail-ready">
 
-      <div class="block-pinyin detail-main-card">
-        <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑词条" title="编辑词条"
-                     :to="{name: 'CiyuEditor', params: {language, dialect, id: data.id}}">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </router-link>
+      <div class="block-pinyin detail-main-card" :class="{ 'detail-main-card--editable': isAdmin && data.id }">
+        <div class="detail-actions">
+          <router-link v-if="isAdmin && data.id" class="detail-edit-button" aria-label="编辑词条" title="编辑词条"
+                       :to="{name: 'CiyuEditor', params: {language, dialect, id: data.id}}">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </router-link>
+          <SpecialTag :special="data.special" type="ciyu" :dialect="dialect"/>
+        </div>
         <div class="hanzi-char" v-formatted-text="data.ciyu"/>
         <div class="pinyin-title" v-formatted-text="data.mainPy"/>
-
-        <SpecialTag :special="data.special" type="ciyu" :dialect="dialect"/>
       </div>
 
       <div v-if="data.mean?.length" class="block-mean">

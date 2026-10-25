@@ -4,5 +4,5 @@
  */
 export function convertPinyinForCopy(displayText, isIPA = false) {
     if (isIPA) return displayText.replace(/(.)\1{2}/g, '$1$1')
-    return displayText.replace('ɑ', 'a').replace('ɡ', 'g')
+    return displayText
 }

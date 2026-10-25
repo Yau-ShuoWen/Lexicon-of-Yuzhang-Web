@@ -56,6 +56,14 @@
 }
 
 .rt-pinyin {
+    font-family: 'Pinyin AG', 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+    font-size: 1.15em;
+    word-break: normal;
+    overflow-wrap: normal;
+    line-height: 1.6;
+}
+
+.rt-ipa-syllable {
     font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
     font-size: 1.15em;
     word-break: normal;
@@ -167,14 +175,15 @@
     line-height: 1;
 
     font-size: 1em;
-    font-family: 'Cambria', 'Cambria Math', 'Charis SIL', serif;
+    font-family: 'Pinyin AG', 'Cambria', 'Cambria Math', 'Charis SIL', serif;
 
     color: #07428e;
     background: transparent;
     border: none;
 
     cursor: pointer;
-    user-select: none;
+    user-select: text;
+    -webkit-user-select: text;
 
     transition: color 0.15s;
 }
@@ -347,8 +356,8 @@
     padding: 8px 12px;
     text-align: left;
     vertical-align: middle;
-    user-select: none;
-    -webkit-user-select: none;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .rt-pinyin-popup-unit {

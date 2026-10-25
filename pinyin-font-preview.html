@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>拼音 a/g 字形对照</title>
+  <style>
+    @font-face { font-family: 'Preview Charis'; src: url('./src/assets/fonts/CharisSIL-Regular.ttf'); }
+    @font-face { font-family: 'Preview Cambria'; src: url('./src/assets/fonts/cambria.ttc'); }
+    @font-face { font-family: 'Preview AG'; src: url('./src/assets/fonts/pinyin_ag.woff2'); }
+    body { max-width: 920px; margin: 36px auto; padding: 0 20px; color: #202420; font: 16px/1.6 sans-serif; }
+    h1 { font-size: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #cfd6cf; padding: 12px; text-align: left; }
+    .sample { font-size: 30px; line-height: 1.7; overflow-wrap: anywhere; }
+    .marks { font-size: 44px; letter-spacing: .08em; }
+    .old { font-family: 'Preview Cambria', 'Preview Charis', serif; }
+    .new { font-family: 'Preview AG', 'Preview Cambria', 'Preview Charis', serif; }
+    .ipa-syllable { font-family: 'Preview Cambria', 'Preview Charis', serif; }
+    .ipa-tone { font-family: 'Preview Charis', serif; }
+    code { font: 13px monospace; }
+  </style>
+</head>
+<body>
+  <h1>拼音 a/g 字形对照</h1>
+  <p>两栏使用完全相同的原始字符。选择并复制下方文字，可以核对字符本身没有改变。</p>
+  <table>
+    <thead><tr><th>样本</th><th>旧字体 Cambria / Charis SIL</th><th>新字体 a/g 字形 + 旧字体</th></tr></thead>
+    <tbody>
+      <tr><th>基本字母</th><td class="sample old">a g gang aga ang</td><td class="sample new">a g gang aga ang</td></tr>
+      <tr><th>放大看附标</th><td class="sample marks old">à á ǎ ā ȁ ȃ ȧ ä ạ</td><td class="sample marks new">à á ǎ ā ȁ ȃ ȧ ä ạ</td></tr>
+      <tr><th>组合附标</th><td class="sample old">ā á à ǎ ã ȧ ä ḁ a̩ a̱ ạ ḡ ǵ g̀ ǧ g̃ ġ g̈</td><td class="sample new">ā á à ǎ ã ȧ ä ḁ a̩ a̱ ạ ḡ ǵ g̀ ǧ g̃ ġ g̈</td></tr>
+      <tr><th>预组字符</th><td class="sample old">ā á à ǎ ã ä ạ ḡ ǵ</td><td class="sample new">ā á à ǎ ã ä ạ ḡ ǵ</td></tr>
+      <tr><th>富文本拼音 [gang]</th><td class="sample old">gang</td><td class="sample new">gang</td></tr>
+      <tr><th>富文本 IPA [-gang˦˦˦]</th><td class="sample"><span class="ipa-syllable">gang</span><span class="ipa-tone">˦˦˦</span></td><td class="sample"><span class="ipa-syllable">gang</span><span class="ipa-tone">˦˦˦</span></td></tr>
+      <tr><th>真实 IPA 字符</th><td class="sample ipa-syllable">ɑ ɡ ɑ̄ ɡ́</td><td class="sample ipa-syllable">ɑ ɡ ɑ̄ ɡ́</td></tr>
+    </tbody>
+  </table>
+  <p>使用前端开发服务器的 <code>/pinyin-font-preview.html</code> 路径打开。</p>
+</body>
+</html>

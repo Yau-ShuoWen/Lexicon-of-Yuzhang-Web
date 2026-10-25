@@ -253,6 +253,11 @@ watch(
   user-select: none;
 }
 
+.detail-main-card .pinyin-title {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .block-mean {
   background: #d7eac0;
   border-radius: var(--border-radius-lg);

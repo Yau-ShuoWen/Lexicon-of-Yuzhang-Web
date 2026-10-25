@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { request } from '../../../services/request.js'
 import { showError, showSuccess } from '../../../services/ToastService.js'
@@ -34,6 +34,10 @@ const searchText = ref('')
 const query = ref('')
 const page = ref(1)
 const pageSize = ref(50)
+const selectedCharacters = ref(new Set())
+const importing = ref(false)
+const eligibleRows = computed(() => table.value.rows.filter(group => group.general && missing(group)))
+let dragSelection = null
 const selectedVersion = computed(() => versions.value.find(item => item.id === selectedId.value))
 const hiddenColumns = new Set(['词汇属性', '对应官话词', '官话拼音', '词频', '同义词'])
 const visibleColumns = computed(() => table.value.columns
@@ -135,6 +139,10 @@ function missingReading(group, value, field) {
       || item.reason.includes('格式无法识别')))
 }
 
+function mandarinMatched(group, value) {
+  return group.mandarinReadings.includes(value.trim())
+}
+
 function matchesClassFilter(group) {
   const value = classFilter.value
   if (value === 'all') return true
@@ -146,6 +154,7 @@ function matchesClassFilter(group) {
   if (value === 'synonym') return group.reasons.includes('存在同义词')
   if (value === 'marker') return group.reasons.includes('存在新旧标记')
   if (value === 'mandarin-missing') return group.reasons.includes('普通话读音未收录')
+  if (value === 'mandarin-unmatched') return group.reasons.includes('普通话读音未对应')
   if (value === 'not-character') return group.reasons.includes('不是单字')
   return true
 }
@@ -167,7 +176,84 @@ function updateTable() {
 
 function resetPage() {
   page.value = 1
+  clearSelection()
   loadRows()
+}
+
+function setSelection(group, selected) {
+  if (!group.general || !missing(group)) return
+  if (selectedCharacters.value.has(group.character) === selected) return
+  const next = new Set(selectedCharacters.value)
+  if (selected) next.add(group.character)
+  else next.delete(group.character)
+  selectedCharacters.value = next
+}
+
+function toggleSelection(group) {
+  setSelection(group, !selectedCharacters.value.has(group.character))
+}
+
+function selectionClick(event, group) {
+  if (event.detail === 0) toggleSelection(group)
+}
+
+function startSelectionDrag(event, group) {
+  if (event.button !== 0 || importing.value || !group.general || !missing(group)) return
+  event.preventDefault()
+  dragSelection = {pointerId: event.pointerId, selected: !selectedCharacters.value.has(group.character),
+    lastIndex: table.value.rows.findIndex(item => item.character === group.character)}
+  setSelection(group, dragSelection.selected)
+}
+
+function continueSelectionDrag(event) {
+  if (!dragSelection || event.pointerId !== dragSelection.pointerId) return
+  if (event.pointerType === 'mouse' && event.buttons === 0) return stopSelectionDrag(event)
+  const row = document.elementFromPoint(event.clientX, event.clientY)?.closest('tr[data-select-character]')
+  const index = table.value.rows.findIndex(item => item.character === row?.dataset.selectCharacter)
+  if (index < 0) return
+  for (let position = Math.min(index, dragSelection.lastIndex); position <= Math.max(index, dragSelection.lastIndex); position++)
+    setSelection(table.value.rows[position], dragSelection.selected)
+  dragSelection.lastIndex = index
+}
+
+function stopSelectionDrag(event) {
+  if (!event || event.pointerId === dragSelection?.pointerId) dragSelection = null
+}
+
+function selectCurrentPage() {
+  selectedCharacters.value = new Set(eligibleRows.value.map(group => group.character))
+}
+
+function clearSelection() {
+  dragSelection = null
+  selectedCharacters.value = new Set()
+}
+
+function changePage(nextPage) {
+  page.value = nextPage
+  clearSelection()
+  loadRows()
+}
+
+async function importSelected() {
+  const characters = [...selectedCharacters.value]
+  if (!characters.length || importing.value) return
+  const accepted = await confirm({title: '批量导入汉字', message: `确定将本页选中的 ${characters.length} 个汉字导入数据库吗？`,
+    actions: [{key: true, text: '确认导入', class: 'dev-btn-small dev-normal-button'},
+      {key: false, text: '取消', class: 'dev-btn-small dev-normal-button'}]})
+  if (!accepted) return
+  importing.value = true
+  try {
+    const count = await request(`${base}/${selectedId.value}/import`, {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({characters})})
+    clearSelection()
+    await runAudit()
+    showSuccess(`已导入 ${count} 个汉字`)
+  } catch (error) {
+    showError(`导入失败：${error.message}`)
+  } finally {
+    importing.value = false
+  }
 }
 
 function formatDate(value) {
@@ -212,8 +298,10 @@ function onDrop(event) {
 async function loadVersions(preferredId = '') {
   try {
     versions.value = await request(base) || []
+    const previousId = selectedId.value
     selectedId.value = [preferredId, selectedId.value, versions.value[0]?.id]
       .find(id => versions.value.some(item => item.id === id)) || ''
+    if (selectedId.value !== previousId) clearSelection()
     if (auditVersionId.value !== selectedId.value) {
       audit.value = null
       auditVersionId.value = ''
@@ -259,6 +347,7 @@ function search() {
 
 function changeVersion() {
   page.value = 1
+  clearSelection()
   audit.value = null
   auditVersionId.value = ''
   table.value = { columns: [], rows: [], total: 0 }
@@ -356,6 +445,18 @@ async function remove(item) {
 }
 
 onMounted(loadVersions)
+onMounted(() => {
+  window.addEventListener('pointermove', continueSelectionDrag)
+  window.addEventListener('pointerup', stopSelectionDrag)
+  window.addEventListener('pointercancel', stopSelectionDrag)
+  window.addEventListener('blur', stopSelectionDrag)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', continueSelectionDrag)
+  window.removeEventListener('pointerup', stopSelectionDrag)
+  window.removeEventListener('pointercancel', stopSelectionDrag)
+  window.removeEventListener('blur', stopSelectionDrag)
+})
 </script>
 
 <template>
@@ -432,6 +533,7 @@ onMounted(loadVersions)
             <option value="synonym">存在同义词</option>
             <option value="marker">存在新旧标记</option>
             <option value="mandarin-missing">普通话读音未收录</option>
+            <option value="mandarin-unmatched">普通话读音未对应</option>
             <option value="not-character">不是单字</option>
           </select>
           <select v-model="auditFilter" aria-label="数据库数据" :disabled="auditing"
@@ -454,12 +556,20 @@ onMounted(loadVersions)
         <p v-else-if="audit && auditVersionId === selectedId" class="hint">
           已匹配数据库字表 {{ audit.matchedBackendRows }} 条；数据库缺 {{ new Set(audit.missingData.map(item => item.character)).size }} 字、数据库缺读音 {{ audit.readingMismatches.length }} 条、数据库多读音 {{ audit.backendSurplus?.length || 0 }} 条、简繁问题 {{ audit.formMismatches.length }} 条。
         </p>
+        <div class="controls selection-controls">
+          <button :disabled="auditing || importing || !eligibleRows.length" @click="selectCurrentPage">全选本页可导入汉字</button>
+          <button :disabled="importing || !selectedCharacters.size" @click="clearSelection">取消本页选择</button>
+          <span>已选 {{ selectedCharacters.size }} 字</span>
+          <button class="primary" :disabled="auditing || importing || !selectedCharacters.size" @click="importSelected">{{ importing ? '导入中…' : '导入所选汉字' }}</button>
+        </div>
+        <p class="hint selection-hint">按住选择框拖过多行，可以连续选中或取消选中。</p>
         <div class="table-scroll" v-loading="loading">
           <table v-if="showOriginalTable">
-            <thead><tr><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th><th>编辑数据库字表</th></tr></thead>
+            <thead><tr><th>选择</th><th>原文件行号</th><th v-for="name in table.columns" :key="name">{{ name }}</th><th>编辑数据库字表</th></tr></thead>
             <tbody>
               <template v-for="group in table.rows" :key="group.character">
-                <tr v-for="row in group.rows" :key="row.line">
+                <tr v-for="row in group.rows" :key="row.line" :data-select-character="group.character">
+                  <td v-if="row === group.rows[0]" :rowspan="group.rows.length"><button type="button" class="selection-toggle" role="checkbox" :aria-label="`选择 ${group.character}`" :aria-checked="selectedCharacters.has(group.character)" :class="{'selection-toggle--selected': selectedCharacters.has(group.character)}" :disabled="importing || !group.general || !missing(group)" @pointerdown="startSelectionDrag($event, group)" @click="selectionClick($event, group)" @keydown.space.prevent="toggleSelection(group)" @keydown.enter.prevent="toggleSelection(group)"><span aria-hidden="true">{{ selectedCharacters.has(group.character) ? '✓' : '' }}</span></button></td>
                   <td>{{ row.line }}</td>
                   <td v-for="(value, index) in row.values" :key="index" v-formatted-text="displayCell(table.columns[index], value, row)"></td>
                   <td class="edit-cell"><router-link v-for="entry in audit?.backendEntries?.[group.character] || []" :key="entry.id"
@@ -471,9 +581,10 @@ onMounted(loadVersions)
             </tbody>
           </table>
           <table v-else>
-            <thead><tr><th>原文件行号</th><th v-for="item in visibleColumns" :key="item.name">{{ item.name }}</th><th>说明</th><th>编辑数据库字表</th></tr></thead>
+            <thead><tr><th>选择</th><th>原文件行号</th><th v-for="item in visibleColumns" :key="item.name">{{ item.name }}</th><th>说明</th><th>编辑数据库字表</th></tr></thead>
             <tbody>
-              <tr v-for="group in table.rows" :key="group.character">
+              <tr v-for="group in table.rows" :key="group.character" :data-select-character="group.character">
+                <td><button type="button" class="selection-toggle" role="checkbox" :aria-label="`选择 ${group.character}`" :aria-checked="selectedCharacters.has(group.character)" :class="{'selection-toggle--selected': selectedCharacters.has(group.character)}" :disabled="importing || !group.general || !missing(group)" @pointerdown="startSelectionDrag($event, group)" @click="selectionClick($event, group)" @keydown.space.prevent="toggleSelection(group)" @keydown.enter.prevent="toggleSelection(group)"><span aria-hidden="true">{{ selectedCharacters.has(group.character) ? '✓' : '' }}</span></button></td>
                 <td><div class="cell-list"><span v-for="line in group.lines" :key="line" class="cell-entry">{{ line }}</span></div></td>
                 <td v-for="item in visibleColumns" :key="item.index">
                   <div v-if="item.name === '方言拼音'" class="cell-list">
@@ -483,7 +594,7 @@ onMounted(loadVersions)
                   </div>
                   <div v-else-if="item.name === '汉语拼音'" class="cell-list">
                     <div v-for="row in group.rows" :key="row.line" class="cell-entry">
-                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'mandarinPinyin'), 'reading-tag--unmatched': !group.mandarinReadings.includes(row.values[item.index]), 'reading-tag--multiple': group.values[item.index].length > 1}"><span v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span><small v-if="!group.mandarinReadings.includes(row.values[item.index])">字典未对应</small><small v-if="missingReading(group, row.values[item.index], 'mandarinPinyin')">数据库缺</small></span>
+                      <span class="reading-tag" :class="{'reading-tag--issue': missingReading(group, row.values[item.index], 'mandarinPinyin'), 'reading-tag--unmatched': !mandarinMatched(group, row.values[item.index]), 'reading-tag--multiple': group.values[item.index].length > 1}"><span v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span><small v-if="!mandarinMatched(group, row.values[item.index])">字典未对应</small><small v-if="missingReading(group, row.values[item.index], 'mandarinPinyin')">数据库缺</small></span>
                     </div>
                   </div>
                   <div v-else class="cell-list"><span v-for="row in group.rows" :key="row.line" class="cell-entry" v-formatted-text="displayCell(item.name, row.values[item.index], row)"></span></div>
@@ -523,8 +634,8 @@ onMounted(loadVersions)
             <option :value="500">500 条</option>
             <option :value="1000">1000 条</option>
           </select>
-          <button :disabled="loading || page <= 1" @click="page--; loadRows()">上一页</button>
-          <button :disabled="loading || page * pageSize >= table.total" @click="page++; loadRows()">下一页</button>
+          <button :disabled="loading || importing || page <= 1" @click="changePage(page - 1)">上一页</button>
+          <button :disabled="loading || importing || page * pageSize >= table.total" @click="changePage(page + 1)">下一页</button>
         </div>
     </section>
   </main>
@@ -532,7 +643,6 @@ onMounted(loadVersions)
 
 <style scoped>
 .tsv-manager { max-width: 1400px; margin: 0 auto; padding: 28px 20px 60px; }
-.tsv-manager h1 { margin-bottom: 8px; }
 .panel { margin-top: 20px; padding: 20px; border: 1px solid #dce6dd; border-radius: 12px; background: var(--el-bg-color, white); }
 .panel h2 { margin: 0 0 16px; }
 .section-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; font-weight: 600; text-align: left; cursor: pointer; }
@@ -544,6 +654,14 @@ onMounted(loadVersions)
 .controls button.primary { background: #397a48; border-color: #397a48; color: white; }
 .controls button.danger { color: #b23c3c; border-color: #d9abab; }
 .controls button:disabled { cursor: default; opacity: .5; }
+.selection-controls { gap: 12px; }
+.selection-controls button { min-height: 42px; padding: 9px 18px; }
+.selection-hint { margin: 4px 0 12px; }
+.selection-toggle { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #9bb8a1; border-radius: 7px; background: #fff; color: #fff; cursor: pointer; touch-action: none; }
+.selection-toggle span { display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid #6c8f73; border-radius: 4px; font-weight: bold; line-height: 1; }
+.selection-toggle--selected span { border-color: #397a48; background: #397a48; }
+.selection-toggle:disabled { opacity: .4; cursor: default; }
+.selection-toggle:focus-visible { outline: 3px solid #82b98d; outline-offset: 2px; }
 .file-input { display: none; }
 .drop-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; min-height: 160px; padding: 20px; border: 2px dashed #a9c6b0; border-radius: 12px; background: #f8fbf8; text-align: center; cursor: pointer; }
 .drop-zone:hover, .drop-zone--active { border-color: #397a48; background: #eaf5ec; }

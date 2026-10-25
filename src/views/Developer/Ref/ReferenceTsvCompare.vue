@@ -198,7 +198,7 @@ function lineNumbers(rows) {
 
 <style scoped>
 .hint { color: var(--el-text-color-secondary, #66736b); font-size: .9rem; }
-.compare-selectors, .filters, .pagination { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.compare-selectors, .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .compare-selectors { margin: 18px 0; }
 .compare-selectors label { display: flex; align-items: center; gap: 8px; }
 select, input { min-height: 36px; padding: 7px; border: 1px solid #ccd9ce; border-radius: 7px; max-width: 100%; }
@@ -231,6 +231,5 @@ button:disabled { opacity: .5; cursor: default; }
 .before-value, .after-value { display: block; }
 .before-value { color: #a43f3f; text-decoration: line-through; }
 .after-value { color: #24723b; }
-.pagination { justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 700px) { .compare-selectors label { width: 100%; justify-content: space-between; } }
 </style>

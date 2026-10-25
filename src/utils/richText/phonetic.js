@@ -18,10 +18,10 @@ function renderIPA(content) {
     let html = ''
     let index = 0
     for (const match of content.matchAll(TONE_MARKS)) {
-        if (match.index > index) html += `<span class="rt-pinyin">${content.slice(index, match.index)}</span>`
+        if (match.index > index) html += `<span class="rt-ipa-syllable">${content.slice(index, match.index)}</span>`
         html += `<span class="rt-ipa">${match[0]}</span>`
         index = match.index + match[0].length
     }
-    if (index < content.length) html += `<span class="rt-pinyin">${content.slice(index)}</span>`
+    if (index < content.length) html += `<span class="rt-ipa-syllable">${content.slice(index)}</span>`
     return html
 }

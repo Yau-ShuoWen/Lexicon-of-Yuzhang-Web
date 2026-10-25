@@ -1,48 +1,82 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { Grid, House, Monitor, Notebook, User } from '@element-plus/icons-vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Grid, House, Monitor, Notebook, Setting, User } from '@element-plus/icons-vue'
 import { isAdminUser } from '../../utils/auth.js'
 
-// 路由
 const route = useRoute()
+const router = useRouter()
+const ready = ref(false)
+const moreOpen = ref(false)
+const navContainer = ref(null)
+const currentUser = ref(null)
+const isEditing = ref(false)
+let normalViewportHeight = 0
 
-// 语言、方言和路径
-const language = computed(() => route.params.language)
-const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/${path}`
+const language = computed(() => route.params.language || 'sc')
+const dialect = computed(() => route.params.dialect || 'lac')
+const pathTo = (path) => `/${language.value}/${dialect.value}/${path}`
 const shouldShowNav = computed(() => !route.meta?.hideNav)
+const isAdmin = computed(() => isAdminUser(currentUser.value))
 
-// 当前站点形态：dict / study / dev / ysw，决定渲染哪一套导航
-const navType = computed(() => {
-  if (route.path.includes('/dict/')) return 'dict'
-  if (route.path.includes('/study/')) return 'study'
-  if (route.path.includes('/ysw/')) return 'ysw'
-  if (route.path.includes('/dev/')) return 'dev'
-  else return 'normal'
+// 开发者和作者博客沿用各自的导航；统一导航只负责进入这两个区域。
+const navMode = computed(() => {
+  if (route.path.includes('/dev/')) return 'developer'
+  if (route.path.includes('/ysw/')) return 'blog'
+  return 'main'
 })
 
-// ===== 导航滑动指示条 =====
-// 同时只渲染一套导航，共用同一个 ref
-const navRef = ref(null)
-const indicator = ref({x: 0, width: 0})
+const navItems = computed(() => {
+  if (navMode.value === 'developer') return [
+    { id: 'developer-home', label: 'nav.developer_home', to: pathTo('dev/home'), icon: Monitor },
+    { id: 'dictionary', label: 'nav.dictionary', to: pathTo('dict/home'), asset: 'search' },
+  ]
+  if (navMode.value === 'blog') return [
+    { id: 'blog-home', label: 'nav.ysw_home', to: pathTo('ysw/home'), icon: House },
+    { id: 'alphabet', label: 'personal.alphabet_table.title_short', to: pathTo('ysw/alphabet'), icon: Grid },
+    { id: 'diary', label: 'nav.diary', to: pathTo('ysw/diary'), icon: Notebook },
+    { id: 'dictionary', label: 'nav.dictionary', to: pathTo('dict/home'), asset: 'search' },
+  ]
+  return [
+    { id: 'search', label: 'nav.search', to: pathTo('dict/home'), asset: 'search' },
+    { id: 'pinyin', label: 'nav.pinyin', to: pathTo('dict/pinyin'), asset: 'pinyin' },
+    { id: 'study', label: 'nav.study', to: pathTo('study/me'), asset: 'study' },
+    { id: 'more', label: 'nav.more' },
+  ]
+})
 
-// 读取当前激活链接的位置，驱动指示条滑动
-function updateIndicator() {
-  if (!navRef.value) return
-  const active = navRef.value.querySelector('.nav-link.router-link-active')
-  if (!active) {
-    indicator.value = {x: 0, width: 0}
-    return
+const routeTab = computed(() => {
+  const path = route.path
+  if (navMode.value === 'developer') return path.endsWith('/dev/home') ? 'developer-home' : ''
+  if (navMode.value === 'blog') {
+    if (path.includes('/ysw/alphabet')) return 'alphabet'
+    if (path.includes('/ysw/diary')) return 'diary'
+    return path.endsWith('/ysw/home') ? 'blog-home' : ''
   }
-  indicator.value = {
-    x: active.offsetLeft,
-    width: active.offsetWidth,
-  }
-}
+  if (path.includes('/dict/pinyin')) return 'pinyin'
+  if (path.includes('/study/') && !path.includes('/study/profile')) return 'study'
+  if (path.includes('/dict/') && !path.includes('/dict/settings') && !path.includes('/dict/about')) return 'search'
+  return 'more'
+})
 
-const currentUser = ref(null)
-const loadCurrentUser = () => {
+const selectedTab = computed(() => navMode.value === 'main' && moreOpen.value ? 'more' : routeTab.value)
+const selectedIndex = computed(() => navItems.value.findIndex(item => item.id === selectedTab.value))
+const selectedMoreItem = computed(() => {
+  const path = route.path
+  if (path.includes('/study/profile')) return 'profile'
+  if (path.includes('/dict/settings')) return 'settings'
+  if (path.includes('/dict/about')) return 'about'
+  return ''
+})
+const moreItems = computed(() => [
+  { id: 'profile', label: 'nav.profile_center', to: pathTo('study/profile'), icon: User },
+  { id: 'settings', label: 'nav.settings', to: pathTo('dict/settings'), icon: Setting },
+  { id: 'about', label: 'nav.about', to: pathTo('dict/about'), asset: 'about' },
+  ...(isAdmin.value ? [{ id: 'developer', label: 'nav.developer', to: pathTo('dev/home'), icon: Monitor }] : []),
+  { id: 'blog', label: 'nav.author_blog', to: pathTo('ysw/home'), icon: House },
+])
+
+function loadCurrentUser() {
   try {
     const raw = localStorage.getItem('auth-user')
     currentUser.value = raw ? JSON.parse(raw) : null
@@ -50,9 +84,19 @@ const loadCurrentUser = () => {
     currentUser.value = null
   }
 }
-const isAdmin = computed(() => isAdminUser(currentUser.value))
-const isEditing = ref(false)
-let normalViewportHeight = 0
+
+function selectMoreItem(path) {
+  // 同一路由不会触发路由监听，直接收起面板即可。
+  if (route.path === path) moreOpen.value = false
+}
+
+function closeOnOutsideClick(event) {
+  if (moreOpen.value && !navContainer.value?.contains(event.target)) moreOpen.value = false
+}
+
+function closeOnEscape(event) {
+  if (event.key === 'Escape') moreOpen.value = false
+}
 
 function viewportHeight() {
   return window.visualViewport?.height ?? window.innerHeight
@@ -69,6 +113,7 @@ function isTextEntry(target) {
 function handleFocusIn(event) {
   if (!isEditing.value) normalViewportHeight = viewportHeight()
   isEditing.value = isTextEntry(event.target)
+  if (isEditing.value) moreOpen.value = false
 }
 
 function handleFocusOut() {
@@ -90,141 +135,94 @@ function handleViewportResize() {
   }
 }
 
-onMounted(() => {
+watch(() => route.fullPath, () => {
+  // 路由更新后再关闭面板，避免跨区域跳转前滑块退回原位置。
+  moreOpen.value = false
+  loadCurrentUser()
+})
+
+onMounted(async () => {
   loadCurrentUser()
   normalViewportHeight = viewportHeight()
   isEditing.value = isTextEntry(document.activeElement)
-  // 等 DOM 渲染完成后再定位指示条，避免首屏位置错误
-  nextTick(updateIndicator)
-  // 窗口尺寸变化（含字体加载完成后宽度变化）时重新对齐
-  window.addEventListener('resize', updateIndicator)
+  window.addEventListener('storage', loadCurrentUser)
   window.addEventListener('resize', handleViewportResize)
   window.visualViewport?.addEventListener('resize', handleViewportResize)
   document.addEventListener('focusin', handleFocusIn)
   document.addEventListener('focusout', handleFocusOut)
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(updateIndicator)
-  }
+  document.addEventListener('pointerdown', closeOnOutsideClick)
+  document.addEventListener('keydown', closeOnEscape)
+  await router.isReady()
+  ready.value = true
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateIndicator)
+  window.removeEventListener('storage', loadCurrentUser)
   window.removeEventListener('resize', handleViewportResize)
   window.visualViewport?.removeEventListener('resize', handleViewportResize)
   document.removeEventListener('focusin', handleFocusIn)
   document.removeEventListener('focusout', handleFocusOut)
-})
-
-// 路由切换后重新对齐指示条
-watch(route, async () => {
-  await nextTick()
-  updateIndicator()
+  document.removeEventListener('pointerdown', closeOnOutsideClick)
+  document.removeEventListener('keydown', closeOnEscape)
 })
 </script>
 
 <template>
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'dict'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
-    <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`dict/home`)" class="nav-link">
-      <span v-formatted-text="$t('nav.search')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`dict/pinyin`)" class="nav-link">
-      <span v-formatted-text="$t('nav.pinyin')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--pinyin" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`dict/about`)" class="nav-link">
-      <span v-formatted-text="$t('nav.about')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--about" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`study/me`)" class="nav-link">
-      <span v-formatted-text="$t('nav.study')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--study" aria-hidden="true"/>
-    </router-link>
-    <router-link v-if="isAdmin" :to="getPath(`dev`)" class="nav-link">
-      <span v-formatted-text="$t('nav.developer')"/>
-      <Monitor class="nav-icon" aria-hidden="true"/>
-    </router-link>
-  </nav>
+  <div v-if="ready && shouldShowNav" ref="navContainer" class="nav-container" :class="{ 'keyboard-hidden': isEditing }">
+    <nav :key="navMode" class="main-nav" :class="{ 'main-nav--two': navItems.length === 2 }" :aria-label="$t('nav.main_navigation')">
+      <span v-if="selectedIndex >= 0" class="nav-indicator" :style="{ transform: `translateX(${selectedIndex * 100}%)` }" aria-hidden="true" />
+      <template v-for="item in navItems" :key="item.id">
+        <button v-if="item.id === 'more'" type="button" class="nav-link" :class="{ 'nav-link--active': selectedTab === item.id }" :aria-expanded="moreOpen" aria-controls="main-nav-more" @click="moreOpen = !moreOpen">
+          <span v-formatted-text="$t(item.label)" />
+          <svg class="nav-icon nav-icon--more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 5h16M4 12h16M4 19h16" />
+          </svg>
+        </button>
+        <router-link v-else :to="item.to" class="nav-link" :class="{ 'nav-link--active': selectedTab === item.id }" :aria-current="routeTab === item.id ? 'page' : undefined" @click="moreOpen = false">
+          <span v-formatted-text="$t(item.label)" />
+          <span v-if="item.asset" class="nav-icon nav-icon--asset" :class="`nav-icon--${item.asset}`" aria-hidden="true" />
+          <component :is="item.icon" v-else class="nav-icon" aria-hidden="true" />
+        </router-link>
+      </template>
+    </nav>
 
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'study'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
-    <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`study/me`)" class="nav-link">
-      <span v-formatted-text="$t('nav.start_study')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--study" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`study/profile`)" class="nav-link">
-      <span v-formatted-text="$t('nav.profile_center')"/>
-      <User class="nav-icon" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`dict/home`)" class="nav-link">
-      <span v-formatted-text="$t('nav.dictionary')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
-    </router-link>
-  </nav>
-
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'dev'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
-    <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="getPath(`dev/home`)" class="nav-link">
-      <span v-formatted-text="$t('nav.developer_home')"/>
-      <Monitor class="nav-icon" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`home`)" class="nav-link">
-      <span v-formatted-text="$t('nav.dictionary')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
-    </router-link>
-  </nav>
-
-  <nav ref="navRef" v-if="shouldShowNav && navType === 'ysw'" class="main-nav" :class="{ 'keyboard-hidden': isEditing }">
-    <span class="nav-indicator" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }"/>
-    <router-link :to="{ name: 'YswHome', params: { language: language } }" class="nav-link">
-      <span v-formatted-text="$t('nav.ysw_home')"/>
-      <House class="nav-icon" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`ysw/alphabet`)" class="nav-link">
-      <span v-formatted-text="$t('personal.alphabet_table.title_short')"/>
-      <Grid class="nav-icon" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`ysw/diary`)" class="nav-link">
-      <span v-formatted-text="$t('nav.diary')"/>
-      <Notebook class="nav-icon" aria-hidden="true"/>
-    </router-link>
-    <router-link :to="getPath(`home`)" class="nav-link">
-      <span v-formatted-text="$t('nav.dictionary')"/>
-      <span class="nav-icon nav-icon--asset nav-icon--search" aria-hidden="true"/>
-    </router-link>
-  </nav>
-
-  <div v-if="shouldShowNav" class="nav-fade" :class="{ 'keyboard-hidden': isEditing }" aria-hidden="true"></div>
+    <section v-if="navMode === 'main' && moreOpen" id="main-nav-more" class="more-panel" :aria-label="$t('nav.more')">
+      <div class="more-grid">
+        <router-link v-for="item in moreItems" :key="item.id" :to="item.to" class="more-item" :class="{ 'more-item--active': selectedMoreItem === item.id }" :aria-current="selectedMoreItem === item.id ? 'page' : undefined" @click="selectMoreItem(item.to)">
+          <span v-if="item.asset === 'about'" class="more-icon more-icon--about" aria-hidden="true" />
+          <component :is="item.icon" v-else class="more-icon" aria-hidden="true" />
+          <span>{{ $t(item.label) }}</span>
+        </router-link>
+      </div>
+    </section>
+  </div>
+  <div v-if="ready && shouldShowNav" class="nav-fade" :class="{ 'keyboard-hidden': isEditing }" aria-hidden="true" />
 </template>
 
 <style scoped>
-/* 平面导航：用细边框、轻阴影和稍深的选中色区分层级。 */
-.main-nav {
+.nav-container {
   position: fixed;
+  z-index: 1000;
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 2px;
+  width: max-content;
   max-width: calc(100vw - 24px);
-  padding: 4px;
-  user-select: none;
-  -webkit-user-select: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: #f5faf5;
-  border: 1px solid #cbdccd;
-  border-radius: 17px;
-  box-shadow: 0 2px 6px rgba(37, 84, 45, 0.05),
-    0 12px 28px rgba(37, 84, 45, 0.11);
 }
 
-.main-nav::-webkit-scrollbar {
-  display: none;
+.main-nav {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px;
+  border: 1px solid #cbdccd;
+  border-radius: 17px;
+  background: #f5faf5;
+  box-shadow: 0 2px 6px rgba(37, 84, 45, .05), 0 12px 28px rgba(37, 84, 45, .11);
 }
+.main-nav--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .nav-link {
   position: relative;
@@ -233,84 +231,62 @@ watch(route, async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  text-decoration: none;
+  min-width: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
   color: #4b5c50;
+  font: inherit;
   font-weight: 500;
   line-height: 1.2;
-  letter-spacing: 0.02em;
-
-  padding: 10px 16px;
-  border-radius: 13px;
+  letter-spacing: .02em;
+  text-decoration: none;
   white-space: nowrap;
-
-  transition: color 0.3s ease;
+  cursor: pointer;
+  transition: color .2s ease;
 }
+.nav-link:hover, .nav-link--active { color: #1c5924; }
+.nav-link--active { font-weight: 650; }
 
-.nav-icon {
-  order: 1;
-  width: 17px;
-  height: 17px;
-  flex: none;
-}
+.nav-icon { order: 1; width: 17px; height: 17px; flex: none; }
+.nav-icon--more { width: 19px; height: 19px; }
+.nav-icon--asset { background: currentColor; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.nav-icon--search { -webkit-mask-image: url('../../assets/icons/search.svg'); mask-image: url('../../assets/icons/search.svg'); }
+.nav-icon--pinyin { -webkit-mask-image: url('../../assets/icons/settings/pinyin.svg'); mask-image: url('../../assets/icons/settings/pinyin.svg'); }
+.nav-icon--study { -webkit-mask-image: url('../../assets/icons/nav-study.svg'); mask-image: url('../../assets/icons/nav-study.svg'); transform: scale(1.2); }
 
-.nav-icon--asset {
-  background: currentColor;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-
-.nav-icon--search {
-  -webkit-mask-image: url('../../assets/icons/search.svg');
-  mask-image: url('../../assets/icons/search.svg');
-}
-
-.nav-icon--pinyin {
-  -webkit-mask-image: url('../../assets/icons/settings/pinyin.svg');
-  mask-image: url('../../assets/icons/settings/pinyin.svg');
-}
-
-.nav-icon--about {
-  -webkit-mask-image: url('../../assets/icons/about.svg');
-  mask-image: url('../../assets/icons/about.svg');
-}
-
-.nav-icon--study {
-  -webkit-mask-image: url('../../assets/icons/nav-study.svg');
-  mask-image: url('../../assets/icons/nav-study.svg');
-  transform: scale(1.2);
-}
-
-.nav-link:hover {
-  color: #1c5924;
-}
-
-.nav-link.router-link-active {
-  color: #1c5924;
-  font-weight: 650;
-}
-
-.nav-link.router-link-active:hover {
-  color: #1c5924;
-}
-
-/* 沿用原有的位置计算和滑动缓动，只替换指示块的外观。 */
 .nav-indicator {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  left: 0;
+  left: 5px;
+  width: calc((100% - 10px) / 4);
   border-radius: 13px;
   background: #c7e4ca;
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform, width;
+  pointer-events: none;
+  transition: transform .35s cubic-bezier(.22, 1, .36, 1);
 }
+.main-nav--two .nav-indicator { width: calc((100% - 10px) / 2); }
 
-/* 用页面底色淡化导航附近的内容，保留清晰轮廓。 */
+.more-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid #cbdccd;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(37, 84, 45, .13);
+}
+.more-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.more-item { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px; padding: 4px 2px; border-radius: 12px; color: #4b5c50; font-size: 16px; text-align: center; text-decoration: none; }
+.more-item:hover, .more-item--active { background: #e7f1e8; color: #1c5924; }
+.more-icon { width: 23px; height: 23px; }
+.more-icon--about { display: block; background: currentColor; -webkit-mask: url('../../assets/icons/about.svg') center / contain no-repeat; mask: url('../../assets/icons/about.svg') center / contain no-repeat; }
+
 .nav-fade {
   position: fixed;
   z-index: 990;
@@ -320,45 +296,17 @@ watch(route, async () => {
   height: 104px;
   pointer-events: none;
   background: var(--app-bg-color);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.64) 48%, transparent 100%);
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.64) 48%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .82) 0%, rgba(0, 0, 0, .64) 48%, transparent 100%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .82) 0%, rgba(0, 0, 0, .64) 48%, transparent 100%);
 }
 
 @media (max-width: 768px) {
-  .keyboard-hidden {
-    visibility: hidden;
-  }
-
-  .main-nav {
-    top: auto;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    width: calc(100vw - 20px);
-    max-width: 440px;
-    justify-content: space-around;
-  }
-
-  .nav-link {
-    flex: 1;
-    flex-direction: column;
-    gap: 4px;
-    padding: 7px 4px 6px;
-    text-align: center;
-    font-size: 11px;
-    line-height: 1.2;
-  }
-
-  .nav-icon {
-    order: -1;
-    width: 23px;
-    height: 23px;
-  }
-
-  .nav-fade {
-    top: auto;
-    bottom: 0;
-    height: calc(90px + env(safe-area-inset-bottom, 0px));
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.64) 52%, rgba(0, 0, 0, 0.82) 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.64) 52%, rgba(0, 0, 0, 0.82) 100%);
-  }
+  .keyboard-hidden { visibility: hidden; }
+  .nav-container { top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 20px); max-width: 440px; }
+  .nav-link { flex-direction: column; gap: 4px; padding: 7px 4px 6px; text-align: center; font-size: 11px; }
+  .nav-icon { order: -1; width: 23px; height: 23px; }
+  .nav-icon--more { width: 25px; height: 25px; }
+  .more-panel { top: auto; bottom: calc(100% + 8px); }
+  .nav-fade { top: auto; bottom: 0; height: calc(90px + env(safe-area-inset-bottom, 0px)); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, .64) 52%, rgba(0, 0, 0, .82) 100%); mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, .64) 52%, rgba(0, 0, 0, .82) 100%); }
 }
 </style>

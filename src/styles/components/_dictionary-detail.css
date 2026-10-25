@@ -1,7 +1,6 @@
 .dictionary-detail-style {
     --dictionary-card-accent: #4f8e53;
-    --dictionary-card-shadow: 0 10px 28px rgba(46, 91, 52, .09),
-        0 2px 8px rgba(31, 62, 36, .06);
+    --dictionary-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
 }
 
 .dictionary-detail-style .block-pinyin,
@@ -11,7 +10,7 @@
 .dictionary-detail-style .block-ref {
     position: relative;
     overflow: hidden;
-    border: 0;
+    border: 1px solid var(--color-border);
     box-shadow: var(--dictionary-card-shadow);
 }
 
@@ -19,20 +18,50 @@
     background: #fff;
 }
 
+.dictionary-detail-style .detail-main-card {
+    padding-right: 76px;
+}
+
+.dictionary-detail-style .detail-main-card--editable {
+    padding-right: 116px;
+}
+
+.dictionary-detail-style .detail-actions {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dictionary-detail-style .detail-actions .detail-edit-button {
+    position: static;
+}
+
 .dictionary-detail-style .block-pronunciation,
 .dictionary-detail-style .block-mean {
     --dictionary-card-accent: #609447;
-    background: #c5dfa7;
+    background: #fff;
 }
 
 .dictionary-detail-style .block-note {
     --dictionary-card-accent: #5f86a7;
-    background: #b9d9f4;
+    background: #fff;
 }
 
 .dictionary-detail-style .block-ref {
     --dictionary-card-accent: #4e9188;
-    background: #a9ddd5;
+    background: #fff;
+}
+
+.dictionary-detail-style .section-title {
+    margin: 0 0 20px;
+    color: #26352a;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
 .dictionary-detail-style .section-title::before {
@@ -40,16 +69,52 @@
     height: 22px;
     border-radius: 4px;
     background: var(--dictionary-card-accent);
-    box-shadow: 0 2px 6px color-mix(in srgb, var(--dictionary-card-accent) 30%, transparent);
 }
 
 .dictionary-detail-style .pronunciation-item,
 .dictionary-detail-style .list-item,
 .dictionary-detail-style .note-item,
 .dictionary-detail-style .ref-item {
-    border: 0;
-    background: rgba(255, 255, 255, .76);
-    box-shadow: 0 5px 15px rgba(38, 67, 42, .065);
+    border: 1px solid #b9cdbb;
+    background: #f5f8f5;
+    box-shadow: none;
+}
+
+.dictionary-detail-style .note-title,
+.dictionary-detail-style .note-item-left {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    padding: 5px 10px;
+    border: 1px solid #9fbba4;
+    border-radius: var(--border-radius-md);
+    background: #fff;
+    color: var(--color-text);
+    font-size: 1.08rem;
+    font-weight: 700;
+}
+
+.dictionary-detail-style .pronunciation-tag {
+    border: 1px solid #b9cdbb;
+    background: #dfece0;
+    color: #245c35;
+    font-weight: 600;
+}
+
+.dictionary-detail-style .word-item {
+    border: 1px solid #b9cdbb;
+    background: #e7f1e8;
+    color: #245c35;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+.dictionary-detail-style .word-item:hover,
+.dictionary-detail-style .word-item:focus-visible {
+    border-color: #8fb399;
+    background: #dbeadd;
 }
 
 .detail-ready {
@@ -57,6 +122,7 @@
 }
 
 .detail-skeleton {
+    --dictionary-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
     padding-top: 30px;
 }
 
@@ -64,7 +130,8 @@
     border-radius: var(--border-radius-lg);
     margin-bottom: 20px;
     padding: 28px;
-    background: #eef3eb;
+    background: #fff;
+    border: 1px solid var(--color-border);
     box-shadow: var(--dictionary-card-shadow);
 }
 
@@ -108,12 +175,12 @@
 
 .detail-skeleton-section {
     min-height: 178px;
-    background: #dcebcf;
+    background: #fff;
 }
 
 .detail-skeleton-section-short {
     min-height: 118px;
-    background: #dbe9f4;
+    background: #fff;
 }
 
 .detail-skeleton-heading {
@@ -131,7 +198,8 @@
 .detail-skeleton-inner {
     padding: 18px 20px;
     border-radius: var(--border-radius-md);
-    background: rgba(255, 255, 255, .58);
+    background: #f5f8f5;
+    border: 1px solid #b9cdbb;
 }
 
 .detail-skeleton-inner-title {
@@ -177,13 +245,9 @@
 }
 
 @media (max-width: 768px) {
-    .dictionary-detail-style .block-pinyin,
-    .dictionary-detail-style .block-pronunciation,
-    .dictionary-detail-style .block-mean,
-    .dictionary-detail-style .block-note,
-    .dictionary-detail-style .block-ref {
-        box-shadow: 0 7px 20px rgba(46, 91, 52, .08),
-            0 2px 6px rgba(31, 62, 36, .05);
+    .dictionary-detail-style .section-title {
+        margin-bottom: 18px;
+        font-size: 21px;
     }
 
     .detail-skeleton {

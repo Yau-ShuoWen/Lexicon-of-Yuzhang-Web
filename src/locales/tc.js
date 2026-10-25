@@ -53,6 +53,9 @@ export default {
         home: '首頁',
         pinyin: "拼音",
         search: '查詢',
+        more: '更多',
+        main_navigation: '主導航',
+        author_blog: '作者博客',
         about_us: '關於我們',
         tutorial: '教程',
         about: '關於',
@@ -61,9 +64,11 @@ export default {
     about_page: {
         about: '關於',
         version: '版本',
-        contact: '聯繫',
         thanks: '致謝',
-        statistic: '統計信息',
+        statistic: '收錄規模',
+        hanzi: '漢字',
+        words: '詞語',
+        dictionary_sections: '辭書段落',
     },
     dialect: {
         select: '選擇方言',
@@ -192,7 +197,7 @@ export default {
         github_project: "Github 專案"
     },
     pinyin_table: {
-        title: "方言拼音表",
+        title: "拼音表",
         detail_title: "拼音詳情",
         play_audio: "播放讀音",
         subtitle: "按聲母、韻母分組排列，點擊任意方格查看讀音與示例",

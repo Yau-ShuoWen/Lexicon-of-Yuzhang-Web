@@ -2,15 +2,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { formatRichText } from '../../utils/textFormatter.js'
 import { showError } from '../../services/ToastService.js'
-import PinyinDetail from "./PinyinDetail.vue";
-import TableSkeleton from "../../components/Status/TableSkeleton.vue";
+import PinyinDetail from './PinyinDetail.vue'
+import PinyinTableSkeleton from './PinyinTableSkeleton.vue'
 import { useHead } from '@vueuse/head'
-import { useI18n } from "vue-i18n";
+import { useI18n } from 'vue-i18n'
 import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
-import {tableFromDocument} from '../../utils/pinyinDocument.js'
+import { tableFromDocument } from '../../utils/pinyinDocument.js'
+import informationIcon from '../../assets/icons/about.svg'
 
 
 const route = useRoute()
@@ -79,20 +79,6 @@ function handleItemClick(item) {
   showDetail.value = true
 }
 
-/* 显示规则 */
-function formatDisplay(item) {
-
-  if (!item.exist) return ''
-
-  const s = item.standard?.trim() || ''
-
-  try {
-    return formatRichText(` ${s} `)
-  } catch {
-    return s
-  }
-}
-
 /* ---------- 监听路由变化 ---------- */
 watch([dialect, language], fetchTable)
 </script>
@@ -105,27 +91,18 @@ watch([dialect, language], fetchTable)
     <header class="pinyin-hero">
 
       <h1 class="hero-title">
-        <span class="hero-dialect">{{ $t('pinyin_table.title') }}</span>
-        <span class="hero-title-main">{{ $t('dialect.' + dialect) }}</span>
+        {{ $t('dialect.' + dialect) }}{{ $t('pinyin_table.title') }}
       </h1>
 
-      <p class="hero-subtitle">{{ $t('pinyin_table.subtitle') }}</p>
-
-      <div class="hero-hint">
-        <span class="hint-icon">i</span>
-        <span v-formatted-text="$t('pinyin_table.hint')"/>
-      </div>
+      <p class="hero-hint">
+        <img :src="informationIcon" alt="" draggable="false" />
+        <span>{{ $t('pinyin_table.hint') }}</span>
+      </p>
 
     </header>
 
     <div class="pinyin-content-host">
-      <TableSkeleton
-        v-if="showSkeleton"
-        key="skeleton"
-        :groups="3"
-        :rows="2"
-        :cols="6"
-      />
+      <PinyinTableSkeleton v-if="showSkeleton" key="skeleton" />
 
       <div v-else-if="hasData" key="content" class="pinyin-container">
         <div class="this-table-block">
@@ -137,7 +114,7 @@ watch([dialect, language], fetchTable)
               :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
           >
 
-            <div class="group-header">
+            <div class="pinyin-group-header">
               <h3>{{ grid.name }}</h3>
             </div>
 
@@ -145,16 +122,18 @@ watch([dialect, language], fetchTable)
               <div v-for="group in line.group" :key="group.id" class="pinyin-group">
                 <div class="items-grid">
 
-                  <div
+                  <button
                       v-for="(item, itemIndex) in group.item"
                       :key="item.id"
-                      class="item-box clickable"
+                      class="item-box"
                       :class="{ invalid: !item.exist }"
+                      type="button"
+                      :disabled="!item.exist"
                       :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
                       @click="handleItemClick(item)"
                   >
                     <div class="main-display" v-formatted-text="item.standard"/>
-                  </div>
+                  </button>
 
                 </div>
               </div>
@@ -176,183 +155,92 @@ watch([dialect, language], fetchTable)
 </template>
 
 
-<style>
+<style scoped>
 
 
-/* ======== Hero 标题区 ======== */
 .pinyin-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--border-radius-xl);
-  padding: 32px 28px 26px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: 28px;
   margin-bottom: 18px;
-  color: #fff;
-  background: var(--gradient-primary);
-  box-shadow: var(--shadow-lg);
-  animation: heroIn 0.6s ease both;
-}
-
-/* 装饰圆 */
-.pinyin-hero::before,
-.pinyin-hero::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.pinyin-hero::before {
-  width: 220px;
-  height: 220px;
-  right: -60px;
-  top: -90px;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.pinyin-hero::after {
-  width: 140px;
-  height: 140px;
-  left: -40px;
-  bottom: -70px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.hero-badge {
-  position: relative;
-  z-index: 1;
-  display: inline-block;
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  letter-spacing: 3px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  margin-bottom: 12px;
+  color: var(--color-text);
+  background: #c7e4ca;
+  box-shadow: var(--pinyin-card-shadow);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .hero-title {
-  position: relative;
-  z-index: 1;
-  margin: 0 0 8px;
+  margin: 0 0 14px;
+  color: #245c35;
   font-size: 30px;
   font-weight: 700;
   line-height: 1.3;
-  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
-}
-
-/* 方言名（如“南昌话”） */
-.hero-dialect {
-  color: #ffffff;
-  margin-right: 8px;
-}
-
-/* “方言拼音表”胶囊 */
-.hero-title-main {
-  display: inline-block;
-  vertical-align: middle;
-  padding: 3px 14px;
-  border-radius: 999px;
-  font-size: 19px;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.hero-subtitle {
-  position: relative;
-  z-index: 1;
-  margin: 0 0 16px;
-  font-size: 14px;
-  opacity: 0.92;
-  line-height: 1.6;
 }
 
 .hero-hint {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  gap: 7px;
+  margin: 0;
+  padding: 7px 11px;
+  border: 1px solid #a9cfb1;
+  border-radius: var(--border-radius-md);
+  color: #315f3c;
+  background: #e5f3e7;
   font-size: 13px;
-  backdrop-filter: blur(4px);
+  line-height: 1.4;
 }
 
-.hint-icon {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 700;
-  font-style: normal;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.hero-hint img {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  opacity: .72;
 }
 
 /* ======== 分组卡片 ======== */
 .attribute-group {
   background: #fff;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-xl);
+  border-radius: var(--border-radius-lg);
 
   padding: 22px 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--pinyin-card-shadow);
   animation: fadeInUp 0.55s ease both;
-  transition: box-shadow var(--transition-base);
 }
 
-
-.attribute-group:hover {
-  /*box-shadow: var(--shadow-md);*/
-}
-
-.group-header {
+.pinyin-group-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* 左侧强调条 */
-.group-header::before {
+/* 分组标记 */
+.pinyin-group-header::before {
   content: '';
   width: 6px;
   height: 22px;
   border-radius: 4px;
   background: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
 }
 
-/* 分组强调色循环 */
-.accent-0 .group-header::before {
-  background: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
-}
-
-.accent-1 .group-header::before {
+.accent-1 .pinyin-group-header::before {
   background: var(--color-secondary);
-  box-shadow: 0 2px 6px rgba(74, 111, 200, 0.3);
 }
 
-.accent-2 .group-header::before {
+.accent-2 .pinyin-group-header::before {
   background: var(--color-accent);
-  box-shadow: 0 2px 6px rgba(243, 96, 72, 0.3);
 }
 
-.group-header h3 {
+.pinyin-group-header h3 {
   margin: 0;
   font-size: 19px;
-  color: #34495e;
+  color: var(--color-text);
   font-weight: 700;
-  letter-spacing: 1px;
 }
 
 /* ======== Line（跨Group容器）======= */
@@ -387,62 +275,35 @@ watch([dialect, language], fetchTable)
 /* ======== Item ======== */
 .item-box {
   position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffffff 0%, #f2f9f0 100%);
-  border: 1.5px solid #d6e6d2;
-  border-radius: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  background: #f7faf7;
+  border: 1px solid #d6e6d2;
+  border-radius: var(--border-radius-md);
 
-  padding: 12px 6px;
+  padding: 6px;
   height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font: inherit;
 
-  /* 入场动画：opacity 0 + 错峰 delay（内联） */
   opacity: 0;
   animation: itemIn 0.45s ease forwards;
 
-  transition: transform 0.25s ease, box-shadow 0.25s ease,
-  border-color 0.25s ease, background 0.25s ease;
-}
-
-/* ======== 可点击态 ======== */
-.item-box.clickable {
   cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
 }
 
-/* 悬浮：上浮 + 放大 + 高亮 */
-.item-box.clickable:not(.invalid):hover {
-  transform: translateY(-4px) scale(1.05);
+.item-box:not(:disabled):hover,
+.item-box:not(:disabled):focus-visible {
   border-color: var(--color-primary);
-  background: linear-gradient(180deg, #ffffff 0%, #e6f4e2 100%);
-  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.18);
-  z-index: 2;
+  background: #edf5ed;
 }
 
-/* 按下：轻微回缩 */
-.item-box.clickable:not(.invalid):active {
-  transform: translateY(-1px) scale(0.98);
-  box-shadow: 0 3px 8px rgba(46, 125, 50, 0.15);
-}
-
-/* 光泽扫过 */
-/*.item-box.clickable:not(.invalid)::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -80%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  transform: skewX(-20deg);
-  opacity: 0;
-  transition: left 0.5s ease, opacity 0.2s ease;
-}*/
-
-.item-box.clickable:not(.invalid):hover::after {
-  left: 130%;
-  opacity: 1;
+.item-box:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ======== invalid ======== */
@@ -450,7 +311,7 @@ watch([dialect, language], fetchTable)
   background: #f0f2f4;
   border: 1px dashed #d3d9df;
   box-shadow: none;
-  pointer-events: none;
+  cursor: default;
 }
 
 .item-box.invalid .main-display {
@@ -484,17 +345,6 @@ watch([dialect, language], fetchTable)
 }
 
 /* ======== 入场动画 ======== */
-@keyframes heroIn {
-  from {
-    opacity: 0;
-    transform: translateY(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -518,6 +368,7 @@ watch([dialect, language], fetchTable)
 }
 
 .pinyin-layout {
+  --pinyin-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
   width: 1088px;
   padding-bottom: 100px;
 }
@@ -559,10 +410,6 @@ watch([dialect, language], fetchTable)
 
   .hero-title {
     font-size: 24px;
-  }
-
-  .hero-title-main {
-    font-size: 16px;
   }
 
   /* 每行只有一个 group */

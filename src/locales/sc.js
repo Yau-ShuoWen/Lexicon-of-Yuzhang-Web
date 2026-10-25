@@ -53,6 +53,9 @@ export default {
         home: '首页',
         pinyin: "拼音",
         search: '查询',
+        more: '更多',
+        main_navigation: '主导航',
+        author_blog: '作者博客',
         about_us: '关于我们',
         tutorial: '教程',
         settings: '设置',
@@ -61,9 +64,11 @@ export default {
     about_page: {
         about:  '关于',
         version:'版本',
-        contact: '联系',
         thanks: '致谢',
-        statistic: '统计信息',
+        statistic: '收录规模',
+        hanzi: '汉字',
+        words: '词语',
+        dictionary_sections: '辞书段落',
     },
     dialect: {
         select: '选择方言',
@@ -192,7 +197,7 @@ export default {
         github_project: "Github 项目"
     },
     pinyin_table: {
-        title: "方言拼音表",
+        title: "拼音表",
         detail_title: "拼音详情",
         play_audio: "播放读音",
         subtitle: "按声母、韵母分组排列，点击任意方格查看读音与示例",

@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AnchoredPopup from '../Window/AnchoredPopup.vue'
 import { BLOCKQUOTE_TAG_MAP } from '../../utils/blockquote.js'
 
 // props
@@ -21,6 +22,12 @@ const props = defineProps({
 
 const {t} = useI18n()
 const key = computed(() => 'l' + props.special)
+const trigger = ref(null)
+const visible = ref(false)
+let locked = false
+let popupHovered = false
+let showTimer = null
+let hideTimer = null
 
 // icon 映射
 const iconMap = {
@@ -39,8 +46,7 @@ const iconSrc = computed(() => {
 const neutralTheme = {
   accent: '#737a76',
   bg: '#f5f5f5',
-  headerBg: '#e7e9e8',
-  iconBg: '#cfd3d1'
+  headerBg: '#e7e9e8'
 }
 
 const themeMap = {
@@ -54,11 +60,9 @@ const themeMap = {
 const themeStyle = computed(() => {
   const theme = themeMap[key.value] || neutralTheme
   return {
-    '--bq-accent': theme.accent,
-    '--bq-bg': theme.bg,
-    '--bq-header-bg': theme.headerBg,
-    '--bq-icon-bg': theme.iconBg,
-    '--bq-text': theme.text || theme.accent
+    '--special-accent': theme.accent,
+    '--special-bg': theme.bg,
+    '--special-hover-bg': theme.headerBg
   }
 })
 
@@ -70,13 +74,121 @@ const text = computed(() => {
     dialect: t(`dialect.${props.dialect}`)
   })
 })
+
+const canHover = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
+function clearTimers() {
+  window.clearTimeout(showTimer)
+  window.clearTimeout(hideTimer)
+}
+
+function onTriggerEnter() {
+  if (!canHover() || locked) return
+  clearTimers()
+  showTimer = window.setTimeout(() => { visible.value = true }, 300)
+}
+
+function onTriggerLeave() {
+  window.clearTimeout(showTimer)
+  if (!canHover() || locked) return
+  hideTimer = window.setTimeout(() => {
+    if (!popupHovered) visible.value = false
+  }, 120)
+}
+
+function onTriggerClick() {
+  clearTimers()
+  if (visible.value && locked) {
+    visible.value = false
+    return
+  }
+  locked = true
+  visible.value = true
+}
+
+function onPopupEnter() {
+  popupHovered = true
+  window.clearTimeout(hideTimer)
+}
+
+function onPopupLeave() {
+  popupHovered = false
+  if (locked || !canHover()) return
+  hideTimer = window.setTimeout(() => { visible.value = false }, 120)
+}
+
+watch(visible, open => {
+  if (!open) {
+    clearTimers()
+    locked = false
+    popupHovered = false
+  }
+})
+
+onBeforeUnmount(clearTimers)
 </script>
 
 <template>
-  <blockquote class="rt-blockquote rt-blockquote-tag" :style="themeStyle">
-    <div class="rt-blockquote__header">
-      <img :src="iconSrc" class="rt-blockquote__icon" alt="" aria-hidden="true" />
-      <span class="rt-blockquote__title" v-formatted-text="text" />
-    </div>
-  </blockquote>
+  <button
+    ref="trigger"
+    class="special-tag-trigger"
+    :style="themeStyle"
+    type="button"
+    :aria-label="text"
+    aria-haspopup="dialog"
+    :aria-expanded="visible"
+    @mouseenter="onTriggerEnter"
+    @mouseleave="onTriggerLeave"
+    @click="onTriggerClick"
+  >
+    <img :src="iconSrc" alt="" aria-hidden="true" />
+  </button>
+
+  <AnchoredPopup
+    v-model="visible"
+    :anchor="trigger"
+    @mouseenter="onPopupEnter"
+    @mouseleave="onPopupLeave"
+  >
+    <p class="special-tag-description">{{ text }}</p>
+  </AnchoredPopup>
 </template>
+
+<style scoped>
+.special-tag-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border: 1px solid var(--special-accent);
+  border-radius: var(--border-radius-md);
+  background: var(--special-bg);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.special-tag-trigger:hover,
+.special-tag-trigger[aria-expanded="true"] {
+  background: var(--special-hover-bg);
+}
+
+.special-tag-trigger:focus-visible {
+  outline: 2px solid var(--special-accent);
+  outline-offset: 2px;
+}
+
+.special-tag-trigger img {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.special-tag-description {
+  width: min(360px, calc(100vw - 56px));
+  margin: 0;
+  padding: 14px 16px;
+  line-height: 1.6;
+}
+</style>

@@ -1,33 +1,41 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { showError } from "../services/ToastService.js";
+import { showError } from '../services/ToastService.js'
 import { useI18n } from 'vue-i18n'
-import DialectSelector from "../components/Select/DialectSelector.vue";
-import LanguageSelector from "../components/Select/LanguageSelector.vue";
 import { useHead } from '@vueuse/head'
-import { isAdminUser } from '../utils/auth.js'
 import { request } from '../services/request.js'
 
-const {t} = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
 
 const loading = ref(true)
-const result = ref('')
-const currentUser = ref(null)
+const result = ref({})
 
 useHead({
-  title: () => `${t('nav.about_us')}`
+  title: () => t('nav.about_us')
 })
-
-const staggerDelay = (n) => ({'--card-delay': `${n * 110}ms`})
 
 const statisticItems = computed(() =>
     Array.isArray(result.value?.statistic) ? result.value.statistic : []
 )
+
+const metricLabels = computed(() => [
+  t('about_page.hanzi'),
+  t('about_page.words'),
+  t('about_page.dictionary_sections')
+])
+
+const metricItems = computed(() => statisticItems.value.slice(4, 7).map((item, index) => ({
+  value: String(item.right ?? '').match(/\d+/)?.[0] ?? item.right,
+  label: metricLabels.value[index]
+})))
+
+const timelineFacts = computed(() => statisticItems.value.slice(0, 2))
+const versionFacts = computed(() => statisticItems.value.slice(2, 4))
 
 const thanksItems = computed(() =>
     Array.isArray(result.value?.thanks) ? result.value.thanks : []
@@ -47,21 +55,7 @@ const fetchAbout = async () => {
   }
 }
 
-const loadCurrentUser = () => {
-  try {
-    const raw = localStorage.getItem('auth-user')
-    currentUser.value = raw ? JSON.parse(raw) : null
-  } catch {
-    currentUser.value = null
-  }
-}
-
-const isAdmin = computed(() => isAdminUser(currentUser.value))
-loadCurrentUser()
-
-watch([language, dialect], () => {
-  fetchAbout()
-}, {immediate: true})
+watch([language, dialect], fetchAbout, {immediate: true})
 </script>
 
 <template>
@@ -73,11 +67,10 @@ watch([language, dialect], () => {
 
         <div class="skeleton-left">
           <div class="skeleton feature-skeleton"></div>
-          <div class="skeleton selector-skeleton"></div>
         </div>
 
         <div class="skeleton-right">
-          <div v-for="i in 3" :key="i" class="skeleton side-skeleton">
+          <div v-for="i in 2" :key="i" class="skeleton side-skeleton">
             <div class="skeleton-bar skeleton-bar-title" :style="{ width: (46 + i * 10) + '%' }"></div>
             <div class="skeleton-bar" :style="{ width: (92 - i * 5) + '%' }"></div>
             <div class="skeleton-bar" :style="{ width: (84 - i * 4) + '%' }"></div>
@@ -91,84 +84,56 @@ watch([language, dialect], () => {
 
         <div class="left-column">
 
-          <section class="about-feature enter-card" :style="staggerDelay(1)">
+          <section class="about-feature">
             <h2 class="card-title" v-formatted-text="$t('about_page.about')"/>
             <div class="card-body" v-formatted-text="result.about"/>
           </section>
-
-          <div class="selector-container enter-card" :style="staggerDelay(2)">
-            <LanguageSelector/>
-            <DialectSelector/>
-          </div>
 
         </div>
 
         <div class="right-column">
 
-          <section class="side-card enter-card" :style="staggerDelay(3)">
+          <section class="side-card">
             <h2 class="card-title" v-formatted-text="$t('about_page.statistic')"/>
 
             <div class="stat-grid">
-              <div v-for="(s, i) in statisticItems" :key="i" class="stat-item">
-                <span class="stat-label" v-formatted-text="s.left"/>
-                <span class="stat-value" v-formatted-text="s.right"/>
+              <div v-for="(item, i) in metricItems" :key="i" class="stat-item">
+                <span class="stat-value">{{ item.value }}</span>
+                <span class="stat-label">{{ item.label }}</span>
+              </div>
+            </div>
+            <div class="stat-facts">
+              <div class="stat-fact-group">
+                <div v-for="(item, i) in timelineFacts" :key="i" class="stat-fact">
+                  <span v-formatted-text="item.left"/> <strong v-formatted-text="item.right"/>
+                </div>
+              </div>
+              <div class="stat-fact-group">
+                <div v-for="(item, i) in versionFacts" :key="i" class="stat-fact">
+                  <span v-formatted-text="item.left"/> <strong v-formatted-text="item.right"/>
+                </div>
               </div>
             </div>
           </section>
 
-          <section class="side-card enter-card" :style="staggerDelay(4)">
+          <section class="side-card">
             <h2 class="card-title" v-formatted-text="$t('about_page.thanks')"/>
 
             <ul class="thanks-list">
               <li
                   v-for="(item, i) in thanksItems"
                   :key="i"
-                  class="thanks-item enter-item"
-                  :style="{ '--item-delay': `${i * 90}ms` }"
+                  class="thanks-item"
               >
                 <span class="thanks-text" v-formatted-text="item"/>
               </li>
             </ul>
           </section>
 
-          <section class="side-card enter-card" :style="staggerDelay(5)">
-            <h2 class="card-title" v-formatted-text="$t('about_page.contact')"/>
-
-            <div class="contact-list">
-
-              <a href="https://github.com/Yau-ShuoWen" target="_blank" class="contact-item">
-                <span class="contact-icon">
-                  <img src="../assets/icons/github.svg" alt="GitHub"/>
-                </span>
-                <span class="contact-text">{{ $t('about.github_project') }}</span>
-              </a>
-
-              <div class="contact-item">
-                <span class="contact-icon">
-                  <img src="../assets/icons/qq.svg" alt="QQ"/>
-                </span>
-                <span class="contact-text">QQ交流群：496423006</span>
-              </div>
-
-              <a href="https://beian.miit.gov.cn" target="_blank" class="contact-item">
-                <span class="contact-icon">
-                  <img src="../assets/icons/icp.svg" alt="ICP"/>
-                </span>
-                <span class="contact-text">蜀ICP备 2026005399号</span>
-              </a>
-
-              <router-link
-                  :to="{ name: 'YswHome', params: { language: language } }"
-                  class="contact-item"
-              >
-                <span class="contact-icon">
-                  <img src="../assets/icons/developer.svg" alt="developer"/>
-                </span>
-                <span class="contact-text">{{ `說文的屋里（彩蛋）` }}</span>
-              </router-link>
-
-            </div>
-          </section>
+          <a class="icp-link" href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer">
+            <img src="../assets/icons/icp.svg" alt="" />
+            <span>蜀ICP备2026005399号</span>
+          </a>
 
         </div>
 
@@ -179,8 +144,12 @@ watch([language, dialect], () => {
 </template>
 
 <style scoped>
-/* keep original about page styling */
+.broaden-layout {
+  --about-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
+}
+
 .about-layout {
+  --about-content-indent: 22px;
   display: flex;
   gap: 26px;
   align-items: flex-start;
@@ -196,71 +165,19 @@ watch([language, dialect], () => {
   min-width: 0;
 }
 
-@media (max-width: 768px) {
-  .about-layout, .skeleton-layout {
-    flex-direction: column;
-  }
-
-  .left-column, .right-column, .skeleton-left, .skeleton-right {
-    width: 100%;
-  }
-
-  .about-feature {
-    padding: 24px 0px;
-  }
-
-  .side-card {
-    padding: 20px 18px;
-  }
-
-  .contact-icon {
-    width: 34px;
-    height: 34px;
-  }
-
-  .selector-container {
-    gap: 12px;
-    padding: 12px;
-  }
-}
-
 .about-feature {
-  position: relative;
-  overflow: hidden;
-  background: #a5d89a;
+  background: #fff;
   color: var(--color-text);
-  border-radius: var(--border-radius-xl);
-  padding: 30px 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: 22px 18px;
   margin-bottom: 26px;
-  box-shadow: 0 8px 24px rgba(46, 125, 50, 0.14);
-}
-
-.about-feature::before, .about-feature::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.about-feature::before {
-  width: 220px;
-  height: 220px;
-  right: -70px;
-  top: -90px;
-  background: rgba(46, 125, 50, 0.08);
-}
-
-.about-feature::after {
-  width: 150px;
-  height: 150px;
-  left: -50px;
-  bottom: -80px;
-  background: rgba(46, 125, 50, 0.06);
+  box-shadow: var(--about-card-shadow);
 }
 
 .about-feature .card-body {
-  position: relative;
-  z-index: 1;
+  padding-top: 0;
+  padding-left: 14px;
   color: var(--color-text);
   line-height: 1.8;
 }
@@ -273,16 +190,15 @@ watch([language, dialect], () => {
 .about-feature :deep(.rt-hr) {
   border: none;
   margin: 18px 0;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary-light) 0%, rgba(46, 125, 50, 0.12) 100%);
+  height: 1px;
+  background: var(--color-border);
 }
 
 .side-card {
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbf5 100%);
+  background: #fff;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-xl);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--about-card-shadow);
   padding: 22px 18px;
   margin-bottom: 26px;
 }
@@ -310,18 +226,16 @@ watch([language, dialect], () => {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-left: var(--about-content-indent);
 }
 
 .stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #f2f9f0 100%);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-lg);
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
 }
 
 .stat-label {
@@ -330,11 +244,40 @@ watch([language, dialect], () => {
 }
 
 .stat-value {
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   font-weight: 700;
   color: var(--color-primary);
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.stat-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 0 var(--about-content-indent);
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-light);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+
+.stat-fact-group {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.stat-fact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+}
+
+.stat-fact strong {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .thanks-list {
@@ -343,76 +286,34 @@ watch([language, dialect], () => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0px;
+  gap: 0;
 }
 
 .thanks-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
   padding: 4px 8px;
   line-height: 1.65;
-  opacity: 0;
-  animation: item-enter 0.45s ease forwards;
-  animation-delay: calc(var(--card-delay, 0ms) + var(--item-delay, 0ms));
 }
 
-.contact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  border-radius: 10px;
-  color: var(--color-text);
-  text-decoration: none;
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--transition-base), color var(--transition-base);
-  border: none;
-  background: transparent;
-  width: 100%;
-  text-align: left;
-}
-
-.contact-item:hover {
-  background: rgba(46, 125, 50, 0.07);
-  color: var(--color-primary);
-}
-
-.contact-icon {
+.icp-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(46, 125, 50, 0.10);
+  gap: 7px;
+  margin: 0 2px;
+  color: var(--color-text-light);
+  font-size: .8rem;
+  text-decoration: none;
 }
 
-.contact-icon img {
-  width: 18px;
-  height: 18px;
+.icp-link:hover,
+.icp-link:focus-visible {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
 }
 
-.selector-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbf5 100%);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-xl);
-  box-shadow: var(--shadow-sm);
+.icp-link img {
+  width: 16px;
+  height: 16px;
+  opacity: .65;
 }
 
 .skeleton-layout {
@@ -437,9 +338,10 @@ watch([language, dialect], () => {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.65);
+  background: #fff;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-xl);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--about-card-shadow);
 }
 
 .skeleton::after {
@@ -453,12 +355,6 @@ watch([language, dialect], () => {
 
 .feature-skeleton {
   height: 360px;
-  margin-bottom: 26px;
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.28) 0%, rgba(46, 125, 50, 0.34) 100%);
-}
-
-.selector-skeleton {
-  height: 66px;
 }
 
 .side-skeleton {
@@ -475,7 +371,6 @@ watch([language, dialect], () => {
 .skeleton-bar-title {
   height: 22px;
   margin: 0 0 18px;
-  background: linear-gradient(90deg, #d4e5d0 0%, #c2d8bd 100%);
 }
 
 .page-fade-enter-active, .page-fade-leave-active {
@@ -486,42 +381,29 @@ watch([language, dialect], () => {
   opacity: 0;
 }
 
-.enter-card {
-  animation: card-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-@keyframes card-enter {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes item-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes skeleton-shimmer {
   100% {
     transform: translateX(100%);
   }
 }
 
+@media (max-width: 768px) {
+  .about-layout, .skeleton-layout {
+    flex-direction: column;
+  }
+
+  .left-column, .right-column, .skeleton-left, .skeleton-right {
+    width: 100%;
+  }
+
+  .about-feature, .side-card {
+    padding: 20px 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .enter-card, .thanks-item, .skeleton::after, .contact-item, .contact-icon, .contact-icon img {
+  .skeleton::after {
     animation: none !important;
-    transition: none !important;
   }
 }
 </style>

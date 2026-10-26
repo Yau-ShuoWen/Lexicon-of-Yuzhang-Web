@@ -9,7 +9,8 @@ const props = defineProps({
   dialect: {type: String, required: true},
   allPinyin: {type: Boolean, default: false},
   dict: {type: String, default: null},
-  copyable: {type: Boolean, default: false}
+  copyable: {type: Boolean, default: false},
+  plain: {type: Boolean, default: false}
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -87,7 +88,7 @@ watch(
   <div
       v-if="result"
       class="result"
-      :class="isValid ? 'valid' : 'invalid'"
+      :class="plain ? 'plain' : (isValid ? 'valid' : 'invalid')"
       v-formatted-text="result"
   ></div>
 </template>
@@ -109,5 +110,12 @@ watch(
 .invalid {
   background-color: #fff1f0;
   border: 2px solid #bc4c47;
+}
+
+.plain {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
 }
 </style>

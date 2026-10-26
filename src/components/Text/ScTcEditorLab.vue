@@ -1,11 +1,13 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { request } from '../../services/request.js'
+import RichText from './RichText.vue'
 import { MACHINE_SC, MACHINE_TC, packPair, retainTranslated, unpackPair } from '../../utils/scTcLab.js'
 import { actionsExpanded } from '../../utils/scTcEditorPreferences.js'
 import writingIcon from '../../assets/书写.svg'
 import expandIcon from '../../assets/icons/to-down.svg'
 import collapseIcon from '../../assets/icons/to-up.svg'
+import eyeIcon from '../../assets/icons/eye-open.svg'
 
 const props = defineProps({ pair: { type: Object, required: true }, dialect: { type: String, required: true }, mode: { type: String, required: true } })
 const emit = defineEmits(['update:pair', 'draft-change'])
@@ -14,6 +16,15 @@ const draft = ref({ sc: '', tc: '' })
 const marker = ref('')
 const busy = ref(false)
 const error = ref('')
+const hovered = ref(false)
+const previewVisible = ref(false)
+const previewPinned = ref(false)
+const previewHeld = ref(false)
+const previewBusy = ref(false)
+const previewError = ref('')
+const previewData = ref({ sc: '', tc: '' })
+const previewMode = ref('pair')
+let previewVersion = 0
 const changed = computed(() => draft.value.sc !== saved.value.sc || draft.value.tc !== saved.value.tc)
 const tcDirty = computed(() => draft.value.tc !== saved.value.tc)
 const scDirty = computed(() => draft.value.sc !== saved.value.sc)
@@ -103,6 +114,70 @@ async function previewPair() {
   return { ...draft.value, [target]: translated }
 }
 
+async function openPreview(pinned = false) {
+  const version = ++previewVersion
+  previewPinned.value = pinned
+  previewMode.value = props.mode
+  previewVisible.value = true
+  previewBusy.value = true
+  previewError.value = ''
+  try {
+    const pair = await previewPair()
+    if (version === previewVersion && previewVisible.value) previewData.value = pair
+  } catch (e) {
+    if (version === previewVersion && previewVisible.value) previewError.value = e.message || '预览失败'
+  } finally {
+    if (version === previewVersion) previewBusy.value = false
+  }
+}
+
+function closePreview() {
+  previewVersion++
+  previewVisible.value = false
+  previewPinned.value = false
+  previewHeld.value = false
+  previewBusy.value = false
+}
+
+function togglePreview() {
+  if (previewVisible.value && previewPinned.value) closePreview()
+  else openPreview(true)
+}
+
+function onPreviewKeydown(event) {
+  if (event.key !== 'F2' || !hovered.value || event.repeat || previewHeld.value) return
+  event.preventDefault()
+  previewHeld.value = true
+  if (!previewVisible.value) openPreview(false)
+}
+
+function onPreviewKeyup(event) {
+  if (event.key !== 'F2' || !previewHeld.value) return
+  previewHeld.value = false
+  if (!previewPinned.value) closePreview()
+}
+
+function onPointerLeave() {
+  hovered.value = false
+  if (previewHeld.value && !previewPinned.value) closePreview()
+}
+
+function onWindowBlur() {
+  if (previewHeld.value && !previewPinned.value) closePreview()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onPreviewKeydown)
+  window.addEventListener('keyup', onPreviewKeyup)
+  window.addEventListener('blur', onWindowBlur)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onPreviewKeydown)
+  window.removeEventListener('keyup', onPreviewKeyup)
+  window.removeEventListener('blur', onWindowBlur)
+  previewVersion++
+})
+
 async function synchronizeTranslation(source, nextMarker) {
   const target = source === 'sc' ? 'tc' : 'sc'
   const snapshot = draft.value[source]
@@ -132,11 +207,12 @@ function onKeydown(event) {
   }
 }
 
-defineExpose({ synchronize, previewPair, hasPendingChanges: () => changed.value })
+defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 </script>
 
 <template>
-  <div class="lab-editor">
+  <div class="lab-editor" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
+    <div class="lab-editor__top"><button type="button" class="lab-preview-button" title="预览（按住 F2）" aria-label="预览，按住 F2 可暂时查看" @click="togglePreview"><img :src="eyeIcon" alt="" />预览</button></div>
     <p v-if="mode === 'pair' && tcDirty && scDirty" class="lab-invalid" role="status">简体和繁体都有待同步修改</p>
     <div class="lab-fields">
       <label v-if="mode !== 'sc'" class="lab-field">
@@ -171,11 +247,23 @@ defineExpose({ synchronize, previewPair, hasPendingChanges: () => changed.value 
       </div>
     </div>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
+    <div v-if="previewVisible" class="lab-preview-overlay" role="dialog" aria-label="文本预览">
+      <div class="lab-preview-heading"><strong>{{ previewMode === 'sc' ? '简体预览' : previewMode === 'tc' ? '繁体预览' : '简繁对照预览' }}</strong><button type="button" @click="closePreview" aria-label="关闭预览">关闭</button></div>
+      <p v-if="previewBusy">正在生成预览…</p>
+      <p v-else-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
+      <div v-else class="lab-preview-content" :class="{ 'lab-preview-content--single': previewMode !== 'pair' }">
+        <section v-if="previewMode !== 'sc'"><h3>繁体</h3><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" plain /></section>
+        <section v-if="previewMode !== 'tc'"><h3>简体</h3><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" plain /></section>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.lab-editor { padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
+.lab-editor { position: relative; padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
+.lab-editor__top { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.lab-preview-button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #315e40; padding: 4px 0; cursor: pointer; }
+.lab-preview-button img { width: 18px; height: 18px; }
 .lab-invalid { margin: 0 0 14px; color: #ad4a34; font-size: .88rem; }
 .lab-fields { display: flex; gap: 18px; flex-wrap: wrap; }
 .lab-field { display: grid; gap: 9px; flex: 1; min-width: 230px; color: #294535; font-weight: 650; }
@@ -196,4 +284,12 @@ defineExpose({ synchronize, previewPair, hasPendingChanges: () => changed.value 
 .lab-action:disabled { opacity: .5; cursor: not-allowed; }
 .lab-action svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lab-error { color: #b42318; margin: 12px 0 0; }
+.lab-preview-overlay { position: absolute; inset: 0; z-index: 3; overflow: auto; padding: 22px 24px; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(26, 52, 34, .13); }
+.lab-preview-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.lab-preview-heading button { border: 0; background: transparent; color: #315e40; cursor: pointer; }
+.lab-preview-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.lab-preview-content--single { grid-template-columns: 1fr; }
+.lab-preview-content section { min-width: 0; }
+.lab-preview-content h3 { margin: 0 0 12px; font-size: 1rem; }
+@media (max-width: 620px) { .lab-preview-content { grid-template-columns: 1fr; } }
 </style>

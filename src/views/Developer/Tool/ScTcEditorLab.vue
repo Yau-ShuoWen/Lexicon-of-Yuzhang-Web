@@ -3,8 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
-import RichText from '../../../components/Text/RichText.vue'
-import eyeIcon from '../../../assets/icons/eye-open.svg'
 import { request } from '../../../services/request.js'
 import { MACHINE_SC, MACHINE_TC, packPair, unpackPair } from '../../../utils/scTcLab.js'
 
@@ -26,10 +24,6 @@ const editor = ref(null)
 const busy = ref(false)
 const notice = ref('')
 const error = ref('')
-const previewOpen = ref(false)
-const previewBusy = ref(false)
-const previewPair = ref({ sc: '', tc: '' })
-const previewMode = ref('pair')
 const liveDraft = ref({ sc: '', tc: '' })
 
 function readableOriginal(value) {
@@ -82,17 +76,6 @@ async function write() {
   finally { busy.value = false }
 }
 
-async function openPreview() {
-  error.value = ''
-  previewBusy.value = true
-  try {
-    previewPair.value = await editor.value.previewPair()
-    previewMode.value = mode.value
-    previewOpen.value = true
-  } catch (e) { error.value = e.message }
-  finally { previewBusy.value = false }
-}
-
 function onLegacySynced(value) { setPair({ sc: value.sc, tc: value.tc }) }
 function onLegacyClear() { setPair({ sc: '', tc: '' }) }
 
@@ -115,7 +98,6 @@ read()
       <div class="lab-actions">
         <button type="button" :disabled="busy" @click="read">读取</button>
         <button type="button" class="primary" :disabled="busy" @click="write">{{ busy ? '处理中…' : '写入' }}</button>
-        <button type="button" :disabled="previewBusy" @click="openPreview"><img :src="eyeIcon" alt="" />{{ previewBusy ? '准备预览…' : '预览' }}</button>
       </div>
     </div>
     <p v-if="notice" role="status">{{ notice }}</p>
@@ -148,13 +130,6 @@ read()
         </div>
       </div>
     </section>
-    <el-dialog v-model="previewOpen" :title="previewMode === 'sc' ? '简体预览' : previewMode === 'tc' ? '繁体预览' : '简繁对照预览'"
-               :width="previewMode === 'pair' ? 'min(860px, 94vw)' : 'min(560px, 94vw)'" append-to-body>
-      <div class="lab-preview" :class="{ 'lab-preview--single': previewMode !== 'pair' }">
-        <section v-if="previewMode !== 'sc'"><h3>繁体</h3><RichText :key="`tc-${previewPair.tc}`" :model-value="previewPair.tc" language="tc" :dialect="dialect" plain /></section>
-        <section v-if="previewMode !== 'tc'"><h3>简体</h3><RichText :key="`sc-${previewPair.sc}`" :model-value="previewPair.sc" language="sc" :dialect="dialect" plain /></section>
-      </div>
-    </el-dialog>
   </main>
 </template>
 
@@ -170,7 +145,6 @@ read()
 .lab-mode-options button.active { background: white; color: #285a3b; box-shadow: 0 1px 5px rgba(26, 52, 34, .12); }
 .lab-actions { display: flex; gap: 9px; flex-wrap: wrap; }
 .lab-actions button { border: 1px solid #b9c9bc; border-radius: 8px; background: white; color: #315e40; padding: 9px 18px; font-weight: 600; cursor: pointer; }
-.lab-actions button img { width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; }
 .lab-actions button.primary { background: #315e40; color: white; border-color: #315e40; }
 .lab-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .lab-section { margin-top: 32px; }
@@ -179,10 +153,6 @@ read()
 .lab-section-heading span { color: #738176; font-size: .85rem; }
 .lab-legacy { padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: white; }
 .lab-error { color: #b42318; }
-.lab-preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.lab-preview--single { grid-template-columns: 1fr; }
-.lab-preview section { min-width: 0; padding: 16px; border: 1px solid #d8ded9; border-radius: 10px; background: #fbfcfa; }
-.lab-preview h3 { margin: 0 0 12px; font-size: 1rem; }
 .lab-raw { padding: 20px; border: 1px solid #d8ded9; border-radius: 16px; background: #f8faf7; }
 .lab-raw-grid { display: grid; gap: 14px; }
 .lab-raw-group { padding: 14px 16px; border: 1px solid #e0e7e1; border-radius: 10px; background: white; }
@@ -190,5 +160,5 @@ read()
 .lab-raw-group p { display: flex; gap: 16px; align-items: baseline; margin: 7px 0; }
 .lab-raw-group p span { flex: 0 0 2.5em; color: #68796c; font-size: .82rem; }
 .lab-raw-group code { white-space: pre-wrap; overflow-wrap: anywhere; color: #254332; font-family: var(--font-family-mono, monospace); font-size: .85rem; }
-@media (max-width: 640px) { .lab-preview { grid-template-columns: 1fr; } .sc-tc-lab { padding-inline: 16px; } }
+@media (max-width: 640px) { .sc-tc-lab { padding-inline: 16px; } }
 </style>

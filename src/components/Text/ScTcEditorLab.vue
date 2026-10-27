@@ -35,8 +35,11 @@ const previewMode = ref('pair')
 let previewVersion = 0
 const tcBox = ref(null)
 const scBox = ref(null)
+const mobile = ref(false)
+const rows = computed(() => props.layout === 'small' ? 1 : mobile.value ? (props.layout === 'middle' ? 3 : 5) : (props.layout === 'middle' ? 7 : 12))
 let heightObserver = null
 let mirroredScroll = null
+let mobileQuery = null
 
 function syncScroll(event, target) {
   if (effectiveMode.value !== 'pair' || props.layout === 'small' || !target) return
@@ -51,7 +54,7 @@ function syncScroll(event, target) {
   mirroredScroll = { element: target, top: target.scrollTop }
 }
 
-watch([tcBox, scBox, () => props.layout], ([tc, sc]) => {
+watch([tcBox, scBox, rows], ([tc, sc]) => {
   heightObserver?.disconnect()
   heightObserver = null
   if (tc) tc.style.height = ''
@@ -80,7 +83,6 @@ const scDirty = computed(() => draft.value.sc !== saved.value.sc)
 const isMachine = language => machineSide.value === (language === 'sc' ? MACHINE_SC : MACHINE_TC)
 const isEditing = language => language === 'sc' ? scDirty.value : tcDirty.value
 const isChecked = computed(() => !tcDirty.value && !scDirty.value && !machineSide.value)
-const rows = computed(() => props.layout === 'small' ? 1 : props.layout === 'middle' ? 7 : 12)
 
 watch(() => [draft.value.sc, draft.value.tc], ([sc, tc]) => {
   emit('draft-change', { sc, tc })
@@ -220,6 +222,9 @@ function onWindowBlur() {
 }
 
 onMounted(() => {
+  mobileQuery = window.matchMedia('(max-width: 640px)')
+  mobile.value = mobileQuery.matches
+  mobileQuery.addEventListener('change', onMobileChange)
   window.addEventListener('keydown', onPreviewKeydown)
   window.addEventListener('keyup', onPreviewKeyup)
   window.addEventListener('pointerup', onPreviewPointerUp)
@@ -228,6 +233,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   heightObserver?.disconnect()
+  mobileQuery?.removeEventListener('change', onMobileChange)
   window.removeEventListener('keydown', onPreviewKeydown)
   window.removeEventListener('keyup', onPreviewKeyup)
   window.removeEventListener('pointerup', onPreviewPointerUp)
@@ -235,6 +241,10 @@ onUnmounted(() => {
   window.removeEventListener('blur', onWindowBlur)
   previewVersion++
 })
+
+function onMobileChange(event) {
+  mobile.value = event.matches
+}
 
 async function synchronizeTranslation(source, nextMachineSide) {
   const target = source === 'sc' ? 'tc' : 'sc'
@@ -295,13 +305,13 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
     </div>
     <div v-if="richText" class="lab-tools">
       <div class="lab-tools__actions">
+        <button type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
         <template v-if="actionsExpanded">
           <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
           <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
           <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
           <button type="button" class="lab-action" aria-label="清空" :disabled="busy" @click="clearAll"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg></button>
         </template>
-        <button type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
       </div>
     </div>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
@@ -356,5 +366,9 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
   .lab-editor:not(.lab-editor--small) .lab-field { width: 100%; min-width: 0; }
   .lab-preview-content { grid-template-columns: 1fr; }
   .lab-preview-content:not(.lab-preview-content--single) section + section::before { top: -9px; right: 0; bottom: auto; left: 0; border-left: 0; border-top: 1px solid #bdcdbf; }
+}
+@media (max-width: 640px) {
+  .lab-editor--small { display: block; width: 100%; }
+  .lab-editor--small .lab-field { flex: 1 1 0; width: auto; }
 }
 </style>

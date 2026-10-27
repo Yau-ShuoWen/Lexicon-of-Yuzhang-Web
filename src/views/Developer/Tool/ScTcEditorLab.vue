@@ -66,7 +66,7 @@ read()
 <template>
   <main class="sc-tc-lab">
     <header class="lab-header">
-      <div><h1>简繁转换框试验</h1><p>大、中、小分别是 12 行、7 行和单行输入框。拖动滑块可测试不同宽度下的布局。</p>
+      <div><h1>简繁转换框试验</h1><p>大、中、小在桌面端分别是 12 行、7 行和单行；手机端分别是 5 行、3 行和并排单行。拖动滑块可测试不同宽度下的布局。</p>
         <p>展开后可预览、同步、恢复或清空。按住预览按钮或在框上按住 F2 可暂时查看；Ctrl/⌘+Enter 可同步。</p></div>
     </header>
     <div class="lab-toolbar">

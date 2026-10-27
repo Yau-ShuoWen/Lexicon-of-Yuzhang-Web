@@ -36,13 +36,21 @@ let previewVersion = 0
 const tcBox = ref(null)
 const scBox = ref(null)
 const mobile = ref(false)
-const rows = computed(() => props.layout === 'small' ? 1 : mobile.value ? (props.layout === 'middle' ? 3 : 5) : (props.layout === 'middle' ? 7 : 12))
+const isWordLayout = computed(() => props.layout === 'small')
+const isSentenceLayout = computed(() => props.layout === 'small-sentence')
+const usesInput = computed(() => isWordLayout.value || (isSentenceLayout.value && !mobile.value))
+const showActions = computed(() => isWordLayout.value || actionsExpanded.value)
+const rows = computed(() => {
+  if (isWordLayout.value) return 1
+  if (isSentenceLayout.value) return mobile.value ? 3 : 1
+  return mobile.value ? (props.layout === 'middle' ? 3 : 5) : (props.layout === 'middle' ? 7 : 12)
+})
 let heightObserver = null
 let mirroredScroll = null
 let mobileQuery = null
 
 function syncScroll(event, target) {
-  if (effectiveMode.value !== 'pair' || props.layout === 'small' || !target) return
+  if (effectiveMode.value !== 'pair' || isWordLayout.value || !target) return
   const source = event.currentTarget
   if (mirroredScroll?.element === source && mirroredScroll.top === source.scrollTop) {
     mirroredScroll = null
@@ -272,9 +280,18 @@ function onKeydown(event) {
   if (effectiveMode.value === 'pair' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault()
     synchronize()
-  } else if (props.layout === 'small') {
+  } else if (isWordLayout.value || isSentenceLayout.value) {
     event.preventDefault()
   }
+}
+
+function onSentencePaste(event) {
+  const pasted = event.clipboardData?.getData('text/plain')
+  if (!pasted || !/[\r\n]/.test(pasted)) return
+  event.preventDefault()
+  const box = event.currentTarget
+  box.setRangeText(pasted.replace(/\s*[\r\n]+\s*/g, ' '), box.selectionStart, box.selectionEnd, 'end')
+  box.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
 defineExpose({ synchronize, hasPendingChanges: () => changed.value })
@@ -285,33 +302,31 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
     <p v-if="effectiveMode === 'pair' && tcDirty && scDirty" class="lab-invalid" role="status">简体和繁体都有待同步修改</p>
     <div class="lab-fields">
       <label v-if="effectiveMode !== 'sc'" class="lab-field">
-        <span v-if="effectiveMode === 'pair' && layout !== 'small'" class="lab-field__title">繁体
+        <span v-if="effectiveMode === 'pair' && !isWordLayout" class="lab-field__title">繁体
           <img v-if="isEditing('tc')" class="lab-writing" :src="writingIcon" alt="繁体编辑中" />
           <svg v-if="isMachine('tc')" class="lab-status lab-status--machine" viewBox="0 0 24 24" role="img" aria-label="繁体机翻待检查"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1.1.8-1.7 1.2-1.7 2.6M12 17h.01"/></svg>
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="繁体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
-        <input v-if="layout === 'small'" ref="tcBox" v-model="draft.tc" type="text" :placeholder="effectiveMode === 'pair' ? '繁体' : ''" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" @keydown="onKeydown" />
-        <textarea v-else ref="tcBox" v-model="draft.tc" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" :rows="rows" @keydown="onKeydown" @scroll="syncScroll($event, scBox)" />
+        <input v-if="usesInput" ref="tcBox" v-model="draft.tc" type="text" :placeholder="effectiveMode === 'pair' && isWordLayout ? '繁体' : ''" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" @keydown="onKeydown" />
+        <textarea v-else ref="tcBox" v-model="draft.tc" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" :rows="rows" @keydown="onKeydown" @paste="isSentenceLayout && onSentencePaste($event)" @scroll="syncScroll($event, scBox)" />
       </label>
       <label v-if="effectiveMode !== 'tc'" class="lab-field">
-        <span v-if="effectiveMode === 'pair' && layout !== 'small'" class="lab-field__title">简体
+        <span v-if="effectiveMode === 'pair' && !isWordLayout" class="lab-field__title">简体
           <img v-if="isEditing('sc')" class="lab-writing" :src="writingIcon" alt="简体编辑中" />
           <svg v-if="isMachine('sc')" class="lab-status lab-status--machine" viewBox="0 0 24 24" role="img" aria-label="简体机翻待检查"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1.1.8-1.7 1.2-1.7 2.6M12 17h.01"/></svg>
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="简体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
-        <input v-if="layout === 'small'" ref="scBox" v-model="draft.sc" type="text" :placeholder="effectiveMode === 'pair' ? '简体' : ''" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" @keydown="onKeydown" />
-        <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" @scroll="syncScroll($event, tcBox)" />
+        <input v-if="usesInput" ref="scBox" v-model="draft.sc" type="text" :placeholder="effectiveMode === 'pair' && isWordLayout ? '简体' : ''" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" @keydown="onKeydown" />
+        <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" @paste="isSentenceLayout && onSentencePaste($event)" @scroll="syncScroll($event, tcBox)" />
       </label>
     </div>
     <div v-if="richText" class="lab-tools">
-      <div class="lab-tools__actions">
-        <button type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
-        <template v-if="actionsExpanded">
-          <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
-          <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
-          <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
-          <button type="button" class="lab-action" aria-label="清空" :disabled="busy" @click="clearAll"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg></button>
-        </template>
+      <button v-if="!isWordLayout" type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
+      <div v-if="showActions" :class="isWordLayout ? 'lab-tools__inline' : 'lab-tools__menu'">
+        <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
+        <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
+        <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
+        <button type="button" class="lab-action" aria-label="清空" :disabled="busy" @click="clearAll"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg></button>
       </div>
     </div>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
@@ -328,7 +343,8 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 <style scoped>
 .lab-editor { position: relative; box-sizing: border-box; container-type: inline-size; padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
 .lab-editor--middle { padding: 18px; }
-.lab-editor--small { display: inline-block; max-width: 100%; container-type: normal; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; vertical-align: middle; }
+.lab-editor--small, .lab-editor--small-sentence { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; container-type: normal; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; vertical-align: middle; }
+.lab-editor--small-sentence { width: 100%; align-items: flex-end; container-type: inline-size; }
 .lab-invalid { margin: 0 0 14px; color: #ad4a34; font-size: .88rem; }
 .lab-fields { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
 .lab-field { display: flex; flex-direction: column; align-items: stretch; gap: 9px; flex: 1; min-width: 230px; color: #294535; font-weight: 650; }
@@ -342,11 +358,18 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-field textarea:disabled { color: #89958c; background: #f0f3f0; }
 .lab-editor--small .lab-fields { gap: 6px; flex-wrap: nowrap; }
 .lab-editor--small .lab-field { flex: 0 1 130px; min-width: 0; width: 130px; }
-.lab-editor--small .lab-field input { box-sizing: border-box; width: 100%; height: 34px; padding: 4px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; color: #203228; font: inherit; font-weight: 400; outline: none; }
-.lab-editor--small .lab-field input:focus { border-color: #37744d; box-shadow: 0 0 0 2px rgba(55, 116, 77, .11); }
-.lab-editor--small .lab-field input:disabled { color: #89958c; background: #f0f3f0; }
-.lab-tools { margin-top: 14px; }
-.lab-tools__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lab-editor--small-sentence .lab-fields { flex: 1 1 auto; min-width: 0; flex-direction: column; align-items: stretch; gap: 8px; }
+.lab-editor--small-sentence .lab-field { flex-direction: row; align-items: center; width: 100%; min-width: 0; gap: 10px; }
+.lab-editor--small-sentence .lab-field__title { flex: 0 0 72px; }
+.lab-editor--small .lab-field input, .lab-editor--small-sentence .lab-field input { box-sizing: border-box; width: 100%; height: 34px; padding: 4px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; color: #203228; font: inherit; font-weight: 400; outline: none; }
+.lab-editor--small .lab-field input:focus, .lab-editor--small-sentence .lab-field input:focus { border-color: #37744d; box-shadow: 0 0 0 2px rgba(55, 116, 77, .11); }
+.lab-editor--small .lab-field input:disabled, .lab-editor--small-sentence .lab-field input:disabled { color: #89958c; background: #f0f3f0; }
+.lab-editor--small-sentence .lab-field textarea, .lab-editor--small-sentence .lab-field input { flex: 1 1 auto; min-width: 0; width: auto; }
+.lab-tools { position: relative; width: max-content; margin-top: 14px; }
+.lab-editor--small .lab-tools, .lab-editor--small-sentence .lab-tools { flex: none; margin-top: 0; }
+.lab-tools__menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 2; display: grid; grid-template-columns: repeat(2, 36px); gap: 8px; padding: 8px; border: 1px solid #d8ded9; border-radius: 10px; background: white; box-shadow: 0 8px 22px rgba(26, 52, 34, .14); }
+.lab-tools__inline { display: flex; gap: 8px; }
+.lab-editor--small-sentence .lab-tools__menu { right: 0; left: auto; }
 .lab-action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid #b8c9bc; border-radius: 8px; background: white; color: #315e40; padding: 8px; cursor: pointer; }
 .lab-action--primary { border-color: #315e40; background: #315e40; color: white; }
 .lab-action:disabled { opacity: .5; cursor: not-allowed; }
@@ -368,7 +391,8 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
   .lab-preview-content:not(.lab-preview-content--single) section + section::before { top: -9px; right: 0; bottom: auto; left: 0; border-left: 0; border-top: 1px solid #bdcdbf; }
 }
 @media (max-width: 640px) {
-  .lab-editor--small { display: block; width: 100%; }
+  .lab-editor--small { display: flex; flex-direction: column; align-items: stretch; width: 100%; }
+  .lab-editor--small .lab-fields { width: 100%; }
   .lab-editor--small .lab-field { flex: 1 1 0; width: auto; }
 }
 </style>

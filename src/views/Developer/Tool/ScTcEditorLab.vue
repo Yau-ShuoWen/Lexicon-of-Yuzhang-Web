@@ -12,12 +12,12 @@ const settings = useUserSettings()
 const sizes = [
   { value: 'large', label: '大' },
   { value: 'middle', label: '中' },
-  { value: 'small', label: '小' }
+  { value: 'small', label: '小·词语' },
+  { value: 'small-sentence', label: '小·句子' }
 ]
 const pair = ref({ sc: '', tc: '' })
 const size = ref('large')
 const width = ref(100)
-const newKey = ref(0)
 const editor = ref(null)
 const busy = ref(false)
 const notice = ref('')
@@ -30,7 +30,6 @@ function readableOriginal(value) {
 function setPair(value) {
   const parsed = unpackPair(value)
   pair.value = packPair(parsed, parsed.machineSide)
-  newKey.value++
 }
 
 async function read() {
@@ -66,8 +65,8 @@ read()
 <template>
   <main class="sc-tc-lab">
     <header class="lab-header">
-      <div><h1>简繁转换框试验</h1><p>大、中、小在桌面端分别是 12 行、7 行和单行；手机端分别是 5 行、3 行和并排单行。拖动滑块可测试不同宽度下的布局。</p>
-        <p>展开后可预览、同步、恢复或清空。按住预览按钮或在框上按住 F2 可暂时查看；Ctrl/⌘+Enter 可同步。</p></div>
+      <div><h1>简繁转换框试验</h1><p>大、中在电脑端分别显示 12 行、7 行，手机端显示 5 行、3 行。小·词语的简繁输入并排，按钮直接放在右侧；小·句子在电脑端单行输入，手机端保留几行高度，不能输入换行。拖动滑块可调整外层宽度。</p>
+        <p>小·词语直接显示操作按钮；其他尺寸展开后可预览、同步、恢复或清空。按住预览按钮或在框上按住 F2 可暂时查看；Ctrl/⌘+Enter 可同步。</p></div>
     </header>
     <div class="lab-toolbar">
       <span>当前编辑语言：{{ settings.editorLanguage === 'sc' ? '简体' : settings.editorLanguage === 'tc' ? '繁体' : '简繁体对照' }}</span>
@@ -92,7 +91,7 @@ read()
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
     <section class="lab-section lab-stage">
       <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }} · {{ width }}%</span></div>
-      <div class="lab-stage__frame" :style="{ width: `${width}%` }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :layout="size"
+      <div class="lab-stage__frame" :style="{ width: `${width}%` }"><ScTcEditorLab ref="editor" :pair="pair" :dialect="dialect" :layout="size"
                      @update:pair="setPair" @draft-change="liveDraft = $event" />
       </div>
     </section>
@@ -136,7 +135,7 @@ read()
 .lab-section-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .lab-section-heading h2 { margin: 0; font-size: 1.18rem; }
 .lab-section-heading span { color: #738176; font-size: .85rem; }
-.lab-stage { overflow-x: auto; }
+.lab-stage { overflow: visible; }
 .lab-stage__frame { box-sizing: border-box; min-width: min(280px, 100%); max-width: 100%; margin: 0 auto; }
 .lab-error { color: #b42318; }
 .lab-raw { padding: 20px; border: 1px solid #d8ded9; border-radius: 16px; background: #f8faf7; }

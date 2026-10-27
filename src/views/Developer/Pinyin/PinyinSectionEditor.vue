@@ -403,7 +403,7 @@ function setNameEditor(editor) {
 }
 
 function onDocumentPointerDown(event) {
-  if (editingId.value && event.target instanceof Element && !event.target.closest('.name-inline')) {
+  if (editingId.value && event.target instanceof Element && !event.target.closest('.name-inline, .lab-preview-overlay')) {
     void finishName()
   }
 }
@@ -586,8 +586,8 @@ onUnmounted(() => {
       >
         <header class="section-header">
           <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
-          <div v-if="editingId === section.id" class="name-inline" @pointerdown.stop>
-            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+          <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
+            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small"
                            @update:pair="editingName = $event" />
             <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
           </div>
@@ -608,8 +608,8 @@ onUnmounted(() => {
           >
             <div class="line-actions">
               <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
-              <div v-if="editingId === row.id" class="name-inline" @pointerdown.stop>
-                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+              <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
+                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small"
                                @update:pair="editingName = $event" />
                 <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
               </div>
@@ -800,13 +800,21 @@ onUnmounted(() => {
 .accent-2 .sort-handle::before { background: #f36048; box-shadow: 0 2px 6px #f360484d; }
 .sort-handle.held { cursor: grabbing; }
 .section-name { margin: 0; flex: 1; color: #34495e; font-size: 19px; font-weight: 700; letter-spacing: 1px; user-select: none; }
-.name-inline { display: inline-flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; gap: 4px; min-width: 0; max-width: 100%; margin-right: auto; cursor: default; touch-action: auto; }
+.name-inline { display: inline-flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; margin-right: auto; cursor: default; touch-action: auto; }
+.name-inline > :first-child { flex: 0 1 auto; min-width: 0; }
+.section-name-inline { font-size: 16px; }
+.row-name-inline { font-size: 18px; }
+.name-inline :deep(.lab-editor--small) { gap: 6px; }
+.name-inline :deep(.lab-editor--small .lab-field input) { height: 30px; }
+.name-inline :deep(.lab-tools__inline) { gap: 4px; }
+.name-inline :deep(.lab-action) { width: 30px; height: 30px; padding: 6px; border-radius: 6px; }
+.name-inline :deep(.lab-action svg), .name-inline :deep(.lab-action img) { width: 16px; height: 16px; }
 .name-inline-actions { display: inline-flex; gap: 2px; flex: 0 0 auto; }
 .name-inline-actions button, .line-actions .name-inline-actions button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #326d3b; cursor: pointer; font-size: 19px; line-height: 1; }
 .name-inline-actions button:hover { background: #edf6ef; }
 .name-inline-actions button:last-child { color: #9b4d4d; }
 .name-inline-actions img { display: block; width: 16px; height: 16px; }
-.row-name { cursor: text; border-bottom: 1px dashed transparent; }
+.row-name { color: #34495e; font-size: 20px; font-weight: 650; line-height: 1.3; cursor: text; border-bottom: 1px dashed transparent; }
 .pinyin-line.editable-level .row-name:hover, .section-card.editable-level .section-name:hover { border-bottom-color: #8fba97; }
 .list-drop-target { outline: 2px dashed #8bc6e4; outline-offset: 3px; }
 .remove-button { border: 0; background: transparent; color: #b45d5d; cursor: pointer; padding: 4px 6px; }

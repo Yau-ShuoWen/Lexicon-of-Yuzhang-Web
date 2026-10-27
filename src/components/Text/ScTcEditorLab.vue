@@ -9,7 +9,12 @@ import expandIcon from '../../assets/icons/to-down.svg'
 import collapseIcon from '../../assets/icons/to-up.svg'
 import eyeIcon from '../../assets/icons/eye-open.svg'
 
-const props = defineProps({ pair: { type: Object, required: true }, dialect: { type: String, required: true }, mode: { type: String, required: true } })
+const props = defineProps({
+  pair: { type: Object, required: true },
+  dialect: { type: String, required: true },
+  mode: { type: String, required: true },
+  layout: { type: String, default: 'large' }
+})
 const emit = defineEmits(['update:pair', 'draft-change'])
 const saved = ref({ sc: '', tc: '' })
 const draft = ref({ sc: '', tc: '' })
@@ -28,9 +33,11 @@ const tcBox = ref(null)
 const scBox = ref(null)
 let heightObserver = null
 
-watch([tcBox, scBox], ([tc, sc]) => {
+watch([tcBox, scBox, () => props.layout], ([tc, sc]) => {
   heightObserver?.disconnect()
   heightObserver = null
+  if (tc) tc.style.height = ''
+  if (sc) sc.style.height = ''
   if (!tc || !sc) return
 
   const height = Math.max(tc.getBoundingClientRect().height, sc.getBoundingClientRect().height)
@@ -55,6 +62,7 @@ const scDirty = computed(() => draft.value.sc !== saved.value.sc)
 const isMachine = language => marker.value === (language === 'sc' ? MACHINE_SC : MACHINE_TC)
 const isEditing = language => language === 'sc' ? scDirty.value : tcDirty.value
 const isChecked = computed(() => !tcDirty.value && !scDirty.value && !marker.value)
+const rows = computed(() => props.layout === 'small' ? 1 : props.layout === 'middle' ? 7 : 12)
 
 watch(() => [draft.value.sc, draft.value.tc], ([sc, tc]) => {
   emit('draft-change', { sc, tc })
@@ -231,10 +239,12 @@ async function synchronizeTranslation(source, nextMarker) {
 }
 
 function onKeydown(event) {
-  if (props.mode !== 'pair') return
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+  if (event.key !== 'Enter' || event.isComposing) return
+  if (props.mode === 'pair' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault()
     synchronize()
+  } else if (props.layout === 'small') {
+    event.preventDefault()
   }
 }
 
@@ -242,7 +252,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 </script>
 
 <template>
-  <div class="lab-editor" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
+  <div class="lab-editor" :class="`lab-editor--${layout}`" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
     <p v-if="mode === 'pair' && tcDirty && scDirty" class="lab-invalid" role="status">简体和繁体都有待同步修改</p>
     <div class="lab-fields">
       <label v-if="mode !== 'sc'" class="lab-field">
@@ -251,7 +261,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
           <svg v-if="isMachine('tc')" class="lab-status lab-status--machine" viewBox="0 0 24 24" role="img" aria-label="繁体机翻待检查"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1.1.8-1.7 1.2-1.7 2.6M12 17h.01"/></svg>
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="繁体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
-        <textarea ref="tcBox" v-model="draft.tc" :aria-label="mode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (mode === 'pair' && scDirty)" rows="7" @keydown="onKeydown" />
+        <textarea ref="tcBox" v-model="draft.tc" :aria-label="mode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (mode === 'pair' && scDirty)" :rows="rows" @keydown="onKeydown" />
       </label>
       <label v-if="mode !== 'tc'" class="lab-field">
         <span v-if="mode === 'pair'" class="lab-field__title">简体
@@ -259,7 +269,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
           <svg v-if="isMachine('sc')" class="lab-status lab-status--machine" viewBox="0 0 24 24" role="img" aria-label="简体机翻待检查"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1.1.8-1.7 1.2-1.7 2.6M12 17h.01"/></svg>
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="简体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
-        <textarea ref="scBox" v-model="draft.sc" :aria-label="mode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (mode === 'pair' && tcDirty)" rows="7" @keydown="onKeydown" />
+        <textarea ref="scBox" v-model="draft.sc" :aria-label="mode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (mode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" />
       </label>
     </div>
     <div v-if="actionsExpanded" class="lab-tools">
@@ -293,7 +303,9 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 </template>
 
 <style scoped>
-.lab-editor { position: relative; padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
+.lab-editor { position: relative; box-sizing: border-box; container-type: inline-size; padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
+.lab-editor--middle { padding: 18px; }
+.lab-editor--small { padding: 14px; }
 .lab-preview-button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #315e40; padding: 4px 0; white-space: nowrap; cursor: pointer; }
 .lab-preview-button img { width: 18px; height: 18px; }
 .lab-preview-button span { color: #738176; font-size: .82rem; }
@@ -308,6 +320,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-field textarea { box-sizing: border-box; width: 100%; resize: vertical; border: 1px solid #c8d2ca; border-radius: 10px; background: #fbfcfa; color: #203228; font: inherit; font-weight: 400; line-height: 1.6; padding: 12px 14px; outline: none; }
 .lab-field textarea:focus { border-color: #37744d; box-shadow: 0 0 0 3px rgba(55, 116, 77, .11); }
 .lab-field textarea:disabled { color: #89958c; background: #f0f3f0; }
+.lab-editor--small .lab-field textarea { min-height: 36px; height: 36px; padding: 6px 10px; resize: none; white-space: pre; overflow-x: auto; overflow-y: auto; }
 .lab-tools { margin-top: 14px; min-height: 36px; padding-right: 34px; }
 .lab-tools__toggle { position: absolute; right: 19px; bottom: 6px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 18px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .lab-tools__toggle.is-expanded { bottom: 31px; }
@@ -326,5 +339,10 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-preview-content:not(.lab-preview-content--single) section + section::before { position: absolute; top: 0; bottom: 0; left: -9px; border-left: 1px solid #bdcdbf; content: ''; }
 .lab-preview-content h3 { margin: 0 0 9px; color: #294535; font-size: 1rem; line-height: 20px; }
 .lab-preview-text { padding: 12px 14px; line-height: 1.6; }
-@media (max-width: 620px) { .lab-preview-content { grid-template-columns: 1fr; } .lab-preview-content:not(.lab-preview-content--single) section + section::before { top: -9px; right: 0; bottom: auto; left: 0; border-left: 0; border-top: 1px solid #bdcdbf; } }
+@container (max-width: 520px) {
+  .lab-fields { flex-direction: column; align-items: stretch; }
+  .lab-field { width: 100%; min-width: 0; }
+  .lab-preview-content { grid-template-columns: 1fr; }
+  .lab-preview-content:not(.lab-preview-content--single) section + section::before { top: -9px; right: 0; bottom: auto; left: 0; border-left: 0; border-top: 1px solid #bdcdbf; }
+}
 </style>

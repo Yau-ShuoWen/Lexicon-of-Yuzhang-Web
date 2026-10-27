@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
 import { request } from '../../../services/request.js'
 import { MACHINE_SC, MACHINE_TC, packPair, unpackPair } from '../../../utils/scTcLab.js'
@@ -13,12 +12,23 @@ const modes = [
   { value: 'tc', label: '繁体' },
   { value: 'pair', label: '简繁体对照' }
 ]
+const sizes = [
+  { value: 'large', label: '大（12 行）' },
+  { value: 'middle', label: '中（7 行）' },
+  { value: 'small', label: '小（单行）' }
+]
+const widths = [
+  { value: 'full', label: '页面宽度' },
+  { value: 'tablet', label: '窄屏 720px' },
+  { value: 'phone', label: '手机 390px' }
+]
 const mode = ref(localStorage.getItem('sc-tc-default-edit-language') || 'pair')
 if (!modes.some(item => item.value === mode.value)) mode.value = 'pair'
 watch(mode, value => localStorage.setItem('sc-tc-default-edit-language', value))
 const pair = ref({ sc: '', tc: '' })
-const legacy = ref({ sc: '', tc: '' })
-const oldKey = ref(0)
+const size = ref('large')
+const width = ref('full')
+const previewWidth = computed(() => width.value === 'phone' ? '390px' : width.value === 'tablet' ? '720px' : '100%')
 const newKey = ref(0)
 const editor = ref(null)
 const busy = ref(false)
@@ -33,18 +43,9 @@ function readableOriginal(value) {
   const suffix = marker === MACHINE_SC ? ' ⟦U+E000：简体机翻⟧' : marker === MACHINE_TC ? ' ⟦U+E001：繁体机翻⟧' : ''
   return JSON.stringify(body) + suffix
 }
-const oldPending = computed(() => {
-  try {
-    const current = unpackPair(pair.value)
-    return legacy.value.sc !== current.sc || legacy.value.tc !== current.tc
-  } catch { return true }
-})
-
 function setPair(value) {
-  const parsed = unpackPair(value)
+  unpackPair(value)
   pair.value = { sc: value.sc, tc: value.tc }
-  legacy.value = { sc: parsed.sc, tc: parsed.tc }
-  oldKey.value++
   newKey.value++
 }
 
@@ -61,7 +62,6 @@ async function read() {
 async function write() {
   busy.value = true; error.value = ''; notice.value = ''
   try {
-    if (oldPending.value) throw new Error('旧版本有未同步的修改，请先在旧框点击同步')
     if (editor.value?.hasPendingChanges()) {
       const ok = await editor.value.synchronize()
       if (!ok) return
@@ -76,16 +76,13 @@ async function write() {
   finally { busy.value = false }
 }
 
-function onLegacySynced(value) { setPair({ sc: value.sc, tc: value.tc }) }
-function onLegacyClear() { setPair({ sc: '', tc: '' }) }
-
 read()
 </script>
 
 <template>
   <main class="sc-tc-lab">
     <header class="lab-header">
-      <div><h1>简繁转换框试验</h1><p>两种编辑方式使用同一份测试数据。</p></div>
+      <div><h1>简繁转换框试验</h1><p>切换文本框尺寸和显示宽度，检查同一份数据的编辑体验。</p></div>
     </header>
     <div class="lab-toolbar">
       <fieldset class="lab-mode">
@@ -100,18 +97,23 @@ read()
         <button type="button" class="primary" :disabled="busy" @click="write">{{ busy ? '处理中…' : '写入' }}</button>
       </div>
     </div>
+    <div class="lab-variants">
+      <fieldset class="lab-mode"><legend>文本框尺寸</legend><div class="lab-mode-options">
+        <button v-for="item in sizes" :key="item.value" type="button" :class="{ active: size === item.value }"
+                :aria-pressed="size === item.value" @click="size = item.value">{{ item.label }}</button>
+      </div></fieldset>
+      <fieldset class="lab-mode"><legend>测试宽度</legend><div class="lab-mode-options">
+        <button v-for="item in widths" :key="item.value" type="button" :class="{ active: width === item.value }"
+                :aria-pressed="width === item.value" @click="width = item.value">{{ item.label }}</button>
+      </div></fieldset>
+    </div>
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
-    <p v-if="oldPending">旧版本尚未同步</p>
-    <section class="lab-section">
-      <div class="lab-section-heading"><h2>新版本</h2><span>当前试验</span></div>
-      <ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :mode="mode"
+    <section class="lab-section lab-stage">
+      <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }}尺寸 · {{ widths.find(item => item.value === width)?.label }}</span></div>
+      <div class="lab-stage__frame" :style="{ width: previewWidth }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :mode="mode" :layout="size"
                      @update:pair="setPair" @draft-change="liveDraft = $event" />
-    </section>
-    <section class="lab-section">
-      <div class="lab-section-heading"><h2>旧版本</h2><span>用于对照</span></div>
-      <div class="lab-legacy"><ScAndTcText :key="oldKey" v-model:traditional-text="legacy.tc" v-model:simplified-text="legacy.sc"
-                     :dialect="dialect" @synced="onLegacySynced" @clear="onLegacyClear" /></div>
+      </div>
     </section>
     <section class="lab-section lab-raw">
       <div class="lab-section-heading"><h2>原字符串</h2><span>输入时实时更新，无须提交</span></div>
@@ -120,13 +122,9 @@ read()
           <p><span>繁体</span><code>{{ readableOriginal(pair.tc) }}</code></p>
           <p><span>简体</span><code>{{ readableOriginal(pair.sc) }}</code></p>
         </div>
-        <div class="lab-raw-group"><h3>新版本当前输入</h3>
+        <div class="lab-raw-group"><h3>当前输入</h3>
           <p><span>繁体</span><code>{{ readableOriginal(liveDraft.tc) }}</code></p>
           <p><span>简体</span><code>{{ readableOriginal(liveDraft.sc) }}</code></p>
-        </div>
-        <div class="lab-raw-group"><h3>旧版本当前输入</h3>
-          <p><span>繁体</span><code>{{ readableOriginal(legacy.tc) }}</code></p>
-          <p><span>简体</span><code>{{ readableOriginal(legacy.sc) }}</code></p>
         </div>
       </div>
     </section>
@@ -138,6 +136,7 @@ read()
 .lab-header h1 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.2rem); }
 .lab-header p { margin: 8px 0 0; color: #637267; }
 .lab-toolbar { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 18px; margin: 28px 0 22px; padding: 18px 20px; border: 1px solid #d8ded9; border-radius: 14px; background: #f8faf7; }
+.lab-variants { display: flex; flex-wrap: wrap; gap: 22px; padding: 4px 2px; }
 .lab-mode { margin: 0; padding: 0; border: 0; font-size: .85rem; font-weight: 650; color: #445b4b; }
 .lab-mode legend { margin-bottom: 7px; padding: 0; }
 .lab-mode-options { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #c8d2ca; border-radius: 10px; background: #edf2ed; }
@@ -151,7 +150,8 @@ read()
 .lab-section-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .lab-section-heading h2 { margin: 0; font-size: 1.18rem; }
 .lab-section-heading span { color: #738176; font-size: .85rem; }
-.lab-legacy { padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: white; }
+.lab-stage { overflow-x: auto; }
+.lab-stage__frame { max-width: 100%; margin: 0 auto; transition: width .18s ease; }
 .lab-error { color: #b42318; }
 .lab-raw { padding: 20px; border: 1px solid #d8ded9; border-radius: 16px; background: #f8faf7; }
 .lab-raw-grid { display: grid; gap: 14px; }

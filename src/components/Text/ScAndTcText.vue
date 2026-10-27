@@ -21,8 +21,7 @@ const props = defineProps({
 const emit = defineEmits([
   'update:traditionalText',
   'update:simplifiedText',
-  'clear',
-  'synced'
+  'clear'
 ])
 
 // ============ 核心状态 ============
@@ -197,7 +196,6 @@ async function translateTcToSc() {
 
     isTcDirty.value = false
     isScDirty.value = false
-    emit('synced', {tc: newTc.value, sc: newSc.value})
 
   } catch (error) {
     console.error('保存失败:', error)
@@ -224,7 +222,6 @@ async function commitSc() {
   isScDirty.value = false
 
   emit('update:simplifiedText', newSc.value)
-  emit('synced', {tc: newTc.value, sc: newSc.value})
 }
 
 // ============ 手动同步按钮：分担 Ctrl+Enter 的工作 ============

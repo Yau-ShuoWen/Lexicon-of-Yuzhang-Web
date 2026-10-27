@@ -31,6 +31,11 @@ const languageOptions = [
   {value: 'sc', label: '简体中文', preview: '方言是我们听得见的历史', icon: scIcon},
   {value: 'tc', label: '繁體中文', preview: '方言是我們聽得見的歷史', icon: tcIcon}
 ]
+const editorLanguageOptions = [
+  {value: 'sc', label: '简体'},
+  {value: 'tc', label: '繁体'},
+  {value: 'pair', label: '简繁体对照'}
+]
 const mandarinOptions = [
   {value: 'pinyin', label: '拼音', preview: 'yù zhāng', icon: pinyinIcon},
   {value: 'zhuyin', label: '注音', preview: 'ㄩˋ ㄓㄤ', icon: zhuyinIcon},
@@ -220,6 +225,18 @@ async function saveLanguageStyle() {
           <div class="group-header">
             <span class="group-icon group-icon--amber"><img :src="calendarIcon" alt=""></span>
             <div><h2>通用设置</h2></div>
+          </div>
+          <div class="setting-row setting-row--stacked">
+            <div class="setting-copy"><h3>简繁文本框默认编辑语言</h3></div>
+            <div class="setting-control">
+              <div class="segmented-control segmented-control--three" :style="{'--selected-index': editorLanguageOptions.findIndex(item => item.value === settings.editorLanguage)}">
+                <span class="selection-indicator" aria-hidden="true"></span>
+                <label v-for="option in editorLanguageOptions" :key="option.value" :class="{selected: settings.editorLanguage === option.value}">
+                  <input v-model="settings.editorLanguage" type="radio" name="editor-language" :value="option.value">
+                  <span>{{ option.label }}</span>
+                </label>
+              </div>
+            </div>
           </div>
           <div class="setting-row setting-row--simple">
             <div class="setting-copy setting-copy--icon">

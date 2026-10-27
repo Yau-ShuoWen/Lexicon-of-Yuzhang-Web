@@ -1,17 +1,14 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
 import { request } from '../../../services/request.js'
 import { MACHINE_SC, MACHINE_TC, packPair, unpackPair } from '../../../utils/scTcLab.js'
+import { useUserSettings } from '../../../utils/userSettings.js'
 
 const route = useRoute()
 const dialect = computed(() => String(route.params.dialect))
-const modes = [
-  { value: 'sc', label: '简体' },
-  { value: 'tc', label: '繁体' },
-  { value: 'pair', label: '简繁体对照' }
-]
+const settings = useUserSettings()
 const sizes = [
   { value: 'large', label: '大（12 行）' },
   { value: 'middle', label: '中（7 行）' },
@@ -22,9 +19,6 @@ const widths = [
   { value: 'tablet', label: '窄屏 720px' },
   { value: 'phone', label: '手机 390px' }
 ]
-const mode = ref(localStorage.getItem('sc-tc-default-edit-language') || 'pair')
-if (!modes.some(item => item.value === mode.value)) mode.value = 'pair'
-watch(mode, value => localStorage.setItem('sc-tc-default-edit-language', value))
 const pair = ref({ sc: '', tc: '' })
 const size = ref('large')
 const width = ref('full')
@@ -37,15 +31,11 @@ const error = ref('')
 const liveDraft = ref({ sc: '', tc: '' })
 
 function readableOriginal(value) {
-  const raw = String(value ?? '')
-  const marker = raw.endsWith(MACHINE_SC) ? MACHINE_SC : raw.endsWith(MACHINE_TC) ? MACHINE_TC : ''
-  const body = marker ? raw.slice(0, -1) : raw
-  const suffix = marker === MACHINE_SC ? ' ⟦U+E000：简体机翻⟧' : marker === MACHINE_TC ? ' ⟦U+E001：繁体机翻⟧' : ''
-  return JSON.stringify(body) + suffix
+  return JSON.stringify(String(value ?? ''))
 }
 function setPair(value) {
-  unpackPair(value)
-  pair.value = { sc: value.sc, tc: value.tc }
+  const parsed = unpackPair(value)
+  pair.value = packPair(parsed, parsed.machineSide)
   newKey.value++
 }
 
@@ -67,7 +57,7 @@ async function write() {
       if (!ok) return
     }
     const parsed = unpackPair(pair.value)
-    const checked = packPair({ sc: parsed.sc, tc: parsed.tc }, parsed.marker)
+    const checked = packPair({ sc: parsed.sc, tc: parsed.tc }, parsed.machineSide)
     await request('/api/edit/sc-tc-lab', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checked)
     })
@@ -85,13 +75,7 @@ read()
       <div><h1>简繁转换框试验</h1><p>切换文本框尺寸和显示宽度，检查同一份数据的编辑体验。</p></div>
     </header>
     <div class="lab-toolbar">
-      <fieldset class="lab-mode">
-        <legend>默认编辑语言</legend>
-        <div class="lab-mode-options">
-          <button v-for="item in modes" :key="item.value" type="button" :class="{ active: mode === item.value }"
-                  :aria-pressed="mode === item.value" @click="mode = item.value">{{ item.label }}</button>
-        </div>
-      </fieldset>
+      <span>当前编辑语言：{{ settings.editorLanguage === 'sc' ? '简体' : settings.editorLanguage === 'tc' ? '繁体' : '简繁体对照' }}</span>
       <div class="lab-actions">
         <button type="button" :disabled="busy" @click="read">读取</button>
         <button type="button" class="primary" :disabled="busy" @click="write">{{ busy ? '处理中…' : '写入' }}</button>
@@ -111,7 +95,7 @@ read()
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
     <section class="lab-section lab-stage">
       <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }}尺寸 · {{ widths.find(item => item.value === width)?.label }}</span></div>
-      <div class="lab-stage__frame" :style="{ width: previewWidth }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :mode="mode" :layout="size"
+      <div class="lab-stage__frame" :style="{ width: previewWidth }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :layout="size"
                      @update:pair="setPair" @draft-change="liveDraft = $event" />
       </div>
     </section>
@@ -121,6 +105,7 @@ read()
         <div class="lab-raw-group"><h3>当前共同数据</h3>
           <p><span>繁体</span><code>{{ readableOriginal(pair.tc) }}</code></p>
           <p><span>简体</span><code>{{ readableOriginal(pair.sc) }}</code></p>
+          <p><span>机翻状态</span><code>{{ pair.machineSide === MACHINE_SC ? '简体机翻' : pair.machineSide === MACHINE_TC ? '繁体机翻' : '已检查' }}</code></p>
         </div>
         <div class="lab-raw-group"><h3>当前输入</h3>
           <p><span>繁体</span><code>{{ readableOriginal(liveDraft.tc) }}</code></p>

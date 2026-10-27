@@ -38,6 +38,7 @@ const scBox = ref(null)
 const mobile = ref(false)
 const isWordLayout = computed(() => props.layout === 'small')
 const isSentenceLayout = computed(() => props.layout === 'small-sentence')
+const isCompactLayout = computed(() => isWordLayout.value || isSentenceLayout.value)
 const usesInput = computed(() => isWordLayout.value || (isSentenceLayout.value && !mobile.value))
 const showActions = computed(() => isWordLayout.value || actionsExpanded.value)
 const rows = computed(() => {
@@ -163,6 +164,7 @@ function clearAll() {
 async function previewPair() {
   if (effectiveMode.value !== 'pair' || !tcDirty.value) return { ...draft.value }
   const snapshot = draft.value.tc
+  if (!snapshot) return { ...draft.value, sc: '' }
   const machine = await request('/api/proofread/translate?from=tc&to=sc', {
     method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
   })
@@ -222,6 +224,7 @@ function onPreviewKeyup(event) {
 
 function onPointerLeave() {
   hovered.value = false
+  if (isCompactLayout.value && previewVisible.value) return
   if (previewHeld.value || previewPointerHeld.value) closePreview()
 }
 
@@ -259,16 +262,17 @@ async function synchronizeTranslation(source, nextMachineSide) {
   const snapshot = draft.value[source]
   busy.value = true
   try {
-    const machine = await request('/api/proofread/translate?from=' + source + '&to=' + target, {
+    const machine = snapshot ? await request('/api/proofread/translate?from=' + source + '&to=' + target, {
       method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
-    })
+    }) : ''
     if (draft.value[source] !== snapshot) throw new Error('输入已变化，请重新同步')
-    const translated = retainTranslated(saved.value[source], snapshot, saved.value[target], machine)
+    const translated = snapshot ? retainTranslated(saved.value[source], snapshot, saved.value[target], machine) : ''
     const next = { ...saved.value, [source]: snapshot, [target]: translated }
-    const pair = packPair(next, nextMachineSide)
+    const machineSideAfterSync = snapshot ? nextMachineSide : ''
+    const pair = packPair(next, machineSideAfterSync)
     saved.value = next
     draft.value = { ...next }
-    machineSide.value = nextMachineSide
+    machineSide.value = machineSideAfterSync
     emit('update:pair', pair)
     return true
   } catch (e) { error.value = e.message || '同步失败'; return false }
@@ -322,7 +326,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
     </div>
     <div v-if="richText" class="lab-tools">
       <button v-if="!isWordLayout" type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
-      <div v-if="showActions" :class="isWordLayout ? 'lab-tools__inline' : 'lab-tools__menu'">
+      <div v-if="showActions" :class="isSentenceLayout ? 'lab-tools__menu' : 'lab-tools__inline'">
         <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
         <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
         <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
@@ -330,13 +334,15 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
       </div>
     </div>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
-    <div v-if="richText && previewVisible" class="lab-preview-overlay" role="dialog" aria-label="文本预览">
-      <p v-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
-      <div class="lab-preview-content" :class="{ 'lab-preview-content--single': previewMode !== 'pair' }">
-        <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" plain /></div></section>
-        <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" plain /></div></section>
+    <Teleport to="body" :disabled="!isCompactLayout">
+      <div v-if="richText && previewVisible" class="lab-preview-overlay" :class="{ 'lab-preview-overlay--compact': isCompactLayout }" role="dialog" aria-label="文本预览">
+        <p v-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
+        <div class="lab-preview-content" :class="{ 'lab-preview-content--single': previewMode !== 'pair' }">
+          <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" plain /></div></section>
+          <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" plain /></div></section>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -365,7 +371,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-editor--small .lab-field input:focus, .lab-editor--small-sentence .lab-field input:focus { border-color: #37744d; box-shadow: 0 0 0 2px rgba(55, 116, 77, .11); }
 .lab-editor--small .lab-field input:disabled, .lab-editor--small-sentence .lab-field input:disabled { color: #89958c; background: #f0f3f0; }
 .lab-editor--small-sentence .lab-field textarea, .lab-editor--small-sentence .lab-field input { flex: 1 1 auto; min-width: 0; width: auto; }
-.lab-tools { position: relative; width: max-content; margin-top: 14px; }
+.lab-tools { position: relative; display: flex; align-items: center; gap: 8px; width: max-content; margin-top: 14px; }
 .lab-editor--small .lab-tools, .lab-editor--small-sentence .lab-tools { flex: none; margin-top: 0; }
 .lab-tools__menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 2; display: grid; grid-template-columns: repeat(2, 36px); gap: 8px; padding: 8px; border: 1px solid #d8ded9; border-radius: 10px; background: white; box-shadow: 0 8px 22px rgba(26, 52, 34, .14); }
 .lab-tools__inline { display: flex; gap: 8px; }
@@ -376,7 +382,8 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-action svg, .lab-action img { width: 18px; height: 18px; flex: none; }
 .lab-action svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lab-error { color: #b42318; margin: 12px 0 0; }
-.lab-preview-overlay { position: absolute; inset: 0; z-index: 3; overflow: auto; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(26, 52, 34, .13); }
+.lab-preview-overlay { position: absolute; inset: 0; z-index: 3; box-sizing: border-box; container-type: inline-size; overflow: auto; padding: 24px; border-radius: 16px; background: #fff; color: #203228; box-shadow: 0 10px 28px rgba(26, 52, 34, .13); }
+.lab-preview-overlay--compact { position: fixed; inset: auto; top: 50%; left: 50%; z-index: 3000; width: min(760px, calc(100vw - 32px)); max-height: min(70vh, 560px); padding: 20px; transform: translate(-50%, -50%); }
 .lab-preview-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .lab-preview-content--single { grid-template-columns: 1fr; }
 .lab-preview-content section { min-width: 0; }

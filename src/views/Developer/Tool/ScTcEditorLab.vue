@@ -10,19 +10,13 @@ const route = useRoute()
 const dialect = computed(() => String(route.params.dialect))
 const settings = useUserSettings()
 const sizes = [
-  { value: 'large', label: '大（12 行）' },
-  { value: 'middle', label: '中（7 行）' },
-  { value: 'small', label: '小（单行）' }
-]
-const widths = [
-  { value: 'full', label: '页面宽度' },
-  { value: 'tablet', label: '窄屏 720px' },
-  { value: 'phone', label: '手机 390px' }
+  { value: 'large', label: '大' },
+  { value: 'middle', label: '中' },
+  { value: 'small', label: '小' }
 ]
 const pair = ref({ sc: '', tc: '' })
 const size = ref('large')
-const width = ref('full')
-const previewWidth = computed(() => width.value === 'phone' ? '390px' : width.value === 'tablet' ? '720px' : '100%')
+const width = ref(100)
 const newKey = ref(0)
 const editor = ref(null)
 const busy = ref(false)
@@ -72,7 +66,8 @@ read()
 <template>
   <main class="sc-tc-lab">
     <header class="lab-header">
-      <div><h1>简繁转换框试验</h1><p>切换文本框尺寸和显示宽度，检查同一份数据的编辑体验。</p></div>
+      <div><h1>简繁转换框试验</h1><p>大、中、小分别是 12 行、7 行和单行输入框。拖动滑块可测试不同宽度下的布局。</p>
+        <p>展开后可预览、同步、恢复或清空。按住预览按钮或在框上按住 F2 可暂时查看；Ctrl/⌘+Enter 可同步。</p></div>
     </header>
     <div class="lab-toolbar">
       <span>当前编辑语言：{{ settings.editorLanguage === 'sc' ? '简体' : settings.editorLanguage === 'tc' ? '繁体' : '简繁体对照' }}</span>
@@ -86,16 +81,18 @@ read()
         <button v-for="item in sizes" :key="item.value" type="button" :class="{ active: size === item.value }"
                 :aria-pressed="size === item.value" @click="size = item.value">{{ item.label }}</button>
       </div></fieldset>
-      <fieldset class="lab-mode"><legend>测试宽度</legend><div class="lab-mode-options">
-        <button v-for="item in widths" :key="item.value" type="button" :class="{ active: width === item.value }"
-                :aria-pressed="width === item.value" @click="width = item.value">{{ item.label }}</button>
-      </div></fieldset>
+      <fieldset class="lab-mode lab-width"><legend>测试宽度</legend>
+        <div class="lab-width__control">
+          <input id="sc-tc-test-width" v-model.number="width" type="range" min="30" max="100" step="1" aria-label="测试宽度" />
+          <output for="sc-tc-test-width">{{ width }}%</output>
+        </div>
+      </fieldset>
     </div>
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
     <section class="lab-section lab-stage">
-      <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }}尺寸 · {{ widths.find(item => item.value === width)?.label }}</span></div>
-      <div class="lab-stage__frame" :style="{ width: previewWidth }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :layout="size"
+      <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }} · {{ width }}%</span></div>
+      <div class="lab-stage__frame" :style="{ width: `${width}%` }"><ScTcEditorLab :key="newKey" ref="editor" :pair="pair" :dialect="dialect" :layout="size"
                      @update:pair="setPair" @draft-change="liveDraft = $event" />
       </div>
     </section>
@@ -127,6 +124,10 @@ read()
 .lab-mode-options { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #c8d2ca; border-radius: 10px; background: #edf2ed; }
 .lab-mode-options button { border: 0; border-radius: 7px; background: transparent; color: #526456; padding: 8px 12px; font: inherit; cursor: pointer; }
 .lab-mode-options button.active { background: white; color: #285a3b; box-shadow: 0 1px 5px rgba(26, 52, 34, .12); }
+.lab-width { min-width: min(280px, 100%); }
+.lab-width__control { display: flex; align-items: center; gap: 12px; }
+.lab-width__control input { flex: 1; min-width: 0; accent-color: #315e40; cursor: pointer; }
+.lab-width__control output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
 .lab-actions { display: flex; gap: 9px; flex-wrap: wrap; }
 .lab-actions button { border: 1px solid #b9c9bc; border-radius: 8px; background: white; color: #315e40; padding: 9px 18px; font-weight: 600; cursor: pointer; }
 .lab-actions button.primary { background: #315e40; color: white; border-color: #315e40; }
@@ -136,7 +137,7 @@ read()
 .lab-section-heading h2 { margin: 0; font-size: 1.18rem; }
 .lab-section-heading span { color: #738176; font-size: .85rem; }
 .lab-stage { overflow-x: auto; }
-.lab-stage__frame { max-width: 100%; margin: 0 auto; transition: width .18s ease; }
+.lab-stage__frame { box-sizing: border-box; min-width: min(280px, 100%); max-width: 100%; margin: 0 auto; }
 .lab-error { color: #b42318; }
 .lab-raw { padding: 20px; border: 1px solid #d8ded9; border-radius: 16px; background: #f8faf7; }
 .lab-raw-grid { display: grid; gap: 14px; }

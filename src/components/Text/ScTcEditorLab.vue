@@ -6,9 +6,6 @@ import { MACHINE_SC, MACHINE_TC, packPair, retainTranslated, unpackPair } from '
 import { actionsExpanded } from '../../utils/scTcEditorPreferences.js'
 import { useUserSettings } from '../../utils/userSettings.js'
 import writingIcon from '../../assets/书写.svg'
-import expandIcon from '../../assets/icons/to-down.svg'
-import collapseIcon from '../../assets/icons/to-up.svg'
-import eyeIcon from '../../assets/icons/eye-open.svg'
 
 const props = defineProps({
   pair: { type: Object, required: true },
@@ -279,26 +276,17 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
         <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" />
       </label>
     </div>
-    <div v-if="richText && actionsExpanded" class="lab-tools">
+    <div v-if="richText" class="lab-tools">
       <div class="lab-tools__actions">
-        <button type="button" class="lab-preview-button" title="按住预览；鼠标停在当前框时也可按住 F2" aria-label="按住预览，或按住 F2 暂时查看" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" />按住预览 <span>（F2）</span></button>
-        <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :disabled="busy" @click="synchronize" title="同步或确认检查">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg>{{ busy ? '同步中…' : '手动同步（Ctrl/⌘+Enter）' }}
-        </button>
-        <button type="button" class="lab-action" :disabled="busy || !changed" @click="restore" title="恢复尚未同步的输入">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg>恢复
-        </button>
-        <button type="button" class="lab-action" :disabled="busy" @click="clearAll" title="清空内容">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg>清空
-        </button>
+        <template v-if="actionsExpanded">
+          <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown">预览</button>
+          <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :disabled="busy" @click="synchronize">{{ busy ? '同步中…' : '同步' }}</button>
+          <button type="button" class="lab-action" :disabled="busy || !changed" @click="restore">恢复</button>
+          <button type="button" class="lab-action" :disabled="busy" @click="clearAll">清空</button>
+        </template>
+        <button type="button" class="lab-action" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded">{{ actionsExpanded ? '收起' : '展开' }}</button>
       </div>
     </div>
-    <button v-if="richText" type="button" class="lab-tools__toggle" :class="{ 'is-expanded': actionsExpanded }"
-            :aria-expanded="actionsExpanded" :aria-label="actionsExpanded ? '收起操作' : '展开操作'"
-            :title="actionsExpanded ? '收起操作' : '展开操作'" @click="actionsExpanded = !actionsExpanded">
-      <svg v-if="layout === 'small'" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-      <img v-else :src="actionsExpanded ? collapseIcon : expandIcon" alt="" />
-    </button>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
     <div v-if="richText && previewVisible" class="lab-preview-overlay" role="dialog" aria-label="文本预览">
       <p v-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
@@ -313,11 +301,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 <style scoped>
 .lab-editor { position: relative; box-sizing: border-box; container-type: inline-size; padding: 24px; border: 1px solid #d8ded9; border-radius: 16px; background: #fff; box-shadow: 0 8px 26px rgba(26, 52, 34, .06); }
 .lab-editor--middle { padding: 18px; }
-.lab-editor--small { display: inline-block; max-width: 100%; container-type: normal; padding: 0 22px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; vertical-align: middle; }
-.lab-editor--small.lab-editor--plain { padding-right: 0; }
-.lab-preview-button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #315e40; padding: 4px 0; white-space: nowrap; cursor: pointer; }
-.lab-preview-button img { width: 18px; height: 18px; }
-.lab-preview-button span { color: #738176; font-size: .82rem; }
+.lab-editor--small { display: inline-block; max-width: 100%; container-type: normal; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; vertical-align: middle; }
 .lab-invalid { margin: 0 0 14px; color: #ad4a34; font-size: .88rem; }
 .lab-fields { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
 .lab-field { display: flex; flex-direction: column; align-items: stretch; gap: 9px; flex: 1; min-width: 230px; color: #294535; font-weight: 650; }
@@ -334,18 +318,11 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-editor--small .lab-field input { box-sizing: border-box; width: 100%; height: 34px; padding: 4px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; color: #203228; font: inherit; font-weight: 400; outline: none; }
 .lab-editor--small .lab-field input:focus { border-color: #37744d; box-shadow: 0 0 0 2px rgba(55, 116, 77, .11); }
 .lab-editor--small .lab-field input:disabled { color: #89958c; background: #f0f3f0; }
-.lab-editor--small .lab-tools__toggle { right: 2px; bottom: 8px; }
-.lab-editor--small .lab-tools__toggle.is-expanded { bottom: 36px; }
-.lab-tools { margin-top: 14px; min-height: 36px; padding-right: 34px; }
-.lab-tools__toggle { position: absolute; right: 19px; bottom: 6px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 18px; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.lab-tools__toggle.is-expanded { bottom: 31px; }
-.lab-tools__toggle img { width: 11px; height: 11px; }
-.lab-tools__toggle svg { width: 15px; height: 15px; fill: none; stroke: #315e40; stroke-width: 2; stroke-linecap: round; }
+.lab-tools { margin-top: 14px; }
 .lab-tools__actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.lab-action { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #b8c9bc; border-radius: 8px; background: white; color: #315e40; padding: 8px 13px; cursor: pointer; }
+.lab-action { display: inline-flex; align-items: center; justify-content: center; border: 1px solid #b8c9bc; border-radius: 8px; background: white; color: #315e40; padding: 8px 13px; font: inherit; font-weight: 600; cursor: pointer; }
 .lab-action--primary { border-color: #315e40; background: #315e40; color: white; }
 .lab-action:disabled { opacity: .5; cursor: not-allowed; }
-.lab-action svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lab-error { color: #b42318; margin: 12px 0 0; }
 .lab-preview-overlay { position: absolute; inset: 0; z-index: 3; overflow: auto; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(26, 52, 34, .13); }
 .lab-preview-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }

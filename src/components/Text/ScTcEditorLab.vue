@@ -6,6 +6,9 @@ import { MACHINE_SC, MACHINE_TC, packPair, retainTranslated, unpackPair } from '
 import { actionsExpanded } from '../../utils/scTcEditorPreferences.js'
 import { useUserSettings } from '../../utils/userSettings.js'
 import writingIcon from '../../assets/书写.svg'
+import expandIcon from '../../assets/icons/to-down.svg'
+import collapseIcon from '../../assets/icons/to-up.svg'
+import eyeIcon from '../../assets/icons/eye-open.svg'
 
 const props = defineProps({
   pair: { type: Object, required: true },
@@ -33,6 +36,20 @@ let previewVersion = 0
 const tcBox = ref(null)
 const scBox = ref(null)
 let heightObserver = null
+let mirroredScroll = null
+
+function syncScroll(event, target) {
+  if (effectiveMode.value !== 'pair' || props.layout === 'small' || !target) return
+  const source = event.currentTarget
+  if (mirroredScroll?.element === source && mirroredScroll.top === source.scrollTop) {
+    mirroredScroll = null
+    return
+  }
+  mirroredScroll = null
+  if (target.scrollTop === source.scrollTop) return
+  target.scrollTop = source.scrollTop
+  mirroredScroll = { element: target, top: target.scrollTop }
+}
 
 watch([tcBox, scBox, () => props.layout], ([tc, sc]) => {
   heightObserver?.disconnect()
@@ -264,7 +281,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="繁体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
         <input v-if="layout === 'small'" ref="tcBox" v-model="draft.tc" type="text" :placeholder="effectiveMode === 'pair' ? '繁体' : ''" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" @keydown="onKeydown" />
-        <textarea v-else ref="tcBox" v-model="draft.tc" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" :rows="rows" @keydown="onKeydown" />
+        <textarea v-else ref="tcBox" v-model="draft.tc" :aria-label="effectiveMode === 'pair' ? '繁体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && scDirty)" :rows="rows" @keydown="onKeydown" @scroll="syncScroll($event, scBox)" />
       </label>
       <label v-if="effectiveMode !== 'tc'" class="lab-field">
         <span v-if="effectiveMode === 'pair' && layout !== 'small'" class="lab-field__title">简体
@@ -273,18 +290,18 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
           <svg v-if="isChecked" class="lab-status lab-status--checked" viewBox="0 0 24 24" role="img" aria-label="简体已确定"><path d="m5 12 4.5 4.5L19 7"/></svg>
         </span>
         <input v-if="layout === 'small'" ref="scBox" v-model="draft.sc" type="text" :placeholder="effectiveMode === 'pair' ? '简体' : ''" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" @keydown="onKeydown" />
-        <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" />
+        <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" @scroll="syncScroll($event, tcBox)" />
       </label>
     </div>
     <div v-if="richText" class="lab-tools">
       <div class="lab-tools__actions">
         <template v-if="actionsExpanded">
-          <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown">预览</button>
-          <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :disabled="busy" @click="synchronize">{{ busy ? '同步中…' : '同步' }}</button>
-          <button type="button" class="lab-action" :disabled="busy || !changed" @click="restore">恢复</button>
-          <button type="button" class="lab-action" :disabled="busy" @click="clearAll">清空</button>
+          <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
+          <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
+          <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
+          <button type="button" class="lab-action" aria-label="清空" :disabled="busy" @click="clearAll"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg></button>
         </template>
-        <button type="button" class="lab-action" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded">{{ actionsExpanded ? '收起' : '展开' }}</button>
+        <button type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
       </div>
     </div>
     <p v-if="error" class="lab-error" role="alert">{{ error }}</p>
@@ -320,9 +337,11 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 .lab-editor--small .lab-field input:disabled { color: #89958c; background: #f0f3f0; }
 .lab-tools { margin-top: 14px; }
 .lab-tools__actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.lab-action { display: inline-flex; align-items: center; justify-content: center; border: 1px solid #b8c9bc; border-radius: 8px; background: white; color: #315e40; padding: 8px 13px; font: inherit; font-weight: 600; cursor: pointer; }
+.lab-action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid #b8c9bc; border-radius: 8px; background: white; color: #315e40; padding: 8px; cursor: pointer; }
 .lab-action--primary { border-color: #315e40; background: #315e40; color: white; }
 .lab-action:disabled { opacity: .5; cursor: not-allowed; }
+.lab-action svg, .lab-action img { width: 18px; height: 18px; flex: none; }
+.lab-action svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lab-error { color: #b42318; margin: 12px 0 0; }
 .lab-preview-overlay { position: absolute; inset: 0; z-index: 3; overflow: auto; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(26, 52, 34, .13); }
 .lab-preview-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }

@@ -194,8 +194,12 @@ function closePreview() {
   previewPointerHeld.value = false
 }
 
+watch(() => props.richText, value => {
+  if (!value) closePreview()
+})
+
 function onPreviewPointerDown(event) {
-  if (event.button !== 0 || previewPointerHeld.value) return
+  if (!props.richText || event.button !== 0 || previewPointerHeld.value) return
   event.preventDefault()
   previewPointerHeld.value = true
   if (!previewVisible.value) openPreview()
@@ -302,7 +306,7 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
 </script>
 
 <template>
-  <div class="lab-editor" :class="[`lab-editor--${layout}`, { 'lab-editor--plain': !richText }]" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
+  <div class="lab-editor" :class="`lab-editor--${layout}`" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
     <p v-if="effectiveMode === 'pair' && tcDirty && scDirty" class="lab-invalid" role="status">简体和繁体都有待同步修改</p>
     <div class="lab-fields">
       <label v-if="effectiveMode !== 'sc'" class="lab-field">
@@ -324,10 +328,10 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
         <textarea v-else ref="scBox" v-model="draft.sc" :aria-label="effectiveMode === 'pair' ? '简体内容' : '输入内容'" :disabled="busy || (effectiveMode === 'pair' && tcDirty)" :rows="rows" @keydown="onKeydown" @paste="isSentenceLayout && onSentencePaste($event)" @scroll="syncScroll($event, tcBox)" />
       </label>
     </div>
-    <div v-if="richText" class="lab-tools">
+    <div class="lab-tools">
       <button v-if="!isWordLayout" type="button" class="lab-action" :aria-label="actionsExpanded ? '收起' : '展开'" :aria-expanded="actionsExpanded" @click="actionsExpanded = !actionsExpanded"><img :src="actionsExpanded ? collapseIcon : expandIcon" alt="" /></button>
       <div v-if="showActions" :class="isSentenceLayout ? 'lab-tools__menu' : 'lab-tools__inline'">
-        <button type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
+        <button v-if="richText" type="button" class="lab-action" aria-label="按住预览" @pointerdown="onPreviewPointerDown"><img :src="eyeIcon" alt="" /></button>
         <button v-if="effectiveMode === 'pair'" type="button" class="lab-action lab-action--primary" :aria-label="busy ? '同步中' : '同步'" :disabled="busy" @click="synchronize"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16m-5-4 5 4-5 4M3 17h16m-5-4 5 4-5 4"/></svg></button>
         <button type="button" class="lab-action" aria-label="恢复" :disabled="busy || !changed" @click="restore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 4 11l5 5M4 11h11a5 5 0 0 1 0 10"/></svg></button>
         <button type="button" class="lab-action" aria-label="清空" :disabled="busy" @click="clearAll"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg></button>

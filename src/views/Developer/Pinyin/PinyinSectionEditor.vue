@@ -587,7 +587,7 @@ onUnmounted(() => {
         <header class="section-header">
           <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
           <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
-            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small"
+            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
                            @update:pair="editingName = $event" />
             <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
           </div>
@@ -609,7 +609,7 @@ onUnmounted(() => {
             <div class="line-actions">
               <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
               <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
-                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small"
+                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
                                @update:pair="editingName = $event" />
                 <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
               </div>

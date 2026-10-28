@@ -10,7 +10,8 @@ import RichTextOverlayHost from "./components/Text/RichTextOverlayHost.vue";
 import { useSiteSeo } from "./utils/seo.js";
 
 const route = useRoute()
-const showMainNav = computed(() => route.meta?.hideNav !== true)
+const isDeveloperArea = computed(() => route.path.includes('/dev/'))
+const showMainNav = computed(() => route.meta?.hideNav !== true && !isDeveloperArea.value)
 
 useSiteSeo(route)
 
@@ -23,7 +24,7 @@ useSiteSeo(route)
     <!-- 主导航与渐隐层，样式与逻辑在 MainNav.vue 内部 -->
     <MainNav v-if="showMainNav"/>
 
-    <main class="page-container" :class="{'no-main-nav': !showMainNav}">
+    <main class="page-container" :class="{'no-main-nav': !showMainNav, 'developer-container': isDeveloperArea}">
       <router-view/>
       <ConfirmWindow/>
       <ToastWindow/>
@@ -36,6 +37,11 @@ useSiteSeo(route)
 .page-container.no-main-nav {
   max-width: none;
   padding-top: 0;
+}
+
+.page-container.developer-container {
+  max-width: none;
+  padding-bottom: 0;
 }
 
 @media (max-width: 768px) {

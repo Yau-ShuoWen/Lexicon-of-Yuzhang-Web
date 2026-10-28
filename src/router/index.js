@@ -10,6 +10,9 @@ const VALID_DIALECTS = ['lac', "ced"]       // 一门方言：南昌话
 const DEFAULT_LANGUAGE = 'sc'
 const DEFAULT_DIALECT = 'lac'
 const AUTH_CHECK_TIMEOUT_MS = 3_000
+const DEV_AUTH_CACHE_MS = 15_000
+let devAuthCache = {token: '', checkedAt: 0}
+let devAuthRefresh = null
 
 const routes = [
     {
@@ -125,11 +128,18 @@ const routes = [
             {
                 path: 'dev',
                 name: 'developer',
-                component: () => import('../views/Personal/LayoutBlog.vue'),
+                component: () => import('../views/Developer/DeveloperLayout.vue'),
                 redirect: to => {
                     return {path: `/${to.params.language}/${to.params.dialect}/dev/home`}
                 },
                 children: [
+                    {
+                        path: 'pending/:feature',
+                        name: 'DeveloperPending',
+                        component: () => import('../views/Developer/UnimplementedPage.vue'),
+                        props: true,
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
                     {
                         path: 'home',
                         name: 'DevHome',
@@ -402,6 +412,46 @@ const router = createRouter({
     routes
 })
 
+async function verifyDevAccess(token) {
+    try {
+        await request(`/api/user/check-auth?t=${encodeURIComponent(token)}`, {
+            timeout: AUTH_CHECK_TIMEOUT_MS
+        })
+        const currentUser = await request(`/api/user/me?t=${encodeURIComponent(token)}`, {
+            timeout: AUTH_CHECK_TIMEOUT_MS
+        })
+        if (localStorage.getItem(AUTH_TOKEN_KEY) !== token) return false
+        if (currentUser) {
+            saveAuth(currentUser, token)
+            if (isAdminUser(currentUser)) {
+                devAuthCache = {token, checkedAt: Date.now()}
+                return true
+            }
+        }
+    } catch (error) {
+        const code = error.code || error.status
+        if (isBackendUnavailableError(error) || ![HTTP_CODE.NOT_LOGIN, HTTP_CODE.NO_PERMISSION].includes(code)) {
+            // 后端暂时不可用时沿用原有的本地管理员回退逻辑。
+            if (isAdminUser()) return true
+        }
+        if (code === HTTP_CODE.NOT_LOGIN) clearAuth()
+        console.error(error)
+    }
+    devAuthCache = {token: '', checkedAt: 0}
+    return false
+}
+
+function refreshDevAccess(token) {
+    if (devAuthRefresh) return
+    devAuthRefresh = verifyDevAccess(token).then(allowed => {
+        const activeToken = localStorage.getItem(AUTH_TOKEN_KEY)
+        if (!allowed && (activeToken === token || !activeToken) && router.currentRoute.value.path.includes('/dev/')) {
+            const {language, dialect} = router.currentRoute.value.params
+            router.replace({name: 'DevHidden', params: {language, dialect}}).catch(console.error)
+        }
+    }).finally(() => { devAuthRefresh = null })
+}
+
 router.beforeEach(async (to, from, next) => {
 
     // ===== 1. 根路径重定向=====
@@ -474,6 +524,7 @@ router.beforeEach(async (to, from, next) => {
 
     // ❌ 没 token → 直接显示隐藏页
     if (!token) {
+        devAuthCache = {token: '', checkedAt: 0}
         return next({
             name: 'DevHidden',
             params: {
@@ -483,44 +534,19 @@ router.beforeEach(async (to, from, next) => {
         })
     }
 
-    // ===== 4. 校验 token =====
-    try {
-
-        await request(`/api/user/check-auth?t=${encodeURIComponent(token)}`, {
-            timeout: AUTH_CHECK_TIMEOUT_MS
-        })
-
-        const currentUser = await request(`/api/user/me?t=${encodeURIComponent(token)}`, {
-            timeout: AUTH_CHECK_TIMEOUT_MS
-        })
-
-        if (currentUser) {
-            saveAuth(currentUser, token)
-
-            if (isAdminUser(currentUser)) {
-                return next()
-            }
+    // 已验证的开发者区域内先切换页面；过期校验在后台完成。
+    if (from.path.includes('/dev/')
+        && devAuthCache.token === token
+        && isAdminUser()) {
+        if (Date.now() - devAuthCache.checkedAt >= DEV_AUTH_CACHE_MS) {
+            devAuthCache.checkedAt = Date.now()
+            refreshDevAccess(token)
         }
-
-    } catch (e) {
-        const code = e.code || e.status
-
-        if (isBackendUnavailableError(e) || ![HTTP_CODE.NOT_LOGIN, HTTP_CODE.NO_PERMISSION].includes(code)) {
-            // 后端暂时不可用不清除 Token，允许当前页面保留，恢复后可继续校验。
-            if (isAdminUser()) return next()
-            return next({
-                name: 'DevHidden',
-                params: {
-                    language: to.params.language,
-                    dialect: to.params.dialect
-                }
-            })
-        }
-
-        if (code === HTTP_CODE.NOT_LOGIN) clearAuth()
-
-        console.error(e)
+        return next()
     }
+
+    // ===== 4. 校验 token =====
+    if (await verifyDevAccess(token)) return next()
 
     return next({
         name: 'DevHidden',

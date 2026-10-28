@@ -5,6 +5,8 @@ import { request } from '../../../services/request.js'
 import { showError, showSuccess } from '../../../services/ToastService.js'
 import { confirm } from '../../../services/confirmService.js'
 import ReferenceTsvCompare from './ReferenceTsvCompare.vue'
+import HorizontalTabs from '../../../components/Layout/HorizontalTabs.vue'
+import HanziCreator from '../Hanzi/HanziCreator.vue'
 
 const base = '/api/admin/reference-tsv/versions'
 const route = useRoute()
@@ -29,7 +31,14 @@ const column = ref('all')
 const classFilter = ref('all')
 const auditFilter = ref('all')
 const showOriginalTable = ref(false)
-const openSection = ref('compare')
+const activeTab = ref(route.query.tab === 'create' ? 'create' : 'data')
+const pageTabs = [
+  {value: 'data', label: '汉字数据'},
+  {value: 'create', label: '新增汉字'},
+  {value: 'versions', label: '版本列表'},
+  {value: 'upload', label: '上传新版本'},
+  {value: 'compare', label: '版本差异'},
+]
 const searchText = ref('')
 const query = ref('')
 const page = ref(1)
@@ -260,10 +269,6 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString('zh-CN') : ''
 }
 
-function toggleSection(section) {
-  openSection.value = openSection.value === section ? '' : section
-}
-
 function titleOf(item) {
   return item.name || item.originalName.replace(/\.tsv$/i, '')
 }
@@ -346,6 +351,7 @@ function search() {
 }
 
 function changeVersion() {
+  activeTab.value = 'data'
   page.value = 1
   clearSelection()
   audit.value = null
@@ -384,6 +390,7 @@ async function upload() {
     if (fileInput.value) fileInput.value.value = ''
     showSuccess('版本上传成功')
     await loadVersions(version.id)
+    activeTab.value = 'data'
   } catch (error) {
     showError(`上传失败：${error.message}`)
   } finally {
@@ -461,9 +468,18 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="tsv-manager">
-    <section class="panel">
-      <button class="section-toggle" :aria-expanded="openSection === 'upload'" @click="toggleSection('upload')">上传新版本 <span>{{ openSection === 'upload' ? '收起' : '展开' }}</span></button>
-      <div v-if="openSection === 'upload'">
+    <header class="tsv-manager__header">
+      <h1>导入汉字</h1>
+      <p>管理字表版本，核对数据并导入汉字。</p>
+    </header>
+    <HorizontalTabs v-model="activeTab" :items="pageTabs" label="导入汉字页面" id-prefix="hanzi-import" />
+
+    <section v-if="activeTab === 'create'" id="hanzi-import-panel-create" class="panel create-panel" role="tabpanel" aria-labelledby="hanzi-import-tab-create">
+      <HanziCreator />
+    </section>
+
+    <section v-if="activeTab === 'upload'" id="hanzi-import-panel-upload" class="panel" role="tabpanel" aria-labelledby="hanzi-import-tab-upload">
+      <h2>上传新版本</h2>
       <input ref="fileInput" class="file-input" type="file" accept=".tsv,text/tab-separated-values"
              aria-label="选择 TSV 文件" @change="onFileChange" />
       <div class="drop-zone" :class="{'drop-zone--active': dragging}" role="button" tabindex="0"
@@ -481,12 +497,10 @@ onBeforeUnmount(() => {
           {{ uploading ? '上传中…' : '上传版本' }}
         </button>
       </div>
-      </div>
     </section>
 
-    <section class="panel">
-      <button class="section-toggle" :aria-expanded="openSection === 'versions'" @click="toggleSection('versions')">版本列表 <span>{{ openSection === 'versions' ? '收起' : '展开' }}</span></button>
-      <div v-if="openSection === 'versions'">
+    <section v-if="activeTab === 'versions'" id="hanzi-import-panel-versions" class="panel" role="tabpanel" aria-labelledby="hanzi-import-tab-versions">
+      <h2>版本列表</h2>
       <p v-if="!versions.length">还没有上传版本。</p>
       <template v-else>
         <div v-for="item in versions" :key="item.id" class="version-item" :class="{'version-item--selected': item.id === selectedId}">
@@ -507,16 +521,17 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </template>
-      </div>
     </section>
 
-    <section v-if="versions.length >= 2" class="panel">
-      <button class="section-toggle" :aria-expanded="openSection === 'compare'" @click="toggleSection('compare')">版本差异 <span>{{ openSection === 'compare' ? '收起' : '展开' }}</span></button>
-      <ReferenceTsvCompare v-if="openSection === 'compare'" :versions="versions" />
+    <section v-if="activeTab === 'compare'" id="hanzi-import-panel-compare" class="panel" role="tabpanel" aria-labelledby="hanzi-import-tab-compare">
+      <h2>版本差异</h2>
+      <ReferenceTsvCompare v-if="versions.length >= 2" :versions="versions" />
+      <p v-else>至少上传两个版本后才能比较差异。</p>
     </section>
 
-    <section v-if="selectedVersion" class="panel">
-      <h2>{{ titleOf(selectedVersion) }}</h2>
+    <section v-if="activeTab === 'data'" id="hanzi-import-panel-data" class="panel" role="tabpanel" aria-labelledby="hanzi-import-tab-data">
+      <template v-if="selectedVersion">
+        <h2>{{ titleOf(selectedVersion) }}</h2>
         <p v-if="classification && classifiedVersionId === selectedId" class="hint">共 {{ groupedRows.length }} 个汉字</p>
         <div class="controls search-controls">
           <select v-model="column" aria-label="查询列">
@@ -574,7 +589,7 @@ onBeforeUnmount(() => {
                   <td v-for="(value, index) in row.values" :key="index" v-formatted-text="displayCell(table.columns[index], value, row)"></td>
                   <td class="edit-cell"><router-link v-for="entry in audit?.backendEntries?.[group.character] || []" :key="entry.id"
                                                     :to="editLink(entry.id)" target="_blank">编辑 {{ entry.simplified }}／{{ entry.traditional }}</router-link>
-                    <router-link v-if="missing(group)" :to="{name: 'HanziCreator', params: {language: route.params.language, dialect: route.params.dialect}}" target="_blank">新增该字</router-link>
+                    <router-link v-if="missing(group)" :to="{name: 'ReferenceTsvManager', params: {language: route.params.language, dialect: route.params.dialect}, query: {tab: 'create'}}" target="_blank">新增该字</router-link>
                   </td>
                 </tr>
               </template>
@@ -617,7 +632,7 @@ onBeforeUnmount(() => {
                 <td class="edit-cell">
                   <router-link v-for="entry in audit?.backendEntries?.[group.character] || []" :key="entry.id"
                                :to="editLink(entry.id)" target="_blank">编辑 {{ entry.simplified }}／{{ entry.traditional }}</router-link>
-                  <router-link v-if="missing(group)" :to="{name: 'HanziCreator', params: {language: route.params.language, dialect: route.params.dialect}}" target="_blank">新增该字</router-link>
+                  <router-link v-if="missing(group)" :to="{name: 'ReferenceTsvManager', params: {language: route.params.language, dialect: route.params.dialect}, query: {tab: 'create'}}" target="_blank">新增该字</router-link>
                 </td>
               </tr>
             </tbody>
@@ -637,17 +652,20 @@ onBeforeUnmount(() => {
           <button :disabled="loading || importing || page <= 1" @click="changePage(page - 1)">上一页</button>
           <button :disabled="loading || importing || page * pageSize >= table.total" @click="changePage(page + 1)">下一页</button>
         </div>
+      </template>
+      <p v-else>还没有可查看的字表版本，请先上传新版本。</p>
     </section>
   </main>
 </template>
 
 <style scoped>
 .tsv-manager { max-width: 1400px; margin: 0 auto; padding: 28px 20px 60px; }
+.tsv-manager__header { margin-bottom: 24px; }
+.tsv-manager__header h1 { margin: 0 0 8px; color: var(--color-text); font-size: clamp(1.7rem, 3vw, 2.1rem); }
+.tsv-manager__header p { margin: 0; color: var(--color-text-light); }
 .panel { margin-top: 20px; padding: 20px; border: 1px solid #dce6dd; border-radius: 12px; background: var(--el-bg-color, white); }
 .panel h2 { margin: 0 0 16px; }
-.section-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; font-weight: 600; text-align: left; cursor: pointer; }
-.section-toggle span { color: var(--el-text-color-secondary, #666); font-size: .9rem; font-weight: normal; }
-.section-toggle + div { margin-top: 16px; }
+.create-panel :deep(.narrow-layout) { max-width: 800px; padding: 0; }
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
 .controls input, .controls select { padding: 8px; min-height: 36px; max-width: 100%; border: 1px solid #ccd9ce; border-radius: 7px; }
 .controls button { padding: 8px 16px; border: 1px solid #9bb8a1; border-radius: 7px; background: #fff; color: #2d6840; cursor: pointer; }

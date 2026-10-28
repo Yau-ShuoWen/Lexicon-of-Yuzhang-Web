@@ -5,6 +5,7 @@ const SETTINGS_CHANGE_EVENT = 'yuzhang-settings-change'
 
 export const DEFAULT_USER_SETTINGS = Object.freeze({
   languageStyle: 'sc',
+  editorLanguage: 'pair',
   mandarinNotation: 'pinyin',
   dialectNotations: ['standard', 'keyboard', 'putonghua'],
   pinnedDialectNotation: 'standard',
@@ -21,6 +22,7 @@ const LEGACY_DIALECT_NOTATIONS = {
 }
 const VALID_VALUES = {
   languageStyle: new Set(['sc', 'tc']),
+  editorLanguage: new Set(['sc', 'tc', 'pair']),
   mandarinNotation: new Set(['pinyin', 'zhuyin', 'parallel']),
   weekdayStyle: new Set(['weekday', 'youbi'])
 }
@@ -40,6 +42,8 @@ export function getUserSettings() {
 
     return {
       languageStyle: VALID_VALUES.languageStyle.has(stored.languageStyle) ? stored.languageStyle : DEFAULT_USER_SETTINGS.languageStyle,
+      editorLanguage: VALID_VALUES.editorLanguage.has(stored.editorLanguage) ? stored.editorLanguage :
+        (VALID_VALUES.editorLanguage.has(localStorage.getItem('sc-tc-default-edit-language')) ? localStorage.getItem('sc-tc-default-edit-language') : DEFAULT_USER_SETTINGS.editorLanguage),
       mandarinNotation: VALID_VALUES.mandarinNotation.has(stored.mandarinNotation) ? stored.mandarinNotation : DEFAULT_USER_SETTINGS.mandarinNotation,
       dialectNotations,
       pinnedDialectNotation,

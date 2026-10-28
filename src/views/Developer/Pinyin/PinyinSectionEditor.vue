@@ -4,6 +4,9 @@ import {useRoute} from 'vue-router'
 import {request} from '../../../services/request.js'
 import {showError, showSuccess} from '../../../services/ToastService.js'
 import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
+import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
+import confirmIcon from '../../../assets/icons/LanguageAndDialect/yes.svg'
+import cancelIcon from '../../../assets/icons/close.svg'
 import {ensureNoteLabels, fromLegacy, getNoteLabelUsages, mergeMissingLegacyChildren, mergeNoteLabel, syncItemKeys} from '../../../utils/pinyinDocument.js'
 
 const route = useRoute()
@@ -13,6 +16,9 @@ const documentData = ref(null)
 const loading = ref(true)
 const editingId = ref(null)
 const editingName = ref({sc: '', tc: ''})
+const editingOriginalName = ref({sc: '', tc: ''})
+const nameEditor = ref(null)
+let nameFinishPromise = null
 const draggingId = ref(null)
 const draggingKind = ref(null)
 const dragOverId = ref(null)
@@ -88,7 +94,7 @@ async function load() {
 
 async function save() {
   if (editingId.value) {
-    if (!finishName()) return
+    if (!await finishName()) return
   }
   try {
     syncItemKeys(documentData.value)
@@ -339,8 +345,8 @@ function removeItem(group, item) {
   group.items.splice(group.items.indexOf(item), 1)
 }
 
-function selectLevel(level) {
-  if (editingId.value) finishName()
+async function selectLevel(level) {
+  if (editingId.value && !await finishName()) return
   closeItem()
   editLevel.value = level
   selectedId.value = null
@@ -353,23 +359,53 @@ function removeGroup(row, group) {
   row.groups.splice(row.groups.indexOf(group), 1)
 }
 
-function editName(target) {
+async function editName(target) {
   if (draggingId.value) return
+  if (editingId.value && editingId.value !== target.id && !await finishName()) return
   editingId.value = target.id
   editingName.value = {...(target.name || {sc: '', tc: ''})}
+  editingOriginalName.value = {...editingName.value}
 }
 
 function finishName(cancel = false) {
+  if (nameFinishPromise) return nameFinishPromise
+  const pending = completeName(cancel)
+  nameFinishPromise = pending
+  pending.finally(() => { if (nameFinishPromise === pending) nameFinishPromise = null })
+  return pending
+}
+
+async function completeName(cancel) {
   const target = documentData.value.sections.flatMap(section => [section, ...section.rows])
     .find(entry => entry.id === editingId.value)
   if (!target) return false
+  if (!cancel && !nameEditor.value?.hasPendingChanges() &&
+      editingName.value.sc === editingOriginalName.value.sc && editingName.value.tc === editingOriginalName.value.tc &&
+      editingName.value.machineSide === editingOriginalName.value.machineSide) {
+    editingId.value = null
+    return true
+  }
+  if (!cancel && nameEditor.value?.hasPendingChanges() && !await nameEditor.value.synchronize()) return false
   if (!cancel && (!editingName.value.sc.trim() || !editingName.value.tc.trim())) {
     showError('请填写简体和繁体标题')
     return false
   }
-  if (!cancel) target.name = {sc: editingName.value.sc.trim(), tc: editingName.value.tc.trim()}
+  if (!cancel) target.name = {
+    sc: editingName.value.sc.trim(), tc: editingName.value.tc.trim(),
+    ...(editingName.value.machineSide ? {machineSide: editingName.value.machineSide} : {})
+  }
   editingId.value = null
   return true
+}
+
+function setNameEditor(editor) {
+  nameEditor.value = editor
+}
+
+function onDocumentPointerDown(event) {
+  if (editingId.value && event.target instanceof Element && !event.target.closest('.name-inline, .lab-preview-overlay')) {
+    void finishName()
+  }
 }
 
 function addSection() {
@@ -492,8 +528,14 @@ function removePointerListeners() {
 }
 
 watch(dialect, load)
-onMounted(load)
-onUnmounted(pointerCancel)
+onMounted(() => {
+  load()
+  window.document.addEventListener('pointerdown', onDocumentPointerDown, true)
+})
+onUnmounted(() => {
+  pointerCancel()
+  window.document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+})
 </script>
 
 <template>
@@ -544,11 +586,13 @@ onUnmounted(pointerCancel)
       >
         <header class="section-header">
           <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
-          <h3
-            class="section-name"
-            @dblclick.stop="editLevel === 'section' && editName(section)"
-          >{{ sectionName(section) }}</h3>
-          <button v-if="editLevel === 'section' && isEmpty(section)" class="remove-button" type="button" aria-label="删除空区域" @click="removeSection(section)">删除</button>
+          <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
+            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+                           @update:pair="editingName = $event" />
+            <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
+          </div>
+          <h3 v-else class="section-name" @dblclick.stop="editLevel === 'section' && editName(section)">{{ sectionName(section) }}</h3>
+          <button v-if="editLevel === 'section' && editingId !== section.id && isEmpty(section)" class="remove-button" type="button" aria-label="删除空区域" @click="removeSection(section)">删除</button>
         </header>
         <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id"
              :class="{'list-drop-target': draggingKind === 'line' && dropListId === section.id && !dragOverId}">
@@ -564,9 +608,14 @@ onUnmounted(pointerCancel)
           >
             <div class="line-actions">
               <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
-              <span class="row-name" @dblclick.stop="editLevel === 'row' && editName(row)">{{ rowName(row) }}</span>
+              <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
+                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+                               @update:pair="editingName = $event" />
+                <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
+              </div>
+              <span v-else class="row-name" @dblclick.stop="editLevel === 'row' && editName(row)">{{ rowName(row) }}</span>
               <button v-if="editLevel === 'group'" type="button" @click="addGroup(row)">＋ 添加组</button>
-              <button v-if="editLevel === 'row' && rowEmpty(row)" type="button" class="remove-button" @click="removeRow(section, row)">删除空行</button>
+              <button v-if="editLevel === 'row' && editingId !== row.id && rowEmpty(row)" type="button" class="remove-button" @click="removeRow(section, row)">删除空行</button>
             </div>
             <div class="line-groups">
               <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id"
@@ -608,14 +657,6 @@ onUnmounted(pointerCancel)
       </section>
       </div>
       <button v-if="editLevel === 'section'" class="add-section" type="button" @click="addSection">＋ 添加区域</button>
-      <div v-if="editingId" class="modal-backdrop name-backdrop" @pointerdown.self="finishName(true)">
-        <section class="item-modal name-modal" role="dialog" aria-modal="true" aria-label="编辑标题">
-          <header class="modal-header"><h2>编辑标题</h2><button type="button" aria-label="关闭" @click="finishName(true)">×</button></header>
-          <ScAndTcText v-model:traditional-text="editingName.tc" v-model:simplified-text="editingName.sc"
-                       :dialect="dialect" layout="middle" />
-          <footer class="modal-footer"><button type="button" @click="finishName()">完成</button></footer>
-        </section>
-      </div>
       <div v-if="openedItem" class="modal-backdrop" @pointerdown.self="closeItem" @keydown.esc="closeItem">
         <section class="item-modal" role="dialog" aria-modal="true" aria-label="编辑拼音格子">
           <header class="modal-header">
@@ -759,7 +800,21 @@ onUnmounted(pointerCancel)
 .accent-2 .sort-handle::before { background: #f36048; box-shadow: 0 2px 6px #f360484d; }
 .sort-handle.held { cursor: grabbing; }
 .section-name { margin: 0; flex: 1; color: #34495e; font-size: 19px; font-weight: 700; letter-spacing: 1px; user-select: none; }
-.row-name { cursor: text; border-bottom: 1px dashed transparent; }
+.name-inline { display: inline-flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; margin-right: auto; cursor: default; touch-action: auto; }
+.name-inline > :first-child { flex: 0 1 auto; min-width: 0; }
+.section-name-inline { font-size: 16px; }
+.row-name-inline { font-size: 18px; }
+.name-inline :deep(.lab-editor--small) { gap: 6px; }
+.name-inline :deep(.lab-editor--small .lab-field input) { height: 30px; }
+.name-inline :deep(.lab-tools__inline) { gap: 4px; }
+.name-inline :deep(.lab-action) { width: 30px; height: 30px; padding: 6px; border-radius: 6px; }
+.name-inline :deep(.lab-action svg), .name-inline :deep(.lab-action img) { width: 16px; height: 16px; }
+.name-inline-actions { display: inline-flex; gap: 2px; flex: 0 0 auto; }
+.name-inline-actions button, .line-actions .name-inline-actions button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #326d3b; cursor: pointer; font-size: 19px; line-height: 1; }
+.name-inline-actions button:hover { background: #edf6ef; }
+.name-inline-actions button:last-child { color: #9b4d4d; }
+.name-inline-actions img { display: block; width: 16px; height: 16px; }
+.row-name { color: #34495e; font-size: 20px; font-weight: 650; line-height: 1.3; cursor: text; border-bottom: 1px dashed transparent; }
 .pinyin-line.editable-level .row-name:hover, .section-card.editable-level .section-name:hover { border-bottom-color: #8fba97; }
 .list-drop-target { outline: 2px dashed #8bc6e4; outline-offset: 3px; }
 .remove-button { border: 0; background: transparent; color: #b45d5d; cursor: pointer; padding: 4px 6px; }
@@ -767,6 +822,8 @@ onUnmounted(pointerCancel)
 .pinyin-line.drop-target, .pinyin-group.drop-target { outline: 2px solid #85b98d; outline-offset: 2px; }
 .line-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: #657e69; font-size: 13px; }
 .line-actions button:not(.structure-handle) { border: 0; background: transparent; color: #397447; cursor: pointer; padding: 4px; }
+.line-actions .name-inline-actions button { padding: 0; }
+.line-actions .name-inline-actions button:hover { background: #edf6ef; }
 .line-actions .remove-button { margin-left: auto; color: #b45d5d !important; }
 .structure-handle, .group-handle { border: 0; background: transparent; color: #789b7e; cursor: grab; touch-action: none; user-select: none; font-size: 18px; line-height: 1; }
 .structure-handle { width: 26px; height: 26px; }
@@ -785,9 +842,6 @@ onUnmounted(pointerCancel)
 .add-section:hover { background: #f4faf4; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
 .item-modal { box-sizing: border-box; width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border-radius: 16px; background: white; padding: 22px; box-shadow: 0 18px 50px #1126184d; }
-.name-backdrop { z-index: 1002; }
-.name-modal { width: min(600px, 100%); }
-.name-modal :deep(.sc-tc-group) { margin-top: 18px; }
 .modal-header, .modal-subheading, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .modal-header { border-bottom: 1px solid #dfe8e1; padding-bottom: 12px; }
 .modal-header h2, .modal-subheading h3 { margin: 0; color: #34495e; }

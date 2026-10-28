@@ -156,9 +156,10 @@ const routes = [
                         component: () => import('../views/Developer/Tool/TestPage.vue')
                     },
                     {
-                        path: 'test/sc-tc',
-                        name: 'TestSimplifiedAndTraditional',
-                        component: () => import('../views/Developer/Tool/TestScTc.vue')
+                        path: 'tool/sc-tc-lab',
+                        name: 'ScTcEditorLab',
+                        component: () => import('../views/Developer/Tool/ScTcEditorLab.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
                         path: 'test/pinyin-ipa',

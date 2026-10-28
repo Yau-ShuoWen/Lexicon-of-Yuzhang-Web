@@ -34,7 +34,7 @@ const sections = computed(() => [
     icon: Tools,
     tone: "blue",
     items: [
-      { path: "test/sc-tc", title: t('devhome.sc_tc'), description: t('devhome.sc_tc_desc'), icon: Connection },
+      { path: "tool/sc-tc-lab", title: "简繁转换框试验", description: "测试大、中、小尺寸和手机宽度", icon: Connection },
       { path: "test/pinyin-ipa", title: t('devhome.rich_text'), description: t('devhome.rich_text_desc'), icon: Document },
       { path: "test/oss", title: t('devhome.oss_audio'), description: t('devhome.oss_audio_desc'), icon: Upload },
       { path: "test/image", title: "图片存储测试", description: "上传、读取、预览和删除图片", icon: Upload },

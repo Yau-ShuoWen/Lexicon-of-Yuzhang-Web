@@ -134,6 +134,11 @@ const routes = [
                 },
                 children: [
                     {
+                        path: 'pending/import-ciyu',
+                        name: 'CiyuImport',
+                        component: () => import('../views/Developer/Ciyu/CiyuImport.vue'),
+                    },
+                    {
                         path: 'pending/:feature',
                         name: 'DeveloperPending',
                         component: () => import('../views/Developer/UnimplementedPage.vue'),

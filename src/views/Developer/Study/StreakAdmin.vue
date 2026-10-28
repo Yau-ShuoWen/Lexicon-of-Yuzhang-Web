@@ -1,4 +1,5 @@
 <script setup>
+import DeveloperQueryBar from '../DeveloperQueryBar.vue'
 import {computed, ref, watch} from 'vue'
 import {useHead} from '@vueuse/head'
 import {getToken} from '../../../utils/auth.js'
@@ -204,11 +205,8 @@ useHead({title: '用户连胜管理'})
       <p>查询用户后，直接在日历中点击需要调整的日期。</p>
     </header>
 
-    <section class="panel search-panel">
-      <form class="search-form" @submit.prevent="searchUser">
-        <input v-model="keyword" class="ordinary-input" placeholder="用户名、手机号或用户 ID" />
-        <button type="submit" :disabled="loadingUser">{{ loadingUser ? '查询中……' : '查询用户' }}</button>
-      </form>
+    <section class="panel">
+      <DeveloperQueryBar v-model="keyword" placeholder="用户名、手机号或用户 ID" button-text="查询用户" :loading="loadingUser" @submit="searchUser" />
     </section>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -334,17 +332,14 @@ useHead({title: '用户连胜管理'})
 .page-header p { margin: 0; color: var(--color-text-light); }
 .eyebrow { margin: 0 0 6px; color: var(--color-primary); font-size: 12px; letter-spacing: .16em; font-weight: 700; }
 .panel { margin-top: 20px; padding: 24px; border: 1px solid #d7e8d8; border-radius: 20px; background: rgba(255,255,255,.8); box-shadow: 0 12px 30px rgba(46,125,50,.08); }
-.search-form { display: flex; gap: 10px; }
-.search-form input { flex: 1; min-width: 0; }
 button { padding: 9px 16px; border: 0; border-radius: 999px; color: var(--color-primary-dark); background: #e9f5e9; cursor: pointer; }
 button:hover:not(:disabled) { background: #d7ecd8; }
 button:disabled { cursor: not-allowed; opacity: .45; }
-.search-form button, .primary-button { color: white; background: var(--color-primary); }
+.primary-button { color: white; background: var(--color-primary); }
 .calendar-hint { color: var(--color-text-light); font-size: .85rem; }
 .error-text { margin: 18px 0 0; color: #b42318; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 h2 { margin: 0; color: var(--color-primary-dark); font-size: 1.25rem; }
-input.ordinary-input { min-height: 38px; padding: 0 12px; border: 1px solid #c7dfc9; border-radius: 9px; font: inherit; color: var(--color-text); background: white; }
 .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 24px; text-align: center; }
 .metrics div { display: flex; flex-direction: column; gap: 5px; padding: 12px 8px; border-radius: 12px; background: #f1f8f1; }
 .metrics strong { color: var(--color-primary); font-size: 1.7rem; }
@@ -416,7 +411,6 @@ fieldset label.selected { border-color: var(--color-primary); color: var(--color
   .admin-mark { top: 0; right: 0; }
 }
 @media (max-width: 460px) {
-  .search-form { flex-direction: column; }
   .record-summary { grid-template-columns: 1fr; }
   fieldset { grid-template-columns: 1fr; }
 }

@@ -2,16 +2,16 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import DictSelect from '../../../components/Select/DictSelect.vue'
 import JumpButton from "../../../components/Button/JumpButton.vue";
 import { showError } from "../../../services/ToastService.js";
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import { getToken } from "../../../utils/auth.js";
 import { request } from '../../../services/request.js'
+import DeveloperQueryBar from '../DeveloperQueryBar.vue'
 
 // 路由
-const router = useRouter()
 const route = useRoute()
 
 // 语言、方言和路径
@@ -141,15 +141,7 @@ watch(selectedDictionary, () => {
 
     <!-- 搜索 -->
     <div class="search-section">
-      <input
-          v-model="searchText"
-          type="text"
-          placeholder="输入关键词，按下回车键搜索"
-          @keyup.enter="performSearch"
-          :disabled="!selectedDictionary"
-          class="ordinary-input"
-      />
-      <button class="dev-btn-small dev-nav-button" @click="performSearch">查询</button>
+      <DeveloperQueryBar v-model="searchText" placeholder="输入关键词" :disabled="!selectedDictionary" :loading="isLoading" @submit="performSearch" />
     </div>
 
     <LoadingIcon v-if="isLoading"/>
@@ -177,10 +169,9 @@ watch(selectedDictionary, () => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .search-section {
   display: flex;
-  gap: 10px;
   margin-bottom: 20px;
 }
 

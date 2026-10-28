@@ -2,14 +2,14 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showError } from "../../../services/ToastService.js";
 import { useHead } from "@vueuse/head";
 import { getToken } from "../../../utils/auth.js";
 import { request } from '../../../services/request.js'
+import DeveloperQueryBar from '../DeveloperQueryBar.vue'
 
 // 路由
-const router = useRouter()
 const route = useRoute()
 
 useHead({title: () => `漢字編輯器：查找`})
@@ -58,18 +58,7 @@ watch(searchText, (newValue) => {
   <div class="narrow-layout">
 
     <div class="search-section">
-      <input
-          v-model="searchText"
-          type="text"
-          placeholder="篩選需要編輯的內容、回車搜索"
-          @keyup.enter="performSearch"
-          class="mid-input"
-      />
-      <button class="dev-btn-middle dev-nav-button" @click="performSearch">查询</button>
-      <router-link :to="getPath(`hanzi-creator`)" target="_blank"
-                   class="dev-btn-middle dev-add-btn">
-        新增漢字
-      </router-link>
+      <DeveloperQueryBar v-model="searchText" placeholder="筛选需要编辑的汉字" :loading="isLoading" @submit="performSearch" />
     </div>
 
     <div v-if="searchResults.length > 0" class="results-section">
@@ -92,10 +81,9 @@ watch(searchText, (newValue) => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .search-section {
   display: flex;
-  gap: 10px;
   margin-top: 40px;
   margin-bottom: 20px;
 }

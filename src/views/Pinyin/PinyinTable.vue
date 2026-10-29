@@ -20,6 +20,7 @@ const dialect = computed(() => route.params.dialect)
 const {t} = useI18n()
 
 const pinyinData = ref([])
+const faq = ref([])
 const loading = ref(true)
 const showSkeleton = ref(false)
 const showDetail = ref(false)
@@ -56,6 +57,7 @@ async function fetchTable() {
   try {
     startLoading()
     const document = await request(`/api/pinyin/document/${dialect.value}`)
+    faq.value = document?.faq || []
     if (document) pinyinData.value = tableFromDocument(document, language.value)
     else {
       const data = await request(`/api/pinyin/table/${dialect.value}/${language.value}`)
@@ -142,6 +144,13 @@ watch([dialect, language], fetchTable)
         </div>
       </div>
     </div>
+    <section v-if="faq.length" class="pinyin-faq" aria-label="拼音表问答">
+      <h2>常见问题</h2>
+      <details v-for="entry in faq" :key="entry.id" class="pinyin-faq__item">
+        <summary><span v-formatted-text="entry.question?.[language] || entry.question?.sc || ''" /></summary>
+        <div class="pinyin-faq__answer" v-formatted-text="entry.answer?.[language] || entry.answer?.sc || ''" />
+      </details>
+    </section>
     <PinyinTransfer :dialect="dialect.toString()" :language="language.toString()" />
   </div>
   <PinyinDetail
@@ -337,6 +346,11 @@ watch([dialect, language], fetchTable)
 .pinyin-content-host {
   min-width: 0;
 }
+.pinyin-faq { margin-top: 30px; padding: 22px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.pinyin-faq h2 { margin: 0 0 14px; color: #245c35; font-size: 21px; }
+.pinyin-faq__item { border-top: 1px solid #dce8dd; }
+.pinyin-faq__item summary { padding: 14px 2px; color: var(--color-text); font-weight: 650; cursor: pointer; }
+.pinyin-faq__answer { padding: 0 2px 16px; color: var(--color-text); line-height: 1.7; white-space: pre-wrap; }
 
 .this-table-block {
   display: flex;

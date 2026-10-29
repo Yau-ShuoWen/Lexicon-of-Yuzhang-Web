@@ -10,7 +10,8 @@ const props = defineProps({
   allPinyin: {type: Boolean, default: false},
   dict: {type: String, default: null},
   copyable: {type: Boolean, default: false},
-  plain: {type: Boolean, default: false}
+  plain: {type: Boolean, default: false},
+  requestBackend: {type: Boolean, default: true}
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -77,14 +78,14 @@ const check = async (text, version) => {
 
 // 监听外部输入变化
 watch(
-    () => [props.modelValue, props.language, props.dialect, props.dict, props.allPinyin],
+    () => [props.modelValue, props.language, props.dialect, props.dict, props.allPinyin, props.requestBackend],
     () => {
       const version = ++requestVersion
       const text = props.modelValue
       clearTimeout(timer)
       result.value = text
       resolved.value = false
-      if (text.trim()) timer = setTimeout(() => check(text, version), 400)
+      if (props.requestBackend && text.trim()) timer = setTimeout(() => check(text, version), 400)
     },
     {immediate: true, flush: 'sync'}
 )
@@ -95,8 +96,9 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div v-if="!requestBackend" class="result" :class="{plain}" v-formatted-text="modelValue"></div>
   <div
-      v-if="result"
+      v-else-if="result"
       class="result"
       :class="plain ? 'plain' : (!resolved ? 'pending' : (isValid ? 'valid' : 'invalid'))"
       v-formatted-text="result"

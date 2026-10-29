@@ -15,7 +15,8 @@ const props = defineProps({
   dialect: { type: String, required: true },
   mode: { type: String, default: '' },
   layout: { type: String, default: 'large' },
-  richText: { type: Boolean, default: true }
+  richText: { type: Boolean, default: true },
+  requestBackend: { type: Boolean, default: true }
 })
 const emit = defineEmits(['update:pair', 'draft-change'])
 const settings = useUserSettings()
@@ -197,7 +198,7 @@ async function previewPair() {
   if (effectiveMode.value !== 'pair' || !tcDirty.value) return { ...draft.value }
   const snapshot = draft.value.tc
   if (!snapshot) return { ...draft.value, sc: '' }
-  const machine = await request('/api/proofread/translate?from=tc&to=sc', {
+  const machine = await request(`/api/proofread/sc-tc-machine/${props.dialect}?from=tc`, {
     method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
   })
   if (draft.value.tc !== snapshot) throw new Error('输入已变化，请重新打开预览')
@@ -299,7 +300,7 @@ async function synchronizeTranslation(source, nextMachineSide) {
   const snapshot = draft.value[source]
   busy.value = true
   try {
-    const machine = snapshot ? await request('/api/proofread/translate?from=' + source + '&to=' + target, {
+    const machine = snapshot ? await request(`/api/proofread/sc-tc-machine/${props.dialect}?from=${source}`, {
       method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
     }) : ''
     if (draft.value[source] !== snapshot) throw new Error('输入已变化，请重新同步')
@@ -384,8 +385,8 @@ defineExpose({ synchronize, synchronizeForSave, hasPendingChanges: () => changed
       <div v-if="richText && previewVisible" class="lab-preview-overlay" :class="{ 'lab-preview-overlay--compact': isCompactLayout }" role="dialog" aria-label="文本预览">
         <p v-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
         <div class="lab-preview-content" :class="{ 'lab-preview-content--single': previewMode !== 'pair' }">
-          <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" plain /></div></section>
-          <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" plain /></div></section>
+          <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" :request-backend="requestBackend" plain /></div></section>
+          <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" :request-backend="requestBackend" plain /></div></section>
         </div>
       </div>
     </Teleport>

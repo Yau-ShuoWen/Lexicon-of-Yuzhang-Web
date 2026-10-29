@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
 import { request } from '../../../services/request.js'
-import { MACHINE_SC, MACHINE_TC, packPair, unpackPair } from '../../../utils/scTcLab.js'
 import { useUserSettings } from '../../../utils/userSettings.js'
 
 const route = useRoute()
@@ -22,20 +21,23 @@ const editor = ref(null)
 const busy = ref(false)
 const notice = ref('')
 const error = ref('')
-const liveDraft = ref({ sc: '', tc: '' })
+const readString = ref(null)
+const currentJson = computed(() => JSON.stringify(pair.value, null, 2))
+const readJson = computed(() => {
+  if (readString.value == null) return '暂无读取数据'
+  try { return JSON.stringify(JSON.parse(readString.value), null, 2) }
+  catch { return readString.value }
+})
 
-function readableOriginal(value) {
-  return JSON.stringify(String(value ?? ''))
-}
 function setPair(value) {
-  const parsed = unpackPair(value)
-  pair.value = packPair(parsed, parsed.machineSide)
+  pair.value = value
 }
 
 async function read() {
   busy.value = true; error.value = ''; notice.value = ''
   try {
     const stored = await request('/api/edit/sc-tc-lab')
+    readString.value = stored ?? null
     setPair(stored ? JSON.parse(stored) : { sc: '', tc: '' })
     notice.value = stored ? '已读取测试数据' : '尚无测试数据，已清空编辑框'
   } catch (e) { error.value = e.message }
@@ -45,14 +47,9 @@ async function read() {
 async function write() {
   busy.value = true; error.value = ''; notice.value = ''
   try {
-    if (editor.value?.hasPendingChanges()) {
-      const ok = await editor.value.synchronize()
-      if (!ok) return
-    }
-    const parsed = unpackPair(pair.value)
-    const checked = packPair({ sc: parsed.sc, tc: parsed.tc }, parsed.machineSide)
+    if (editor.value && !await editor.value.synchronizeForSave()) return
     await request('/api/edit/sc-tc-lab', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checked)
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pair.value)
     })
     notice.value = '测试数据已写入 KVS'
   } catch (e) { error.value = e.message }
@@ -92,21 +89,14 @@ read()
     <section class="lab-section lab-stage">
       <div class="lab-section-heading"><h2>编辑框</h2><span>{{ sizes.find(item => item.value === size)?.label }} · {{ width }}%</span></div>
       <div class="lab-stage__frame" :style="{ width: `${width}%` }"><ScTcEditorLab ref="editor" :pair="pair" :dialect="dialect" :layout="size"
-                     @update:pair="setPair" @draft-change="liveDraft = $event" />
+                     @update:pair="setPair" />
       </div>
     </section>
     <section class="lab-section lab-raw">
-      <div class="lab-section-heading"><h2>原字符串</h2><span>输入时实时更新，无须提交</span></div>
+      <div class="lab-section-heading"><h2>JSON 数据</h2></div>
       <div class="lab-raw-grid">
-        <div class="lab-raw-group"><h3>当前共同数据</h3>
-          <p><span>繁体</span><code>{{ readableOriginal(pair.tc) }}</code></p>
-          <p><span>简体</span><code>{{ readableOriginal(pair.sc) }}</code></p>
-          <p><span>机翻状态</span><code>{{ pair.machineSide === MACHINE_SC ? '简体机翻' : pair.machineSide === MACHINE_TC ? '繁体机翻' : '已检查' }}</code></p>
-        </div>
-        <div class="lab-raw-group"><h3>当前输入</h3>
-          <p><span>繁体</span><code>{{ readableOriginal(liveDraft.tc) }}</code></p>
-          <p><span>简体</span><code>{{ readableOriginal(liveDraft.sc) }}</code></p>
-        </div>
+        <div class="lab-raw-group"><h3>当前字符串</h3><pre>{{ currentJson }}</pre></div>
+        <div class="lab-raw-group"><h3>读取字符串</h3><pre>{{ readJson }}</pre></div>
       </div>
     </section>
   </main>
@@ -142,8 +132,6 @@ read()
 .lab-raw-grid { display: grid; gap: 14px; }
 .lab-raw-group { padding: 14px 16px; border: 1px solid #e0e7e1; border-radius: 10px; background: white; }
 .lab-raw-group h3 { margin: 0 0 10px; font-size: .92rem; }
-.lab-raw-group p { display: flex; gap: 16px; align-items: baseline; margin: 7px 0; }
-.lab-raw-group p span { flex: 0 0 2.5em; color: #68796c; font-size: .82rem; }
-.lab-raw-group code { white-space: pre-wrap; overflow-wrap: anywhere; color: #254332; font-family: var(--font-family-mono, monospace); font-size: .85rem; }
+.lab-raw-group pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #254332; font-family: var(--font-family-mono, monospace); font-size: .85rem; }
 @media (max-width: 640px) { .sc-tc-lab { padding-inline: 16px; } }
 </style>

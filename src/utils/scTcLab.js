@@ -4,7 +4,7 @@ export const MACHINE_TC = 'tc'
 export function unpackPair(pair = {}) {
   const machineSide = pair.machineSide ?? ''
   if (machineSide && machineSide !== MACHINE_SC && machineSide !== MACHINE_TC) throw new Error('未知机翻状态')
-  return { sc: pair.sc ?? '', tc: pair.tc ?? '', machineSide }
+  return { sc: pair.sc ?? '', tc: pair.tc ?? '', machineSide, editState: pair.editState ?? null }
 }
 
 export function packPair(pair, machineSide = '') {

@@ -80,10 +80,8 @@ async function load() {
     savedSnapshot.value = JSON.stringify(documentData.value)
     if (legacy) mergeMissingLegacyChildren(documentData.value, legacy)
     ensureNoteLabels(documentData.value)
-    const children = [...documentData.value.unplaced, ...documentData.value.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items.flatMap(item => item.children))))]
     repairIds.value = new Set([
-      ...documentData.value.noteLabels.filter(label => !sameLength(label.text)).map(label => label.id),
-      ...children.flatMap(child => child.notes?.filter(note => !sameLength(note.value)).map(note => note.id) || [])
+      ...documentData.value.noteLabels.filter(label => !sameLength(label.text)).map(label => label.id)
     ])
   } catch (error) {
     showError(error.message)
@@ -100,26 +98,24 @@ async function save() {
     syncItemKeys(documentData.value)
     const names = new Set()
     for (const label of documentData.value.noteLabels) {
-      if (!label.text.sc?.trim() || !label.text.tc?.trim() || !sameLength(label.text)) throw new Error('解释名称需要填写等长的简体和繁体')
+      if (!label.text.sc?.trim() || !label.text.tc?.trim()) throw new Error('解释名称需要填写简体和繁体')
       const name = JSON.stringify(label.text)
       if (names.has(name)) throw new Error('解释名称重复，请更换使用它的解释后删除重复名称')
       names.add(name)
     }
-    const children = [...documentData.value.unplaced, ...documentData.value.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items.flatMap(item => item.children))))]
-    if (children.some(child => child.notes?.some(note => !sameLength(note.value)))) throw new Error('解释内容的简繁长度不同，请先核对')
   } catch (error) { showError(error.message); return }
   if (!hasChanges.value || saving.value) return
-  const body = JSON.stringify(documentData.value)
+  const body = JSON.stringify(documentData.value, (key, value) => key === 'editState' ? undefined : value)
   const targetDialect = dialect.value
   saving.value = true
   try {
     await request(`/api/edit/pinyin/document/${targetDialect}`, {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body
     })
-    savedSnapshot.value = body
+    savedSnapshot.value = JSON.stringify(documentData.value)
     showSuccess('已保存')
   } catch (error) {
-    showError(error.message)
+    showError(error.message, 8000)
   } finally {
     saving.value = false
   }
@@ -385,15 +381,12 @@ async function completeName(cancel) {
     editingId.value = null
     return true
   }
-  if (!cancel && nameEditor.value?.hasPendingChanges() && !await nameEditor.value.synchronize()) return false
+  if (!cancel && nameEditor.value && !await nameEditor.value.synchronizeForSave()) return false
   if (!cancel && (!editingName.value.sc.trim() || !editingName.value.tc.trim())) {
     showError('请填写简体和繁体标题')
     return false
   }
-  if (!cancel) target.name = {
-    sc: editingName.value.sc.trim(), tc: editingName.value.tc.trim(),
-    ...(editingName.value.machineSide ? {machineSide: editingName.value.machineSide} : {})
-  }
+  if (!cancel) target.name = { ...editingName.value }
   editingId.value = null
   return true
 }
@@ -708,13 +701,8 @@ onUnmounted(() => {
                     </select>
                   </label>
                   <div>
-                    <ScAndTcText v-if="!repairIds.has(note.id)" :key="note.id" v-model:traditional-text="note.value.tc"
-                                 v-model:simplified-text="note.value.sc" :dialect="dialect" layout="middle" />
-                    <div v-else class="pair-repair"><span>旧数据的简繁长度不同，请先核对：</span>
-                      <textarea v-model="note.value.sc" rows="2" aria-label="简体内容"></textarea>
-                      <textarea v-model="note.value.tc" rows="2" aria-label="繁体内容"></textarea>
-                      <button type="button" @click="finishPairRepair(note.id, note.value)">完成核对</button>
-                    </div>
+                    <ScTcEditorLab :pair="note.value" :dialect="dialect" layout="small-sentence"
+                                   @update:pair="note.value = $event" />
                   </div>
                 </div>
                 <button type="button" class="remove-button" aria-label="删除这一行解释" @click="openedChild.notes.splice(index, 1)">删除</button>
@@ -732,7 +720,7 @@ onUnmounted(() => {
           <header class="modal-header"><h2>管理解释名称</h2><button type="button" aria-label="关闭" @click="labelsOpen = false">×</button></header>
           <div v-for="label in documentData.noteLabels" :key="label.id" class="label-entry">
             <div class="label-row">
-              <ScAndTcText v-if="!repairIds.has(label.id)" v-model:traditional-text="label.text.tc"
+              <ScAndTcText v-if="!repairIds.has(label.id) && sameLength(label.text)" v-model:traditional-text="label.text.tc"
                              v-model:simplified-text="label.text.sc" :dialect="dialect" layout="small" />
               <div v-else class="pair-repair"><span>简繁长度不同，请先核对：</span>
                 <input v-model="label.text.sc" aria-label="简体名称"><input v-model="label.text.tc" aria-label="繁体名称">

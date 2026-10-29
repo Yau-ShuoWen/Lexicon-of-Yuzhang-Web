@@ -55,7 +55,7 @@ function renderTag(tag, inner, context, renderInline) {
     }
 
     if (tag === 'u') {
-        const data = splitDisplayTarget(inner, true)
+        const data = splitDisplayTarget(inner, !/^https?:\/\/\S+$/i.test(inner.trim()))
         if (!data) return `{u ${inner}}`
         const target = /^https?:\/\//i.test(data.target) ? data.target : `https://${data.target}`
         return `<a href="${target}" target="_blank" rel="noopener noreferrer" class="normal-link">${render(data.display)}</a>`

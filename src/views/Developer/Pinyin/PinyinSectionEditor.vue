@@ -7,6 +7,7 @@ import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
 import confirmIcon from '../../../assets/icons/LanguageAndDialect/yes.svg'
 import cancelIcon from '../../../assets/icons/close.svg'
+import plusIcon from '../../../assets/icons/plus-white.svg'
 import {ensureNoteLabels, fromLegacy, getNoteLabelUsages, mergeMissingLegacyChildren, mergeNoteLabel, syncItemKeys} from '../../../utils/pinyinDocument.js'
 
 const route = useRoute()
@@ -21,8 +22,6 @@ const nameEditor = ref(null)
 let nameFinishPromise = null
 const draggingId = ref(null)
 const draggingKind = ref(null)
-const dragOverId = ref(null)
-const dropListId = ref(null)
 const selectedId = ref(null)
 const selectedKind = ref(null)
 const savedSnapshot = ref('')
@@ -460,7 +459,8 @@ function removeSection(section) {
 function pointerDown(event, kind, list, id) {
   if (event.button !== 0 || editingId.value || openedItemId.value || (editLevel.value !== kind && !(editLevel.value === 'row' && kind === 'line'))) return
   if (event.target.closest('input, button')) return
-  press = {kind, list, id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget}
+  press = {kind, list, currentList: list, originalIndex: list.findIndex(item => item.id === id), id,
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget}
   selectedId.value = id
   selectedKind.value = kind
   window.addEventListener('pointermove', pointerMove)
@@ -470,6 +470,10 @@ function pointerDown(event, kind, list, id) {
 
 function pointerMove(event) {
   if (!press || event.pointerId !== press.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) {
+    finishDrag()
+    return
+  }
   if (!draggingId.value) {
     if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < 6) return
     draggingId.value = press.id
@@ -478,7 +482,7 @@ function pointerMove(event) {
     const rect = press.element.getBoundingClientRect()
     dragPreview = press.element.cloneNode(true)
     dragPreview.removeAttribute('id')
-    dragPreview.classList.remove('sort-dragging', 'sort-selected', 'drop-target')
+    dragPreview.classList.remove('sort-dragging')
     dragPreview.classList.add('drag-preview')
     Object.assign(dragPreview.style, {width: `${rect.width}px`, height: `${rect.height}px`, left: `${rect.left}px`, top: `${rect.top}px`})
     window.document.body.appendChild(dragPreview)
@@ -487,13 +491,83 @@ function pointerMove(event) {
   }
   dragPreview.style.left = `${event.clientX - press.offsetX}px`
   dragPreview.style.top = `${event.clientY - press.offsetY}px`
-  const target = window.document.elementFromPoint(event.clientX, event.clientY)
-    ?.closest(`[data-sort-kind="${press.kind}"]`)
+  // A shifting item can briefly pass under an almost stationary pointer.
+  // Wait for a small deliberate movement before considering another target.
+  if (press.lastSwap && Math.hypot(event.clientX - press.lastSwap.x, event.clientY - press.lastSwap.y) < 12) return
+  if (press.kind === 'group') {
+    const end = window.document.elementsFromPoint(event.clientX, event.clientY)
+      .map(element => element.closest('[data-group-end-id]')).find(Boolean)
+    if (end && moveDraggedItem(destinationList('group', end.dataset.groupEndId))) {
+      press.lastSwap = {x: event.clientX, y: event.clientY}
+      return
+    }
+  }
+  const target = sortTargetAt(event.clientX, event.clientY)
   const id = target?.dataset.sortId
-  dragOverId.value = id && id !== press.id ? id : null
-  const listTarget = window.document.elementFromPoint(event.clientX, event.clientY)
-    ?.closest(`[data-drop-list-kind="${press.kind}"]`)
-  dropListId.value = listTarget?.dataset.dropListId || null
+  if (id && id !== press.id) {
+    const targetList = sortList(press.kind, id)
+    const sourceIndex = press.currentList.findIndex(item => item.id === press.id)
+    const targetIndex = targetList?.findIndex(item => item.id === id) ?? -1
+    const side = targetList === press.currentList && sourceIndex < targetIndex ? 'after' : 'before'
+    if (moveDraggedItem(targetList, id, side)) press.lastSwap = {x: event.clientX, y: event.clientY}
+  } else if (!id) {
+    const hits = window.document.elementsFromPoint(event.clientX, event.clientY)
+    const listTarget = hits.map(element => element.closest(`[data-drop-list-kind="${press.kind}"]`)).find(Boolean)
+    const list = destinationList(press.kind, listTarget?.dataset.dropListId)
+    if (list && (list !== press.currentList || list.length === 0) && moveDraggedItem(list)) {
+      press.lastSwap = {x: event.clientX, y: event.clientY}
+    }
+  }
+}
+
+function sortTargetAt(x, y) {
+  for (const element of window.document.querySelectorAll(`[data-sort-kind="${press.kind}"]`)) {
+    if (element.dataset.sortId === press.id || element.closest('.drag-preview')) continue
+    const rect = element.getBoundingClientRect()
+    // FLIP animates with translate; hit testing must use the final layout position.
+    const transform = window.getComputedStyle(element).transform
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform)
+    const left = rect.left - (matrix?.m41 || 0)
+    const top = rect.top - (matrix?.m42 || 0)
+    if (x >= left && x < left + rect.width && y >= top && y < top + rect.height) return element
+  }
+  return null
+}
+
+function moveDraggedItem(targetList, targetId = null, side = 'after') {
+  if (!targetList) return false
+  const sourceList = press.currentList
+  const sourceIndex = sourceList.findIndex(item => item.id === press.id)
+  if (sourceIndex < 0) return false
+  const targetPosition = targetId ? targetList.findIndex(item => item.id === targetId) : targetList.length
+  if (targetPosition < 0) return false
+  const targetIndex = targetPosition + Number(Boolean(targetId) && side === 'after')
+  const destination = targetList === sourceList && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  if (targetList === sourceList && sourceIndex === destination) return false
+  const selector = `[data-sort-kind="${press.kind}"]`
+  const previousPositions = new Map([...window.document.querySelectorAll(selector)]
+    .filter(element => element.dataset.sortId !== press.id)
+    .map(element => [element.dataset.sortId, element.getBoundingClientRect()]))
+  const [moved] = sourceList.splice(sourceIndex, 1)
+  targetList.splice(destination, 0, moved)
+  press.currentList = targetList
+  nextTick(() => {
+    if (!press || draggingId.value !== moved.id) return
+    for (const element of window.document.querySelectorAll(selector)) {
+      const previous = previousPositions.get(element.dataset.sortId)
+      if (!previous) continue
+      element.getAnimations().forEach(animation => animation.cancel())
+      const current = element.getBoundingClientRect()
+      const x = previous.left - current.left
+      const y = previous.top - current.top
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) continue
+      element.animate([
+        {transform: `translate(${x}px, ${y}px)`},
+        {transform: 'translate(0, 0)'}
+      ], {duration: 180, easing: 'ease-out'})
+    }
+  })
+  return true
 }
 
 function sortList(kind, id) {
@@ -521,33 +595,31 @@ function destinationList(kind, id) {
 
 function pointerUp(event) {
   if (!press || event.pointerId !== press.pointerId) return
-  if (draggingId.value && (dragOverId.value || dropListId.value)) {
-    const source = press.list.findIndex(item => item.id === press.id)
-    const targetList = dragOverId.value ? sortList(press.kind, dragOverId.value) : destinationList(press.kind, dropListId.value)
-    if (source >= 0 && targetList) {
-      const targetIndex = dragOverId.value ? targetList.findIndex(item => item.id === dragOverId.value) : targetList.length
-      const [moved] = press.list.splice(source, 1)
-      const destination = targetList === press.list && source < targetIndex ? targetIndex - 1 : targetIndex
-      targetList.splice(Math.max(0, destination), 0, moved)
-    }
+  finishDrag()
+}
+
+function finishDrag() {
+  removePointerListeners()
+  removeDragPreview()
+  press = null
+  draggingId.value = null
+  draggingKind.value = null
+}
+
+function releaseDragOnVisibilityChange() {
+  if (window.document.hidden && press) finishDrag()
+}
+
+function pointerCancel() {
+  if (press && draggingId.value) {
+    const index = press.currentList.findIndex(item => item.id === press.id)
+    if (index >= 0) press.list.splice(press.originalIndex, 0, ...press.currentList.splice(index, 1))
   }
   removePointerListeners()
   removeDragPreview()
   press = null
   draggingId.value = null
   draggingKind.value = null
-  dragOverId.value = null
-  dropListId.value = null
-}
-
-function pointerCancel() {
-  removePointerListeners()
-  removeDragPreview()
-  press = null
-  draggingId.value = null
-  draggingKind.value = null
-  dragOverId.value = null
-  dropListId.value = null
 }
 
 function removePointerListeners() {
@@ -560,10 +632,14 @@ watch(dialect, load)
 onMounted(() => {
   load()
   window.document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  window.addEventListener('blur', finishDrag)
+  window.document.addEventListener('visibilitychange', releaseDragOnVisibilityChange)
 })
 onUnmounted(() => {
   pointerCancel()
   window.document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  window.removeEventListener('blur', finishDrag)
+  window.document.removeEventListener('visibilitychange', releaseDragOnVisibilityChange)
 })
 </script>
 
@@ -602,19 +678,18 @@ onUnmounted(() => {
           <p v-if="!documentData.unplaced.length" class="empty-hint">没有未归类子项</p>
         </div>
       </section>
-      <div>
+      <div class="section-list" :class="{'section-list--compact': editLevel === 'section'}">
       <section
-        v-for="(section, sectionIndex) in documentData.sections"
+        v-for="section in documentData.sections"
         :key="section.id"
         :data-section-id="section.id"
         data-sort-kind="section"
         :data-sort-id="section.id"
         class="section-card"
-        :class="[`accent-${sectionIndex % 3}`, {'editable-level': editLevel === 'section', 'sort-selected': selectedKind === 'section' && selectedId === section.id, 'sort-dragging': draggingKind === 'section' && draggingId === section.id, 'drop-target': dragOverId === section.id}]"
+        :class="{'editable-level': editLevel === 'section', 'sort-dragging': draggingKind === 'section' && draggingId === section.id}"
         @pointerdown="editLevel === 'section' && pointerDown($event, 'section', documentData.sections, section.id)"
       >
         <header class="section-header">
-          <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
           <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
             <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                            @update:pair="editingName = $event" />
@@ -623,8 +698,7 @@ onUnmounted(() => {
           <h3 v-else class="section-name" @dblclick.stop="editLevel === 'section' && editName(section)">{{ sectionName(section) }}</h3>
           <button v-if="editLevel === 'section' && editingId !== section.id && isEmpty(section)" class="remove-button" type="button" aria-label="删除空区域" @click="removeSection(section)">删除</button>
         </header>
-        <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id"
-             :class="{'list-drop-target': draggingKind === 'line' && dropListId === section.id && !dragOverId}">
+        <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id">
           <div>
           <div
             v-for="row in section.rows"
@@ -632,23 +706,20 @@ onUnmounted(() => {
             class="pinyin-line"
             data-sort-kind="line"
             :data-sort-id="row.id"
-            :class="{'editable-level': editLevel === 'row', 'sort-selected': selectedKind === 'line' && selectedId === row.id, 'sort-dragging': draggingKind === 'line' && draggingId === row.id, 'drop-target': dragOverId === row.id}"
+            :class="{'editable-level': editLevel === 'row', 'sort-dragging': draggingKind === 'line' && draggingId === row.id}"
             @pointerdown="editLevel === 'row' && pointerDown($event, 'line', section.rows, row.id)"
           >
             <div class="line-actions">
-              <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
               <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
                 <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                                @update:pair="editingName = $event" />
                 <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
               </div>
               <span v-else class="row-name" @dblclick.stop="editLevel === 'row' && editName(row)">{{ rowName(row) }}</span>
-              <button v-if="editLevel === 'group'" type="button" @click="addGroup(row)">＋ 添加组</button>
               <button v-if="editLevel === 'row' && editingId !== row.id && rowEmpty(row)" type="button" class="remove-button" @click="removeRow(section, row)">删除空行</button>
             </div>
             <div class="line-groups">
-              <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id"
-                   :class="{'list-drop-target': draggingKind === 'group' && dropListId === row.id && !dragOverId}">
+              <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id">
               <div
                 v-for="group in row.groups"
                 :key="group.id"
@@ -657,13 +728,12 @@ onUnmounted(() => {
                 :data-sort-id="group.id"
                 data-drop-list-kind="item"
                 :data-drop-list-id="group.id"
-                :class="{'editable-level': editLevel === 'group', 'sort-selected': selectedKind === 'group' && selectedId === group.id, 'sort-dragging': draggingKind === 'group' && draggingId === group.id, 'drop-target': dragOverId === group.id, 'list-drop-target': draggingKind === 'item' && dropListId === group.id && !dragOverId}"
+                :class="{'editable-level': editLevel === 'group', 'sort-dragging': draggingKind === 'group' && draggingId === group.id}"
                 @pointerdown="editLevel === 'group' && pointerDown($event, 'group', row.groups, group.id)"
               >
-                <span v-if="editLevel === 'group'" class="group-handle" aria-hidden="true">⋮</span>
                 <div v-if="group.items.length" class="items-grid">
                   <div v-for="item in group.items" :key="item.id" class="item-box" data-sort-kind="item" :data-sort-id="item.id"
-                       :class="{'invalid': item.standard === '-', 'editable-level': editLevel === 'item', 'sort-selected': selectedKind === 'item' && selectedId === item.id, 'sort-dragging': draggingKind === 'item' && draggingId === item.id, 'drop-target': dragOverId === item.id, 'child-drop-target': childDropTarget === item.id}"
+                       :class="{'invalid': item.standard === '-', 'editable-level': editLevel === 'item', 'sort-dragging': draggingKind === 'item' && draggingId === item.id, 'child-drop-target': childDropTarget === item.id}"
                        @pointerdown="editLevel === 'item' && pointerDown($event, 'item', group.items, item.id)"
                        @dragover.prevent="childDropTarget = item.id" @dragleave="childDropTarget = null"
                        @drop="dropChild($event, item.children, item.children.length, item.id)"
@@ -675,17 +745,19 @@ onUnmounted(() => {
                 </div>
                 <button v-else-if="editLevel === 'group'" class="empty-group" type="button" @click="removeGroup(row, group)">空组 · 删除</button>
                 <div v-else class="empty-group">空组</div>
-                <button v-if="editLevel === 'item'" class="add-item" type="button" @click="addItem(group)">＋</button>
+                <button v-if="editLevel === 'item' && group === row.groups.at(-1)" class="add-structure" type="button" aria-label="添加单格" title="添加单格" @click="addItem(group)"><img :src="plusIcon" alt="" /></button>
               </div>
+              <button v-if="editLevel === 'group'" class="add-structure" type="button" aria-label="添加组" title="添加组" @click="addGroup(row)"><img :src="plusIcon" alt="" /></button>
+              <div v-if="draggingKind === 'group'" class="group-end-drop" :data-group-end-id="row.id"></div>
               </div>
             </div>
           </div>
           </div>
-          <button v-if="editLevel === 'row'" class="add-line" type="button" @click="addRow(section)">＋ 添加行</button>
+          <button v-if="editLevel === 'row'" class="add-structure" type="button" aria-label="添加行" title="添加行" @click="addRow(section)"><img :src="plusIcon" alt="" /></button>
         </div>
       </section>
+      <button v-if="editLevel === 'section'" class="add-structure" type="button" aria-label="添加区域" title="添加区域" @click="addSection"><img :src="plusIcon" alt="" /></button>
       </div>
-      <button v-if="editLevel === 'section'" class="add-section" type="button" @click="addSection">＋ 添加区域</button>
       <section class="faq-editor" aria-label="拼音表问答">
         <header class="faq-editor__header">
           <div><h2>问答</h2><p>题目使用小句子框，解答使用中框。拖动序号或使用上下按钮调整顺序。</p></div>
@@ -833,24 +905,22 @@ onUnmounted(() => {
 .section-card.editable-level .section-name, .item-box.editable-level { cursor: text; }
 .pinyin-section-editor, .pinyin-section-editor *:not(input):not(textarea) { user-select: none; -webkit-user-select: none; }
 .section-card.editable-level, .pinyin-line.editable-level, .pinyin-group.editable-level, .item-box.editable-level { touch-action: none; cursor: grab; }
-.sort-selected { box-shadow: 0 0 0 3px #e0a640 !important; }
-.sort-dragging { opacity: .28; }
-.drop-target { box-shadow: 0 0 0 3px #8bc6e4 !important; background-color: #f1f9fd !important; }
-:global(.drag-preview) { position: fixed !important; z-index: 10000; margin: 0 !important; pointer-events: none !important; opacity: .78; box-shadow: 0 8px 20px #263b2933 !important; background: white !important; overflow: hidden; user-select: none; }
+.sort-dragging, .sort-dragging * { pointer-events: none !important; }
+.sort-dragging { opacity: 0; }
+:global(.drag-preview) { position: fixed !important; z-index: 10000; margin: 0 !important; pointer-events: none !important; opacity: .72; mix-blend-mode: multiply; box-shadow: none !important; background: transparent !important; overflow: hidden; user-select: none; }
 .item-box { position: relative; }
 .item-remove { position: absolute; top: -8px; right: -8px; width: 19px; height: 19px; padding: 0; border: 0; border-radius: 50%; background: #b45d5d; color: white; cursor: pointer; font-size: 15px; line-height: 19px; }
-.add-item { height: 35px; border: 1px dashed #75ad80; border-radius: 7px; background: white; color: #397447; cursor: pointer; }
+.add-structure { display: inline-grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; padding: 0; border: 1px solid #58a869; border-radius: 10px; background: #58a869; cursor: pointer; }
+.add-structure:hover { background: #4c985c; border-color: #4c985c; }
+.add-structure img { display: block; width: 24px; height: 24px; }
 .save-button { min-width: 92px; padding: 9px 20px; border: 0; border-radius: 8px; background: #2e7d32; color: #fff; font-size: 15px; cursor: pointer; }
 .save-button:disabled { opacity: .5; cursor: default; }
 .status { text-align: center; color: #687b70; padding: 48px; }
 .section-card { background: #fff; border: 1px solid #e3e8e4; border-radius: 16px; padding: 20px; margin-bottom: 18px; box-shadow: 0 2px 5px #1c382012; }
-.section-card.drop-target { outline: 3px solid #85b98d; outline-offset: 3px; }
+.section-list--compact { margin-bottom: 18px; }
+.section-list--compact .section-card { box-sizing: border-box; width: 50%; min-width: 0; padding: 14px 16px; }
+.section-list--compact .section-header { margin: 0; padding: 0; border: 0; }
 .section-header { display: flex; align-items: center; gap: 10px; min-height: 34px; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 2px solid #e8eae9; }
-.sort-handle { box-sizing: border-box; width: 12px; height: 28px; flex: 0 0 12px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: grab; touch-action: none; }
-.sort-handle::before { content: ''; width: 6px; height: 22px; border-radius: 4px; background: #2e7d32; box-shadow: 0 2px 6px #2e7d324d; }
-.accent-1 .sort-handle::before { background: #4a6fc8; box-shadow: 0 2px 6px #4a6fc84d; }
-.accent-2 .sort-handle::before { background: #f36048; box-shadow: 0 2px 6px #f360484d; }
-.sort-handle.held { cursor: grabbing; }
 .section-name { margin: 0; flex: 1; color: #34495e; font-size: 19px; font-weight: 700; letter-spacing: 1px; user-select: none; }
 .name-inline { display: inline-flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; margin-right: auto; cursor: default; touch-action: auto; }
 .name-inline > :first-child { flex: 0 1 auto; min-width: 0; }
@@ -868,30 +938,23 @@ onUnmounted(() => {
 .name-inline-actions img { display: block; width: 16px; height: 16px; }
 .row-name { color: #34495e; font-size: 20px; font-weight: 650; line-height: 1.3; cursor: text; border-bottom: 1px dashed transparent; }
 .pinyin-line.editable-level .row-name:hover, .section-card.editable-level .section-name:hover { border-bottom-color: #8fba97; }
-.list-drop-target { outline: 2px dashed #8bc6e4; outline-offset: 3px; }
 .remove-button { border: 0; background: transparent; color: #b45d5d; cursor: pointer; padding: 4px 6px; }
 .pinyin-line { border: 1px solid #dde8df; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fcfefc; }
-.pinyin-line.drop-target, .pinyin-group.drop-target { outline: 2px solid #85b98d; outline-offset: 2px; }
 .line-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: #657e69; font-size: 13px; }
-.line-actions button:not(.structure-handle) { border: 0; background: transparent; color: #397447; cursor: pointer; padding: 4px; }
+.line-actions button { border: 0; background: transparent; color: #397447; cursor: pointer; padding: 4px; }
 .line-actions .name-inline-actions button { padding: 0; }
 .line-actions .name-inline-actions button:hover { background: #edf6ef; }
 .line-actions .remove-button { margin-left: auto; color: #b45d5d !important; }
-.structure-handle, .group-handle { border: 0; background: transparent; color: #789b7e; cursor: grab; touch-action: none; user-select: none; font-size: 18px; line-height: 1; }
-.structure-handle { width: 26px; height: 26px; }
 .line-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-height: 52px; }
-.line-groups-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-width: 100px; min-height: 42px; }
+.line-groups-inner { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 30px; min-width: 100px; min-height: 42px; }
+.group-end-drop { flex: 1 0 44px; min-height: 52px; }
 .pinyin-group { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 5px; border: 1px solid transparent; border-radius: 9px; }
 .pinyin-group.editable-level { border-color: #cee1d2; background: #f7fbf8; }
 .pinyin-group.editable-level:hover { border-color: #94bea0; box-shadow: 0 2px 7px #294b2d14; }
-.group-handle { width: 16px; height: 32px; padding: 0; }
 .empty-group { width: 76px; height: 52px; border: 1px dashed #cbd8ce; border-radius: 10px; background: #f7faf7; color: #7b9280; cursor: pointer; }
-.add-line { border: 1px dashed #c8ddcb; border-radius: 8px; background: #fff; color: #397447; padding: 8px 14px; cursor: pointer; }
 .items-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 76px; gap: 6px; }
 .item-box { box-sizing: border-box; height: 52px; display: flex; align-items: center; justify-content: center; padding: 6px; background: linear-gradient(#fff, #f2f9f0); border: 1.5px solid #d6e6d2; border-radius: 10px; color: #333; font-family: Georgia, serif; font-size: 25px; }
 .item-box.invalid { background: #f0f2f4; border: 1px dashed #d3d9df; }
-.add-section { display: block; width: 100%; min-height: 52px; border: 1px dashed #bad3bc; border-radius: 14px; background: #fff; color: #326d3b; cursor: pointer; font-size: 16px; }
-.add-section:hover { background: #f4faf4; }
 .faq-editor { margin-top: 28px; padding: 20px; border: 1px solid #d8e5da; border-radius: 14px; background: #f9fcf9; }
 .faq-editor__header, .faq-editor__entry-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .faq-editor__header { margin-bottom: 16px; }
@@ -973,5 +1036,5 @@ onUnmounted(() => {
 .note-fields :deep(.sc-tc-input--middle) { box-sizing: border-box; width: 100%; max-width: none; flex: none; }
 .pair-repair { display: grid; gap: 7px; color: #a06336; font-size: 13px; }
 @media (max-width: 700px) { .note-pair { flex-wrap: wrap; } .note-fields { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .pinyin-section-editor { padding: 14px 10px 40px; } .section-card { padding: 14px; } .pinyin-line { gap: 14px; } .items-grid { grid-auto-columns: 56px; } .item-box { height: 46px; font-size: 21px; } }
+@media (max-width: 700px) { .pinyin-section-editor { padding: 14px 10px 40px; } .section-list--compact .section-card { width: 100%; } .section-card { padding: 14px; } .pinyin-line { gap: 14px; } .items-grid { grid-auto-columns: 56px; } .item-box { height: 46px; font-size: 21px; } }
 </style>

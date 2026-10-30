@@ -16,7 +16,7 @@ const router = useRouter()
 const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = id => `/${language.value}/${dialect.value}/dev/hanzi-editor/${id}`
+const getPath = id => ({name: 'HanziEditor', params: {language: language.value, dialect: dialect.value, id}, query: route.query})
 
 const emptyData = () => ({
   id: null,
@@ -142,7 +142,7 @@ onMounted(() => loadHanzi(route.params.id))
 </script>
 
 <template>
-  <main class="broaden-layout hanzi-editor-page">
+  <div class="hanzi-editor-page">
     <div class="nav-buttons">
       <button :disabled="!prevId" class="dev-nav-button dev-btn dev-btn-small" @click="router.replace(getPath(prevId))">
         {{ prevId ? t('hanzi_editor.previous') : t('hanzi_editor.first') }}
@@ -264,11 +264,11 @@ onMounted(() => loadHanzi(route.params.id))
         </DraggableList>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.hanzi-editor-page { max-width: 1080px; padding: 48px 24px 56px; }
+.hanzi-editor-page { min-width: 0; width: 100%; padding: 12px 0 56px; }
 .nav-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .nav-buttons .dev-add-btn { margin-left: auto; }
 .edit-form { display: flex; flex-direction: column; gap: 18px; }
@@ -309,7 +309,7 @@ onMounted(() => loadHanzi(route.params.id))
 .suggestion-word { display: inline-flex; align-items: baseline; gap: 5px; }
 .suggestion-word small { color: var(--color-text-light); }
 @media (max-width: 600px) {
-  .hanzi-editor-page { padding: 24px 12px 36px; }
+  .hanzi-editor-page { padding: 12px 0 36px; }
   .form-section { padding: 14px; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
   .pinyin-input-row { grid-template-columns: 100px minmax(90px, 1fr) 18px minmax(75px, .6fr); }

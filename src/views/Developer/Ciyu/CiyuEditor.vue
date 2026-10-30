@@ -111,7 +111,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="edit-page">
+  <div class="edit-page">
 
     <div class="nav-buttons">
       <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
@@ -327,11 +327,11 @@ onMounted(() => {
 
 
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.edit-page { max-width: 1080px; margin: 0 auto; padding: 48px 24px 56px; }
+.edit-page { min-width: 0; width: 100%; padding: 12px 0 56px; }
 .nav-buttons { display: flex; justify-content: flex-end; margin-bottom: 20px; }
 .edit-form { display: flex; flex-direction: column; gap: 18px; }
 .form-section { min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: rgba(255,255,255,.75); }
@@ -356,7 +356,7 @@ onMounted(() => {
 .word-link { color: var(--color-primary-dark); text-decoration: none; }
 .word-link:hover { text-decoration: underline; }
 @media (max-width: 600px) {
-  .edit-page { padding: 24px 12px 36px; }
+  .edit-page { padding: 12px 0 36px; }
   .form-section { padding: 14px; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
   .pinyin-input-row { grid-template-columns: minmax(0,1fr) 18px minmax(90px,.6fr); }

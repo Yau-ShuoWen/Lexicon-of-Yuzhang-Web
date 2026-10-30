@@ -1,116 +1,103 @@
-<!-- CiyuFilter.vue -->
-
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { showError } from "../../../services/ToastService.js";
-import { useHead } from "@vueuse/head";
-import { getToken } from "../../../utils/auth.js";
-import { request } from '../../../services/request.js'
+import {computed, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
+import {useHead} from '@vueuse/head'
+import {showError} from '../../../services/ToastService.js'
+import {getToken} from '../../../utils/auth.js'
+import {request} from '../../../services/request.js'
 import DeveloperQueryBar from '../DeveloperQueryBar.vue'
+import CiyuEditor from './CiyuEditor.vue'
 
-// 路由
 const route = useRoute()
-
-useHead({title: () => `詞語編輯器：查找`})
-
-// 语言、方言和路径
+const router = useRouter()
+const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = (path) => `/${language.value}/${dialect.value}/dev/${path}`
-
-// 响应式数据
+const editing = computed(() => route.name === 'CiyuEditor' && !!route.params.id)
 const searchText = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
 const hasSearched = ref(false)
+let searchVersion = 0
 
-// 方法：执行搜索
-const performSearch = async () => {
-  if (!searchText.value.trim()) return
+useHead({title: () => t('ciyu_editor.title')})
 
+const runSearch = async term => {
+  const version = ++searchVersion
   hasSearched.value = true
   isLoading.value = true
-
   try {
-    const params = new URLSearchParams({query: searchText.value})
-    searchResults.value = await request(`/api/edit/ciyu/filter/${dialect.value}?${params}`, {
+    const params = new URLSearchParams({query: term})
+    const result = await request(`/api/edit/ciyu/filter/${dialect.value}?${params}`, {
       headers: {'X-Auth-Token': getToken() || ''}
     })
+    if (version === searchVersion) searchResults.value = result
   } catch (error) {
-    showError('搜索失敗：' + error.message)
+    if (version !== searchVersion) return
     searchResults.value = []
-  }
-  finally {
-    isLoading.value = false
+    showError(t('ciyu_editor.search_failed', {message: error.message}))
+  } finally {
+    if (version === searchVersion) isLoading.value = false
   }
 }
 
-watch(searchText, (newValue) => {
-  if (!newValue.trim()) {
-    searchResults.value = []
+const performSearch = async () => {
+  const term = searchText.value.trim()
+  if (!term) return
+  if (route.name === 'CiyuFilter' && route.query.q === term) return runSearch(term)
+  await router.push({name: 'CiyuFilter', params: {language: language.value, dialect: dialect.value}, query: {q: term}})
+}
 
-    hasSearched.value = false
-  }
+watch([() => route.name, () => route.query.q, dialect], ([name, query]) => {
+  searchText.value = typeof query === 'string' ? query : ''
+  if (name === 'CiyuFilter' && searchText.value.trim()) runSearch(searchText.value.trim())
+}, {immediate: true})
+
+watch(searchText, value => {
+  if (value.trim()) return
+  searchVersion++
+  isLoading.value = false
+  searchResults.value = []
+  hasSearched.value = false
 })
 </script>
 
 <template>
-  <div class="narrow-layout">
-
+  <main class="entry-workspace">
     <div class="search-section">
-      <DeveloperQueryBar v-model="searchText" placeholder="筛选需要编辑的词语" :loading="isLoading" @submit="performSearch" />
+      <DeveloperQueryBar v-model="searchText" :placeholder="t('ciyu_editor.search_placeholder')"
+                         :loading="isLoading" @submit="performSearch"/>
     </div>
 
-    <div v-if="searchResults.length > 0" class="results-section">
-      <h4>搜索结果（点击编辑）</h4>
-      <router-link
-          v-for="item in searchResults"
-          :key="item.tag"
-          :to="getPath(`ciyu-editor/${item.info.query}`)"
-          class="result-item"
-          target="_blank"
-      >
-        <div class="item-display">{{ item.title }}</div>
+    <CiyuEditor v-if="editing" :key="route.params.id"/>
+
+    <div v-else-if="searchResults.length" class="results-section">
+      <h2>{{ t('ciyu_editor.search_results') }}</h2>
+      <router-link v-for="item in searchResults" :key="item.tag"
+                   :to="{name: 'CiyuEditor', params: {language, dialect, id: item.info.query}, query: {q: searchText}}"
+                   class="result-item">
+        <span class="item-display">{{ item.title }}</span>
       </router-link>
     </div>
-
-    <div v-else-if="hasSearched && !isLoading" class="no-results-high">
-      未找到相关詞語
+    <div v-else-if="hasSearched && !isLoading" class="no-results">
+      {{ t('ciyu_editor.no_results') }}
     </div>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.search-section {
-  display: flex;
-  margin-top: 40px;
-  margin-bottom: 20px;
-}
-
-.results-section h3 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.result-item {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 10px 20px;
-  border: 1px solid var(--color-text-lighter);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.result-item:hover {
-  background-color: #d3dfd5;
-}
-
-.item-display {
-  min-width: 100px;
-  font-size: 20px;
-  font-weight: bold;
+.entry-workspace { box-sizing: border-box; width: 100%; max-width: 1400px; min-width: 0; margin: 0 auto; padding: 0 24px 56px; }
+.search-section { position: sticky; top: 0; z-index: 10; padding: 20px 0 16px; background: var(--color-background-alt); }
+.results-section { max-width: 960px; margin: 16px auto 0; }
+.results-section h2 { margin: 0 0 16px; color: var(--color-text); font-size: 20px; }
+.result-item { display: flex; align-items: center; min-height: 58px; padding: 10px 16px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; color: var(--color-text); text-decoration: none; }
+.result-item + .result-item { margin-top: 8px; }
+.result-item:hover { border-color: #b8c9bc; background: #f7faf7; }
+.item-display { font-size: 18px; font-weight: 650; }
+.no-results { max-width: 960px; margin: 32px auto; color: var(--color-text-light); text-align: center; }
+@media (max-width: 600px) {
+  .entry-workspace { padding: 0 12px 36px; }
+  .search-section { padding-top: 12px; }
 }
 </style>

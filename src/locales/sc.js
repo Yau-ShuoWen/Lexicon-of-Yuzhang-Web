@@ -411,6 +411,7 @@ export default {
         },
     },
     ciyu_editor: {
+        search_placeholder: '筛选需要编辑的词语', search_results: '搜索结果（点击编辑）', no_results: '未找到相关词语', search_failed: '搜索失败：{message}',
         title: '编辑词语', saving: '保存中……', save_new: '保存新增', save: '保存修改', save_success: '保存成功！', load_failed: '加载失败：{message}',
         traditional: '繁体：', simplified: '简体：', special: '特殊标记', status: '词条状态',
         normal: '普通词语', special_word: '特殊词语', fixed_usage: '固定用法', encyclopedia: '百科',
@@ -428,6 +429,7 @@ export default {
         copy_ge: '箇', copy_go: '嗰', copy_he: '许', copy_xi: '系', copy_gak: '噶', copy_jie: '渠',
     },
     hanzi_editor: {
+        title: '编辑汉字', search_placeholder: '筛选需要编辑的汉字', search_results: '搜索结果（点击编辑）', no_results: '未找到相关汉字', search_failed: '搜索失败：{message}',
         previous: '上一条', first: '第一条', next: '下一条', last: '最后一条',
         saving: '保存中……', save: '保存修改', save_success: '保存成功！', load_failed: '加载失败：{message}',
         traditional: '繁体：', simplified: '简体：', special: '特殊性标记', status: '词条状态',

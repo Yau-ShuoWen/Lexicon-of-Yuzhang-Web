@@ -241,7 +241,7 @@ const routes = [
                     {
                         path: 'hanzi-editor/:id?',
                         name: 'HanziEditor',
-                        component: () => import('../views/Developer/Hanzi/HanziEditor.vue'),
+                        component: () => import('../views/Developer/Hanzi/HanziFilter.vue'),
                         props: true,
                         // meta: { requiresAuth: true }
                     },
@@ -261,7 +261,7 @@ const routes = [
                     {
                         path: 'ciyu-editor/:id?',
                         name: 'CiyuEditor',
-                        component: () => import('../views/Developer/Ciyu/CiyuEditor.vue'),
+                        component: () => import('../views/Developer/Ciyu/CiyuFilter.vue'),
                         props: true,
                         // meta: { requiresAuth: true }
                     },

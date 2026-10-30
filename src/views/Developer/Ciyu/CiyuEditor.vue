@@ -2,9 +2,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
-import ScAndTcText from "../../../components/Text/ScAndTcText.vue";
+import ScTcEditorLab from "../../../components/Text/ScTcEditorLab.vue";
 import DraggableList from "../../../components/Layout/DraggableList.vue";
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
@@ -15,7 +16,7 @@ import { request } from '../../../services/request.js'
 
 // 路由
 const route = useRoute()
-const router = useRouter()
+const {t} = useI18n()
 const id = route.params.id
 
 const language = computed(() => route.params.language)
@@ -35,23 +36,23 @@ const updateData = ref({
 
 useHead({
   title: () => {
-    if (updateData.value) return `${updateData.value.ciyu.tc}：編輯詞語`;
-    else if (loading.value) return `編輯詞語`
+    if (updateData.value) return `${updateData.value.ciyu.tc}：${t('ciyu_editor.title')}`;
+    return t('ciyu_editor.title')
   }
 })
 
 const noteTags = [
-  {code: 'usage', name: '用法說明'},
-  {code: 'pronun', name: '讀音說明'},
-  {code: 'struct', name: '詞語結構'},
-  {code: 'source', name: '字源考證'},
-  {code: 'history', name: '歷史演變'},
-  {code: 'proverb', name: '相關俗語'}
+  'usage', 'pronun', 'struct', 'source', 'history', 'proverb'
 ]
 
 const isNew = ref(!id || id === 'new')
 const isLoading = ref(false)
 const isSaving = ref(false)
+const pairEditors = new Map()
+const setPairEditor = (key, editor) => {
+  if (editor) pairEditors.set(key, editor)
+  else pairEditors.delete(key)
+}
 
 // 加载词条详情
 const loadCiyu = async (id) => {
@@ -64,7 +65,7 @@ const loadCiyu = async (id) => {
     })
   } catch (err) {
     console.error(err)
-    showError('加载失败：' + err.message)
+    showError(t('ciyu_editor.load_failed', {message: err.message}))
   }
   finally {
     isLoading.value = false
@@ -76,6 +77,9 @@ const saveData = async () => {
   isSaving.value = true
 
   try {
+    for (const editor of pairEditors.values()) {
+      if (editor.hasPendingChanges() && !await editor.synchronize()) return
+    }
     const payload = {
       ...updateData.value,
       id: isNew.value ? null : updateData.value.id
@@ -90,7 +94,7 @@ const saveData = async () => {
       body: JSON.stringify(payload)
     })
 
-    showSuccess('保存成功！')
+    showSuccess(t('ciyu_editor.save_success'))
 
   } catch (err) {
     showError(err.message)
@@ -111,7 +115,7 @@ onMounted(() => {
 
     <div class="nav-buttons">
       <button @click="saveData" :disabled="isSaving" class="dev-add-btn dev-btn-small">
-        {{ isSaving ? '保存中...' : isNew ? '保存新增' : '保存修改' }}
+        {{ isSaving ? t('ciyu_editor.saving') : isNew ? t('ciyu_editor.save_new') : t('ciyu_editor.save') }}
       </button>
     </div>
 
@@ -126,7 +130,7 @@ onMounted(() => {
         <div class="form-grid">
           <div class="form-field">
             <h4>
-              繁體：
+              {{ t('ciyu_editor.traditional') }}
               <router-link
                   :to="`/tc/${dialect}/dict/c/${updateData.ciyu.tc}`"
                   class="word-link" target="_blank"
@@ -136,7 +140,7 @@ onMounted(() => {
             </h4>
 
             <h4>
-              簡體：
+              {{ t('ciyu_editor.simplified') }}
               <router-link
                   :to="`/sc/${dialect}/dict/c/${updateData.ciyu.sc}`"
                   class="word-link" target="_blank"
@@ -146,23 +150,23 @@ onMounted(() => {
             </h4>
           </div>
           <div class="form-field">
-            <label>特殊标记</label>
+            <label>{{ t('ciyu_editor.special') }}</label>
             <select v-model="updateData.special" class="short-input">
-              <option value="0">普通詞語</option>
-              <option value="1">特殊詞語</option>
-              <option value="2">固定用法</option>
-              <option value="4">百科</option>
+              <option value="0">{{ t('ciyu_editor.normal') }}</option>
+              <option value="1">{{ t('ciyu_editor.special_word') }}</option>
+              <option value="2">{{ t('ciyu_editor.fixed_usage') }}</option>
+              <option value="4">{{ t('ciyu_editor.encyclopedia') }}</option>
             </select>
           </div>
 
           <div class="form-field">
-            <label>词条状态</label>
+            <label>{{ t('ciyu_editor.status') }}</label>
             <select v-model="updateData.status" class="short-input">
 
-              <option value="0">不需要補充</option>
-              <option value="1">需要补充内容</option>
-              <option value="2">存疑</option>
-              <option value="3">完成</option>
+              <option value="0">{{ t('ciyu_editor.no_more_content') }}</option>
+              <option value="1">{{ t('ciyu_editor.needs_content') }}</option>
+              <option value="2">{{ t('ciyu_editor.uncertain') }}</option>
+              <option value="3">{{ t('ciyu_editor.complete') }}</option>
             </select>
 
           </div>
@@ -170,18 +174,21 @@ onMounted(() => {
       </div>
 
       <div class="form-section">
-        <h3>拼音</h3>
-        <div class="array-item">
-          <input class="form-control small-middle-input" type="text" v-model="updateData.mainPy">
-          <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
-                    :model-value="updateData.mainPy.toString()"/>
+        <h3>{{ t('ciyu_editor.pinyin') }}</h3>
+        <div class="array-item pinyin-input-row">
+          <input class="form-control pinyin-input" type="text" v-model="updateData.mainPy" :aria-label="t('ciyu_editor.pinyin')">
+          <span v-if="updateData.mainPy" class="pinyin-arrow" aria-hidden="true">→</span>
+          <div v-if="updateData.mainPy" class="pinyin-preview">
+            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
+                      :model-value="updateData.mainPy.toString()" :plain="true"/>
+          </div>
         </div>
       </div>
 
       <!-- 相似词语 -->
       <div class="form-section">
         <div class="section-header">
-          <h3>相似词语</h3>
+          <h3>{{ t('ciyu_editor.similar') }}</h3>
         </div>
         <DraggableList
             v-model="updateData.similar"
@@ -191,14 +198,15 @@ onMounted(() => {
             <div class="array-item">
 
               <select v-model="item.type" class="middle-input">
-                <option value="4">方言同義詞</option>
-                <option value="5">方言相關詞彙</option>
-                <option value="1">普通話對應詞</option>
-                <option value="2">搜索優化詞語</option>
-                <option value="3">常用错误写法</option>
+                <option value="4">{{ t('ciyu_editor.dialect_synonym') }}</option>
+                <option value="5">{{ t('ciyu_editor.dialect_related') }}</option>
+                <option value="1">{{ t('ciyu_editor.mandarin_equivalent') }}</option>
+                <option value="2">{{ t('ciyu_editor.search_word') }}</option>
+                <option value="3">{{ t('ciyu_editor.common_misspelling') }}</option>
               </select>
-              <ScAndTcText v-model:traditionalText="item.text.tc" v-model:simplifiedText="item.text.sc"
-                           :layout="'small'" :dialect="dialect.toString()"/>
+              <ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
+                             :pair="item.text" layout="small" :rich-text="false" :dialect="dialect.toString()"
+                             @update:pair="item.text = $event"/>
 
             </div>
           </template>
@@ -206,24 +214,24 @@ onMounted(() => {
       </div>
 
       <div class="form-section">
-        <h3>註釋</h3>
+        <h3>{{ t('ciyu_editor.notes') }}</h3>
 
-        <CopyButton text="__既可以读作[]（__音），也可以读作[]（__音），原因是___。" hint="多個讀音的說明模板"
+        <CopyButton text="__既可以读作[]（__音），也可以读作[]（__音），原因是___。" :hint="t('ciyu_editor.copy_multiple_pronunciations')"
                     class="dev-normal-button dev-btn-middle"/>
         <CopyButton text="- 新派的南昌話除了少數漢字，大部分陽入（第七聲[at7]）都可以讀作陰入（第六聲[at6]）"
-                    hint="南昌話入聲混用的說明模板" class="dev-normal-button dev-btn-middle"/>
+                    :hint="t('ciyu_editor.copy_entering_tone')" class="dev-normal-button dev-btn-middle"/>
 
         <CopyButton text="「」單獨讀作[]，這裡讀作[]。
 變調規則：兩個3聲{n 上聲}連讀的時候，前一個字變為第2聲{n 陽平}，這個特點和普通話類似。"
-                    hint="3 3變調" class="dev-normal-button dev-btn-middle"/>
+                    :hint="t('ciyu_editor.copy_tone_33')" class="dev-normal-button dev-btn-middle"/>
 
         <CopyButton text="「」單獨讀作[]，這裡讀作[]。
 變調規則：3聲{n 上聲}、5聲{n 陽去}連讀的時候，前一個字變為第2聲{n 陽平}"
-                    hint="3 5變調" class="dev-normal-button dev-btn-middle"/>
+                    :hint="t('ciyu_editor.copy_tone_35')" class="dev-normal-button dev-btn-middle"/>
 
         <CopyButton text="「」單獨讀作[]，這裡讀作[]。
 變調規則：3聲{n 上聲}、7聲{n 陽去}連讀的時候，前一個字變為第2聲{n 陽平}"
-                    hint="3 7變調" class="dev-normal-button dev-btn-middle"/>
+                    :hint="t('ciyu_editor.copy_tone_37')" class="dev-normal-button dev-btn-middle"/>
 
         <CopyButton text="書既可以读作[_]（老派音），也可以读作[_]（新派音），原因是新派更接近普通話
 相關的規則是：一部分漢字老派讀作[jyu qyu xyu]的時候，新派讀作[zu cu su]，比如：
@@ -235,7 +243,7 @@ onMounted(() => {
 |住|[qyu3]|[cu3]|
 |書|[xyu1]|[su1]|
 |樹|[xyu5]|[su5]|
-{b 本字典作為當下的方言詞典，以現代讀法（新派音）為主。}" hint="zcs jqx新老派" class="dev-normal-button dev-btn-middle"/>
+{b 本字典作為當下的方言詞典，以現代讀法（新派音）為主。}" :hint="t('ciyu_editor.copy_old_new')" class="dev-normal-button dev-btn-middle"/>
 
         <CopyButton text="
 「___」是同音替代/自創__字，本字待考。
@@ -247,7 +255,7 @@ onMounted(() => {
 |||
 |||
 |||
-" hint="特殊漢字說明模板" class="dev-normal-button dev-btn-middle"/>
+" :hint="t('ciyu_editor.copy_special_hanzi')" class="dev-normal-button dev-btn-middle"/>
 
 
         <DraggableList
@@ -258,22 +266,21 @@ onMounted(() => {
             <div class="array-item complex-item">
 
               <select v-model="item.left" class="short-input">
+                <option v-if="!noteTags.includes(item.left)" :value="item.left">
+                  {{ t('ciyu_editor.unresolved_tag', {tag: item.left || t('ciyu_editor.empty_tag')}) }}
+                </option>
                 <option
                     v-for="tag in noteTags"
-                    :key="tag.code"
-                    :value="tag.code"
+                    :key="tag"
+                    :value="tag"
                 >
-                  {{ tag.name }}
+                  {{ t(`ciyu_editor.${tag}`) }}
                 </option>
               </select>
 
-              <ScAndTcText v-model:traditionalText="item.right.tc" v-model:simplifiedText="item.right.sc"
-                           :layout="'large'" :dialect="dialect.toString()"/>
-
-              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
-                        :model-value="item.right.tc"/>
-              <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
-                        :model-value="item.right.sc"/>
+              <ScTcEditorLab :ref="editor => setPairEditor(`note:${index}`, editor)"
+                             :pair="item.right" layout="large" :dialect="dialect.toString()"
+                             @update:pair="item.right = $event"/>
             </div>
           </template>
         </DraggableList>
@@ -281,11 +288,11 @@ onMounted(() => {
 
 
       <div class="form-section">
-        <h3>含義</h3>
+        <h3>{{ t('ciyu_editor.meanings') }}</h3>
 
 
-        <CopyButton text="用法對應普通話的「」" hint="普通話同義詞的模板" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="南昌話里自然的口語表達里不會出現「」這個詞語，而是用這個詞代替。" hint="南昌話不會這麼表達的模板" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="用法對應普通話的「」" :hint="t('ciyu_editor.copy_mandarin_synonym')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="南昌話里自然的口語表達里不會出現「」這個詞語，而是用這個詞代替。" :hint="t('ciyu_editor.copy_unusual_expression')" class="dev-normal-button dev-btn-middle"/>
         <CopyButton text="|---|---*|
 |例句||
 |說法||
@@ -293,30 +300,26 @@ onMounted(() => {
 相關詞彙：
 - {c }：[] （）
 - {c }：[] （）
-- {c }：[] （）" hint="例句表格" class="dev-normal-button dev-btn-middle"/>
+- {c }：[] （）" :hint="t('ciyu_editor.copy_example_table')" class="dev-normal-button dev-btn-middle"/>
 
-        <CopyButton text="這個詞條的重點在讀音上，內容不做詳細講解。" hint="重點在讀音上的模板" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="這個詞條的重點在讀音上，內容不做詳細講解。" :hint="t('ciyu_editor.copy_pronunciation_focus')" class="dev-normal-button dev-btn-middle"/>
 
-        <CopyButton text="- {c }：[] （）" hint="例句相關詞彙的模板" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c }：[] （）" :hint="t('ciyu_editor.copy_related_words')" class="dev-normal-button dev-btn-middle"/>
 
-        <CopyButton text="- {c 箇}：[go3] （這）" hint="箇" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="- {c 嗰}：[go0] （的）" hint="嗰" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="- {c 許}：[he3]/[e3] （那，兩個讀音都可以）" hint="許" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="- {c 係}：[xi5] （是）" hint="係" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="- {c 噶}：[gak6] （這下）" hint="噶" class="dev-normal-button dev-btn-middle"/>
-        <CopyButton text="- {c 渠}：[jie2] （他、她、它）" hint="渠" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 箇}：[go3] （這）" :hint="t('ciyu_editor.copy_ge')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 嗰}：[go0] （的）" :hint="t('ciyu_editor.copy_go')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 許}：[he3]/[e3] （那，兩個讀音都可以）" :hint="t('ciyu_editor.copy_he')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 係}：[xi5] （是）" :hint="t('ciyu_editor.copy_xi')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 噶}：[gak6] （這下）" :hint="t('ciyu_editor.copy_gak')" class="dev-normal-button dev-btn-middle"/>
+        <CopyButton text="- {c 渠}：[jie2] （他、她、它）" :hint="t('ciyu_editor.copy_jie')" class="dev-normal-button dev-btn-middle"/>
 
 
         <DraggableList v-model="updateData.mean" :createItem="() => ({ sc: '', tc: '' })">
           <template #default="{ item, index }">
 
-            <ScAndTcText v-model:traditionalText="item.tc" v-model:simplifiedText="item.sc"
-                         :layout="'large'" :dialect="dialect.toString()"/>
-
-            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
-                      :model-value="item.tc"/>
-            <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="false"
-                      :model-value="item.sc"/>
+            <ScTcEditorLab :ref="editor => setPairEditor(`mean:${index}`, editor)"
+                           :pair="item" layout="large" :dialect="dialect.toString()"
+                           @update:pair="updateData.mean[index] = $event"/>
 
           </template>
         </DraggableList>
@@ -328,120 +331,34 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.edit-page {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.form-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  border: 1px solid var(--color-text-lighter);
-  border-radius: 8px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.main-pinyin-selector {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: #f9f9f9;
-  border-radius: 4px;
-}
-
-.selector-label {
-  font-weight: bold;
-  color: #333;
-  margin-right: 10px;
-  white-space: nowrap;
-}
-
-.radio-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.radio-item input[type="radio"] {
-  margin: 0;
-}
-
-.radio-item label {
-  cursor: pointer;
-  user-select: none;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-}
-
-.short-input {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 120px;
-  min-width: 120px;
-}
-
-.middle-input {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 180px;
-  min-width: 120px;
-}
-
-.array-item {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-  align-items: center;
-}
-
-.draggable-item {
-  cursor: move;
-  padding: 8px;
-  border: 1px dashed #ccc;
-  border-radius: 4px;
-  background: #fafafa;
-}
-
-.complex-item {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-button {
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.word-link {
-  color: #1976d2;
-  text-decoration: none;
-}
-
-.word-link:hover {
-  text-decoration: underline;
+.edit-page { min-width: 0; width: 100%; padding: 12px 0 56px; }
+.nav-buttons { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.edit-form { display: flex; flex-direction: column; gap: 18px; }
+.form-section { min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: rgba(255,255,255,.75); }
+.form-section h3 { margin: 0 0 18px; color: var(--color-primary-dark); font-size: 18px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); align-items: center; gap: 18px; }
+.form-field { display: flex; flex-direction: column; gap: 7px; }
+.form-field h4 { margin: 4px 0; color: var(--color-text); font-size: 18px; }
+.form-field label { color: var(--color-text-light); font-size: 14px; }
+.section-header h3 { margin-bottom: 18px; }
+.short-input, .middle-input { min-height: 38px; padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; color: var(--color-text); }
+.short-input { width: 100%; max-width: 190px; }
+.middle-input { flex: 0 1 190px; min-width: 130px; }
+.array-item { display: flex; align-items: center; gap: 10px; min-width: 0; margin-bottom: 10px; }
+.complex-item { flex-direction: column; align-items: stretch; }
+.pinyin-input-row { display: grid; grid-template-columns: minmax(0,1fr) 18px minmax(120px,.6fr); }
+.pinyin-input { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 4px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; box-shadow: none; outline: none; }
+.pinyin-input:focus, .pinyin-input:focus-visible { border-color: #6f8775; box-shadow: none; outline: none; }
+.pinyin-arrow { color: var(--color-text-light); text-align: center; }
+.pinyin-preview { box-sizing: border-box; display: flex; align-items: center; min-width: 0; height: 36px; padding: 2px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; color: var(--color-text); overflow: hidden; }
+.pinyin-preview :deep(.result) { min-width: 0; line-height: 1.2; white-space: nowrap; }
+.pinyin-preview :deep(.rt-pinyin) { line-height: 1.2; }
+.word-link { color: var(--color-primary-dark); text-decoration: none; }
+.word-link:hover { text-decoration: underline; }
+@media (max-width: 600px) {
+  .edit-page { padding: 12px 0 36px; }
+  .form-section { padding: 14px; }
+  .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
+  .pinyin-input-row { grid-template-columns: minmax(0,1fr) 18px minmax(90px,.6fr); }
 }
 </style>

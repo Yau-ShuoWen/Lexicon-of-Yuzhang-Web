@@ -42,6 +42,8 @@ const labelsOpen = ref(false)
 const mergeTargets = ref({})
 const focusedUnplacedId = ref(null)
 const repairIds = ref(new Set())
+const faqDragId = ref(null)
+const pairEditors = new Map()
 const childDrag = ref(null)
 const childDropTarget = ref(null)
 const openedItem = computed(() => isUnplacedEditor.value
@@ -77,13 +79,12 @@ async function load() {
       if (!saved) throw error
     }
     documentData.value = saved || fromLegacy(legacy)
+    documentData.value.faq ||= []
     savedSnapshot.value = JSON.stringify(documentData.value)
     if (legacy) mergeMissingLegacyChildren(documentData.value, legacy)
     ensureNoteLabels(documentData.value)
-    const children = [...documentData.value.unplaced, ...documentData.value.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items.flatMap(item => item.children))))]
     repairIds.value = new Set([
-      ...documentData.value.noteLabels.filter(label => !sameLength(label.text)).map(label => label.id),
-      ...children.flatMap(child => child.notes?.filter(note => !sameLength(note.value)).map(note => note.id) || [])
+      ...documentData.value.noteLabels.filter(label => !sameLength(label.text)).map(label => label.id)
     ])
   } catch (error) {
     showError(error.message)
@@ -96,30 +97,31 @@ async function save() {
   if (editingId.value) {
     if (!await finishName()) return
   }
+  for (const editor of pairEditors.values()) {
+    if (!await editor.synchronizeForSave()) return
+  }
   try {
     syncItemKeys(documentData.value)
     const names = new Set()
     for (const label of documentData.value.noteLabels) {
-      if (!label.text.sc?.trim() || !label.text.tc?.trim() || !sameLength(label.text)) throw new Error('解释名称需要填写等长的简体和繁体')
+      if (!label.text.sc?.trim() || !label.text.tc?.trim()) throw new Error('解释名称需要填写简体和繁体')
       const name = JSON.stringify(label.text)
       if (names.has(name)) throw new Error('解释名称重复，请更换使用它的解释后删除重复名称')
       names.add(name)
     }
-    const children = [...documentData.value.unplaced, ...documentData.value.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items.flatMap(item => item.children))))]
-    if (children.some(child => child.notes?.some(note => !sameLength(note.value)))) throw new Error('解释内容的简繁长度不同，请先核对')
   } catch (error) { showError(error.message); return }
   if (!hasChanges.value || saving.value) return
-  const body = JSON.stringify(documentData.value)
+  const body = JSON.stringify(documentData.value, (key, value) => key === 'editState' ? undefined : value)
   const targetDialect = dialect.value
   saving.value = true
   try {
     await request(`/api/edit/pinyin/document/${targetDialect}`, {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body
     })
-    savedSnapshot.value = body
+    savedSnapshot.value = JSON.stringify(documentData.value)
     showSuccess('已保存')
   } catch (error) {
-    showError(error.message)
+    showError(error.message, 8000)
   } finally {
     saving.value = false
   }
@@ -288,6 +290,36 @@ function sameLength(pair) {
   return Array.from(pair?.sc || '').length === Array.from(pair?.tc || '').length
 }
 
+function addFaq() {
+  documentData.value.faq.push({
+    id: crypto.randomUUID(),
+    question: {sc: '', tc: ''},
+    answer: {sc: '', tc: ''}
+  })
+}
+
+function setPairEditor(id, editor) {
+  if (editor) pairEditors.set(id, editor)
+  else pairEditors.delete(id)
+}
+
+function moveFaq(index, offset) {
+  const next = index + offset
+  if (next < 0 || next >= documentData.value.faq.length) return
+  const [entry] = documentData.value.faq.splice(index, 1)
+  documentData.value.faq.splice(next, 0, entry)
+}
+
+function dropFaq(targetId) {
+  const list = documentData.value.faq
+  const source = list.findIndex(entry => entry.id === faqDragId.value)
+  const target = list.findIndex(entry => entry.id === targetId)
+  faqDragId.value = null
+  if (source < 0 || target < 0 || source === target) return
+  const [entry] = list.splice(source, 1)
+  list.splice(target, 0, entry)
+}
+
 function finishPairRepair(id, pair) {
   if (!sameLength(pair)) { showError('简繁长度仍不一致'); return }
   const next = new Set(repairIds.value)
@@ -385,15 +417,12 @@ async function completeName(cancel) {
     editingId.value = null
     return true
   }
-  if (!cancel && nameEditor.value?.hasPendingChanges() && !await nameEditor.value.synchronize()) return false
+  if (!cancel && nameEditor.value && !await nameEditor.value.synchronizeForSave()) return false
   if (!cancel && (!editingName.value.sc.trim() || !editingName.value.tc.trim())) {
     showError('请填写简体和繁体标题')
     return false
   }
-  if (!cancel) target.name = {
-    sc: editingName.value.sc.trim(), tc: editingName.value.tc.trim(),
-    ...(editingName.value.machineSide ? {machineSide: editingName.value.machineSide} : {})
-  }
+  if (!cancel) target.name = { ...editingName.value }
   editingId.value = null
   return true
 }
@@ -587,7 +616,7 @@ onUnmounted(() => {
         <header class="section-header">
           <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
           <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
-            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+            <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                            @update:pair="editingName = $event" />
             <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
           </div>
@@ -609,7 +638,7 @@ onUnmounted(() => {
             <div class="line-actions">
               <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
               <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
-                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false"
+                <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                                @update:pair="editingName = $event" />
                 <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
               </div>
@@ -657,6 +686,34 @@ onUnmounted(() => {
       </section>
       </div>
       <button v-if="editLevel === 'section'" class="add-section" type="button" @click="addSection">＋ 添加区域</button>
+      <section class="faq-editor" aria-label="拼音表问答">
+        <header class="faq-editor__header">
+          <div><h2>问答</h2><p>题目使用小句子框，解答使用中框。拖动序号或使用上下按钮调整顺序。</p></div>
+          <button type="button" @click="addFaq">＋ 添加问答</button>
+        </header>
+        <div v-for="(entry, index) in documentData.faq" :key="entry.id" class="faq-editor__entry"
+             :class="{'faq-editor__entry--dragging': faqDragId === entry.id}"
+             @dragover.prevent @drop.prevent="dropFaq(entry.id)">
+          <div class="faq-editor__entry-header">
+            <span class="faq-editor__handle" draggable="true" title="拖动排序"
+                  @dragstart="faqDragId = entry.id" @dragend="faqDragId = null">⋮⋮ {{ index + 1 }}</span>
+            <div class="faq-editor__order">
+              <button type="button" :disabled="index === 0" :aria-label="`上移第 ${index + 1} 条问答`" @click="moveFaq(index, -1)">↑</button>
+              <button type="button" :disabled="index === documentData.faq.length - 1" :aria-label="`下移第 ${index + 1} 条问答`" @click="moveFaq(index, 1)">↓</button>
+              <button type="button" class="remove-button" :aria-label="`删除第 ${index + 1} 条问答`" @click="documentData.faq.splice(index, 1)">删除</button>
+            </div>
+          </div>
+          <div class="faq-editor__field"><h3>题目</h3>
+            <ScTcEditorLab :ref="editor => setPairEditor(`${entry.id}:question`, editor)" :pair="entry.question" :dialect="dialect" layout="small-sentence" :request-backend="false"
+                           @update:pair="entry.question = $event" />
+          </div>
+          <div class="faq-editor__field"><h3>解答</h3>
+            <ScTcEditorLab :ref="editor => setPairEditor(`${entry.id}:answer`, editor)" :pair="entry.answer" :dialect="dialect" layout="middle" :request-backend="false"
+                           @update:pair="entry.answer = $event" />
+          </div>
+        </div>
+        <p v-if="!documentData.faq.length" class="empty-hint">还没有问答</p>
+      </section>
       <div v-if="openedItem" class="modal-backdrop" @pointerdown.self="closeItem" @keydown.esc="closeItem">
         <section class="item-modal" role="dialog" aria-modal="true" aria-label="编辑拼音格子">
           <header class="modal-header">
@@ -708,13 +765,8 @@ onUnmounted(() => {
                     </select>
                   </label>
                   <div>
-                    <ScAndTcText v-if="!repairIds.has(note.id)" :key="note.id" v-model:traditional-text="note.value.tc"
-                                 v-model:simplified-text="note.value.sc" :dialect="dialect" layout="middle" />
-                    <div v-else class="pair-repair"><span>旧数据的简繁长度不同，请先核对：</span>
-                      <textarea v-model="note.value.sc" rows="2" aria-label="简体内容"></textarea>
-                      <textarea v-model="note.value.tc" rows="2" aria-label="繁体内容"></textarea>
-                      <button type="button" @click="finishPairRepair(note.id, note.value)">完成核对</button>
-                    </div>
+                    <ScTcEditorLab :ref="editor => setPairEditor(note.id, editor)" :pair="note.value" :dialect="dialect" layout="small-sentence" :request-backend="false"
+                                   @update:pair="note.value = $event" />
                   </div>
                 </div>
                 <button type="button" class="remove-button" aria-label="删除这一行解释" @click="openedChild.notes.splice(index, 1)">删除</button>
@@ -732,7 +784,7 @@ onUnmounted(() => {
           <header class="modal-header"><h2>管理解释名称</h2><button type="button" aria-label="关闭" @click="labelsOpen = false">×</button></header>
           <div v-for="label in documentData.noteLabels" :key="label.id" class="label-entry">
             <div class="label-row">
-              <ScAndTcText v-if="!repairIds.has(label.id)" v-model:traditional-text="label.text.tc"
+              <ScAndTcText v-if="!repairIds.has(label.id) && sameLength(label.text)" v-model:traditional-text="label.text.tc"
                              v-model:simplified-text="label.text.sc" :dialect="dialect" layout="small" />
               <div v-else class="pair-repair"><span>简繁长度不同，请先核对：</span>
                 <input v-model="label.text.sc" aria-label="简体名称"><input v-model="label.text.tc" aria-label="繁体名称">
@@ -840,6 +892,23 @@ onUnmounted(() => {
 .item-box.invalid { background: #f0f2f4; border: 1px dashed #d3d9df; }
 .add-section { display: block; width: 100%; min-height: 52px; border: 1px dashed #bad3bc; border-radius: 14px; background: #fff; color: #326d3b; cursor: pointer; font-size: 16px; }
 .add-section:hover { background: #f4faf4; }
+.faq-editor { margin-top: 28px; padding: 20px; border: 1px solid #d8e5da; border-radius: 14px; background: #f9fcf9; }
+.faq-editor__header, .faq-editor__entry-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.faq-editor__header { margin-bottom: 16px; }
+.faq-editor__header h2 { margin: 0; color: #34495e; font-size: 20px; }
+.faq-editor__header p { margin: 4px 0 0; color: #687b70; font-size: 13px; }
+.faq-editor__header > button { flex: none; padding: 8px 12px; border: 1px solid #b7d1bc; border-radius: 7px; background: #fff; color: #326d3b; cursor: pointer; }
+.faq-editor__entry { margin-top: 12px; padding: 16px; border: 1px solid #d8e5da; border-radius: 11px; background: #fff; }
+.faq-editor__entry--dragging { opacity: .5; }
+.faq-editor__handle { color: #52745a; cursor: grab; touch-action: none; }
+.faq-editor__order { display: flex; align-items: center; gap: 6px; }
+.faq-editor__order button { border: 1px solid #d4e0d6; border-radius: 6px; background: #fff; color: #326d3b; padding: 4px 8px; cursor: pointer; }
+.faq-editor__order button:disabled { opacity: .4; cursor: default; }
+.faq-editor__order .remove-button { color: #b45d5d; }
+.faq-editor__field { margin-top: 14px; }
+.faq-editor__field h3 { margin: 0 0 7px; color: #34495e; font-size: 15px; }
+.faq-editor__field :deep(.lab-editor) { box-shadow: none; }
+.faq-editor__field :deep(.lab-editor--small-sentence) { width: 100%; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
 .item-modal { box-sizing: border-box; width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border-radius: 16px; background: white; padding: 22px; box-shadow: 0 18px 50px #1126184d; }
 .modal-header, .modal-subheading, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

@@ -15,7 +15,8 @@ const props = defineProps({
   dialect: { type: String, required: true },
   mode: { type: String, default: '' },
   layout: { type: String, default: 'large' },
-  richText: { type: Boolean, default: true }
+  richText: { type: Boolean, default: true },
+  requestBackend: { type: Boolean, default: true }
 })
 const emit = defineEmits(['update:pair', 'draft-change'])
 const settings = useUserSettings()
@@ -89,22 +90,46 @@ watch([tcBox, scBox, rows], ([tc, sc]) => {
 const changed = computed(() => draft.value.sc !== saved.value.sc || draft.value.tc !== saved.value.tc)
 const tcDirty = computed(() => draft.value.tc !== saved.value.tc)
 const scDirty = computed(() => draft.value.sc !== saved.value.sc)
+const invalidPair = computed(() => Array.from(draft.value.sc).length !== Array.from(draft.value.tc).length)
 const isMachine = language => machineSide.value === (language === 'sc' ? MACHINE_SC : MACHINE_TC)
 const isEditing = language => language === 'sc' ? scDirty.value : tcDirty.value
-const isChecked = computed(() => !tcDirty.value && !scDirty.value && !machineSide.value)
+const isChecked = computed(() => !tcDirty.value && !scDirty.value && !machineSide.value && !invalidPair.value)
+let lastEmittedPair = null
+let restoringPair = false
+let pairInitialized = false
 
 watch(() => [draft.value.sc, draft.value.tc], ([sc, tc]) => {
   emit('draft-change', { sc, tc })
-}, { immediate: true })
+  if (!pairInitialized || restoringPair) return
+  if (saved.value.sc === sc && saved.value.tc === tc) {
+    lastEmittedPair = {
+      sc, tc,
+      ...(machineSide.value ? { machineSide: machineSide.value } : {})
+    }
+    emit('update:pair', lastEmittedPair)
+    return
+  }
+  lastEmittedPair = {
+    sc, tc,
+    ...(machineSide.value ? { machineSide: machineSide.value } : {}),
+    editState: { baseSc: saved.value.sc, baseTc: saved.value.tc, source: scDirty.value ? 'sc' : 'tc' }
+  }
+  emit('update:pair', lastEmittedPair)
+}, { immediate: true, flush: 'sync' })
 
 watch(() => props.pair, value => {
+  if (value === lastEmittedPair) return
   try {
+    restoringPair = true
     const parsed = unpackPair(value)
-    saved.value = { sc: parsed.sc, tc: parsed.tc }
-    draft.value = { ...saved.value }
+    saved.value = parsed.editState
+      ? { sc: parsed.editState.baseSc, tc: parsed.editState.baseTc }
+      : { sc: parsed.sc, tc: parsed.tc }
+    draft.value = { sc: parsed.sc, tc: parsed.tc }
     machineSide.value = parsed.machineSide
     error.value = ''
   } catch (e) { error.value = e.message }
+  finally { restoringPair = false; pairInitialized = true }
 }, { immediate: true, deep: false })
 
 async function synchronize() {
@@ -114,6 +139,10 @@ async function synchronize() {
   const target = source === 'sc' ? 'tc' : 'sc'
   if (effectiveMode.value === 'pair') {
     if (!changed.value) {
+      if (invalidPair.value) {
+        const source = draft.value.tc ? 'tc' : 'sc'
+        return synchronizeTranslation(source, source === 'sc' ? MACHINE_TC : '')
+      }
       if (!machineSide.value) return true
       machineSide.value = ''
       emit('update:pair', packPair(saved.value))
@@ -143,13 +172,17 @@ async function synchronize() {
     error.value = '另一栏有未同步的修改，请先切到简繁体对照处理'
     return false
   }
-  if (!changed.value) return true
+  if (!changed.value && !invalidPair.value) return true
   return synchronizeTranslation(source, source === 'tc' ? MACHINE_SC : MACHINE_TC)
 }
 
 function restore() {
   draft.value = { ...saved.value }
   error.value = ''
+  lastEmittedPair = invalidPair.value
+    ? { ...saved.value, ...(machineSide.value ? { machineSide: machineSide.value } : {}) }
+    : packPair(saved.value, machineSide.value)
+  emit('update:pair', lastEmittedPair)
 }
 
 function clearAll() {
@@ -165,11 +198,12 @@ async function previewPair() {
   if (effectiveMode.value !== 'pair' || !tcDirty.value) return { ...draft.value }
   const snapshot = draft.value.tc
   if (!snapshot) return { ...draft.value, sc: '' }
-  const machine = await request('/api/proofread/translate?from=tc&to=sc', {
+  const machine = await request(`/api/proofread/sc-tc-machine/${props.dialect}?from=tc`, {
     method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
   })
   if (draft.value.tc !== snapshot) throw new Error('输入已变化，请重新打开预览')
-  const translated = retainTranslated(saved.value.tc, snapshot, saved.value.sc, machine)
+  const translated = Array.from(saved.value.tc).length === Array.from(saved.value.sc).length
+    ? retainTranslated(saved.value.tc, snapshot, saved.value.sc, machine) : machine
   return { ...draft.value, sc: translated }
 }
 
@@ -266,11 +300,14 @@ async function synchronizeTranslation(source, nextMachineSide) {
   const snapshot = draft.value[source]
   busy.value = true
   try {
-    const machine = snapshot ? await request('/api/proofread/translate?from=' + source + '&to=' + target, {
+    const machine = snapshot ? await request(`/api/proofread/sc-tc-machine/${props.dialect}?from=${source}`, {
       method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: snapshot
     }) : ''
     if (draft.value[source] !== snapshot) throw new Error('输入已变化，请重新同步')
-    const translated = snapshot ? retainTranslated(saved.value[source], snapshot, saved.value[target], machine) : ''
+    const translated = snapshot
+      ? (Array.from(saved.value[source]).length === Array.from(saved.value[target]).length
+          ? retainTranslated(saved.value[source], snapshot, saved.value[target], machine) : machine)
+      : ''
     const next = { ...saved.value, [source]: snapshot, [target]: translated }
     const machineSideAfterSync = snapshot ? nextMachineSide : ''
     const pair = packPair(next, machineSideAfterSync)
@@ -302,11 +339,17 @@ function onSentencePaste(event) {
   box.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-defineExpose({ synchronize, hasPendingChanges: () => changed.value })
+async function synchronizeForSave() {
+  if (effectiveMode.value === 'pair' || (!changed.value && !invalidPair.value)) return true
+  return synchronize()
+}
+
+defineExpose({ synchronize, synchronizeForSave, hasPendingChanges: () => changed.value })
 </script>
 
 <template>
   <div class="lab-editor" :class="`lab-editor--${layout}`" @mouseenter="hovered = true" @mouseleave="onPointerLeave">
+    <p v-if="invalidPair && !changed" class="lab-invalid" role="status">简繁字数不一致，请检查后同步</p>
     <p v-if="effectiveMode === 'pair' && tcDirty && scDirty" class="lab-invalid" role="status">简体和繁体都有待同步修改</p>
     <div class="lab-fields">
       <label v-if="effectiveMode !== 'sc'" class="lab-field">
@@ -342,8 +385,8 @@ defineExpose({ synchronize, hasPendingChanges: () => changed.value })
       <div v-if="richText && previewVisible" class="lab-preview-overlay" :class="{ 'lab-preview-overlay--compact': isCompactLayout }" role="dialog" aria-label="文本预览">
         <p v-if="previewError" class="lab-error" role="alert">{{ previewError }}</p>
         <div class="lab-preview-content" :class="{ 'lab-preview-content--single': previewMode !== 'pair' }">
-          <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" plain /></div></section>
-          <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" plain /></div></section>
+          <section v-if="previewMode !== 'sc'"><h3 v-if="previewMode === 'pair'">繁体</h3><div class="lab-preview-text"><RichText :model-value="previewData.tc" language="tc" :dialect="dialect" :request-backend="requestBackend" plain /></div></section>
+          <section v-if="previewMode !== 'tc'"><h3 v-if="previewMode === 'pair'">简体</h3><div class="lab-preview-text"><RichText :model-value="previewData.sc" language="sc" :dialect="dialect" :request-backend="requestBackend" plain /></div></section>
         </div>
       </div>
     </Teleport>

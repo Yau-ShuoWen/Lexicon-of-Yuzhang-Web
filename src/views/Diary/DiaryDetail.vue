@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import LanguageSelector from '../../components/Select/LanguageSelector.vue'
+import diaryBodyStyle from './diaryBodyStyle.js'
 import { showError } from '../../services/ToastService.js'
 import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
@@ -13,6 +14,7 @@ import {
 } from './diaryApi.js'
 
 const route = useRoute()
+const vDiaryBodyStyle = diaryBodyStyle
 const router = useRouter()
 
 const language = computed(() => String(route.params.language || 'sc'))
@@ -334,7 +336,7 @@ onBeforeUnmount(() => {
         <div
             v-if="diary.content"
             class="content-block__body content-block__body--article"
-            v-formatted-text="diary.content"
+            v-diary-body-style="diary.content"
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent"/>
       </section>

@@ -5,7 +5,7 @@ import {useI18n} from 'vue-i18n'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
 import DraggableList from '../../../components/Layout/DraggableList.vue'
-import DraggableGrid from '../../../components/Layout/DraggableGrid.vue'
+import HanziSortable from './HanziSortable.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import {showError, showSuccess} from '../../../services/ToastService.js'
 import {getToken} from '../../../utils/auth.js'
@@ -38,6 +38,11 @@ const nextId = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const pairEditors = new Map()
+const openedNoteItem = ref(null)
+const noteDraft = ref(null)
+const noteEditorRef = ref(null)
+const closingNote = ref(false)
+const setNoteEditor = editor => { noteEditorRef.value = editor }
 const setPairEditor = (key, editor) => {
   if (editor) pairEditors.set(key, editor)
   else pairEditors.delete(key)
@@ -54,6 +59,25 @@ const noteTags = [
 ]
 
 const isKnownNoteTag = value => noteTags.includes(value)
+
+function openNote(item) {
+  openedNoteItem.value = item
+  noteDraft.value = JSON.parse(JSON.stringify(item.right))
+}
+
+async function closeNote() {
+  if (closingNote.value) return
+  closingNote.value = true
+  try {
+    if (noteEditorRef.value?.hasPendingChanges() && !await noteEditorRef.value.synchronize()) return
+    if (openedNoteItem.value && noteDraft.value) openedNoteItem.value.right = noteDraft.value
+    openedNoteItem.value = null
+    noteDraft.value = null
+    noteEditorRef.value = null
+  } finally {
+    closingNote.value = false
+  }
+}
 
 const isAutomaticMapping = computed(() =>
     updateData.value.pinyin.length === 1 && mandarinOptions.value.length === 1)
@@ -95,6 +119,8 @@ const loadWordSuggestions = async id => {
 
 const loadHanzi = async id => {
   isLoading.value = true
+  openedNoteItem.value = null
+  noteDraft.value = null
   try {
     const params = new URLSearchParams({id})
     updateData.value = await request(`/api/edit/hanzi/get-info/${dialect.value}?${params}`, {
@@ -178,8 +204,8 @@ onMounted(() => loadHanzi(route.params.id))
 
       <div class="form-section">
         <h3>{{ t('hanzi_editor.pinyin') }}</h3>
-        <DraggableGrid v-model="updateData.pinyin"
-          :createItem="() => ({tag:{sc:'待定',tc:'待定'},pinyin:'',code:null,mandarin:[]})">
+        <HanziSortable v-model="updateData.pinyin" layout="grid" :item-label="t('hanzi_editor.pinyin')"
+          :create-item="() => ({tag:{sc:'待定',tc:'待定'},pinyin:'',code:null,mandarin:[]})">
           <template #default="{item,index}">
             <div class="pinyin-item">
               <div class="array-item pinyin-input-row" :class="{'pinyin-input-row--no-preview': !item.pinyin}">
@@ -211,7 +237,7 @@ onMounted(() => loadHanzi(route.params.id))
               </div>
             </div>
           </template>
-        </DraggableGrid>
+        </HanziSortable>
 
         <div class="word-suggestions">
           <h4>{{ t('hanzi_editor.suggestions_title') }}</h4>
@@ -246,23 +272,33 @@ onMounted(() => loadHanzi(route.params.id))
 
       <div class="form-section">
         <h3>{{ t('hanzi_editor.notes') }}</h3>
-        <DraggableList v-model="updateData.note"
-          :createItem="() => ({left:'usage',right:{sc:'',tc:''}})">
-          <template #default="{item,index}">
-            <div class="array-item complex-item">
+        <HanziSortable v-model="updateData.note" layout="list" :item-label="t('hanzi_editor.notes')" :auto-sort="true"
+          :create-item="() => ({left:'usage',right:{sc:'',tc:''}})">
+          <template #default="{item}">
+            <div class="note-item">
               <select v-model="item.left" class="short-input">
                 <option v-if="!isKnownNoteTag(item.left)" :value="item.left">
                   {{ t('hanzi_editor.unresolved_tag', {tag: item.left || t('hanzi_editor.empty_tag')}) }}
                 </option>
                 <option v-for="tag in noteTags" :key="tag" :value="tag">{{ t(`hanzi_editor.${tag}`) }}</option>
               </select>
-              <ScTcEditorLab :ref="editor => setPairEditor(`note:${index}`, editor)"
-                             :pair="item.right" :dialect="dialect.toString()" layout="large"
-                             @update:pair="item.right = $event"/>
+              <div class="note-preview" role="button" tabindex="0" :aria-label="`${t('hanzi_editor.notes')}：打开编辑`"
+                   @click="openNote(item)" @keydown.enter.prevent="openNote(item)" @keydown.space.prevent="openNote(item)">
+                <RichText :language="language.toString()" :dialect="dialect.toString()" :model-value="item.right?.[language] || ''" :request-backend="false" plain />
+                <span v-if="!item.right?.[language]" class="note-preview__empty">点击编辑注释</span>
+              </div>
             </div>
           </template>
-        </DraggableList>
+        </HanziSortable>
       </div>
+    </div>
+    <div v-if="openedNoteItem && noteDraft" class="note-modal-backdrop" @pointerdown.self="closeNote" @keydown.esc="closeNote">
+      <section class="note-modal" role="dialog" aria-modal="true" :aria-label="t('hanzi_editor.notes')">
+        <header class="note-modal__header"><h2>{{ t('hanzi_editor.notes') }}</h2><button type="button" aria-label="关闭" @click="closeNote">×</button></header>
+        <ScTcEditorLab :ref="setNoteEditor" :pair="noteDraft" :dialect="dialect.toString()" layout="large"
+                       @update:pair="noteDraft = $event" />
+        <footer class="note-modal__footer"><button type="button" @click="closeNote">完成</button></footer>
+      </section>
     </div>
   </div>
 </template>
@@ -292,7 +328,21 @@ onMounted(() => loadHanzi(route.params.id))
 .pinyin-preview { box-sizing: border-box; display: flex; align-items: center; min-width: 0; height: 36px; padding: 2px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; color: var(--color-text); overflow: hidden; }
 .pinyin-preview :deep(.result) { min-width: 0; line-height: 1.2; white-space: nowrap; }
 .pinyin-preview :deep(.rt-pinyin) { line-height: 1.2; }
-.complex-item { flex-direction: column; align-items: stretch; }
+.note-item { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: start; gap: 14px; min-width: 0; }
+.note-item .short-input { max-width: none; }
+.note-preview { min-width: 0; min-height: 42px; cursor: pointer; color: var(--color-text); }
+.note-preview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.note-preview :deep(.result) { padding: 0; margin: 0; }
+.note-preview__empty { color: var(--color-text-light); }
+.note-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
+.note-modal { box-sizing: border-box; width: min(1080px, 100%); max-height: min(90vh, 900px); overflow: auto; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 18px 50px #1126184d; }
+.note-modal__header, .note-modal__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.note-modal__header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #dfe8e1; }
+.note-modal__header h2 { margin: 0; color: #34495e; font-size: 21px; }
+.note-modal__header button { border: 0; background: transparent; font-size: 25px; cursor: pointer; }
+.note-modal :deep(.lab-editor) { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.note-modal__footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e0e9e2; }
+.note-modal__footer button { padding: 7px 11px; border: 1px solid #b7d1bc; border-radius: 7px; background: #f5faf5; color: #326d3b; cursor: pointer; }
 .mandarin-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 28px; }
 .mandarin-label { color: var(--color-text-light); font-size: 14px; white-space: nowrap; }
 .compact-hint { font-size: 14px; }
@@ -313,6 +363,8 @@ onMounted(() => loadHanzi(route.params.id))
   .form-section { padding: 14px; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
   .pinyin-input-row { grid-template-columns: 100px minmax(90px, 1fr) 18px minmax(75px, .6fr); }
+  .note-item { grid-template-columns: minmax(0, 1fr); }
+  .note-modal { padding: 18px; }
   .mandarin-line { align-items: flex-start; }
   .nav-buttons .dev-add-btn { margin-left: 0; }
 }

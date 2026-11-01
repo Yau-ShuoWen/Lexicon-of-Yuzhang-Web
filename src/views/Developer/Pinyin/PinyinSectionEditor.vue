@@ -540,7 +540,6 @@ function faqPointerMove(event) {
   }
   dragPreview.style.left = `${event.clientX - drag.offsetX}px`
   dragPreview.style.top = `${event.clientY - drag.offsetY}px`
-  if (drag.lastSwap && Math.hypot(event.clientX - drag.lastSwap.x, event.clientY - drag.lastSwap.y) < 12) return
   for (const element of window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')) {
     if (element.dataset.faqId === drag.id) continue
     const rect = element.getBoundingClientRect()
@@ -551,11 +550,15 @@ function faqPointerMove(event) {
     const sourceIndex = drag.list.findIndex(item => item.id === drag.id)
     const targetIndex = drag.list.findIndex(item => item.id === element.dataset.faqId)
     if (targetIndex < 0 || sourceIndex === targetIndex) break
+    // 高度不同的问答换位后，指针可能仍在同一目标项内，不能因此立即换回。
+    if (drag.lastSwap?.targetId === element.dataset.faqId
+      && (event.clientY - drag.lastSwap.y) * drag.lastSwap.direction > -12) break
     const previous = new Map([...window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')]
       .filter(row => row.dataset.faqId !== drag.id)
       .map(row => [row.dataset.faqId, row.getBoundingClientRect()]))
     drag.list.splice(targetIndex, 0, ...drag.list.splice(sourceIndex, 1))
-    drag.lastSwap = {x: event.clientX, y: event.clientY}
+    drag.lastSwap = {targetId: element.dataset.faqId, y: event.clientY,
+      direction: Math.sign(targetIndex - sourceIndex)}
     nextTick(() => {
       if (faqPress !== drag) return
       for (const row of window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')) {

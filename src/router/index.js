@@ -267,7 +267,7 @@ const routes = [
                     },
 
                     {
-                        path: 'pinyin-editor',
+                        path: 'pinyin-editor/:level(section|row|group|item|faq)?',
                         name: 'PinyinEditor',
                         component: () => import('../views/Developer/Pinyin/PinyinSectionEditor.vue'),
                     },

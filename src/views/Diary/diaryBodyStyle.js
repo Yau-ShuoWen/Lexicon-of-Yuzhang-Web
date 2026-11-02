@@ -5,7 +5,7 @@ const BLOCK = /^:::(style|script)\s*\n([\s\S]*?)\n:::\s*(?:\n|$)/gm
 
 export function renderDiaryBody(element, source) {
   const blocks = []
-  const body = String(source ?? '').replace(BLOCK, (_, type, content) => {
+  const body = String(source ?? '').replace(/\r\n?/g, '\n').replace(BLOCK, (_, type, content) => {
     blocks.push({type, content})
     return ''
   })

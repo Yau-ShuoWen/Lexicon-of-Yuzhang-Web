@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import LoadingIcon from "../../../components/Status/LoadingIcon.vue";
 import ScTcEditorLab from "../../../components/Text/ScTcEditorLab.vue";
-import DraggableList from "../../../components/Layout/DraggableList.vue";
+import HanziSortable from '../Hanzi/HanziSortable.vue'
 import { showError, showSuccess } from "../../../services/ToastService.js";
 import RichText from "../../../components/Text/RichText.vue";
 import { useHead } from '@vueuse/head'
@@ -49,6 +49,32 @@ const isNew = ref(!id || id === 'new')
 const isLoading = ref(false)
 const isSaving = ref(false)
 const pairEditors = new Map()
+const openedRichItem = ref(null)
+const richDraft = ref(null)
+const richEditorRef = ref(null)
+const closingRich = ref(false)
+const setRichEditor = editor => { richEditorRef.value = editor }
+function openRich(item, field) {
+  openedRichItem.value = {item, field}
+  richDraft.value = JSON.parse(JSON.stringify(field === 'note' ? item.right : item))
+}
+async function closeRich() {
+  if (closingRich.value) return
+  closingRich.value = true
+  try {
+    if (richEditorRef.value?.hasPendingChanges() && !await richEditorRef.value.synchronize()) return
+    if (openedRichItem.value && richDraft.value) {
+      const {item, field} = openedRichItem.value
+      if (field === 'note') item.right = richDraft.value
+      else Object.assign(item, richDraft.value)
+    }
+    openedRichItem.value = null
+    richDraft.value = null
+    richEditorRef.value = null
+  } finally {
+    closingRich.value = false
+  }
+}
 const setPairEditor = (key, editor) => {
   if (editor) pairEditors.set(key, editor)
   else pairEditors.delete(key)
@@ -58,6 +84,8 @@ const setPairEditor = (key, editor) => {
 const loadCiyu = async (id) => {
   if (isNew.value) return
   isLoading.value = true
+  openedRichItem.value = null
+  richDraft.value = null
   try {
     const params = new URLSearchParams({id})
     updateData.value = await request(`/api/edit/ciyu/get-info/${dialect.value}?${params}`, {
@@ -77,6 +105,10 @@ const saveData = async () => {
   isSaving.value = true
 
   try {
+    if (openedRichItem.value) {
+      await closeRich()
+      if (openedRichItem.value) return
+    }
     for (const editor of pairEditors.values()) {
       if (editor.hasPendingChanges() && !await editor.synchronize()) return
     }
@@ -190,9 +222,10 @@ onMounted(() => {
         <div class="section-header">
           <h3>{{ t('ciyu_editor.similar') }}</h3>
         </div>
-        <DraggableList
+        <HanziSortable
             v-model="updateData.similar"
-            :createItem="() => ({type:1, text: { sc: '', tc: '' }})"
+            :item-label="t('ciyu_editor.similar')" :auto-sort="true"
+            :create-item="() => ({type:1, text: { sc: '', tc: '' }})"
         >
           <template #default="{ item, index }">
             <div class="array-item">
@@ -210,7 +243,7 @@ onMounted(() => {
 
             </div>
           </template>
-        </DraggableList>
+        </HanziSortable>
       </div>
 
       <div class="form-section">
@@ -258,12 +291,13 @@ onMounted(() => {
 " :hint="t('ciyu_editor.copy_special_hanzi')" class="dev-normal-button dev-btn-middle"/>
 
 
-        <DraggableList
+        <HanziSortable
             v-model="updateData.note"
-            :createItem="() => ({ left: 'usage', right: { sc: '', tc: '' }})"
+            :item-label="t('ciyu_editor.notes')" :auto-sort="true"
+            :create-item="() => ({ left: 'usage', right: { sc: '', tc: '' }})"
         >
-          <template #default="{ item, index }">
-            <div class="array-item complex-item">
+          <template #default="{ item }">
+            <div class="rich-item">
 
               <select v-model="item.left" class="short-input">
                 <option v-if="!noteTags.includes(item.left)" :value="item.left">
@@ -278,12 +312,14 @@ onMounted(() => {
                 </option>
               </select>
 
-              <ScTcEditorLab :ref="editor => setPairEditor(`note:${index}`, editor)"
-                             :pair="item.right" layout="large" :dialect="dialect.toString()"
-                             @update:pair="item.right = $event"/>
+              <div class="rich-preview" role="button" tabindex="0" :aria-label="`${t('ciyu_editor.notes')}：打开编辑`"
+                   @click="openRich(item, 'note')" @keydown.enter.prevent="openRich(item, 'note')" @keydown.space.prevent="openRich(item, 'note')">
+                <RichText :language="language.toString()" :dialect="dialect.toString()" :model-value="item.right?.[language] || ''" :request-backend="false" plain />
+                <span v-if="!item.right?.[language]" class="rich-preview__empty">点击编辑注释</span>
+              </div>
             </div>
           </template>
-        </DraggableList>
+        </HanziSortable>
       </div>
 
 
@@ -314,18 +350,30 @@ onMounted(() => {
         <CopyButton text="- {c 渠}：[jie2] （他、她、它）" :hint="t('ciyu_editor.copy_jie')" class="dev-normal-button dev-btn-middle"/>
 
 
-        <DraggableList v-model="updateData.mean" :createItem="() => ({ sc: '', tc: '' })">
-          <template #default="{ item, index }">
-
-            <ScTcEditorLab :ref="editor => setPairEditor(`mean:${index}`, editor)"
-                           :pair="item" layout="large" :dialect="dialect.toString()"
-                           @update:pair="updateData.mean[index] = $event"/>
-
+        <HanziSortable v-model="updateData.mean" :item-label="t('ciyu_editor.meanings')" :auto-sort="true"
+                       :create-item="() => ({ sc: '', tc: '' })">
+          <template #default="{ item }">
+            <div class="rich-preview" role="button" tabindex="0" :aria-label="`${t('ciyu_editor.meanings')}：打开编辑`"
+                 @click="openRich(item, 'mean')" @keydown.enter.prevent="openRich(item, 'mean')" @keydown.space.prevent="openRich(item, 'mean')">
+              <RichText :language="language.toString()" :dialect="dialect.toString()" :model-value="item?.[language] || ''" :request-backend="false" plain />
+              <span v-if="!item?.[language]" class="rich-preview__empty">点击编辑释义</span>
+            </div>
           </template>
-        </DraggableList>
+        </HanziSortable>
       </div>
 
 
+    </div>
+    <div v-if="openedRichItem && richDraft" class="rich-modal-backdrop" @pointerdown.self="closeRich" @keydown.esc="closeRich">
+      <section class="rich-modal" role="dialog" aria-modal="true" :aria-label="t(`ciyu_editor.${openedRichItem.field === 'note' ? 'notes' : 'meanings'}`)">
+        <header class="rich-modal__header">
+          <h2>{{ t(`ciyu_editor.${openedRichItem.field === 'note' ? 'notes' : 'meanings'}`) }}</h2>
+          <button type="button" aria-label="关闭" @click="closeRich">×</button>
+        </header>
+        <ScTcEditorLab :ref="setRichEditor" :pair="richDraft" :dialect="dialect.toString()" layout="large"
+                       @update:pair="richDraft = $event" />
+        <footer class="rich-modal__footer"><button type="button" @click="closeRich">完成</button></footer>
+      </section>
     </div>
   </div>
 </template>
@@ -345,7 +393,21 @@ onMounted(() => {
 .short-input { width: 100%; max-width: 190px; }
 .middle-input { flex: 0 1 190px; min-width: 130px; }
 .array-item { display: flex; align-items: center; gap: 10px; min-width: 0; margin-bottom: 10px; }
-.complex-item { flex-direction: column; align-items: stretch; }
+.rich-item { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: start; gap: 14px; min-width: 0; }
+.rich-item .short-input { max-width: none; }
+.rich-preview { min-width: 0; min-height: 42px; cursor: pointer; color: var(--color-text); }
+.rich-preview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.rich-preview :deep(.result) { padding: 0; margin: 0; }
+.rich-preview__empty { color: var(--color-text-light); }
+.rich-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
+.rich-modal { box-sizing: border-box; width: min(1080px, 100%); max-height: min(90vh, 900px); overflow: auto; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 18px 50px #1126184d; }
+.rich-modal__header, .rich-modal__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rich-modal__header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #dfe8e1; }
+.rich-modal__header h2 { margin: 0; color: #34495e; font-size: 21px; }
+.rich-modal__header button { border: 0; background: transparent; font-size: 25px; cursor: pointer; }
+.rich-modal :deep(.lab-editor) { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.rich-modal__footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e0e9e2; }
+.rich-modal__footer button { padding: 7px 11px; border: 1px solid #b7d1bc; border-radius: 7px; background: #f5faf5; color: #326d3b; cursor: pointer; }
 .pinyin-input-row { display: grid; grid-template-columns: minmax(0,1fr) 18px minmax(120px,.6fr); }
 .pinyin-input { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 4px 9px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; box-shadow: none; outline: none; }
 .pinyin-input:focus, .pinyin-input:focus-visible { border-color: #6f8775; box-shadow: none; outline: none; }
@@ -359,6 +421,8 @@ onMounted(() => {
   .edit-page { padding: 12px 0 36px; }
   .form-section { padding: 14px; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
+  .rich-item { grid-template-columns: minmax(0, 1fr); }
+  .rich-modal { padding: 18px; }
   .pinyin-input-row { grid-template-columns: minmax(0,1fr) 18px minmax(90px,.6fr); }
 }
 </style>

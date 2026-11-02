@@ -1,15 +1,18 @@
 <script setup>
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import {request} from '../../../services/request.js'
 import {showError, showSuccess} from '../../../services/ToastService.js'
 import ScAndTcText from '../../../components/Text/ScAndTcText.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
+import RichText from '../../../components/Text/RichText.vue'
 import confirmIcon from '../../../assets/icons/LanguageAndDialect/yes.svg'
 import cancelIcon from '../../../assets/icons/close.svg'
+import plusIcon from '../../../assets/icons/plus-white.svg'
 import {ensureNoteLabels, fromLegacy, getNoteLabelUsages, mergeMissingLegacyChildren, mergeNoteLabel, syncItemKeys} from '../../../utils/pinyinDocument.js'
 
 const route = useRoute()
+const router = useRouter()
 const dialect = computed(() => route.params.dialect)
 const language = computed(() => route.params.language === 'tc' ? 'tc' : 'sc')
 const documentData = ref(null)
@@ -21,35 +24,42 @@ const nameEditor = ref(null)
 let nameFinishPromise = null
 const draggingId = ref(null)
 const draggingKind = ref(null)
-const dragOverId = ref(null)
-const dropListId = ref(null)
 const selectedId = ref(null)
 const selectedKind = ref(null)
 const savedSnapshot = ref('')
 const saving = ref(false)
-const editLevel = ref('section')
+const editLevel = ref(route.params.level || 'section')
+const editTabs = [
+  {key: 'section', label: '区'}, {key: 'row', label: '行'},
+  {key: 'group', label: '组'}, {key: 'item', label: '单'}, {key: 'faq', label: '问答'}
+]
+const activeEditTabIndex = computed(() => editTabs.findIndex(tab => tab.key === editLevel.value))
 const openedItemId = ref(null)
 const openedChildId = ref(null)
 const editingItemTitle = ref(false)
 const itemTitleDraft = ref('')
 const editingChildTitle = ref(false)
 const titleInput = ref(null)
-const childListRef = ref(null)
-const selectedEditorRef = ref(null)
-const childConnectorX = ref(28)
+function setChildTitleInput(element) {
+  if (element) titleInput.value = element
+}
 const isUnplacedEditor = computed(() => openedItemId.value === '__unplaced__')
 const labelsOpen = ref(false)
 const mergeTargets = ref({})
 const focusedUnplacedId = ref(null)
 const repairIds = ref(new Set())
 const faqDragId = ref(null)
+const openedFaqId = ref(null)
+const faqDraft = ref(null)
 const pairEditors = new Map()
-const childDrag = ref(null)
-const childDropTarget = ref(null)
+const draggingChildId = ref(null)
 const openedItem = computed(() => isUnplacedEditor.value
   ? {id: '__unplaced__', children: documentData.value?.unplaced || []}
   : documentData.value?.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items))).find(item => item.id === openedItemId.value))
-const openedChild = computed(() => openedItem.value?.children.find(child => child.id === openedChildId.value))
+const openedChild = computed(() => openedItem.value?.children.find(child => child.id === openedChildId.value)
+  || (draggingChildId.value === openedChildId.value
+    ? childPress?.currentList.find(child => child.id === openedChildId.value) : null))
+const openedFaq = computed(() => documentData.value?.faq.find(entry => entry.id === openedFaqId.value))
 const hasChanges = computed(() => documentData.value && JSON.stringify(documentData.value) !== savedSnapshot.value)
 const labelUsages = computed(() => documentData.value ? getNoteLabelUsages(documentData.value) : new Map())
 const duplicateLabelIds = computed(() => {
@@ -63,6 +73,11 @@ const duplicateLabelIds = computed(() => {
   return duplicates
 })
 let press = null
+let childPress = null
+let notePress = null
+let faqPress = null
+const draggingNoteId = ref(null)
+let suppressChildClick = false
 let dragPreview = null
 
 function removeDragPreview() {
@@ -164,7 +179,7 @@ function addItem(group) {
 function openItem(item) {
   if (editLevel.value !== 'item') return
   openedItemId.value = item.id
-  openedChildId.value = null
+  openedChildId.value = item.children[0]?.id || null
   editingItemTitle.value = false
   editingChildTitle.value = false
   selectedId.value = null
@@ -176,7 +191,6 @@ function openUnplacedChild(child) {
   openedItemId.value = '__unplaced__'
   openedChildId.value = child.id
   focusedUnplacedId.value = child.id
-  nextTick(updateChildConnector)
 }
 
 function closeItem() {
@@ -186,11 +200,14 @@ function closeItem() {
   editingChildTitle.value = false
 }
 
-async function editTitle(kind) {
+async function editTitle(kind, child = null) {
   if (kind === 'item') {
     itemTitleDraft.value = openedItem.value.standard === '-' ? '（占位）' : openedItem.value.standard
     editingItemTitle.value = true
-  } else editingChildTitle.value = true
+  } else {
+    if (child) openedChildId.value = child.id
+    editingChildTitle.value = true
+  }
   await nextTick()
   titleInput.value?.focus()
   titleInput.value?.select()
@@ -205,18 +222,9 @@ function finishItemTitle(cancel = false) {
 }
 
 function selectChild(child) {
+  if (suppressChildClick) return
   openedChildId.value = child.id
   editingChildTitle.value = false
-  nextTick(updateChildConnector)
-}
-
-function updateChildConnector() {
-  const child = Array.from(childListRef.value?.querySelectorAll('[data-child-id]') || [])
-    .find(element => element.dataset.childId === openedChildId.value)
-  if (!child || !selectedEditorRef.value) return
-  const source = child.getBoundingClientRect()
-  const target = selectedEditorRef.value.getBoundingClientRect()
-  childConnectorX.value = Math.max(18, Math.min(target.width - 18, source.left + source.width / 2 - target.left))
 }
 
 function addChild() {
@@ -232,53 +240,237 @@ function addChild() {
   openedItem.value.children.push(child)
   ensureNoteLabels(documentData.value)
   openedChildId.value = id
-  nextTick(updateChildConnector)
 }
 
-function startChildDrag(event, fromList, child) {
-  childDrag.value = {fromList, id: child.id}
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', child.id)
+function childPointerDown(event, list, child) {
+  if (event.button !== 0 || event.target.closest('input, .item-remove')) return
+  childPress = {id: child.id, list, currentList: list, originalIndex: list.findIndex(item => item.id === child.id),
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget}
+  window.addEventListener('pointermove', childPointerMove)
+  window.addEventListener('pointerup', childPointerUp)
+  window.addEventListener('pointercancel', childPointerCancel)
 }
 
-function dropChild(event, toList, index = toList.length, targetId = null) {
-  event.preventDefault()
-  event.stopPropagation()
-  const drag = childDrag.value
-  if (!drag) return
-  const fromIndex = drag.fromList.findIndex(child => child.id === drag.id)
-  if (fromIndex < 0) return
-  const [child] = drag.fromList.splice(fromIndex, 1)
-  const destination = drag.fromList === toList && fromIndex < index ? index - 1 : index
-  toList.splice(Math.max(0, destination), 0, child)
-  childDrag.value = null
-  childDropTarget.value = null
-  if (openedItem.value) openedChildId.value = toList === openedItem.value.children ? child.id : openedItem.value.children[0]?.id || null
-  if (targetId) selectedId.value = targetId
-  nextTick(updateChildConnector)
+function childPointerMove(event) {
+  const drag = childPress
+  if (!drag || event.pointerId !== drag.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finishChildDrag(); return }
+  if (!draggingChildId.value) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return
+    draggingChildId.value = drag.id
+    suppressChildClick = true
+    window.getSelection()?.removeAllRanges()
+    const rect = drag.element.getBoundingClientRect()
+    dragPreview = drag.element.cloneNode(true)
+    dragPreview.classList.add('drag-preview')
+    Object.assign(dragPreview.style, {width: `${rect.width}px`, height: `${rect.height}px`, left: `${rect.left}px`, top: `${rect.top}px`})
+    window.document.body.appendChild(dragPreview)
+    drag.offsetX = event.clientX - rect.left
+    drag.offsetY = event.clientY - rect.top
+  }
+  dragPreview.style.left = `${event.clientX - drag.offsetX}px`
+  dragPreview.style.top = `${event.clientY - drag.offsetY}px`
+  if (drag.lastSwap && Math.hypot(event.clientX - drag.lastSwap.x, event.clientY - drag.lastSwap.y) < 12) return
+  const target = childTargetAt(event.clientX, event.clientY)
+  if (target) {
+    const list = childListFor(target)
+    if (list) {
+      const targetIndex = list.findIndex(item => item.id === target.dataset.childId)
+      const sourceIndex = drag.currentList.findIndex(item => item.id === drag.id)
+      const side = list === drag.currentList && sourceIndex < targetIndex ? 'after' : 'before'
+      if (moveDraggedChild(list, target.dataset.childId, side)) drag.lastSwap = {x: event.clientX, y: event.clientY}
+    }
+    return
+  }
+  const container = window.document.elementsFromPoint(event.clientX, event.clientY)
+    .map(element => element.closest('[data-child-list]')).find(Boolean)
+  const list = childListFor(container)
+  if (list && (list !== drag.currentList || list.length === 0) && moveDraggedChild(list)) {
+    drag.lastSwap = {x: event.clientX, y: event.clientY}
+  }
 }
 
-function dropOnChild(event, list, index) {
-  const rect = event.currentTarget.getBoundingClientRect()
-  dropChild(event, list, index + Number(event.clientY >= rect.top + rect.height / 2))
+function childTargetAt(x, y) {
+  for (const element of window.document.querySelectorAll('[data-child-id]')) {
+    if (element.dataset.childId === childPress.id || element.closest('.drag-preview')) continue
+    const rect = element.getBoundingClientRect()
+    const transform = window.getComputedStyle(element).transform
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform)
+    const left = rect.left - (matrix?.m41 || 0)
+    const top = rect.top - (matrix?.m42 || 0)
+    if (x >= left && x < left + rect.width && y >= top && y < top + rect.height) return element
+  }
+  return null
 }
 
-function endChildDrag() {
-  childDrag.value = null
-  childDropTarget.value = null
+function childListFor(element) {
+  const container = element?.closest('[data-child-list]')
+  if (!container) return null
+  const id = container.dataset.childList
+  if (id === 'unplaced') return documentData.value.unplaced
+  if (id === 'opened') return openedItem.value?.children
+  return documentData.value.sections.flatMap(section => section.rows.flatMap(row => row.groups.flatMap(group => group.items)))
+    .find(item => item.id === id)?.children
+}
+
+function moveDraggedChild(targetList, targetId = null, side = 'after') {
+  const drag = childPress
+  const sourceList = drag.currentList
+  const sourceIndex = sourceList.findIndex(item => item.id === drag.id)
+  if (sourceIndex < 0) return false
+  const targetPosition = targetId ? targetList.findIndex(item => item.id === targetId) : targetList.length
+  if (targetPosition < 0) return false
+  const targetIndex = targetPosition + Number(Boolean(targetId) && side === 'after')
+  const destination = targetList === sourceList && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  if (sourceList === targetList && sourceIndex === destination) return false
+  const previous = new Map([...window.document.querySelectorAll('[data-child-id]')]
+    .filter(element => element.dataset.childId !== drag.id && !element.closest('.drag-preview'))
+    .map(element => [element.dataset.childId, element.getBoundingClientRect()]))
+  const [child] = sourceList.splice(sourceIndex, 1)
+  targetList.splice(destination, 0, child)
+  drag.currentList = targetList
+  nextTick(() => {
+    if (childPress !== drag) return
+    for (const element of window.document.querySelectorAll('[data-child-id]')) {
+      const before = previous.get(element.dataset.childId)
+      if (!before || element.closest('.drag-preview')) continue
+      element.getAnimations().forEach(animation => animation.cancel())
+      const after = element.getBoundingClientRect()
+      const x = before.left - after.left
+      const y = before.top - after.top
+      if (Math.abs(x) >= 1 || Math.abs(y) >= 1) element.animate([
+        {transform: `translate(${x}px, ${y}px)`}, {transform: 'translate(0, 0)'}
+      ], {duration: 180, easing: 'ease-out'})
+    }
+  })
+  return true
+}
+
+function childPointerUp(event) {
+  if (childPress && event.pointerId === childPress.pointerId) finishChildDrag()
+}
+
+function childPointerCancel() {
+  if (childPress && draggingChildId.value) {
+    const index = childPress.currentList.findIndex(item => item.id === childPress.id)
+    if (index >= 0) childPress.list.splice(childPress.originalIndex, 0, ...childPress.currentList.splice(index, 1))
+  }
+  finishChildDrag()
+}
+
+function finishChildDrag() {
+  window.removeEventListener('pointermove', childPointerMove)
+  window.removeEventListener('pointerup', childPointerUp)
+  window.removeEventListener('pointercancel', childPointerCancel)
+  removeDragPreview()
+  childPress = null
+  draggingChildId.value = null
+  window.setTimeout(() => { suppressChildClick = false }, 0)
+  if (openedItem.value && !openedItem.value.children.some(child => child.id === openedChildId.value)) {
+    openedChildId.value = openedItem.value.children[0]?.id || null
+  }
+}
+
+function childIsEmpty(child) {
+  return !child.title?.trim() && child.notes.every(note =>
+    !note.value?.sc?.trim() && !note.value?.tc?.trim())
 }
 
 function removeChild(child) {
-  if (!window.confirm('确定删除这个子项及其解释吗？')) return
-  openedItem.value.children.splice(openedItem.value.children.indexOf(child), 1)
-  openedChildId.value = openedItem.value.children[0]?.id || null
-  nextTick(updateChildConnector)
+  if (!childIsEmpty(child)) return
+  const index = openedItem.value.children.indexOf(child)
+  if (index < 0) return
+  openedItem.value.children.splice(index, 1)
+  if (openedChildId.value === child.id) openedChildId.value = openedItem.value.children[Math.min(index, openedItem.value.children.length - 1)]?.id || null
 }
 
 function addNote() {
   if (!documentData.value.noteLabels.length) addLabel()
   const label = documentData.value.noteLabels[0]
   openedChild.value.notes.push({id: crypto.randomUUID(), labelId: label.id, label: label.text, value: {sc: '', tc: ''}})
+}
+
+function notePointerDown(event, note) {
+  if (event.button !== 0) return
+  const list = openedChild.value.notes
+  notePress = {id: note.id, list, originalIndex: list.findIndex(item => item.id === note.id),
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget.closest('.note-pair')}
+  window.addEventListener('pointermove', notePointerMove)
+  window.addEventListener('pointerup', notePointerUp)
+  window.addEventListener('pointercancel', notePointerCancel)
+}
+
+function notePointerMove(event) {
+  const drag = notePress
+  if (!drag || event.pointerId !== drag.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finishNoteDrag(); return }
+  if (!draggingNoteId.value) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return
+    draggingNoteId.value = drag.id
+    window.getSelection()?.removeAllRanges()
+    const rect = drag.element.getBoundingClientRect()
+    dragPreview = drag.element.cloneNode(true)
+    dragPreview.classList.add('drag-preview')
+    Object.assign(dragPreview.style, {width: `${rect.width}px`, height: `${rect.height}px`, left: `${rect.left}px`, top: `${rect.top}px`})
+    window.document.body.appendChild(dragPreview)
+    drag.offsetX = event.clientX - rect.left
+    drag.offsetY = event.clientY - rect.top
+  }
+  dragPreview.style.left = `${event.clientX - drag.offsetX}px`
+  dragPreview.style.top = `${event.clientY - drag.offsetY}px`
+  if (drag.lastSwap && Math.hypot(event.clientX - drag.lastSwap.x, event.clientY - drag.lastSwap.y) < 12) return
+  for (const element of window.document.querySelectorAll('.note-list [data-note-id]')) {
+    if (element.dataset.noteId === drag.id) continue
+    const rect = element.getBoundingClientRect()
+    const transform = window.getComputedStyle(element).transform
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform)
+    const top = rect.top - (matrix?.m42 || 0)
+    if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < top || event.clientY >= top + rect.height) continue
+    const sourceIndex = drag.list.findIndex(item => item.id === drag.id)
+    const targetIndex = drag.list.findIndex(item => item.id === element.dataset.noteId)
+    if (targetIndex < 0) break
+    const destination = targetIndex
+    if (sourceIndex === destination) break
+    const previous = new Map([...window.document.querySelectorAll('.note-list [data-note-id]')]
+      .filter(row => row.dataset.noteId !== drag.id)
+      .map(row => [row.dataset.noteId, row.getBoundingClientRect()]))
+    drag.list.splice(destination, 0, ...drag.list.splice(sourceIndex, 1))
+    drag.lastSwap = {x: event.clientX, y: event.clientY}
+    nextTick(() => {
+      if (notePress !== drag) return
+      for (const row of window.document.querySelectorAll('.note-list [data-note-id]')) {
+        const before = previous.get(row.dataset.noteId)
+        if (!before) continue
+        row.getAnimations().forEach(animation => animation.cancel())
+        const after = row.getBoundingClientRect()
+        const y = before.top - after.top
+        if (Math.abs(y) >= 1) row.animate([{transform: `translateY(${y}px)`}, {transform: 'translateY(0)'}],
+          {duration: 180, easing: 'ease-out'})
+      }
+    })
+    break
+  }
+}
+
+function notePointerUp(event) {
+  if (notePress && event.pointerId === notePress.pointerId) finishNoteDrag()
+}
+
+function notePointerCancel() {
+  if (notePress && draggingNoteId.value) {
+    const index = notePress.list.findIndex(item => item.id === notePress.id)
+    if (index >= 0) notePress.list.splice(notePress.originalIndex, 0, ...notePress.list.splice(index, 1))
+  }
+  finishNoteDrag()
+}
+
+function finishNoteDrag() {
+  window.removeEventListener('pointermove', notePointerMove)
+  window.removeEventListener('pointerup', notePointerUp)
+  window.removeEventListener('pointercancel', notePointerCancel)
+  removeDragPreview()
+  notePress = null
+  draggingNoteId.value = null
 }
 
 function addLabel() {
@@ -291,11 +483,28 @@ function sameLength(pair) {
 }
 
 function addFaq() {
+  const id = crypto.randomUUID()
   documentData.value.faq.push({
-    id: crypto.randomUUID(),
+    id,
     question: {sc: '', tc: ''},
     answer: {sc: '', tc: ''}
   })
+  openFaq(documentData.value.faq.at(-1))
+}
+
+function openFaq(entry) {
+  faqDraft.value = {question: JSON.parse(JSON.stringify(entry.question)), answer: JSON.parse(JSON.stringify(entry.answer))}
+  openedFaqId.value = entry.id
+}
+
+function closeFaq() {
+  const entry = documentData.value?.faq.find(item => item.id === openedFaqId.value)
+  if (entry && faqDraft.value) {
+    entry.question = faqDraft.value.question
+    entry.answer = faqDraft.value.answer
+  }
+  openedFaqId.value = null
+  faqDraft.value = null
 }
 
 function setPairEditor(id, editor) {
@@ -303,21 +512,88 @@ function setPairEditor(id, editor) {
   else pairEditors.delete(id)
 }
 
-function moveFaq(index, offset) {
-  const next = index + offset
-  if (next < 0 || next >= documentData.value.faq.length) return
-  const [entry] = documentData.value.faq.splice(index, 1)
-  documentData.value.faq.splice(next, 0, entry)
+function faqPointerDown(event, entry) {
+  if (event.button !== 0) return
+  const list = documentData.value.faq
+  faqPress = {id: entry.id, list, originalIndex: list.findIndex(item => item.id === entry.id),
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget.closest('.faq-editor__entry')}
+  window.addEventListener('pointermove', faqPointerMove)
+  window.addEventListener('pointerup', faqPointerUp)
+  window.addEventListener('pointercancel', faqPointerCancel)
 }
 
-function dropFaq(targetId) {
-  const list = documentData.value.faq
-  const source = list.findIndex(entry => entry.id === faqDragId.value)
-  const target = list.findIndex(entry => entry.id === targetId)
+function faqPointerMove(event) {
+  const drag = faqPress
+  if (!drag || event.pointerId !== drag.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finishFaqDrag(); return }
+  if (!faqDragId.value) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return
+    faqDragId.value = drag.id
+    window.getSelection()?.removeAllRanges()
+    const rect = drag.element.getBoundingClientRect()
+    dragPreview = drag.element.cloneNode(true)
+    dragPreview.classList.add('drag-preview')
+    Object.assign(dragPreview.style, {width: `${rect.width}px`, height: `${rect.height}px`, left: `${rect.left}px`, top: `${rect.top}px`})
+    window.document.body.appendChild(dragPreview)
+    drag.offsetX = event.clientX - rect.left
+    drag.offsetY = event.clientY - rect.top
+  }
+  dragPreview.style.left = `${event.clientX - drag.offsetX}px`
+  dragPreview.style.top = `${event.clientY - drag.offsetY}px`
+  for (const element of window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')) {
+    if (element.dataset.faqId === drag.id) continue
+    const rect = element.getBoundingClientRect()
+    const transform = window.getComputedStyle(element).transform
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform)
+    const top = rect.top - (matrix?.m42 || 0)
+    if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < top || event.clientY >= top + rect.height) continue
+    const sourceIndex = drag.list.findIndex(item => item.id === drag.id)
+    const targetIndex = drag.list.findIndex(item => item.id === element.dataset.faqId)
+    if (targetIndex < 0 || sourceIndex === targetIndex) break
+    // 高度不同的问答换位后，指针可能仍在同一目标项内，不能因此立即换回。
+    if (drag.lastSwap?.targetId === element.dataset.faqId
+      && (event.clientY - drag.lastSwap.y) * drag.lastSwap.direction > -12) break
+    const previous = new Map([...window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')]
+      .filter(row => row.dataset.faqId !== drag.id)
+      .map(row => [row.dataset.faqId, row.getBoundingClientRect()]))
+    drag.list.splice(targetIndex, 0, ...drag.list.splice(sourceIndex, 1))
+    drag.lastSwap = {targetId: element.dataset.faqId, y: event.clientY,
+      direction: Math.sign(targetIndex - sourceIndex)}
+    nextTick(() => {
+      if (faqPress !== drag) return
+      for (const row of window.document.querySelectorAll('.faq-editor__entry[data-faq-id]')) {
+        const before = previous.get(row.dataset.faqId)
+        if (!before) continue
+        row.getAnimations().forEach(animation => animation.cancel())
+        const after = row.getBoundingClientRect()
+        const y = before.top - after.top
+        if (Math.abs(y) >= 1) row.animate([{transform: `translateY(${y}px)`}, {transform: 'translateY(0)'}],
+          {duration: 180, easing: 'ease-out'})
+      }
+    })
+    break
+  }
+}
+
+function faqPointerUp(event) {
+  if (faqPress && event.pointerId === faqPress.pointerId) finishFaqDrag()
+}
+
+function faqPointerCancel() {
+  if (faqPress && faqDragId.value) {
+    const index = faqPress.list.findIndex(item => item.id === faqPress.id)
+    if (index >= 0) faqPress.list.splice(faqPress.originalIndex, 0, ...faqPress.list.splice(index, 1))
+  }
+  finishFaqDrag()
+}
+
+function finishFaqDrag() {
+  window.removeEventListener('pointermove', faqPointerMove)
+  window.removeEventListener('pointerup', faqPointerUp)
+  window.removeEventListener('pointercancel', faqPointerCancel)
+  removeDragPreview()
+  faqPress = null
   faqDragId.value = null
-  if (source < 0 || target < 0 || source === target) return
-  const [entry] = list.splice(source, 1)
-  list.splice(target, 0, entry)
 }
 
 function finishPairRepair(id, pair) {
@@ -360,6 +636,7 @@ function usageDescription(usage) {
 function locateUsage(usage) {
   labelsOpen.value = false
   editLevel.value = 'item'
+  void router.push({name: 'PinyinEditor', params: {...route.params, level: 'item'}})
   if (usage.itemId) {
     openedItemId.value = usage.itemId
     openedChildId.value = usage.childId
@@ -379,11 +656,13 @@ function removeItem(group, item) {
 
 async function selectLevel(level) {
   if (editingId.value && !await finishName()) return
+  if (openedFaqId.value) closeFaq()
   closeItem()
   editLevel.value = level
   selectedId.value = null
   selectedKind.value = null
   pointerCancel()
+  await router.push({name: 'PinyinEditor', params: {...route.params, level}})
 }
 
 function removeGroup(row, group) {
@@ -460,7 +739,8 @@ function removeSection(section) {
 function pointerDown(event, kind, list, id) {
   if (event.button !== 0 || editingId.value || openedItemId.value || (editLevel.value !== kind && !(editLevel.value === 'row' && kind === 'line'))) return
   if (event.target.closest('input, button')) return
-  press = {kind, list, id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget}
+  press = {kind, list, currentList: list, originalIndex: list.findIndex(item => item.id === id), id,
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY, element: event.currentTarget}
   selectedId.value = id
   selectedKind.value = kind
   window.addEventListener('pointermove', pointerMove)
@@ -470,6 +750,10 @@ function pointerDown(event, kind, list, id) {
 
 function pointerMove(event) {
   if (!press || event.pointerId !== press.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) {
+    finishDrag()
+    return
+  }
   if (!draggingId.value) {
     if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < 6) return
     draggingId.value = press.id
@@ -478,7 +762,7 @@ function pointerMove(event) {
     const rect = press.element.getBoundingClientRect()
     dragPreview = press.element.cloneNode(true)
     dragPreview.removeAttribute('id')
-    dragPreview.classList.remove('sort-dragging', 'sort-selected', 'drop-target')
+    dragPreview.classList.remove('sort-dragging')
     dragPreview.classList.add('drag-preview')
     Object.assign(dragPreview.style, {width: `${rect.width}px`, height: `${rect.height}px`, left: `${rect.left}px`, top: `${rect.top}px`})
     window.document.body.appendChild(dragPreview)
@@ -487,13 +771,84 @@ function pointerMove(event) {
   }
   dragPreview.style.left = `${event.clientX - press.offsetX}px`
   dragPreview.style.top = `${event.clientY - press.offsetY}px`
-  const target = window.document.elementFromPoint(event.clientX, event.clientY)
-    ?.closest(`[data-sort-kind="${press.kind}"]`)
+  // A shifting item can briefly pass under an almost stationary pointer.
+  // Wait for a small deliberate movement before considering another target.
+  if (press.lastSwap && Math.hypot(event.clientX - press.lastSwap.x, event.clientY - press.lastSwap.y) < 12) return
+  if (press.kind === 'group') {
+    const end = window.document.elementsFromPoint(event.clientX, event.clientY)
+      .map(element => element.closest('[data-group-end-id]')).find(Boolean)
+    if (end && moveDraggedItem(destinationList('group', end.dataset.groupEndId))) {
+      press.lastSwap = {x: event.clientX, y: event.clientY}
+      return
+    }
+  }
+  const target = sortTargetAt(event.clientX, event.clientY)
   const id = target?.dataset.sortId
-  dragOverId.value = id && id !== press.id ? id : null
-  const listTarget = window.document.elementFromPoint(event.clientX, event.clientY)
-    ?.closest(`[data-drop-list-kind="${press.kind}"]`)
-  dropListId.value = listTarget?.dataset.dropListId || null
+  if (id && id !== press.id) {
+    const targetList = sortList(press.kind, id)
+    const sourceIndex = press.currentList.findIndex(item => item.id === press.id)
+    const targetIndex = targetList?.findIndex(item => item.id === id) ?? -1
+    const side = targetList === press.currentList && sourceIndex < targetIndex ? 'after' : 'before'
+    if (moveDraggedItem(targetList, id, side)) press.lastSwap = {x: event.clientX, y: event.clientY}
+  } else if (!id) {
+    const hits = window.document.elementsFromPoint(event.clientX, event.clientY)
+    const listTarget = hits.map(element => element.closest(`[data-drop-list-kind="${press.kind}"]`)).find(Boolean)
+    const list = destinationList(press.kind, listTarget?.dataset.dropListId)
+    if (list && (list !== press.currentList || list.length === 0) && moveDraggedItem(list)) {
+      press.lastSwap = {x: event.clientX, y: event.clientY}
+    }
+  }
+}
+
+function sortTargetAt(x, y) {
+  for (const element of window.document.querySelectorAll(`[data-sort-kind="${press.kind}"]`)) {
+    if (element.dataset.sortId === press.id || element.closest('.drag-preview')) continue
+    const rect = element.getBoundingClientRect()
+    // FLIP animates with translate; hit testing must use the final layout position.
+    const transform = window.getComputedStyle(element).transform
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform)
+    const left = rect.left - (matrix?.m41 || 0)
+    const top = rect.top - (matrix?.m42 || 0)
+    if (x >= left && x < left + rect.width && y >= top && y < top + rect.height) return element
+  }
+  return null
+}
+
+function moveDraggedItem(targetList, targetId = null, side = 'after') {
+  if (!targetList) return false
+  const sourceList = press.currentList
+  const sourceIndex = sourceList.findIndex(item => item.id === press.id)
+  if (sourceIndex < 0) return false
+  const targetPosition = targetId ? targetList.findIndex(item => item.id === targetId) : targetList.length
+  if (targetPosition < 0) return false
+  const targetIndex = targetPosition + Number(Boolean(targetId) && side === 'after')
+  const destination = targetList === sourceList && sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  if (targetList === sourceList && sourceIndex === destination) return false
+  const selector = `[data-sort-kind="${press.kind}"], [data-drag-follow="${press.kind}"]`
+  const elementKey = element => element.dataset.dragFollowId || element.dataset.sortId
+  const previousPositions = new Map([...window.document.querySelectorAll(selector)]
+    .filter(element => element.dataset.sortId !== press.id && !element.closest('.drag-preview'))
+    .map(element => [elementKey(element), element.getBoundingClientRect()]))
+  const [moved] = sourceList.splice(sourceIndex, 1)
+  targetList.splice(destination, 0, moved)
+  press.currentList = targetList
+  nextTick(() => {
+    if (!press || draggingId.value !== moved.id) return
+    for (const element of window.document.querySelectorAll(selector)) {
+      const previous = previousPositions.get(elementKey(element))
+      if (!previous) continue
+      element.getAnimations().forEach(animation => animation.cancel())
+      const current = element.getBoundingClientRect()
+      const x = previous.left - current.left
+      const y = previous.top - current.top
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) continue
+      element.animate([
+        {transform: `translate(${x}px, ${y}px)`},
+        {transform: 'translate(0, 0)'}
+      ], {duration: 180, easing: 'ease-out'})
+    }
+  })
+  return true
 }
 
 function sortList(kind, id) {
@@ -521,33 +876,36 @@ function destinationList(kind, id) {
 
 function pointerUp(event) {
   if (!press || event.pointerId !== press.pointerId) return
-  if (draggingId.value && (dragOverId.value || dropListId.value)) {
-    const source = press.list.findIndex(item => item.id === press.id)
-    const targetList = dragOverId.value ? sortList(press.kind, dragOverId.value) : destinationList(press.kind, dropListId.value)
-    if (source >= 0 && targetList) {
-      const targetIndex = dragOverId.value ? targetList.findIndex(item => item.id === dragOverId.value) : targetList.length
-      const [moved] = press.list.splice(source, 1)
-      const destination = targetList === press.list && source < targetIndex ? targetIndex - 1 : targetIndex
-      targetList.splice(Math.max(0, destination), 0, moved)
-    }
+  finishDrag()
+}
+
+function finishDrag() {
+  removePointerListeners()
+  removeDragPreview()
+  press = null
+  draggingId.value = null
+  draggingKind.value = null
+}
+
+function releaseDragOnVisibilityChange() {
+  if (window.document.hidden) {
+    if (press) finishDrag()
+    if (childPress) finishChildDrag()
+    if (notePress) finishNoteDrag()
+    if (faqPress) finishFaqDrag()
+  }
+}
+
+function pointerCancel() {
+  if (press && draggingId.value) {
+    const index = press.currentList.findIndex(item => item.id === press.id)
+    if (index >= 0) press.list.splice(press.originalIndex, 0, ...press.currentList.splice(index, 1))
   }
   removePointerListeners()
   removeDragPreview()
   press = null
   draggingId.value = null
   draggingKind.value = null
-  dragOverId.value = null
-  dropListId.value = null
-}
-
-function pointerCancel() {
-  removePointerListeners()
-  removeDragPreview()
-  press = null
-  draggingId.value = null
-  draggingKind.value = null
-  dragOverId.value = null
-  dropListId.value = null
 }
 
 function removePointerListeners() {
@@ -557,13 +915,33 @@ function removePointerListeners() {
 }
 
 watch(dialect, load)
+watch(() => route.params.level, level => {
+  if (openedFaqId.value) closeFaq()
+  editLevel.value = level || 'section'
+  closeItem()
+  pointerCancel()
+})
 onMounted(() => {
   load()
+  if (!route.params.level) void router.replace({name: 'PinyinEditor', params: {...route.params, level: 'section'}})
   window.document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  window.addEventListener('blur', finishDrag)
+  window.addEventListener('blur', finishChildDrag)
+  window.addEventListener('blur', finishNoteDrag)
+  window.addEventListener('blur', finishFaqDrag)
+  window.document.addEventListener('visibilitychange', releaseDragOnVisibilityChange)
 })
 onUnmounted(() => {
   pointerCancel()
+  childPointerCancel()
+  notePointerCancel()
+  faqPointerCancel()
   window.document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  window.removeEventListener('blur', finishDrag)
+  window.removeEventListener('blur', finishChildDrag)
+  window.removeEventListener('blur', finishNoteDrag)
+  window.removeEventListener('blur', finishFaqDrag)
+  window.document.removeEventListener('visibilitychange', releaseDragOnVisibilityChange)
 })
 </script>
 
@@ -572,49 +950,47 @@ onUnmounted(() => {
     <div v-if="loading" class="status">正在加载拼音表…</div>
     <template v-else-if="documentData">
       <div class="editor-actions">
-        <div class="level-picker" role="group" aria-label="选择编辑层级">
-          <button v-for="level in [{key:'section', label:'区'}, {key:'row', label:'行'}, {key:'group', label:'组'}, {key:'item', label:'单'}]"
-                  :key="level.key" type="button" :class="{active: editLevel === level.key}"
-                  :aria-pressed="editLevel === level.key" @click="selectLevel(level.key)">{{ level.label }}</button>
+        <div class="level-picker" role="tablist" aria-label="选择编辑内容">
+          <span class="level-picker__indicator" :style="{transform: `translateX(${activeEditTabIndex * 100}%)`}" aria-hidden="true"></span>
+          <button v-for="level in editTabs" :key="level.key" type="button" role="tab"
+                  :class="{active: editLevel === level.key}" :aria-selected="editLevel === level.key"
+                  @click="selectLevel(level.key)">{{ level.label }}</button>
         </div>
         <button class="manage-labels-button" type="button" @click="labelsOpen = true">管理解释名称</button>
         <button class="save-button" type="button" :disabled="saving || (!hasChanges && !editingId)" @click="save">
           {{ saving ? '保存中…' : '保存' }}
         </button>
       </div>
-      <p class="editor-hint">
+      <p v-if="editLevel !== 'faq'" class="editor-hint">
         <template v-if="editLevel === 'section'">拖动区域可排序，双击标题可编辑。为便于排序，下层内容已折叠；切换到行、组或单可查看和编辑。</template>
         <template v-else-if="editLevel === 'row'">拖动行可跨区域排序，双击标题可编辑。</template>
         <template v-else-if="editLevel === 'group'">拖动组可跨行排序。</template>
         <template v-else>拖动单格可跨组排序，双击单格可编辑文本。</template>
       </p>
-      <section v-if="editLevel === 'item'" class="unplaced-panel"
-               @dragover.prevent
-               @drop="dropChild($event, documentData.unplaced)">
+      <section v-if="editLevel === 'item'" class="unplaced-panel" data-child-list="unplaced">
         <div class="modal-subheading"><h2>未归类子项 <small>{{ documentData.unplaced.length }}</small></h2></div>
         <div class="unplaced-list">
-          <div v-for="child in documentData.unplaced" :key="child.id" class="unplaced-child" :data-unplaced-id="child.id"
-               :class="{'located-child': focusedUnplacedId === child.id}" draggable="true"
-               @dragstart="startChildDrag($event, documentData.unplaced, child)" @dragend="endChildDrag" @dblclick="openUnplacedChild(child)">
+          <div v-for="child in documentData.unplaced" :key="child.id" class="unplaced-child" :data-child-id="child.id"
+               :class="{'located-child': focusedUnplacedId === child.id, 'sort-dragging': draggingChildId === child.id}"
+               @pointerdown="childPointerDown($event, documentData.unplaced, child)" @dblclick="openUnplacedChild(child)">
             <strong>{{ child.title || '未填写标题' }}</strong>
             <small>{{ unplacedReason(child) }}</small>
           </div>
           <p v-if="!documentData.unplaced.length" class="empty-hint">没有未归类子项</p>
         </div>
       </section>
-      <div>
+      <div v-if="editLevel !== 'faq'" class="section-list" :class="{'section-list--compact': editLevel === 'section'}">
       <section
-        v-for="(section, sectionIndex) in documentData.sections"
+        v-for="section in documentData.sections"
         :key="section.id"
         :data-section-id="section.id"
         data-sort-kind="section"
         :data-sort-id="section.id"
         class="section-card"
-        :class="[`accent-${sectionIndex % 3}`, {'editable-level': editLevel === 'section', 'sort-selected': selectedKind === 'section' && selectedId === section.id, 'sort-dragging': draggingKind === 'section' && draggingId === section.id, 'drop-target': dragOverId === section.id}]"
+        :class="{'editable-level': editLevel === 'section', 'sort-dragging': draggingKind === 'section' && draggingId === section.id}"
         @pointerdown="editLevel === 'section' && pointerDown($event, 'section', documentData.sections, section.id)"
       >
         <header class="section-header">
-          <span v-if="editLevel === 'section'" class="sort-handle" aria-hidden="true" />
           <div v-if="editingId === section.id" class="name-inline section-name-inline" @pointerdown.stop>
             <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                            @update:pair="editingName = $event" />
@@ -623,8 +999,7 @@ onUnmounted(() => {
           <h3 v-else class="section-name" @dblclick.stop="editLevel === 'section' && editName(section)">{{ sectionName(section) }}</h3>
           <button v-if="editLevel === 'section' && editingId !== section.id && isEmpty(section)" class="remove-button" type="button" aria-label="删除空区域" @click="removeSection(section)">删除</button>
         </header>
-        <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id"
-             :class="{'list-drop-target': draggingKind === 'line' && dropListId === section.id && !dragOverId}">
+        <div v-if="editLevel !== 'section'" class="section-content" data-drop-list-kind="line" :data-drop-list-id="section.id">
           <div>
           <div
             v-for="row in section.rows"
@@ -632,23 +1007,20 @@ onUnmounted(() => {
             class="pinyin-line"
             data-sort-kind="line"
             :data-sort-id="row.id"
-            :class="{'editable-level': editLevel === 'row', 'sort-selected': selectedKind === 'line' && selectedId === row.id, 'sort-dragging': draggingKind === 'line' && draggingId === row.id, 'drop-target': dragOverId === row.id}"
+            :class="{'editable-level': editLevel === 'row', 'sort-dragging': draggingKind === 'line' && draggingId === row.id}"
             @pointerdown="editLevel === 'row' && pointerDown($event, 'line', section.rows, row.id)"
           >
             <div class="line-actions">
-              <span v-if="editLevel === 'row'" class="structure-handle" aria-hidden="true">⋮⋮</span>
               <div v-if="editingId === row.id" class="name-inline row-name-inline" @pointerdown.stop>
                 <ScTcEditorLab :ref="setNameEditor" :pair="editingName" :dialect="dialect" layout="small" :rich-text="false" :request-backend="false"
                                @update:pair="editingName = $event" />
                 <div class="name-inline-actions"><button type="button" aria-label="确认名称" title="确认" @click="finishName()"><img :src="confirmIcon" alt="" /></button><button type="button" aria-label="取消编辑名称" title="取消" @click="finishName(true)"><img :src="cancelIcon" alt="" /></button></div>
               </div>
               <span v-else class="row-name" @dblclick.stop="editLevel === 'row' && editName(row)">{{ rowName(row) }}</span>
-              <button v-if="editLevel === 'group'" type="button" @click="addGroup(row)">＋ 添加组</button>
               <button v-if="editLevel === 'row' && editingId !== row.id && rowEmpty(row)" type="button" class="remove-button" @click="removeRow(section, row)">删除空行</button>
             </div>
             <div class="line-groups">
-              <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id"
-                   :class="{'list-drop-target': draggingKind === 'group' && dropListId === row.id && !dragOverId}">
+              <div class="line-groups-inner" data-drop-list-kind="group" :data-drop-list-id="row.id">
               <div
                 v-for="group in row.groups"
                 :key="group.id"
@@ -657,16 +1029,14 @@ onUnmounted(() => {
                 :data-sort-id="group.id"
                 data-drop-list-kind="item"
                 :data-drop-list-id="group.id"
-                :class="{'editable-level': editLevel === 'group', 'sort-selected': selectedKind === 'group' && selectedId === group.id, 'sort-dragging': draggingKind === 'group' && draggingId === group.id, 'drop-target': dragOverId === group.id, 'list-drop-target': draggingKind === 'item' && dropListId === group.id && !dragOverId}"
+                :class="{'editable-level': editLevel === 'group', 'sort-dragging': draggingKind === 'group' && draggingId === group.id}"
                 @pointerdown="editLevel === 'group' && pointerDown($event, 'group', row.groups, group.id)"
               >
-                <span v-if="editLevel === 'group'" class="group-handle" aria-hidden="true">⋮</span>
                 <div v-if="group.items.length" class="items-grid">
                   <div v-for="item in group.items" :key="item.id" class="item-box" data-sort-kind="item" :data-sort-id="item.id"
-                       :class="{'invalid': item.standard === '-', 'editable-level': editLevel === 'item', 'sort-selected': selectedKind === 'item' && selectedId === item.id, 'sort-dragging': draggingKind === 'item' && draggingId === item.id, 'drop-target': dragOverId === item.id, 'child-drop-target': childDropTarget === item.id}"
+                       :class="{'invalid': item.standard === '-', 'editable-level': editLevel === 'item', 'sort-dragging': draggingKind === 'item' && draggingId === item.id}"
+                       :data-child-list="item.id"
                        @pointerdown="editLevel === 'item' && pointerDown($event, 'item', group.items, item.id)"
-                       @dragover.prevent="childDropTarget = item.id" @dragleave="childDropTarget = null"
-                       @drop="dropChild($event, item.children, item.children.length, item.id)"
                        @dblclick="openItem(item)">
                     <span v-if="item.standard !== '-'" v-formatted-text="` [${item.standard}] `" />
                     <small v-if="editLevel === 'item' && item.children.length" class="child-count">{{ item.children.length }}</small>
@@ -675,45 +1045,58 @@ onUnmounted(() => {
                 </div>
                 <button v-else-if="editLevel === 'group'" class="empty-group" type="button" @click="removeGroup(row, group)">空组 · 删除</button>
                 <div v-else class="empty-group">空组</div>
-                <button v-if="editLevel === 'item'" class="add-item" type="button" @click="addItem(group)">＋</button>
+                <button v-if="editLevel === 'item' && group === row.groups.at(-1)" class="add-structure" type="button" aria-label="添加单格" title="添加单格" data-drag-follow="item" :data-drag-follow-id="`item-add-${row.id}`" @click="addItem(group)"><img :src="plusIcon" alt="" /></button>
               </div>
+              <button v-if="editLevel === 'group'" class="add-structure" type="button" aria-label="添加组" title="添加组" data-drag-follow="group" :data-drag-follow-id="`group-add-${row.id}`" @click="addGroup(row)"><img :src="plusIcon" alt="" /></button>
+              <div v-if="draggingKind === 'group'" class="group-end-drop" :data-group-end-id="row.id"></div>
               </div>
             </div>
           </div>
           </div>
-          <button v-if="editLevel === 'row'" class="add-line" type="button" @click="addRow(section)">＋ 添加行</button>
+          <button v-if="editLevel === 'row'" class="add-structure" type="button" aria-label="添加行" title="添加行" data-drag-follow="line" :data-drag-follow-id="`line-add-${section.id}`" @click="addRow(section)"><img :src="plusIcon" alt="" /></button>
         </div>
       </section>
+      <button v-if="editLevel === 'section'" class="add-structure" type="button" aria-label="添加区域" title="添加区域" data-drag-follow="section" data-drag-follow-id="section-add" @click="addSection"><img :src="plusIcon" alt="" /></button>
       </div>
-      <button v-if="editLevel === 'section'" class="add-section" type="button" @click="addSection">＋ 添加区域</button>
-      <section class="faq-editor" aria-label="拼音表问答">
+      <section v-if="editLevel === 'faq'" class="faq-editor" aria-label="拼音表问答">
         <header class="faq-editor__header">
-          <div><h2>问答</h2><p>题目使用小句子框，解答使用中框。拖动序号或使用上下按钮调整顺序。</p></div>
-          <button type="button" @click="addFaq">＋ 添加问答</button>
+          <h2>问答</h2>
+          <button type="button" class="faq-editor__add" aria-label="添加问答" title="添加问答" @click="addFaq"><img :src="plusIcon" alt="" /></button>
         </header>
         <div v-for="(entry, index) in documentData.faq" :key="entry.id" class="faq-editor__entry"
-             :class="{'faq-editor__entry--dragging': faqDragId === entry.id}"
-             @dragover.prevent @drop.prevent="dropFaq(entry.id)">
-          <div class="faq-editor__entry-header">
-            <span class="faq-editor__handle" draggable="true" title="拖动排序"
-                  @dragstart="faqDragId = entry.id" @dragend="faqDragId = null">⋮⋮ {{ index + 1 }}</span>
-            <div class="faq-editor__order">
-              <button type="button" :disabled="index === 0" :aria-label="`上移第 ${index + 1} 条问答`" @click="moveFaq(index, -1)">↑</button>
-              <button type="button" :disabled="index === documentData.faq.length - 1" :aria-label="`下移第 ${index + 1} 条问答`" @click="moveFaq(index, 1)">↓</button>
-              <button type="button" class="remove-button" :aria-label="`删除第 ${index + 1} 条问答`" @click="documentData.faq.splice(index, 1)">删除</button>
+             :data-faq-id="entry.id" :class="{'sort-dragging': faqDragId === entry.id}">
+          <button type="button" class="faq-editor__handle sort-handle" aria-label="拖动排序问答" title="拖动排序" @pointerdown="faqPointerDown($event, entry)"><svg viewBox="0 0 22 30" aria-hidden="true"><circle cx="7" cy="7" r="2"/><circle cx="15" cy="7" r="2"/><circle cx="7" cy="15" r="2"/><circle cx="15" cy="15" r="2"/><circle cx="7" cy="23" r="2"/><circle cx="15" cy="23" r="2"/></svg></button>
+          <div class="faq-editor__content">
+            <div class="faq-editor__actions">
+              <button type="button" class="faq-editor__toggle" aria-label="打开问答编辑" @click="openFaq(entry)">编辑</button>
+              <button type="button" class="faq-editor__remove" :aria-label="`删除第 ${index + 1} 条问答`" title="删除问答" @click="documentData.faq.splice(index, 1)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" /></svg></button>
             </div>
-          </div>
-          <div class="faq-editor__field"><h3>题目</h3>
-            <ScTcEditorLab :ref="editor => setPairEditor(`${entry.id}:question`, editor)" :pair="entry.question" :dialect="dialect" layout="small-sentence" :request-backend="false"
-                           @update:pair="entry.question = $event" />
-          </div>
-          <div class="faq-editor__field"><h3>解答</h3>
-            <ScTcEditorLab :ref="editor => setPairEditor(`${entry.id}:answer`, editor)" :pair="entry.answer" :dialect="dialect" layout="middle" :request-backend="false"
-                           @update:pair="entry.answer = $event" />
+            <div v-if="openedFaqId !== entry.id" class="faq-editor__preview" role="button" tabindex="0" aria-label="打开问答编辑" @click="openFaq(entry)" @keydown.enter.prevent="openFaq(entry)" @keydown.space.prevent="openFaq(entry)">
+              <div v-for="field in ['question', 'answer']" :key="field" class="faq-editor__preview-row">
+                <span class="faq-editor__preview-label">{{ field === 'question' ? '题目' : '解答' }}</span>
+                <span class="faq-editor__preview-text">
+                  <RichText :model-value="entry[field][language] || ''" :language="language" :dialect="dialect" :request-backend="false" plain />
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <p v-if="!documentData.faq.length" class="empty-hint">还没有问答</p>
       </section>
+      <div v-if="openedFaq && faqDraft" class="modal-backdrop" @pointerdown.self="closeFaq" @keydown.esc="closeFaq">
+        <section class="item-modal faq-modal" role="dialog" aria-modal="true" aria-label="编辑问答">
+          <header class="modal-header"><h2>编辑问答</h2><button type="button" aria-label="关闭问答编辑" @click="closeFaq">×</button></header>
+          <div class="faq-editor__field"><h3>题目</h3>
+            <ScTcEditorLab :pair="faqDraft.question" :dialect="dialect" layout="small-sentence" :request-backend="false"
+                           @update:pair="faqDraft.question = $event" />
+          </div>
+          <div class="faq-editor__field"><h3>解答</h3>
+            <ScTcEditorLab :pair="faqDraft.answer" :dialect="dialect" layout="middle" :request-backend="false"
+                           @update:pair="faqDraft.answer = $event" />
+          </div>
+          <footer class="modal-footer"><button type="button" @click="closeFaq">完成</button></footer>
+        </section>
+      </div>
       <div v-if="openedItem" class="modal-backdrop" @pointerdown.self="closeItem" @keydown.esc="closeItem">
         <section class="item-modal" role="dialog" aria-modal="true" aria-label="编辑拼音格子">
           <header class="modal-header">
@@ -724,40 +1107,29 @@ onUnmounted(() => {
             <h2 v-else class="editable-title" @dblclick="editTitle('item')">{{ openedItem.standard === '-' ? '（占位）' : openedItem.standard || '未填写标题' }}</h2>
             <button type="button" aria-label="关闭弹窗" @click="closeItem">×</button>
           </header>
-          <div class="modal-subheading"><h3>子项</h3><button v-if="!isUnplacedEditor" type="button" @click="addChild">＋ 添加子项</button></div>
-          <div class="child-workspace" :class="{'unplaced-workspace': isUnplacedEditor}">
-            <div ref="childListRef" class="child-list" :class="{'child-drop-target': childDropTarget === 'opened'}"
-                 @dragover.prevent="childDropTarget = 'opened'" @drop="dropChild($event, openedItem.children)" @scroll="updateChildConnector">
-              <div v-for="(child, index) in openedItem.children" :key="child.id" class="child-list-row" :data-child-id="child.id"
-                   :class="{active: openedChildId === child.id, 'child-drop-target': childDropTarget === child.id}" draggable="true"
-                   @dragstart="startChildDrag($event, openedItem.children, child)" @dragend="endChildDrag"
-                   @dragover.prevent.stop="childDropTarget = child.id" @drop="dropOnChild($event, openedItem.children, index)">
-                <span class="child-grip" aria-hidden="true">⋮⋮</span>
-                <button type="button" @click="selectChild(child)">
+          <div class="child-workspace">
+            <div class="child-list" data-child-list="opened">
+              <div v-for="child in openedItem.children" :key="child.id" class="child-list-row" :data-child-id="child.id"
+                   :class="{active: openedChildId === child.id, 'sort-dragging': draggingChildId === child.id}"
+                   @pointerdown="childPointerDown($event, openedItem.children, child)" @dblclick="editTitle('child', child)">
+                <svg v-if="openedChildId === child.id" class="child-edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4.5-1 10-10a2.8 2.8 0 0 0-4-4l-10 10L4 20Z" /></svg>
+                <input v-if="editingChildTitle && openedChildId === child.id" :ref="setChildTitleInput" v-model="child.title" class="child-title-input"
+                       aria-label="子项名称" @pointerdown.stop @blur="editingChildTitle = false" @keydown.enter.prevent="editingChildTitle = false">
+                <button v-else type="button" @click="selectChild(child)">
                   <strong>{{ child.title || '未填写标题' }}</strong>
                 </button>
+                <button v-if="childIsEmpty(child) && !editingChildTitle" type="button" class="item-remove child-remove" aria-label="删除空子项" title="删除空子项" @click.stop="removeChild(child)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" /></svg></button>
               </div>
               <span v-if="!openedItem.children.length" class="empty-hint">暂无子项</span>
             </div>
-            <div v-if="!isUnplacedEditor" class="overflow-drop" :class="{'child-drop-target': childDropTarget === 'modal-unplaced'}"
-                 aria-label="拖到这里移出格子" @dragover.prevent="childDropTarget = 'modal-unplaced'"
-                 @drop="dropChild($event, documentData.unplaced)">→</div>
+            <button v-if="!isUnplacedEditor" type="button" class="child-add" data-child-list="unplaced"
+                    aria-label="添加子项，拖入可移至未归类" title="添加子项；拖入可移至未归类" @click="addChild"><img :src="plusIcon" alt="" /></button>
           </div>
-          <section v-if="openedChild" :key="openedChild.id" ref="selectedEditorRef" class="selected-child-editor"
-                   :style="{'--connector-x': `${childConnectorX}px`}">
-            <div class="selected-child-header">
-              <input v-if="editingChildTitle" ref="titleInput" v-model="openedChild.title" class="inline-title-input"
-                     aria-label="子项标题" @blur="editingChildTitle = false" @keydown.enter.prevent="editingChildTitle = false">
-              <h3 v-else class="editable-title" @dblclick="editTitle('child')">{{ openedChild.title || '未填写标题' }}</h3>
-              <button class="remove-button" type="button" @click="removeChild(openedChild)">删除子项</button>
-            </div>
-            <div class="modal-subheading">
-              <h3>解释</h3>
-              <button type="button" @click="labelsOpen = true">管理名称</button>
-            </div>
+          <section v-if="openedChild" :key="openedChild.id" class="selected-child-editor">
             <div class="note-list">
-              <div v-for="(note, index) in openedChild.notes" :key="note.id" class="note-pair" :data-note-id="note.id">
-                <span class="note-number">{{ index + 1 }}</span>
+              <div v-for="(note, index) in openedChild.notes" :key="note.id" class="note-pair" :data-note-id="note.id"
+                   :class="{'sort-dragging': draggingNoteId === note.id}">
+                <button type="button" class="note-handle sort-handle" aria-label="拖动排序解释" title="拖动排序" @pointerdown="notePointerDown($event, note)"><svg viewBox="0 0 22 30" aria-hidden="true"><circle cx="7" cy="7" r="2"/><circle cx="15" cy="7" r="2"/><circle cx="7" cy="15" r="2"/><circle cx="15" cy="15" r="2"/><circle cx="7" cy="23" r="2"/><circle cx="15" cy="23" r="2"/></svg></button>
                 <div class="note-fields">
                   <label>
                     <select :value="note.labelId" @change="selectLabel(note, $event.target.value)">
@@ -769,11 +1141,11 @@ onUnmounted(() => {
                                    @update:pair="note.value = $event" />
                   </div>
                 </div>
-                <button type="button" class="remove-button" aria-label="删除这一行解释" @click="openedChild.notes.splice(index, 1)">删除</button>
+                <button type="button" class="note-remove" aria-label="删除这一行解释" title="删除这一行解释" @click="openedChild.notes.splice(index, 1)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" /></svg></button>
               </div>
             </div>
             <div class="note-actions">
-              <button type="button" @click="addNote">＋ 添加一行</button>
+              <button type="button" class="note-add" aria-label="添加一行解释" title="添加一行解释" @click="addNote"><img :src="plusIcon" alt="" /></button>
             </div>
           </section>
           <footer class="modal-footer"><button type="button" @click="closeItem">完成</button></footer>
@@ -824,33 +1196,35 @@ onUnmounted(() => {
 .pinyin-section-editor { box-sizing: border-box; width: 100%; max-width: 1600px; margin: 0 auto; padding: 24px 18px 60px; }
 .editor-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .editor-hint { margin: -4px 0 16px; color: #718278; font-size: 13px; }
-.level-picker { display: inline-flex; gap: 3px; padding: 4px; border: 1px solid #d7e5da; border-radius: 10px; background: #f4f7f4; }
-.level-picker button { min-width: 43px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: #68776c; cursor: pointer; }
-.level-picker button.active { background: #2e7d32; color: white; font-weight: 700; box-shadow: 0 1px 4px #1c382033; }
+.level-picker { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 4px; border: 1px solid #cbdccd; border-radius: 17px; background: #f5faf5; box-shadow: 0 2px 6px #25542d0d, 0 12px 28px #25542d1c; }
+.level-picker__indicator { position: absolute; top: 4px; bottom: 4px; left: 5px; width: calc((100% - 10px) / 5); border-radius: 13px; background: #c7e4ca; pointer-events: none; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+.level-picker button { position: relative; z-index: 1; min-width: 54px; padding: 10px 14px; border: 0; border-radius: 13px; background: transparent; color: #4b5c50; font: inherit; font-weight: 500; line-height: 1.2; cursor: pointer; transition: color .2s ease; }
+.level-picker button:hover, .level-picker button.active { color: #1c5924; }
+.level-picker button.active { font-weight: 650; }
+.level-picker button:focus-visible { outline: 2px solid #2e7d32; outline-offset: -2px; }
 .manage-labels-button { margin-left: auto; border: 1px solid #b7d1bc; border-radius: 7px; background: #fff; color: #326d3b; padding: 8px 12px; cursor: pointer; }
 .section-card.editable-level { border-color: #8fba97; box-shadow: 0 0 0 2px #2e7d321a; }
 .pinyin-line.editable-level, .pinyin-group.editable-level, .item-box.editable-level { border-color: #75ad80; background: #f3faf4; box-shadow: 0 0 0 2px #2e7d3218; }
 .section-card.editable-level .section-name, .item-box.editable-level { cursor: text; }
 .pinyin-section-editor, .pinyin-section-editor *:not(input):not(textarea) { user-select: none; -webkit-user-select: none; }
 .section-card.editable-level, .pinyin-line.editable-level, .pinyin-group.editable-level, .item-box.editable-level { touch-action: none; cursor: grab; }
-.sort-selected { box-shadow: 0 0 0 3px #e0a640 !important; }
-.sort-dragging { opacity: .28; }
-.drop-target { box-shadow: 0 0 0 3px #8bc6e4 !important; background-color: #f1f9fd !important; }
-:global(.drag-preview) { position: fixed !important; z-index: 10000; margin: 0 !important; pointer-events: none !important; opacity: .78; box-shadow: 0 8px 20px #263b2933 !important; background: white !important; overflow: hidden; user-select: none; }
+.sort-dragging, .sort-dragging * { pointer-events: none !important; }
+.sort-dragging { opacity: 0; }
+:global(.drag-preview) { position: fixed !important; z-index: 10000; margin: 0 !important; pointer-events: none !important; opacity: .72; mix-blend-mode: multiply; box-shadow: none !important; background: transparent !important; overflow: hidden; user-select: none; }
 .item-box { position: relative; }
 .item-remove { position: absolute; top: -8px; right: -8px; width: 19px; height: 19px; padding: 0; border: 0; border-radius: 50%; background: #b45d5d; color: white; cursor: pointer; font-size: 15px; line-height: 19px; }
-.add-item { height: 35px; border: 1px dashed #75ad80; border-radius: 7px; background: white; color: #397447; cursor: pointer; }
+.add-structure, .faq-editor__add, .child-add, .note-actions .note-add { display: inline-grid; place-items: center; padding: 0; border: 1px solid #58a869; border-radius: 10px; background: #58a869; cursor: pointer; }
+.add-structure:hover, .faq-editor__add:hover, .child-add:hover, .note-actions .note-add:hover { background: #4c985c; border-color: #4c985c; }
+.add-structure img, .faq-editor__add img, .child-add img, .note-actions .note-add img { display: block; width: 27px; height: 27px; }
+.add-structure { flex: 0 0 52px; width: 52px; height: 52px; }
 .save-button { min-width: 92px; padding: 9px 20px; border: 0; border-radius: 8px; background: #2e7d32; color: #fff; font-size: 15px; cursor: pointer; }
 .save-button:disabled { opacity: .5; cursor: default; }
 .status { text-align: center; color: #687b70; padding: 48px; }
 .section-card { background: #fff; border: 1px solid #e3e8e4; border-radius: 16px; padding: 20px; margin-bottom: 18px; box-shadow: 0 2px 5px #1c382012; }
-.section-card.drop-target { outline: 3px solid #85b98d; outline-offset: 3px; }
+.section-list--compact { margin-bottom: 18px; }
+.section-list--compact .section-card { box-sizing: border-box; width: 50%; min-width: 0; padding: 14px 16px; }
+.section-list--compact .section-header { margin: 0; padding: 0; border: 0; }
 .section-header { display: flex; align-items: center; gap: 10px; min-height: 34px; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 2px solid #e8eae9; }
-.sort-handle { box-sizing: border-box; width: 12px; height: 28px; flex: 0 0 12px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: grab; touch-action: none; }
-.sort-handle::before { content: ''; width: 6px; height: 22px; border-radius: 4px; background: #2e7d32; box-shadow: 0 2px 6px #2e7d324d; }
-.accent-1 .sort-handle::before { background: #4a6fc8; box-shadow: 0 2px 6px #4a6fc84d; }
-.accent-2 .sort-handle::before { background: #f36048; box-shadow: 0 2px 6px #f360484d; }
-.sort-handle.held { cursor: grabbing; }
 .section-name { margin: 0; flex: 1; color: #34495e; font-size: 19px; font-weight: 700; letter-spacing: 1px; user-select: none; }
 .name-inline { display: inline-flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; margin-right: auto; cursor: default; touch-action: auto; }
 .name-inline > :first-child { flex: 0 1 auto; min-width: 0; }
@@ -868,49 +1242,55 @@ onUnmounted(() => {
 .name-inline-actions img { display: block; width: 16px; height: 16px; }
 .row-name { color: #34495e; font-size: 20px; font-weight: 650; line-height: 1.3; cursor: text; border-bottom: 1px dashed transparent; }
 .pinyin-line.editable-level .row-name:hover, .section-card.editable-level .section-name:hover { border-bottom-color: #8fba97; }
-.list-drop-target { outline: 2px dashed #8bc6e4; outline-offset: 3px; }
 .remove-button { border: 0; background: transparent; color: #b45d5d; cursor: pointer; padding: 4px 6px; }
 .pinyin-line { border: 1px solid #dde8df; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fcfefc; }
-.pinyin-line.drop-target, .pinyin-group.drop-target { outline: 2px solid #85b98d; outline-offset: 2px; }
 .line-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: #657e69; font-size: 13px; }
-.line-actions button:not(.structure-handle) { border: 0; background: transparent; color: #397447; cursor: pointer; padding: 4px; }
+.line-actions button { border: 0; background: transparent; color: #397447; cursor: pointer; padding: 4px; }
 .line-actions .name-inline-actions button { padding: 0; }
 .line-actions .name-inline-actions button:hover { background: #edf6ef; }
 .line-actions .remove-button { margin-left: auto; color: #b45d5d !important; }
-.structure-handle, .group-handle { border: 0; background: transparent; color: #789b7e; cursor: grab; touch-action: none; user-select: none; font-size: 18px; line-height: 1; }
-.structure-handle { width: 26px; height: 26px; }
 .line-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-height: 52px; }
-.line-groups-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; min-width: 100px; min-height: 42px; }
+.line-groups-inner { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 30px; min-width: 100px; min-height: 42px; }
+.group-end-drop { flex: 1 0 44px; min-height: 52px; }
 .pinyin-group { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 5px; border: 1px solid transparent; border-radius: 9px; }
+.pinyin-group > .add-structure { margin-left: 24px; }
 .pinyin-group.editable-level { border-color: #cee1d2; background: #f7fbf8; }
 .pinyin-group.editable-level:hover { border-color: #94bea0; box-shadow: 0 2px 7px #294b2d14; }
-.group-handle { width: 16px; height: 32px; padding: 0; }
 .empty-group { width: 76px; height: 52px; border: 1px dashed #cbd8ce; border-radius: 10px; background: #f7faf7; color: #7b9280; cursor: pointer; }
-.add-line { border: 1px dashed #c8ddcb; border-radius: 8px; background: #fff; color: #397447; padding: 8px 14px; cursor: pointer; }
 .items-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 76px; gap: 6px; }
 .item-box { box-sizing: border-box; height: 52px; display: flex; align-items: center; justify-content: center; padding: 6px; background: linear-gradient(#fff, #f2f9f0); border: 1.5px solid #d6e6d2; border-radius: 10px; color: #333; font-family: Georgia, serif; font-size: 25px; }
 .item-box.invalid { background: #f0f2f4; border: 1px dashed #d3d9df; }
-.add-section { display: block; width: 100%; min-height: 52px; border: 1px dashed #bad3bc; border-radius: 14px; background: #fff; color: #326d3b; cursor: pointer; font-size: 16px; }
-.add-section:hover { background: #f4faf4; }
-.faq-editor { margin-top: 28px; padding: 20px; border: 1px solid #d8e5da; border-radius: 14px; background: #f9fcf9; }
-.faq-editor__header, .faq-editor__entry-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.faq-editor__header { margin-bottom: 16px; }
-.faq-editor__header h2 { margin: 0; color: #34495e; font-size: 20px; }
-.faq-editor__header p { margin: 4px 0 0; color: #687b70; font-size: 13px; }
-.faq-editor__header > button { flex: none; padding: 8px 12px; border: 1px solid #b7d1bc; border-radius: 7px; background: #fff; color: #326d3b; cursor: pointer; }
-.faq-editor__entry { margin-top: 12px; padding: 16px; border: 1px solid #d8e5da; border-radius: 11px; background: #fff; }
-.faq-editor__entry--dragging { opacity: .5; }
-.faq-editor__handle { color: #52745a; cursor: grab; touch-action: none; }
-.faq-editor__order { display: flex; align-items: center; gap: 6px; }
-.faq-editor__order button { border: 1px solid #d4e0d6; border-radius: 6px; background: #fff; color: #326d3b; padding: 4px 8px; cursor: pointer; }
-.faq-editor__order button:disabled { opacity: .4; cursor: default; }
-.faq-editor__order .remove-button { color: #b45d5d; }
-.faq-editor__field { margin-top: 14px; }
-.faq-editor__field h3 { margin: 0 0 7px; color: #34495e; font-size: 15px; }
+.faq-editor { margin-top: 28px; }
+.faq-editor__header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.faq-editor__header h2 { margin: 0; color: #34495e; font-size: 22px; }
+.faq-editor__add { width: 58px; height: 58px; }
+.faq-editor__entry { display: grid; grid-template-columns: 58px minmax(0, 1fr); margin-top: 10px; border: 1px solid #e2eae3; border-radius: 10px; background: #fff; }
+.faq-editor__entry:hover { border-color: #b9d0bd; background: #fbfdfb; }
+.faq-editor__handle { width: 58px; border-right: 1px solid #e5ece6; }
+.sort-handle { display: grid; place-items: center; align-self: stretch; border: 0; background: transparent; color: #788d7d; cursor: grab; touch-action: none; }
+.sort-handle svg { width: 22px; height: 30px; fill: currentColor; }
+.sort-handle:active { cursor: grabbing; }
+.sort-handle:focus-visible { outline: 2px solid #2e7d32; outline-offset: -3px; }
+.faq-editor__content { position: relative; min-width: 0; padding: 8px 18px; }
+.faq-editor__actions { position: absolute; top: 50%; right: 14px; display: flex; align-items: center; gap: 4px; transform: translateY(-50%); }
+.faq-editor__toggle { min-width: 48px; height: 36px; padding: 0 7px; border: 0; border-radius: 8px; background: transparent; color: #326d3b; cursor: pointer; }
+.faq-editor__toggle:hover { background: #edf6ef; }
+.faq-editor__remove { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: #b45d5d; cursor: pointer; }
+.faq-editor__remove:hover { background: #fff1f1; }
+.faq-editor__remove svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.faq-editor__field + .faq-editor__field { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5ece6; }
+.faq-editor__field h3 { margin: 0 44px 10px 0; color: #34495e; font-size: 16px; }
 .faq-editor__field :deep(.lab-editor) { box-shadow: none; }
+.faq-editor__field :deep(.lab-editor--middle) { padding: 0; border: 0; border-radius: 0; }
 .faq-editor__field :deep(.lab-editor--small-sentence) { width: 100%; }
+.faq-editor__preview { display: grid; gap: 3px; padding-right: 100px; cursor: pointer; }
+.faq-editor__preview:focus-visible { outline: 2px solid #2e7d32; outline-offset: 2px; }
+.faq-editor__preview-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; font-size: 14px; line-height: 1.5; }
+.faq-editor__preview-label { flex: 0 0 40px; color: #64796a; font-weight: 650; }
+.faq-editor__preview-text { display: block; flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.faq-modal .faq-editor__field { margin-top: 20px; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
-.item-modal { box-sizing: border-box; width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border-radius: 16px; background: white; padding: 22px; box-shadow: 0 18px 50px #1126184d; }
+.item-modal { box-sizing: border-box; width: min(1080px, 100%); max-height: min(90vh, 900px); overflow: auto; border-radius: 16px; background: white; padding: 28px; box-shadow: 0 18px 50px #1126184d; }
 .modal-header, .modal-subheading, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .modal-header { border-bottom: 1px solid #dfe8e1; padding-bottom: 12px; }
 .modal-header h2, .modal-subheading h3 { margin: 0; color: #34495e; }
@@ -919,38 +1299,41 @@ onUnmounted(() => {
 .editable-title { min-width: 80px; cursor: text; border-bottom: 1px dashed transparent; }
 .editable-title:hover { border-bottom-color: #8fba97; }
 .inline-title-input { flex: 1; min-width: 0; font-size: 21px !important; font-weight: 700; }
-.selected-child-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .item-modal input, .item-modal textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd8ce; border-radius: 7px; padding: 8px 10px; color: #2a3a30; font-family: inherit; font-size: 15px; user-select: text; -webkit-user-select: text; }
 .item-modal textarea { resize: vertical; }
 .modal-subheading { margin: 20px 0 10px; }
-.modal-subheading button, .note-actions button, .modal-footer button { border: 1px solid #b7d1bc; border-radius: 7px; background: #f5faf5; color: #326d3b; padding: 7px 11px; cursor: pointer; }
+.modal-subheading button, .modal-footer button { border: 1px solid #b7d1bc; border-radius: 7px; background: #f5faf5; color: #326d3b; padding: 7px 11px; cursor: pointer; }
 .unplaced-panel { margin: 0 0 18px; padding: 16px; border: 1px dashed #b9cabd; border-radius: 12px; background: #fafcfa; }
 .unplaced-panel .modal-subheading { margin: 0 0 12px; }
 .unplaced-panel h2 { margin: 0; font-size: 18px; }
 .unplaced-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 220px; overflow: auto; }
-.unplaced-child { display: grid; gap: 4px; min-width: 145px; max-width: 240px; padding: 9px 11px; border: 1px solid #d6e1d8; border-radius: 8px; background: #fff; cursor: grab; font-size: 13px; }
+.unplaced-child { display: grid; gap: 4px; min-width: 145px; max-width: 240px; padding: 9px 11px; border: 1px solid #d6e1d8; border-radius: 8px; background: #fff; cursor: grab; touch-action: none; font-size: 13px; }
 .unplaced-child.located-child { border-color: #d49a39; box-shadow: 0 0 0 2px #e0a64055; }
 .unplaced-child small { color: #a06336; }
-.child-drop-target { outline: 3px solid #8bc6e4 !important; background: #f1f9fd !important; }
 .child-count { position: absolute; bottom: 2px; right: 5px; font: 11px sans-serif; color: #45804d; }
-.child-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 8px; }
-.child-workspace.unplaced-workspace { grid-template-columns: 1fr; }
-.child-list { display: flex; gap: 7px; overflow-x: auto; padding: 8px; border: 1px dashed #c6d7ca; border-radius: 9px; background: #fbfdfb; min-height: 48px; }
-.overflow-drop { display: grid; place-items: center; border: 1px dashed #c6d7ca; border-radius: 9px; background: #fbfdfb; color: #809888; font-size: 25px; }
-.child-list-row { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; min-width: 88px; max-width: 180px; border: 1px solid #d4ded6; border-radius: 7px; background: white; cursor: grab; }
-.child-list-row.active { border-color: #2e7d32; background: #f2faf3; }
-.child-list-row button { display: grid; flex: 1; gap: 2px; border: 0; background: transparent; padding: 8px; text-align: left; cursor: pointer; }
+.child-workspace { display: flex; align-items: stretch; gap: 10px; margin-top: 16px; }
+.child-list { position: relative; display: flex; flex: 1; gap: 10px; min-width: 0; overflow-x: auto; padding: 10px; border: 1px dashed #c6d7ca; border-radius: 12px; background: #fbfdfb; min-height: 52px; }
+.child-add { flex: 0 0 64px; }
+.child-list-row { position: relative; display: flex; flex: 0 0 92px; align-items: center; box-sizing: border-box; height: 52px; border: 1px solid #d4ded6; border-radius: 10px; background: white; cursor: grab; touch-action: none; }
+.child-list-row.active { border-color: #2e7d32; background: #e5f3e7; }
+.child-list-row > button:not(.item-remove) { display: grid; flex: 1; min-width: 0; gap: 2px; border: 0; background: transparent; padding: 14px 9px 8px; text-align: center; cursor: pointer; }
+.child-list-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 19px; line-height: 1.25; }
+.child-edit-icon { position: absolute; top: 4px; left: 5px; width: 14px; height: 14px; color: #2e7d32; pointer-events: none; }
+.child-remove svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.item-modal .child-title-input { width: calc(100% - 12px); margin: 0 6px; padding: 3px 5px; font-size: 18px; text-align: center; }
 .child-list-row small { color: #708077; }
-.child-grip { padding-left: 8px; color: #809888; }
 .empty-hint { color: #819187; padding: 8px 0; }
-.selected-child-editor { position: relative; margin-top: 14px; padding: 14px; border: 1px solid #cbdcca; border-left: 3px solid #5eaa6b; border-radius: 9px; background: #fcfefc; }
-.selected-child-editor::before { content: ''; position: absolute; top: -15px; left: var(--connector-x); height: 14px; border-left: 2px solid #9ac9a2; }
-.selected-child-editor h3 { margin: 0; color: #34495e; font-size: 16px; }
+.selected-child-editor { margin-top: 18px; padding-top: 20px; border-top: 2px solid #c8dccb; }
 .note-list { display: grid; gap: 9px; }
 .note-pair { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border: 1px solid #e0e9e2; border-radius: 9px; background: white; }
-.note-number { color: #748477; align-self: start; padding-top: 5px; }
+.note-pair:hover { border-color: #aacbb0; }
+.note-handle { flex: 0 0 32px; }
 .note-fields { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); align-items: center; flex: 1; gap: 10px; }
-.note-actions { display: flex; gap: 8px; margin-top: 10px; }
+.note-actions { display: flex; gap: 8px; margin-top: 14px; }
+.note-actions .note-add { width: 68px; height: 68px; }
+.note-remove { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border: 0; border-radius: 8px; background: transparent; color: #b45d5d; cursor: pointer; }
+.note-remove:hover { background: #fff1f1; }
+.note-remove svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .modal-footer { border-top: 1px solid #e0e9e2; margin-top: 20px; padding-top: 14px; color: #748477; font-size: 13px; }
 .label-backdrop { z-index: 1001; }
 .label-modal { width: min(640px, 100%); }
@@ -973,5 +1356,6 @@ onUnmounted(() => {
 .note-fields :deep(.sc-tc-input--middle) { box-sizing: border-box; width: 100%; max-width: none; flex: none; }
 .pair-repair { display: grid; gap: 7px; color: #a06336; font-size: 13px; }
 @media (max-width: 700px) { .note-pair { flex-wrap: wrap; } .note-fields { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .pinyin-section-editor { padding: 14px 10px 40px; } .section-card { padding: 14px; } .pinyin-line { gap: 14px; } .items-grid { grid-auto-columns: 56px; } .item-box { height: 46px; font-size: 21px; } }
+@media (max-width: 700px) { .faq-editor__entry { grid-template-columns: 42px minmax(0, 1fr); } .faq-editor__handle { width: 42px; } .faq-editor__content { padding: 16px 12px; } }
+@media (max-width: 700px) { .pinyin-section-editor { padding: 14px 10px 40px; } .section-list--compact .section-card { width: 100%; } .section-card { padding: 14px; } .pinyin-line { gap: 14px; } .items-grid { grid-auto-columns: 56px; } .item-box { height: 46px; font-size: 21px; } }
 </style>

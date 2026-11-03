@@ -1,4 +1,5 @@
 <script setup>
+import './diarySkeleton.css'
 /**
  * DiaryArchive.vue —— 日记归档侧边栏组件
  *
@@ -106,17 +107,9 @@ function getYearMonths(yearItem) {
     </header>
 
     <div v-if="loading" class="diary-archive__loading" aria-hidden="true">
-      <div class="diary-archive__skeleton-group">
-        <div class="diary-archive__skeleton-year shimmer" />
-        <div class="diary-archive__skeleton-grid">
-          <div v-for="item in 12" :key="item" class="diary-archive__skeleton-cell shimmer" />
-        </div>
-      </div>
-      <div class="diary-archive__skeleton-group">
-        <div class="diary-archive__skeleton-year shimmer" />
-        <div class="diary-archive__skeleton-grid">
-          <div v-for="item in 8" :key="item" class="diary-archive__skeleton-cell shimmer" />
-        </div>
+      <div v-for="item in 5" :key="item" class="diary-archive__skeleton-group">
+        <div class="diary-archive__skeleton-year diary-skeleton-shimmer" />
+        <div class="diary-archive__skeleton-count diary-skeleton-shimmer" />
       </div>
     </div>
 
@@ -434,50 +427,28 @@ function getYearMonths(yearItem) {
 
 .diary-archive__skeleton-group {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background);
 }
 
 .diary-archive__skeleton-year,
-.diary-archive__skeleton-cell {
-  background: #e7efe2;
-  border-radius: 14px;
+.diary-archive__skeleton-count {
+  border-radius: 4px;
 }
 
 .diary-archive__skeleton-year {
-  width: 54%;
-  height: 18px;
+  width: 72px;
+  height: 22px;
 }
 
-.diary-archive__skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-
-.diary-archive__skeleton-cell {
-  height: 52px;
-  border-radius: var(--border-radius-sm);
-}
-
-.shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-  animation: diaryArchiveShimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes diaryArchiveShimmer {
-  100% {
-    transform: translateX(100%);
-  }
+.diary-archive__skeleton-count {
+  width: 45px;
+  height: 16px;
 }
 
 /* 桌面端新布局：归档栏填满固定高度的侧边栏区域，内部独立滚动，边栏整体锁定不随页面滑动 */

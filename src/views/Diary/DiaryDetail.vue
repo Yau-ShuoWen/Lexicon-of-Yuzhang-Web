@@ -8,6 +8,7 @@ import closeIcon from '../../assets/icons/close.svg'
 import writingIcon from '../../assets/书写.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
+import './diarySkeleton.css'
 import { showError } from '../../services/ToastService.js'
 import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
@@ -348,14 +349,14 @@ onBeforeUnmount(() => {
     </nav>
 
     <div v-if="showSkeleton" class="detail-skeleton panel" aria-hidden="true">
-      <div class="detail-skeleton__title shimmer"/>
-      <div class="detail-skeleton__line shimmer"/>
-      <div class="detail-skeleton__line shimmer"/>
-      <div class="detail-skeleton__line detail-skeleton__line--short shimmer"/>
+      <div class="detail-skeleton__title diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line detail-skeleton__line--short diary-skeleton-shimmer"/>
       <div class="detail-skeleton__meta">
-        <span class="detail-skeleton__pill shimmer"/>
-        <span class="detail-skeleton__pill shimmer"/>
-        <span class="detail-skeleton__pill shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
       </div>
     </div>
 
@@ -645,8 +646,7 @@ onBeforeUnmount(() => {
 .detail-skeleton__title,
 .detail-skeleton__line,
 .detail-skeleton__pill {
-  border-radius: 999px;
-  background: #e7efe2;
+  border-radius: 4px;
 }
 
 .detail-skeleton__title {
@@ -673,26 +673,6 @@ onBeforeUnmount(() => {
 .detail-skeleton__pill {
   width: 150px;
   height: 14px;
-}
-
-.shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-  animation: diarySkeletonShimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes diarySkeletonShimmer {
-  100% {
-    transform: translateX(100%);
-  }
 }
 
 @keyframes diaryDetailRiseIn {

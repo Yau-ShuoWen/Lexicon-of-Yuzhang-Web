@@ -10,6 +10,7 @@ import { showError, showSuccess } from '../../services/ToastService.js'
 import { hasPermission } from '../../utils/auth.js'
 import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 import { getDiaryForEdit, updateDiary } from './diaryApi.js'
+import './diarySkeleton.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -260,7 +261,21 @@ onMounted(loadDiary)
       </div>
     </div>
 
-    <div v-if="loading" class="diary-editor-state panel">{{ $t('diary.editor.loading') }}</div>
+    <div v-if="loading" class="diary-editor-skeleton" aria-hidden="true">
+      <section class="diary-editor-skeleton__panel panel">
+        <div class="diary-meta-grid">
+          <div v-for="item in 4" :key="item" class="diary-editor-skeleton__field">
+            <span class="diary-editor-skeleton__label diary-skeleton-shimmer" />
+            <span class="diary-editor-skeleton__input diary-skeleton-shimmer" />
+          </div>
+        </div>
+      </section>
+      <section class="diary-editor-skeleton__panel panel">
+        <div class="diary-editor-skeleton__line diary-skeleton-shimmer" />
+        <div class="diary-editor-skeleton__line diary-skeleton-shimmer" />
+        <div class="diary-editor-skeleton__line diary-editor-skeleton__line--short diary-skeleton-shimmer" />
+      </section>
+    </div>
     <div v-else-if="loadError" class="diary-editor-state panel">
       <strong>{{ loadError }}</strong>
       <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">{{ $t('diary.editor.back') }}</button>
@@ -483,6 +498,16 @@ onMounted(loadDiary)
   min-height: 170px;
   color: var(--color-text-light, #6d7480);
 }
+
+.diary-editor-skeleton { display: flex; flex-direction: column; gap: 16px; }
+.diary-editor-skeleton__field { display: flex; flex-direction: column; gap: 7px; }
+.diary-editor-skeleton__label,
+.diary-editor-skeleton__input,
+.diary-editor-skeleton__line { display: block; border-radius: 4px; }
+.diary-editor-skeleton__label { width: 72px; height: 14px; }
+.diary-editor-skeleton__input { width: 100%; height: 40px; }
+.diary-editor-skeleton__line { width: 100%; height: 17px; margin-bottom: 16px; }
+.diary-editor-skeleton__line--short { width: 70%; }
 
 .diary-editor-form {
   display: flex;

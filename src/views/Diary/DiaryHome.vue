@@ -6,6 +6,7 @@ import searchIcon from '../../assets/icons/search.svg'
 import refreshIcon from '../../assets/icons/refresh.svg'
 import plusIcon from '../../assets/icons/plus-white.svg'
 import { User, Connection, View } from '@element-plus/icons-vue'
+import './diarySkeleton.css'
 import DiaryArchive from './DiaryArchive.vue'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { showError, showSuccess } from '../../services/ToastService.js'
@@ -466,8 +467,8 @@ onBeforeUnmount(() => {
         <section class="panel">
           <div v-if="showListSkeleton" class="diary-skeleton" aria-hidden="true">
             <div v-for="index in 5" :key="index" class="diary-skeleton__card">
-              <div class="diary-skeleton__line diary-skeleton__line--summary shimmer" />
-              <div class="diary-skeleton__line diary-skeleton__line--date shimmer" />
+              <div class="diary-skeleton__line diary-skeleton__line--summary diary-skeleton-shimmer" />
+              <div class="diary-skeleton__line diary-skeleton__line--date diary-skeleton-shimmer" />
             </div>
           </div>
 
@@ -733,47 +734,29 @@ onBeforeUnmount(() => {
 }
 
 .diary-skeleton__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   border-radius: var(--border-radius-md);
-  border: 1px solid #dce9d8;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbf6 100%);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
 }
 
 .diary-skeleton__line {
-  border-radius: 999px;
-  background: #e7efe2;
+  border-radius: 4px;
 }
 
 .diary-skeleton__line--summary {
-  width: 72%;
+  width: 55%;
   height: 18px;
-  margin-bottom: 16px;
 }
 
 .diary-skeleton__line--date {
   width: 112px;
-  height: 14px;
-  margin-left: auto;
-}
-
-.shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-  animation: diarySkeletonShimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes diarySkeletonShimmer {
-  100% {
-    transform: translateX(100%);
-  }
+  height: 20px;
+  flex: none;
 }
 
 @keyframes diaryRiseIn {
@@ -849,6 +832,8 @@ onBeforeUnmount(() => {
 @media (max-width: 500px) {
   .panel-head { align-items: stretch; }
   .diary-search { order: 3; width: 100%; min-width: 100%; }
+  .diary-skeleton__card { flex-direction: column; align-items: stretch; }
+  .diary-skeleton__line--date { align-self: flex-end; }
   .diary-card__top {
     flex-direction: column;
     align-items: flex-start;

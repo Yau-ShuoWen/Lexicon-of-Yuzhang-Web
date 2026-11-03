@@ -3,6 +3,9 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import searchIcon from '../../assets/icons/search.svg'
+import refreshIcon from '../../assets/icons/refresh.svg'
+import plusIcon from '../../assets/icons/plus-white.svg'
+import { User, Connection, View } from '@element-plus/icons-vue'
 import DiaryArchive from './DiaryArchive.vue'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { showError, showSuccess } from '../../services/ToastService.js'
@@ -28,15 +31,15 @@ const canEdit = computed(() => hasPermission('diary.edit'))
 const viewOptions = computed(() => {
   if (canSelfView.value) {
     return [
-      { mode: 'self', label: text.value.self },
-      { mode: 'friend', label: text.value.friend },
-      { mode: 'stranger', label: text.value.stranger }
+      { mode: 'self', label: text.value.self, icon: User },
+      { mode: 'friend', label: text.value.friend, icon: Connection },
+      { mode: 'stranger', label: text.value.stranger, icon: View }
     ]
   }
   if (canFriendView.value) {
     return [
-      { mode: 'friend', label: text.value.full },
-      { mode: 'stranger', label: text.value.public }
+      { mode: 'friend', label: text.value.full, icon: Connection },
+      { mode: 'stranger', label: text.value.public, icon: View }
     ]
   }
   return []
@@ -69,7 +72,7 @@ const text = computed(() => (
           stranger: '陌生人',
           full: '完整版',
           public: '公開版',
-          search: '搜尋日記', searchPlaceholder: '輸入關鍵詞', clearSearch: '清除搜尋', noSearchResult: '沒有找到相關日記',
+          search: '搜尋日記', searchPlaceholder: '輸入關鍵詞', clearSearch: '清除搜尋', refresh: '重新整理', noSearchResult: '沒有找到相關日記',
           add: '新增日記', create: '建立空白日記', cancel: '取消', date: '日期', dateInput: '手動輸入日期',
           dateHint: '格式：yyyy-mm-dd（也支援 yyyymmdd）', sort: '排序 sort', creating: '建立中……', createSuccess: '日記建立成功',
           invalidDate: '請輸入有效日期（yyyy-mm-dd）', invalidSort: 'sort 必須是大於 0 的整數'
@@ -85,7 +88,7 @@ const text = computed(() => (
           stranger: '陌生人',
           full: '完整版',
           public: '公开版',
-          search: '搜索日记', searchPlaceholder: '输入关键词', clearSearch: '清除搜索', noSearchResult: '没有找到相关日记',
+          search: '搜索日记', searchPlaceholder: '输入关键词', clearSearch: '清除搜索', refresh: '刷新日记', noSearchResult: '没有找到相关日记',
           add: '添加日记', create: '创建空白日记', cancel: '取消', date: '日期', dateInput: '手动输入日期',
           dateHint: '格式：yyyy-mm-dd（也支持 yyyymmdd）', sort: '排序 sort', creating: '创建中……', createSuccess: '日记创建成功',
           invalidDate: '请输入有效日期（yyyy-mm-dd）', invalidSort: 'sort 必须是大于 0 的整数'
@@ -187,11 +190,6 @@ const detailQuery = computed(() => {
   const query = {}
   if (viewMode.value) query.view = viewMode.value
   return query
-})
-
-const activeViewIndex = computed(() => {
-  const index = viewOptions.value.findIndex(option => option.mode === viewMode.value)
-  return index >= 0 ? index : 0
 })
 
 function setView(mode) {
@@ -413,7 +411,6 @@ onBeforeUnmount(() => {
       <section class="content">
 
         <div class="panel-head">
-          <div class="panel-title" v-formatted-text="text.list"/>
           <form class="diary-search" role="search" @submit.prevent="submitSearch">
             <input
               v-model="searchInput"
@@ -440,18 +437,17 @@ onBeforeUnmount(() => {
               <img :src="searchIcon" alt="" aria-hidden="true" />
             </button>
           </form>
+          <button class="diary-refresh" type="button" :title="text.refresh" :aria-label="text.refresh" :disabled="loadingCatalog || loadingList" @click="loadPage">
+            <img :src="refreshIcon" alt="" />
+          </button>
           <button v-if="canEdit" class="dev-add-btn dev-btn-small diary-add-button" type="button" @click="openCreateDialog">
+            <img :src="plusIcon" alt="" />
             {{ text.add }}
           </button>
           <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
-            <span class="view-switch__label">{{ text.view }}</span>
             <div
                 class="view-switch__track"
                 :class="`is-${viewOptions.length}`"
-                :style="{
-                  '--segment-count': String(viewOptions.length),
-                  '--active-index': String(activeViewIndex)
-                }"
             >
               <button
                   v-for="option in viewOptions"
@@ -460,6 +456,7 @@ onBeforeUnmount(() => {
                   :class="{ active: viewMode === option.mode }"
                   @click="setView(option.mode)"
               >
+                <component :is="option.icon" class="view-switch__icon" aria-hidden="true" />
                 {{ option.label }}
               </button>
             </div>
@@ -546,7 +543,12 @@ onBeforeUnmount(() => {
   padding-bottom: 32px;
 }
 
-.diary-add-button { margin: 0 0 8px auto; }
+.diary-add-button { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.diary-add-button img { width: 16px; height: 16px; }
+.diary-refresh { display: grid; place-items: center; width: 36px; height: 36px; padding: 8px; border: 1px solid #cad8cc; border-radius: 8px; background: var(--color-background); cursor: pointer; }
+.diary-refresh:hover { border-color: var(--color-primary); }
+.diary-refresh:disabled { opacity: .5; cursor: default; }
+.diary-refresh img { width: 18px; height: 18px; }
 .diary-search { display: flex; align-items: center; min-width: min(360px, 100%); position: relative; }
 .diary-search__input { box-sizing: border-box; min-width: 0; width: 100%; height: 36px; padding: 7px 70px 7px 11px; border: 1px solid #cad8cc; border-radius: 8px; color: var(--color-text); background: var(--color-background); outline: none; }
 .diary-search__input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
@@ -647,16 +649,6 @@ onBeforeUnmount(() => {
   border-color: var(--color-primary-light);
 }*/
 
-.panel-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin:0 5px 5px;
-  color: var(--color-text);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .panel-head {
   display: flex;
   flex-wrap: wrap;
@@ -669,9 +661,8 @@ onBeforeUnmount(() => {
 .view-switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  flex-basis: 100%;
 }
 
 .view-switch__label {
@@ -681,29 +672,9 @@ onBeforeUnmount(() => {
 }
 
 .view-switch__track {
-  position: relative;
   display: inline-grid;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #f7fbf5 0%, #eaf4e5 100%);
-  border: 1px solid #d8e7d1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-.view-switch__track::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
-  border-radius: 999px;
-  background: linear-gradient(135deg, #5aa84d 0%, #2f7d43 100%);
-  box-shadow: 0 8px 18px rgba(46, 125, 67, 0.22);
-  transform: translateX(calc(var(--active-index) * (100% + 4px)));
-  transition: transform 0.28s ease;
+  gap: 8px;
 }
 
 .view-switch__track.is-2 {
@@ -715,45 +686,36 @@ onBeforeUnmount(() => {
 }
 
 .view-switch__option {
-  position: relative;
-  z-index: 1;
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--color-background);
   color: var(--color-text-light);
-  min-width: 68px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  min-width: 76px;
+  padding: 7px 12px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.22s ease, transform 0.22s ease;
+  transition: color .15s ease, background .15s ease;
 }
 
 .view-switch__option.active {
-  color: #fff;
+  color: var(--color-primary-dark);
+  background: #eaf4e9;
 }
+.view-switch__icon { width: 16px; height: 16px; }
 
 .view-switch__option:hover {
   color: var(--color-primary-dark);
 }
 
-.view-switch__option.active:hover {
-  color: #fff;
-  transform: none;
-}
+.view-switch__option.active:hover { color: var(--color-primary-dark); }
 
 .card-list.is-loading {
   opacity: 0.72;
   transition: opacity 0.18s ease;
-}
-
-/* 参考 PinyinTable 的左侧强调条 */
-.panel-title::before {
-  content: '';
-  width: 6px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
 }
 
 .card-list {
@@ -826,21 +788,20 @@ onBeforeUnmount(() => {
 }
 
 .diary-card {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffffff 0%, #f7ffff 100%);
-  border: 1.5px solid #d6e6d2;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
   padding: 16px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: background-color .16s ease, border-color .16s ease;
 }
 
 .diary-card:hover {
-  transform: translateY(-2px) scale(1.00);
+  background: #f7fbf7;
+  border-color: var(--color-primary-light);
+}
+
+.diary-card:focus-within {
   border-color: var(--color-primary);
-  background: linear-gradient(180deg, #ffffff 0%, #eefbfb 100%);
-  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.12);
-  z-index: 1;
 }
 
 .diary-card__top {
@@ -895,7 +856,7 @@ onBeforeUnmount(() => {
   }
   .diary-card__date {
     font-size: 16px;
-    align-self: flex-end; /* 日期靠右对齐，如果想靠左可改为 flex-start */
+    align-self: flex-end;
   }
 }
 </style>

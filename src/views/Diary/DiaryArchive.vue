@@ -193,8 +193,6 @@ function getYearMonths(yearItem) {
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-xl);
   padding: 22px 18px;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-base), border-color var(--transition-base);
   /* 隐藏滚动条 */
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -202,11 +200,6 @@ function getYearMonths(yearItem) {
 
 .diary-archive::-webkit-scrollbar {
   display: none;
-}
-
-.diary-archive:hover {
-  box-shadow: var(--shadow-md);
- /* border-color: var(--color-primary-light);*/
 }
 
 /* ---- 面板头部 ---- */
@@ -254,7 +247,7 @@ function getYearMonths(yearItem) {
   border-radius: var(--border-radius-md);
   background: #ffffff;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 /*
@@ -263,16 +256,13 @@ function getYearMonths(yearItem) {
 */
 @media (hover: hover) {
   .diary-archive__year:not(.is-open):hover {
-    background: #f2faf0;
     border-color: var(--color-primary-light);
-    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
   }
 }
 
 .diary-archive__year.is-open {
   border-color: var(--color-primary-light);
-  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
-  background: #ffffff; /* 展开时强制白色背景，覆盖悬停效果 */
+  background: #ffffff;
 }
 
 .diary-archive__year-head {
@@ -376,7 +366,7 @@ function getYearMonths(yearItem) {
   background: #dbf6d5;
   color: var(--color-text);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 /* 仅在支持悬停的设备上显示 hover 效果（触屏设备点击后不会残留悬停态） */
@@ -384,16 +374,12 @@ function getYearMonths(yearItem) {
   .diary-archive__cell:hover:not(:disabled) {
     border-color: var(--color-primary);
     background: #d1efca;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 6px rgba(46, 125, 50, 0.15);
   }
 
-  /* 激活格悬停时保持主色渐变，避免被普通悬停样式覆盖成浅色/白色 */
+  /* 激活格悬停时保持当前选中状态 */
   .diary-archive__cell.is-active:hover {
-    background: var(--gradient-primary);
+    background: var(--color-primary);
     border-color: var(--color-primary-dark);
-    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.25);
-    transform: none;
   }
 }
 
@@ -420,12 +406,11 @@ function getYearMonths(yearItem) {
   color: var(--color-text-lighter);
 }
 
-/* 当前筛选中的月份：主色渐变高亮 */
+/* 当前筛选中的月份 */
 .diary-archive__cell.is-active {
-  background: var(--gradient-primary);
+  background: var(--color-primary);
   border-color: var(--color-primary-dark);
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.25);
 }
 
 .diary-archive__cell.is-active .diary-archive__cell-month,

@@ -2,9 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
-import LanguageSelector from '../../components/Select/LanguageSelector.vue'
+import { User, Connection, View } from '@element-plus/icons-vue'
 import diaryBodyStyle from './diaryBodyStyle.js'
 import closeIcon from '../../assets/icons/close.svg'
+import writingIcon from '../../assets/书写.svg'
+import leftIcon from '../../assets/icons/to-left.svg'
+import rightIcon from '../../assets/icons/to-right.svg'
 import { showError } from '../../services/ToastService.js'
 import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
@@ -71,7 +74,8 @@ const viewOptions = computed(() => {
   }
   return visibleViewModes.value.map(mode => ({
     mode,
-    label: viewLabels.value[mode] ?? mode
+    label: viewLabels.value[mode] ?? mode,
+    icon: mode === 'self' ? User : mode === 'friend' ? Connection : View
   }))
 })
 
@@ -235,11 +239,6 @@ const backToList = computed(() => ({
   query: backQuery.value
 }))
 
-const activeViewIndex = computed(() => {
-  const index = viewOptions.value.findIndex(option => option.mode === viewMode.value)
-  return index >= 0 ? index : 0
-})
-
 useHead({
   title: () => diary.value?.date ? `${diary.value.date} - ${text.value.title}` : text.value.loadingTitle
 })
@@ -312,39 +311,25 @@ onBeforeUnmount(() => {
 <template>
   <div class="broaden-layout diary-detail">
 
-    <nav v-if="nearby.prev || nearby.next" class="detail-nav">
+    <nav v-if="nearby.prev || nearby.next || viewOptions.length" class="detail-nav">
       <div class="detail-nav__pages">
-        <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn">
-        <span class="nav-btn__dir">{{ text.prev }}</span>
-        <span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span>
+        <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn" :title="`${text.prev} · ${formatDateLabel(nearby.prev.date)}`" :aria-label="`${text.prev} · ${formatDateLabel(nearby.prev.date)}`">
+          <img :src="leftIcon" alt="" />
+          <span class="nav-btn__text"><span class="nav-btn__dir">{{ text.prev }}</span><span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span></span>
         </router-link>
-      <span v-else class="nav-btn nav-btn--disabled">
-          <span class="nav-btn__dir">{{ text.prev }}</span>
-          <span class="nav-btn__date" aria-hidden="true"></span>
-        </span>
-
-        <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right">
-        <span class="nav-btn__dir">{{ text.next }}</span>
-        <span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span>
-
+        <span v-else class="nav-btn nav-btn--disabled"><span class="nav-btn__text"><span class="nav-btn__dir">{{ text.prev }}</span><span class="nav-btn__date" aria-hidden="true">&nbsp;</span></span></span>
+        <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right" :title="`${text.next} · ${formatDateLabel(nearby.next.date)}`" :aria-label="`${text.next} · ${formatDateLabel(nearby.next.date)}`">
+          <span class="nav-btn__text"><span class="nav-btn__dir">{{ text.next }}</span><span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span></span>
+          <img :src="rightIcon" alt="" />
         </router-link>
-      <span v-else class="nav-btn nav-btn--disabled nav-btn--right">
-          <span class="nav-btn__dir">{{ text.next }}</span>
-          <span class="nav-btn__date" aria-hidden="true"></span>
-        </span>
+        <span v-else class="nav-btn nav-btn--disabled nav-btn--right"><span class="nav-btn__text"><span class="nav-btn__dir">{{ text.next }}</span><span class="nav-btn__date" aria-hidden="true">&nbsp;</span></span></span>
       </div>
 
       <div class="detail-header__right">
-        <LanguageSelector class="language-switch" />
         <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
-<!--          <span class="view-switch__label">{{ text.view }}</span>-->
           <div
               class="view-switch__track"
               :class="`is-${viewOptions.length}`"
-              :style="{
-              '--segment-count': String(viewOptions.length),
-              '--active-index': String(activeViewIndex)
-            }"
           >
             <button
                 v-for="option in viewOptions"
@@ -353,6 +338,7 @@ onBeforeUnmount(() => {
                 :class="{ active: viewMode === option.mode }"
                 @click="setView(option.mode)"
             >
+              <component :is="option.icon" class="view-switch__icon" aria-hidden="true" />
               {{ option.label }}
             </button>
           </div>
@@ -377,7 +363,7 @@ onBeforeUnmount(() => {
       <div class="detail-heading">
         <div class="detail-heading__main">
           <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
-          <router-link v-if="canEdit" :to="diaryEditLink()" class="detail-edit-link">编辑日记</router-link>
+          <router-link v-if="canEdit" :to="diaryEditLink()" class="detail-edit-link"><img :src="writingIcon" alt="" />{{ language === 'tc' ? '編輯日記' : '编辑日记' }}</router-link>
         </div>
       </div>
 
@@ -426,20 +412,9 @@ onBeforeUnmount(() => {
 }
 
 .detail-header__right {
-  position: relative;
   display: flex;
-  width: 100%;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-
-.detail-header__right > .language-switch {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
+  justify-content: flex-end;
 }
 
 .back-link {
@@ -449,11 +424,10 @@ onBeforeUnmount(() => {
 }
 
 .panel {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfefb 100%);
+  background: var(--color-background);
   border: 1px solid var(--color-border-light);
   border-radius: var(--border-radius-lg);
   padding: 30px;
-  box-shadow: var(--shadow-md);
 }
 
 .detail-body {
@@ -482,6 +456,9 @@ onBeforeUnmount(() => {
 
 .detail-edit-link {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 7px 12px;
   border: 1px solid #b9d4bc;
   border-radius: 8px;
@@ -490,6 +467,7 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   text-decoration: none;
 }
+.detail-edit-link img { width: 16px; height: 16px; }
 
 .detail-edit-link:hover {
   background: #e5f3e7;
@@ -516,10 +494,7 @@ onBeforeUnmount(() => {
 }
 
 .detail-meta span {
-  padding: 6px 10px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 999px;
-  background: #f5faf3;
+  padding: 0;
 }
 
 .content-block + .content-block {
@@ -581,93 +556,42 @@ onBeforeUnmount(() => {
 }
 
 .nav-btn {
-  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  gap: 6px;
-  max-width: none;
+  min-width: 0;
   min-height: 66px;
-  justify-content: center;
-  padding: 12px 18px;
-  border: 1px solid #d8e8d3;
-  border-radius: var(--border-radius-lg);
-  background: linear-gradient(145deg, #ffffff 0%, #f2f9f0 100%);
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
   color: var(--color-primary-dark);
   text-decoration: none;
-  box-shadow: 0 5px 14px rgba(46, 125, 50, 0.07);
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color .15s ease;
 }
 
 .nav-btn:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary-light);
-  background: linear-gradient(145deg, #ffffff 0%, #eaf7e7 100%);
-  box-shadow: 0 9px 20px rgba(46, 125, 50, 0.13);
+  border-color: var(--color-primary);
 }
-
-.nav-btn--right {
-  align-items: flex-end;
-  text-align: right;
-}
-
-.nav-btn--disabled {
-  opacity: 0.35;
-  pointer-events: none;
-  background: #f7f9f6;
-  box-shadow: none;
-}
-
-.nav-btn__dir {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.nav-btn__date {
-  display: block;
-  min-height: 1.2em;
-  font-size: 13px;
-  color: var(--color-text-light);
-}
+.nav-btn img { flex: none; width: 16px; height: 16px; transition: transform .18s ease; }
+.nav-btn:hover img { transform: translateX(-3px); }
+.nav-btn--right:hover img { transform: translateX(3px); }
+.nav-btn--right { justify-content: flex-end; text-align: right; }
+.nav-btn--disabled { opacity: .35; pointer-events: none; }
+.nav-btn__text { display: flex; flex-direction: column; gap: 5px; }
+.nav-btn__dir { font-size: 14px; font-weight: 600; }
+.nav-btn__date { color: var(--color-text-light); font-size: 13px; }
 
 .view-switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.view-switch__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-light);
 }
 
 .view-switch__track {
-  position: relative;
   display: inline-grid;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #f7fbf5 0%, #eaf4e5 100%);
-  border: 1px solid #d8e7d1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-.view-switch__track::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
-  border-radius: 999px;
-  background: linear-gradient(135deg, #5aa84d 0%, #2f7d43 100%);
-  box-shadow: 0 8px 18px rgba(46, 125, 67, 0.22);
-  transform: translateX(calc(var(--active-index) * (100% + 4px)));
-  transition: transform 0.28s ease;
+  gap: 8px;
 }
 
 .view-switch__track.is-2 {
@@ -679,31 +603,33 @@ onBeforeUnmount(() => {
 }
 
 .view-switch__option {
-  position: relative;
-  z-index: 1;
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--color-background);
   color: var(--color-text-light);
-  min-width: 68px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  min-width: 76px;
+  padding: 7px 12px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.22s ease, transform 0.22s ease;
+  transition: color .15s ease, background .15s ease;
 }
 
 .view-switch__option.active {
-  color: #fff;
+  color: var(--color-primary-dark);
+  background: #eaf4e9;
 }
+.view-switch__icon { width: 16px; height: 16px; }
 
 .view-switch__option:hover {
   color: var(--color-primary-dark);
-  transform: translateY(-1px);
 }
 
 .view-switch__option.active:hover {
-  color: #fff;
-  transform: none;
+  color: var(--color-primary-dark);
 }
 
 .detail-body--enter {
@@ -779,13 +705,6 @@ onBeforeUnmount(() => {
     transform: translateY(0);
   }
 }
-/*
-@media (max-width: 480px) {
-  .nav-btn__date {
-    display: none;
-  }
-}
-*/
 @media (max-width: 480px) {
   .panel {
     padding: 15px;
@@ -813,18 +732,13 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
   }
 
-  .detail-header__right > .language-switch {
-    position: static;
-    align-self: flex-end;
-    transform: none;
-  }
 }
 
 @media (max-width: 560px) {
   .detail-header__right {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
   }
 
@@ -846,8 +760,5 @@ onBeforeUnmount(() => {
     padding-inline: 4px;
   }
 
-  .detail-header__right > .language-switch {
-    flex: 0 0 auto;
-  }
 }
 </style>

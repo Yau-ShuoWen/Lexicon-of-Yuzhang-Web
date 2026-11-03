@@ -39,8 +39,8 @@ const viewOptions = computed(() => {
   }
   if (canFriendView.value) {
     return [
-      { mode: 'friend', label: text.value.full, icon: Connection },
-      { mode: 'stranger', label: text.value.public, icon: View }
+      { mode: 'friend', label: text.value.friend, icon: Connection },
+      { mode: 'stranger', label: text.value.stranger, icon: View }
     ]
   }
   return []
@@ -68,11 +68,9 @@ const text = computed(() => (
           noSummary: '暫無摘要',
           noData: '暫無日記資料',
           view: '視角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公開版',
+          self: '私人',
+          friend: '親友',
+          stranger: '公開',
           search: '搜尋日記', searchPlaceholder: '輸入關鍵詞', clearSearch: '清除搜尋', refresh: '重新整理', noSearchResult: '沒有找到相關日記',
           add: '新增日記', create: '建立空白日記', cancel: '取消', date: '日期', dateInput: '手動輸入日期',
           dateHint: '格式：yyyy-mm-dd（也支援 yyyymmdd）', sort: '排序 sort', creating: '建立中……', createSuccess: '日記建立成功',
@@ -84,11 +82,9 @@ const text = computed(() => (
           noSummary: '暂无摘要',
           noData: '暂无日记资料',
           view: '视角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公开版',
+          self: '私人',
+          friend: '亲友',
+          stranger: '公开',
           search: '搜索日记', searchPlaceholder: '输入关键词', clearSearch: '清除搜索', refresh: '刷新日记', noSearchResult: '没有找到相关日记',
           add: '添加日记', create: '创建空白日记', cancel: '取消', date: '日期', dateInput: '手动输入日期',
           dateHint: '格式：yyyy-mm-dd（也支持 yyyymmdd）', sort: '排序 sort', creating: '创建中……', createSuccess: '日记创建成功',

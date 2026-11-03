@@ -445,9 +445,9 @@ export default {
         editor: {
             title: '编辑日记', back_detail: '返回详情', loading: '正在加载日记……', back: '返回',
             date: '日期', sort: '排序 sort', start: '开始写作', finalize: '完成时间', visibility: '公开范围',
-            private: '私人', friend: '朋友', stranger: '陌生人', private_hint: '只保存主版本', friend_hint: '保存主版本和朋友版本', stranger_hint: '保存三个层级版本',
-            private_notice: '当前为私人模式，朋友版和陌生人版保存为 null。', filled: '已填写', empty: '暂为空', pending: '提交后清除', edit: '编辑', content_placeholder: '在这里编辑完整日记内容……',
-            friend_version: '朋友版本', stranger_version: '陌生人版本', main_version: '主版本（自己）', close_version: '关闭版本编辑窗口',
+            private: '私人', friend: '亲友', stranger: '公开', private_hint: '只保存私人版本', friend_hint: '保存私人和亲友版本', stranger_hint: '保存私人、亲友和公开版本',
+            private_notice: '当前仅保存私人版本。', filled: '已填写', empty: '暂为空', pending: '提交后清除', edit: '编辑', content_placeholder: '在这里编辑完整日记内容……',
+            friend_version: '亲友版本', stranger_version: '公开版本', main_version: '私人版本', close_version: '关闭版本编辑窗口',
             saving: '保存中……', save: '保存修改', no_permission: '没有日记编辑权限', load_failed: '加载日记失败', save_success: '日记保存成功', retry: '请稍后重试',
             date_required: '请选择日记日期', sort_invalid: 'sort 必须是大于 0 的整数', content_required: '正文不能为空',
             lower_confirm_title: '确认降低公开范围', lower_confirm: '{labels}将在确认提交后保存为 null，当前内容会被清除。确定继续吗？', clear_submit: '确认提交并清除', return_edit: '返回修改',

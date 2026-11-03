@@ -445,9 +445,9 @@ export default {
         editor: {
             title: '編輯日記', back_detail: '返回詳情', loading: '正在載入日記……', back: '返回',
             date: '日期', sort: '排序 sort', start: '開始寫作', finalize: '完成時間', visibility: '公開範圍',
-            private: '私人', friend: '朋友', stranger: '陌生人', private_hint: '只儲存主版本', friend_hint: '儲存主版本和朋友版本', stranger_hint: '儲存三個層級版本',
-            private_notice: '當前為私人模式，朋友版和陌生人版儲存為 null。', filled: '已填寫', empty: '暫為空', pending: '提交後清除', edit: '編輯', content_placeholder: '在這裡編輯完整日記內容……',
-            friend_version: '朋友版本', stranger_version: '陌生人版本', main_version: '主版本（自己）', close_version: '關閉版本編輯視窗',
+            private: '私人', friend: '親友', stranger: '公開', private_hint: '只儲存私人版本', friend_hint: '儲存私人和親友版本', stranger_hint: '儲存私人、親友和公開版本',
+            private_notice: '當前僅儲存私人版本。', filled: '已填寫', empty: '暫為空', pending: '提交後清除', edit: '編輯', content_placeholder: '在這裡編輯完整日記內容……',
+            friend_version: '親友版本', stranger_version: '公開版本', main_version: '私人版本', close_version: '關閉版本編輯視窗',
             saving: '儲存中……', save: '儲存修改', no_permission: '沒有日記編輯權限', load_failed: '載入日記失敗', save_success: '日記儲存成功', retry: '請稍後重試',
             date_required: '請選擇日記日期', sort_invalid: 'sort 必須是大於 0 的整數', content_required: '正文不能為空',
             lower_confirm_title: '確認降低公開範圍', lower_confirm: '{labels}將在確認提交後儲存為 null，當前內容會被清除。確定繼續嗎？', clear_submit: '確認提交並清除', return_edit: '返回修改',

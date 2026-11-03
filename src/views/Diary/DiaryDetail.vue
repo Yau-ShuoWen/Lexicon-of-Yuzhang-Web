@@ -56,16 +56,10 @@ const visibleViewModes = computed(() => {
 })
 
 const viewLabels = computed(() => {
-  if (visibleViewModes.value.includes('self')) {
-    return {
-      self: text.value.self,
-      friend: text.value.friend,
-      stranger: text.value.stranger
-    }
-  }
   return {
-    friend: text.value.full,
-    stranger: text.value.public
+    self: text.value.self,
+    friend: text.value.friend,
+    stranger: text.value.stranger
   }
 })
 
@@ -112,11 +106,9 @@ const text = computed(() => (
           prev: '上一篇',
           next: '下一篇',
           view: '視角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公開版'
+          self: '私人',
+          friend: '親友',
+          stranger: '公開'
         }
         : {
           title: '日记详情',
@@ -133,11 +125,9 @@ const text = computed(() => (
           prev: '上一篇',
           next: '下一篇',
           view: '视角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公开版'
+          self: '私人',
+          friend: '亲友',
+          stranger: '公开'
         }
 ))
 

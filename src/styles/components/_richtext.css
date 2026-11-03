@@ -821,3 +821,7 @@
     word-break: break-word;
     overflow-wrap: anywhere;
 }
+
+.rt-picture { margin: 1.2em 0; text-align: center; }
+.rt-picture img { display: block; max-width: 100%; height: auto; margin: auto; }
+.rt-picture figcaption { margin-top: .4em; color: var(--color-text-light); font-size: .9em; }

@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import LanguageSelector from '../../components/Select/LanguageSelector.vue'
 import diaryBodyStyle from './diaryBodyStyle.js'
+import closeIcon from '../../assets/icons/close.svg'
 import { showError } from '../../services/ToastService.js'
 import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
@@ -139,9 +140,46 @@ const loading = ref(true)
 const showSkeleton = ref(false)
 const animateDetail = ref(false)
 const diary = ref(null)
+const previewImage = ref(null)
+const previewZoom = ref(1)
+const previewDialog = ref(null)
+function openImagePreview(event) {
+  const image = event.target.closest?.('.rt-picture img')
+  if (!image) return
+  previewImage.value = { src: image.src, alt: image.alt }
+  previewZoom.value = 1
+  nextTick(() => previewDialog.value?.focus())
+}
+function closeImagePreview() { previewImage.value = null }
+function changePreviewZoom(step) { previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value + step)) }
 const nearby = ref({prev: null, next: null})
 let skeletonTimer = null
 let detailAnimationTimer = null
+let loadSequence = 0
+
+function preloadImage(url) {
+  return new Promise(resolve => {
+    const image = new Image()
+    const timer = setTimeout(() => { image.onload = null; image.onerror = null; resolve(false) }, 10000)
+    image.onload = () => { clearTimeout(timer); resolve(true) }
+    image.onerror = () => { clearTimeout(timer); resolve(false) }
+    image.src = url
+  })
+}
+
+async function preloadDiaryImages(entry) {
+  if (!entry?.content) return
+  const ids = [...entry.content.matchAll(/^\{p (?:(.*?)=>)?([1-9][0-9]*)}$/gm)].map(match => match[2])
+  await Promise.all([...new Set(ids)].map(async id => {
+    const url = entry.images?.[id]?.url
+    if (!url || await preloadImage(url)) return
+    try {
+      const refreshed = await refreshDiaryImages()
+      const replacement = refreshed?.[id]
+      if (replacement?.url && await preloadImage(replacement.url)) entry.images[id] = replacement
+    } catch (error) { console.warn('日记图片预加载失败', id, error) }
+  }))
+}
 
 function diaryLink(id) {
   const query = {}
@@ -208,6 +246,7 @@ useHead({
 
 function startLoading() {
   loading.value = true
+  diary.value = null
   showSkeleton.value = false
   clearTimeout(skeletonTimer)
   skeletonTimer = setTimeout(() => {
@@ -229,23 +268,33 @@ function stopLoading() {
 }
 
 async function loadDiary() {
+  const sequence = ++loadSequence
   startLoading()
   try {
-    diary.value = diaryId.value
+    const entry = diaryId.value
         ? await getDiaryById(language.value, diaryId.value, requestedView.value)
         : null
+    await preloadDiaryImages(entry)
+    if (sequence !== loadSequence) return
+    diary.value = entry
     nearby.value = diaryId.value
         ? await getNearbyDiaries(diaryId.value, requestedView.value)
         : {prev: null, next: null}
   } catch (error) {
+    if (sequence !== loadSequence) return
     console.error(error)
     showError(error.message || '加载详情失败')
     diary.value = null
     nearby.value = {prev: null, next: null}
   }
   finally {
-    stopLoading()
+    if (sequence === loadSequence) stopLoading()
   }
+}
+
+async function refreshDiaryImages() {
+  const refreshed = await getDiaryById(language.value, diaryId.value, requestedView.value)
+  return refreshed?.images || {}
 }
 
 watch(
@@ -336,7 +385,8 @@ onBeforeUnmount(() => {
         <div
             v-if="diary.content"
             class="content-block__body content-block__body--article"
-            v-diary-body-style="diary.content"
+            v-diary-body-style="{ text: diary.content, images: diary.images, refreshImages: refreshDiaryImages }"
+            @dblclick="openImagePreview"
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent"/>
       </section>
@@ -351,6 +401,12 @@ onBeforeUnmount(() => {
 
 
     <div v-else class="empty-box panel" v-formatted-text="text.notFound"/>
+
+    <Teleport to="body">
+      <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown.esc="closeImagePreview" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
+        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" /></button><img :src="previewImage.src" :alt="previewImage.alt" :style="{ zoom: previewZoom }" /></div>
+      </div>
+    </Teleport>
 
 
   </div>
@@ -490,6 +546,17 @@ onBeforeUnmount(() => {
 .content-block__body--article {
   font-size: 17px;
 }
+.content-block__body--article :deep(.rt-picture) { margin: 12px 0; text-align: left; }
+.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; width: auto; height: auto; max-width: min(400px, 100%); max-height: 400px; margin: 0; padding: 4px; border: 1px solid #b8c8bb; border-radius: 4px; object-fit: contain; cursor: zoom-in; }
+.content-block__body--article :deep(.rt-picture figcaption) { text-align: left; }
+@media (max-width: 560px) {
+  .content-block__body--article :deep(.rt-picture img) { width: 100%; max-width: 100%; max-height: none; }
+}
+.diary-detail-preview { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; background: rgba(0, 0, 0, .55); }
+.diary-detail-preview__image-wrap { position: relative; width: fit-content; margin: auto; }
+.diary-detail-preview__image-wrap > img { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; }
+.diary-detail-preview__close { position: absolute; z-index: 1; top: -40px; right: 0; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .9); cursor: pointer; }
+.diary-detail-preview__close img { width: 16px; height: 16px; filter: brightness(0); }
 
 .empty-box {
   color: var(--color-text-light);

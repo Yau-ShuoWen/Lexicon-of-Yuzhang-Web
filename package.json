@@ -10,6 +10,10 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@tiptap/extension-image": "^3.32.2",
+    "@tiptap/pm": "^3.32.2",
+    "@tiptap/starter-kit": "^3.32.2",
+    "@tiptap/vue-3": "^3.32.2",
     "@vueuse/head": "^2.0.0",
     "axios": "^1.13.2",
     "element-plus": "^2.11.7",

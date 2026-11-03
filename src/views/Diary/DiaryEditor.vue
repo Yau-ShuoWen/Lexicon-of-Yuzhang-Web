@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { useI18n } from 'vue-i18n'
 import TextDiffEditor from '../../components/Compare/TextDiffEditor.vue'
+import RichTextImageTextarea from '../../components/Text/RichTextImageTextarea.vue'
 import { confirm } from '../../services/confirmService.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { hasPermission } from '../../utils/auth.js'
@@ -25,6 +26,7 @@ const visibilityOptions = computed(() => [
 const form = ref(null)
 const loading = ref(true)
 const saving = ref(false)
+const imageUploading = ref(false)
 const activePublicModal = ref(null)
 const loadError = ref('')
 
@@ -77,6 +79,7 @@ function normalizeForm(value) {
     date: value?.date ?? '',
     sort: value?.sort ?? 1,
     content: normalizeRichTextSyntax(value?.content ?? ''),
+    images: value?.images ?? {},
     forFriend: value?.forFriend ?? null,
     forStranger: value?.forStranger ?? null,
     startDate: value?.startDate ?? '',
@@ -162,6 +165,10 @@ function buildPayload() {
 
 async function saveDiary() {
   if (!form.value || saving.value) return
+  if (imageUploading.value || form.value.content.includes('⟦图片上传中:')) {
+    showError('图片仍在上传，请稍后保存')
+    return
+  }
 
   if (!form.value.date) {
     showError(t('diary.editor.date_required'))
@@ -245,7 +252,7 @@ onMounted(loadDiary)
           v-if="form"
           class="dev-add-btn dev-btn-small"
           type="button"
-          :disabled="saving"
+          :disabled="saving || imageUploading"
           @click="saveDiary"
         >
           {{ saving ? $t('diary.editor.saving') : $t('diary.editor.save') }}
@@ -340,13 +347,14 @@ onMounted(loadDiary)
       </section>
 
       <section class="diary-editor-panel panel">
-        <textarea
+        <RichTextImageTextarea
           v-model="form.content"
-          class="diary-main-input"
-          rows="18"
+          :owner-id="diaryId"
+          :images="form.images"
           :placeholder="$t('diary.editor.content_placeholder')"
-          spellcheck="false"
-        ></textarea>
+          @upload-state-change="imageUploading = $event"
+          @image-added="image => form.images = { ...form.images, [image.id]: image }"
+        />
       </section>
 
     </div>

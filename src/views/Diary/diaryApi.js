@@ -82,6 +82,7 @@ export function normalizeDiaryText(payload, language = 'sc') {
         date: raw.date ?? '',
         title: raw.title ?? '',
         content: raw.content ?? '',
+        images: raw.images ?? {},
         abridge: raw.abridge ?? '',
         startDate: raw.startDate ?? '',
         finalizeDate: raw.finalizeDate ?? '',
@@ -101,6 +102,7 @@ export function normalizeDiaryEdit(payload) {
         date: raw.date ?? '',
         sort: raw.sort ?? 1,
         content: raw.content ?? '',
+        images: raw.images ?? {},
         forFriend: raw.forFriend ?? null,
         forStranger: raw.forStranger ?? null,
         startDate: raw.startDate ?? '',
@@ -125,8 +127,8 @@ function buildDiaryQuery(view, extra = {}) {
     return suffix ? `?${suffix}` : ''
 }
 
-export async function getDiaryCatalog(view = 'stranger') {
-    const data = await request(`/api/diary/catalog${buildDiaryQuery(view)}`)
+export async function getDiaryCatalog(view = 'stranger', fresh = false) {
+    const data = await request(`/api/diary/catalog${buildDiaryQuery(view)}`, fresh ? {cache: 'no-store'} : {})
     return normalizeCatalog(data)
 }
 
@@ -135,18 +137,18 @@ export async function getRecentDiaries(language, view = 'stranger') {
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
-export async function queryDiaries(language, filters = {}, view = 'stranger') {
+export async function queryDiaries(language, filters = {}, view = 'stranger', fresh = false) {
     const data = await request(`/api/diary/query/${language}${buildDiaryQuery(view, {
         year: filters.year,
         month: filters.month
-    })}`)
+    })}`, fresh ? {cache: 'no-store'} : {})
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 
-export async function searchDiaries(language, keyword, view = 'stranger') {
+export async function searchDiaries(language, keyword, view = 'stranger', fresh = false) {
     const data = await request(`/api/diary/search/${language}${buildDiaryQuery(view, {
         q: keyword
-    })}`)
+    })}`, fresh ? {cache: 'no-store'} : {})
     return Array.isArray(data) ? data.map(item => normalizeDigest(item, language)) : []
 }
 

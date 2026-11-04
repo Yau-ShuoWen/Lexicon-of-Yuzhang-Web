@@ -43,6 +43,7 @@ const sections = {
     examples: [
       ['词语与汉字', '{c 南昌}、{c 豫章=>南昌}、{z 南}', '省略目标时，用可见文字作为目标。', true],
       ['站内与站外', '{l 返回首页=>/dict/home}\n{u 打开豫章词=>https://yuzhangci.com}\n{u https://yuzhangci.com}', 'u 可直接填写完整网址。', true],
+      ['日记双链接', '{u 查看对话=>https://example.com/private||https://example.com/shared}', '|| 左边用于私人视角，右边用于亲友和公开视角；此处预览私人视角。', true],
       ['注解', '他话{n 原书注：说}什哩。'],
     ],
   },

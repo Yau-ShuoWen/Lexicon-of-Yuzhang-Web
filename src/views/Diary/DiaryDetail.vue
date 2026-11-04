@@ -1,9 +1,15 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
-import LanguageSelector from '../../components/Select/LanguageSelector.vue'
+import { User, Connection, View } from '@element-plus/icons-vue'
 import diaryBodyStyle from './diaryBodyStyle.js'
+import closeIcon from '../../assets/icons/close.svg'
+import downloadIcon from '../../assets/icons/download.svg'
+import writingIcon from '../../assets/书写.svg'
+import leftIcon from '../../assets/icons/to-left.svg'
+import rightIcon from '../../assets/icons/to-right.svg'
+import './diarySkeleton.css'
 import { showError } from '../../services/ToastService.js'
 import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
 import {
@@ -51,16 +57,10 @@ const visibleViewModes = computed(() => {
 })
 
 const viewLabels = computed(() => {
-  if (visibleViewModes.value.includes('self')) {
-    return {
-      self: text.value.self,
-      friend: text.value.friend,
-      stranger: text.value.stranger
-    }
-  }
   return {
-    friend: text.value.full,
-    stranger: text.value.public
+    self: text.value.self,
+    friend: text.value.friend,
+    stranger: text.value.stranger
   }
 })
 
@@ -70,7 +70,8 @@ const viewOptions = computed(() => {
   }
   return visibleViewModes.value.map(mode => ({
     mode,
-    label: viewLabels.value[mode] ?? mode
+    label: viewLabels.value[mode] ?? mode,
+    icon: mode === 'self' ? User : mode === 'friend' ? Connection : View
   }))
 })
 
@@ -106,11 +107,9 @@ const text = computed(() => (
           prev: '上一篇',
           next: '下一篇',
           view: '視角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公開版'
+          self: '私人',
+          friend: '親友',
+          stranger: '公開'
         }
         : {
           title: '日记详情',
@@ -127,11 +126,9 @@ const text = computed(() => (
           prev: '上一篇',
           next: '下一篇',
           view: '视角',
-          self: '自己',
-          friend: '朋友',
-          stranger: '陌生人',
-          full: '完整版',
-          public: '公开版'
+          self: '私人',
+          friend: '亲友',
+          stranger: '公开'
         }
 ))
 
@@ -139,9 +136,74 @@ const loading = ref(true)
 const showSkeleton = ref(false)
 const animateDetail = ref(false)
 const diary = ref(null)
+const diaryBody = computed(() => ({ text: diary.value?.content, images: diary.value?.images, refreshImages: refreshDiaryImages, viewMode: viewMode.value }))
+const previewImage = ref(null)
+const previewCanvas = ref(null)
+const previewZoom = ref(1)
+const previewOffset = ref({ x: 0, y: 0 })
+let previewDrag = null
+function startPreviewDrag(event) {
+  if (event.button !== 0) return
+  previewDrag = { x: event.clientX - previewOffset.value.x, y: event.clientY - previewOffset.value.y }
+  event.currentTarget.setPointerCapture(event.pointerId)
+}
+function movePreviewDrag(event) {
+  if (!previewDrag) return
+  previewOffset.value = { x: event.clientX - previewDrag.x, y: event.clientY - previewDrag.y }
+}
+function endPreviewDrag() { previewDrag = null }
+const previewDialog = ref(null)
+function openImagePreview(event) {
+  const image = event.target.closest?.('.rt-picture img')
+  if (!image) return
+  previewImage.value = { element: image }
+  previewZoom.value = 1
+  previewOffset.value = { x: 0, y: 0 }
+  nextTick(() => {
+    const canvas = previewCanvas.value
+    if (canvas) {
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      canvas.getContext('2d').drawImage(image, 0, 0)
+    }
+    previewDialog.value?.focus()
+  })
+}
+function closeImagePreview() {
+  previewDrag = null
+  previewImage.value = null
+}
+function changePreviewZoom(step) {
+  previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value + step))
+}
 const nearby = ref({prev: null, next: null})
 let skeletonTimer = null
 let detailAnimationTimer = null
+let loadSequence = 0
+
+function preloadImage(url) {
+  return new Promise(resolve => {
+    const image = new Image()
+    const timer = setTimeout(() => { image.onload = null; image.onerror = null; resolve(false) }, 10000)
+    image.onload = () => { clearTimeout(timer); resolve(true) }
+    image.onerror = () => { clearTimeout(timer); resolve(false) }
+    image.src = url
+  })
+}
+
+async function preloadDiaryImages(entry) {
+  if (!entry?.content) return
+  const ids = [...entry.content.matchAll(/^\{p (?:(.*?)=>)?([1-9][0-9]*)}$/gm)].map(match => match[2])
+  await Promise.all([...new Set(ids)].map(async id => {
+    const url = entry.images?.[id]?.url
+    if (!url || await preloadImage(url)) return
+    try {
+      const refreshed = await refreshDiaryImages()
+      const replacement = refreshed?.[id]
+      if (replacement?.url && await preloadImage(replacement.url)) entry.images[id] = replacement
+    } catch (error) { console.warn('日记图片预加载失败', id, error) }
+  }))
+}
 
 function diaryLink(id) {
   const query = {}
@@ -197,11 +259,6 @@ const backToList = computed(() => ({
   query: backQuery.value
 }))
 
-const activeViewIndex = computed(() => {
-  const index = viewOptions.value.findIndex(option => option.mode === viewMode.value)
-  return index >= 0 ? index : 0
-})
-
 useHead({
   title: () => diary.value?.date ? `${diary.value.date} - ${text.value.title}` : text.value.loadingTitle
 })
@@ -211,7 +268,7 @@ function startLoading() {
   showSkeleton.value = false
   clearTimeout(skeletonTimer)
   skeletonTimer = setTimeout(() => {
-    if (loading.value) {
+    if (loading.value && !diary.value) {
       showSkeleton.value = true
     }
   }, 180)
@@ -222,30 +279,45 @@ function stopLoading() {
   showSkeleton.value = false
   clearTimeout(skeletonTimer)
   animateDetail.value = false
-  clearTimeout(detailAnimationTimer)
-  detailAnimationTimer = setTimeout(() => {
-    animateDetail.value = true
-  }, 0)
+  cancelAnimationFrame(detailAnimationTimer)
+  nextTick(() => {
+    detailAnimationTimer = requestAnimationFrame(() => {
+      animateDetail.value = true
+    })
+  })
 }
 
 async function loadDiary() {
+  const sequence = ++loadSequence
   startLoading()
   try {
-    diary.value = diaryId.value
+    const entry = diaryId.value
         ? await getDiaryById(language.value, diaryId.value, requestedView.value)
         : null
-    nearby.value = diaryId.value
-        ? await getNearbyDiaries(diaryId.value, requestedView.value)
-        : {prev: null, next: null}
+    if (sequence !== loadSequence) return
+    diary.value = entry
+    stopLoading()
+    preloadDiaryImages(entry)
+    if (diaryId.value) {
+      getNearbyDiaries(diaryId.value, requestedView.value).then(result => {
+        if (sequence === loadSequence) nearby.value = result
+      }).catch(error => console.warn('相邻日记加载失败', error))
+    }
   } catch (error) {
+    if (sequence !== loadSequence) return
     console.error(error)
     showError(error.message || '加载详情失败')
     diary.value = null
     nearby.value = {prev: null, next: null}
   }
   finally {
-    stopLoading()
+    if (sequence === loadSequence && loading.value) stopLoading()
   }
+}
+
+async function refreshDiaryImages() {
+  const refreshed = await getDiaryById(language.value, diaryId.value, requestedView.value)
+  return refreshed?.images || {}
 }
 
 watch(
@@ -256,46 +328,32 @@ watch(
 
 onBeforeUnmount(() => {
   clearTimeout(skeletonTimer)
-  clearTimeout(detailAnimationTimer)
+  cancelAnimationFrame(detailAnimationTimer)
 })
 </script>
 
 <template>
   <div class="broaden-layout diary-detail">
 
-    <nav v-if="nearby.prev || nearby.next" class="detail-nav">
+    <nav v-if="nearby.prev || nearby.next || viewOptions.length" class="detail-nav">
       <div class="detail-nav__pages">
-        <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn">
-        <span class="nav-btn__dir">{{ text.prev }}</span>
-        <span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span>
+        <router-link v-if="nearby.prev" :to="diaryLink(nearby.prev.id)" class="nav-btn" :title="`${text.prev} · ${formatDateLabel(nearby.prev.date)}`" :aria-label="`${text.prev} · ${formatDateLabel(nearby.prev.date)}`">
+          <img :src="leftIcon" alt="" />
+          <span class="nav-btn__text"><span class="nav-btn__dir">{{ text.prev }}</span><span class="nav-btn__date">{{ formatDateLabel(nearby.prev.date) }}</span></span>
         </router-link>
-      <span v-else class="nav-btn nav-btn--disabled">
-          <span class="nav-btn__dir">{{ text.prev }}</span>
-          <span class="nav-btn__date" aria-hidden="true"></span>
-        </span>
-
-        <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right">
-        <span class="nav-btn__dir">{{ text.next }}</span>
-        <span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span>
-
+        <span v-else class="nav-btn nav-btn--disabled"><span class="nav-btn__text"><span class="nav-btn__dir">{{ text.prev }}</span><span class="nav-btn__date" aria-hidden="true">&nbsp;</span></span></span>
+        <router-link v-if="nearby.next" :to="diaryLink(nearby.next.id)" class="nav-btn nav-btn--right" :title="`${text.next} · ${formatDateLabel(nearby.next.date)}`" :aria-label="`${text.next} · ${formatDateLabel(nearby.next.date)}`">
+          <span class="nav-btn__text"><span class="nav-btn__dir">{{ text.next }}</span><span class="nav-btn__date">{{ formatDateLabel(nearby.next.date) }}</span></span>
+          <img :src="rightIcon" alt="" />
         </router-link>
-      <span v-else class="nav-btn nav-btn--disabled nav-btn--right">
-          <span class="nav-btn__dir">{{ text.next }}</span>
-          <span class="nav-btn__date" aria-hidden="true"></span>
-        </span>
+        <span v-else class="nav-btn nav-btn--disabled nav-btn--right"><span class="nav-btn__text"><span class="nav-btn__dir">{{ text.next }}</span><span class="nav-btn__date" aria-hidden="true">&nbsp;</span></span></span>
       </div>
 
       <div class="detail-header__right">
-        <LanguageSelector class="language-switch" />
         <div v-if="viewOptions.length" class="view-switch" :aria-label="text.view">
-<!--          <span class="view-switch__label">{{ text.view }}</span>-->
           <div
               class="view-switch__track"
               :class="`is-${viewOptions.length}`"
-              :style="{
-              '--segment-count': String(viewOptions.length),
-              '--active-index': String(activeViewIndex)
-            }"
           >
             <button
                 v-for="option in viewOptions"
@@ -304,6 +362,7 @@ onBeforeUnmount(() => {
                 :class="{ active: viewMode === option.mode }"
                 @click="setView(option.mode)"
             >
+              <component :is="option.icon" class="view-switch__icon" aria-hidden="true" />
               {{ option.label }}
             </button>
           </div>
@@ -313,14 +372,14 @@ onBeforeUnmount(() => {
     </nav>
 
     <div v-if="showSkeleton" class="detail-skeleton panel" aria-hidden="true">
-      <div class="detail-skeleton__title shimmer"/>
-      <div class="detail-skeleton__line shimmer"/>
-      <div class="detail-skeleton__line shimmer"/>
-      <div class="detail-skeleton__line detail-skeleton__line--short shimmer"/>
+      <div class="detail-skeleton__title diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line diary-skeleton-shimmer"/>
+      <div class="detail-skeleton__line detail-skeleton__line--short diary-skeleton-shimmer"/>
       <div class="detail-skeleton__meta">
-        <span class="detail-skeleton__pill shimmer"/>
-        <span class="detail-skeleton__pill shimmer"/>
-        <span class="detail-skeleton__pill shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
+        <span class="detail-skeleton__pill diary-skeleton-shimmer"/>
       </div>
     </div>
 
@@ -328,7 +387,7 @@ onBeforeUnmount(() => {
       <div class="detail-heading">
         <div class="detail-heading__main">
           <h1 class="detail-title" v-formatted-text="diary.title ?? formatDateLabel(diary.date)"/>
-          <router-link v-if="canEdit" :to="diaryEditLink()" class="detail-edit-link">编辑日记</router-link>
+          <router-link v-if="canEdit" :to="diaryEditLink()" class="detail-edit-link"><img :src="writingIcon" alt="" />{{ language === 'tc' ? '編輯日記' : '编辑日记' }}</router-link>
         </div>
       </div>
 
@@ -336,7 +395,8 @@ onBeforeUnmount(() => {
         <div
             v-if="diary.content"
             class="content-block__body content-block__body--article"
-            v-diary-body-style="diary.content"
+            v-diary-body-style="diaryBody"
+            @click="openImagePreview"
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent"/>
       </section>
@@ -351,6 +411,12 @@ onBeforeUnmount(() => {
 
 
     <div v-else class="empty-box panel" v-formatted-text="text.notFound"/>
+
+    <Teleport to="body">
+      <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown.esc="closeImagePreview" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
+        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.element.src" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
+      </div>
+    </Teleport>
 
 
   </div>
@@ -370,20 +436,9 @@ onBeforeUnmount(() => {
 }
 
 .detail-header__right {
-  position: relative;
   display: flex;
-  width: 100%;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-
-.detail-header__right > .language-switch {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
+  justify-content: flex-end;
 }
 
 .back-link {
@@ -393,11 +448,10 @@ onBeforeUnmount(() => {
 }
 
 .panel {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfefb 100%);
+  background: var(--color-background);
   border: 1px solid var(--color-border-light);
   border-radius: var(--border-radius-lg);
   padding: 30px;
-  box-shadow: var(--shadow-md);
 }
 
 .detail-body {
@@ -426,6 +480,9 @@ onBeforeUnmount(() => {
 
 .detail-edit-link {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 7px 12px;
   border: 1px solid #b9d4bc;
   border-radius: 8px;
@@ -434,6 +491,7 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   text-decoration: none;
 }
+.detail-edit-link img { width: 16px; height: 16px; }
 
 .detail-edit-link:hover {
   background: #e5f3e7;
@@ -460,10 +518,7 @@ onBeforeUnmount(() => {
 }
 
 .detail-meta span {
-  padding: 6px 10px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 999px;
-  background: #f5faf3;
+  padding: 0;
 }
 
 .content-block + .content-block {
@@ -490,6 +545,23 @@ onBeforeUnmount(() => {
 .content-block__body--article {
   font-size: 17px;
 }
+.content-block__body--article :deep(.rt-picture) { margin: 12px 0; text-align: left; }
+.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; width: auto; height: auto; max-width: min(400px, 100%); max-height: 400px; margin: 0; object-fit: contain; cursor: zoom-in; }
+.content-block__body--article :deep(.rt-picture img), .diary-detail-preview__close, .diary-detail-preview__download { user-select: none; -webkit-user-select: none; }
+.diary-detail-preview__close img, .diary-detail-preview__download img { user-select: none; -webkit-user-select: none; pointer-events: none; }
+.content-block__body--article :deep(.rt-picture figcaption) { text-align: left; }
+@media (max-width: 560px) {
+  .content-block__body--article :deep(.rt-picture img) { width: 100%; max-width: 100%; max-height: none; }
+}
+.diary-detail-preview { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; background: rgba(0, 0, 0, .55); }
+.diary-detail-preview__image-wrap { position: relative; width: fit-content; margin: auto; }
+.diary-detail-preview__image-wrap canvas { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; cursor: grab; touch-action: none; }
+.diary-detail-preview__image-wrap canvas:active { cursor: grabbing; }
+.diary-detail-preview__download { position: absolute; z-index: 2; top: -40px; right: 40px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; background: rgba(255, 255, 255, .9); }
+.diary-detail-preview__download img { width: 18px; height: 18px; }
+.diary-detail-preview__image-wrap > img { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; }
+.diary-detail-preview__close { position: absolute; z-index: 1; top: -40px; right: 0; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .9); cursor: pointer; }
+.diary-detail-preview__close img { width: 16px; height: 16px; filter: brightness(0); }
 
 .empty-box {
   color: var(--color-text-light);
@@ -514,93 +586,42 @@ onBeforeUnmount(() => {
 }
 
 .nav-btn {
-  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  gap: 6px;
-  max-width: none;
+  min-width: 0;
   min-height: 66px;
-  justify-content: center;
-  padding: 12px 18px;
-  border: 1px solid #d8e8d3;
-  border-radius: var(--border-radius-lg);
-  background: linear-gradient(145deg, #ffffff 0%, #f2f9f0 100%);
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
   color: var(--color-primary-dark);
   text-decoration: none;
-  box-shadow: 0 5px 14px rgba(46, 125, 50, 0.07);
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color .15s ease;
 }
 
 .nav-btn:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary-light);
-  background: linear-gradient(145deg, #ffffff 0%, #eaf7e7 100%);
-  box-shadow: 0 9px 20px rgba(46, 125, 50, 0.13);
+  border-color: var(--color-primary);
 }
-
-.nav-btn--right {
-  align-items: flex-end;
-  text-align: right;
-}
-
-.nav-btn--disabled {
-  opacity: 0.35;
-  pointer-events: none;
-  background: #f7f9f6;
-  box-shadow: none;
-}
-
-.nav-btn__dir {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.nav-btn__date {
-  display: block;
-  min-height: 1.2em;
-  font-size: 13px;
-  color: var(--color-text-light);
-}
+.nav-btn img { flex: none; width: 16px; height: 16px; transition: transform .18s ease; }
+.nav-btn:hover img { transform: translateX(-3px); }
+.nav-btn--right:hover img { transform: translateX(3px); }
+.nav-btn--right { justify-content: flex-end; text-align: right; }
+.nav-btn--disabled { opacity: .35; pointer-events: none; }
+.nav-btn__text { display: flex; flex-direction: column; gap: 5px; }
+.nav-btn__dir { font-size: 14px; font-weight: 600; }
+.nav-btn__date { color: var(--color-text-light); font-size: 13px; }
 
 .view-switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.view-switch__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-light);
 }
 
 .view-switch__track {
-  position: relative;
   display: inline-grid;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #f7fbf5 0%, #eaf4e5 100%);
-  border: 1px solid #d8e7d1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-.view-switch__track::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
-  border-radius: 999px;
-  background: linear-gradient(135deg, #5aa84d 0%, #2f7d43 100%);
-  box-shadow: 0 8px 18px rgba(46, 125, 67, 0.22);
-  transform: translateX(calc(var(--active-index) * (100% + 4px)));
-  transition: transform 0.28s ease;
+  gap: 8px;
 }
 
 .view-switch__track.is-2 {
@@ -612,31 +633,33 @@ onBeforeUnmount(() => {
 }
 
 .view-switch__option {
-  position: relative;
-  z-index: 1;
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--color-background);
   color: var(--color-text-light);
-  min-width: 68px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  min-width: 76px;
+  padding: 7px 12px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.22s ease, transform 0.22s ease;
+  transition: color .15s ease, background .15s ease;
 }
 
 .view-switch__option.active {
-  color: #fff;
+  color: var(--color-primary-dark);
+  background: #eaf4e9;
 }
+.view-switch__icon { width: 16px; height: 16px; }
 
 .view-switch__option:hover {
   color: var(--color-primary-dark);
-  transform: translateY(-1px);
 }
 
 .view-switch__option.active:hover {
-  color: #fff;
-  transform: none;
+  color: var(--color-primary-dark);
 }
 
 .detail-body--enter {
@@ -652,8 +675,7 @@ onBeforeUnmount(() => {
 .detail-skeleton__title,
 .detail-skeleton__line,
 .detail-skeleton__pill {
-  border-radius: 999px;
-  background: #e7efe2;
+  border-radius: 4px;
 }
 
 .detail-skeleton__title {
@@ -682,26 +704,6 @@ onBeforeUnmount(() => {
   height: 14px;
 }
 
-.shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-  animation: diarySkeletonShimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes diarySkeletonShimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 @keyframes diaryDetailRiseIn {
   from {
     opacity: 0;
@@ -712,13 +714,6 @@ onBeforeUnmount(() => {
     transform: translateY(0);
   }
 }
-/*
-@media (max-width: 480px) {
-  .nav-btn__date {
-    display: none;
-  }
-}
-*/
 @media (max-width: 480px) {
   .panel {
     padding: 15px;
@@ -746,18 +741,13 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
   }
 
-  .detail-header__right > .language-switch {
-    position: static;
-    align-self: flex-end;
-    transform: none;
-  }
 }
 
 @media (max-width: 560px) {
   .detail-header__right {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
   }
 
@@ -779,8 +769,5 @@ onBeforeUnmount(() => {
     padding-inline: 4px;
   }
 
-  .detail-header__right > .language-switch {
-    flex: 0 0 auto;
-  }
 }
 </style>

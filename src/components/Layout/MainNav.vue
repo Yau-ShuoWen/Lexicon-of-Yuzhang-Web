@@ -32,7 +32,7 @@ const navItems = computed(() => {
     { id: 'dictionary', label: 'nav.dictionary', to: pathTo('dict/home'), asset: 'search' },
   ]
   if (navMode.value === 'blog') return [
-    { id: 'blog-home', label: 'nav.ysw_home', to: pathTo('ysw/home'), icon: House },
+    { id: 'blog-home', label: 'nav.ysw_home', to: pathTo('ysw/home') },
     { id: 'alphabet', label: 'personal.alphabet_table.title_short', to: pathTo('ysw/alphabet'), icon: Grid },
     { id: 'diary', label: 'nav.diary', to: pathTo('ysw/diary'), icon: Notebook },
     { id: 'dictionary', label: 'nav.dictionary', to: pathTo('dict/home'), asset: 'search' },
@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
         <router-link v-else :to="item.to" class="nav-link" :class="{ 'nav-link--active': selectedTab === item.id }" :aria-current="routeTab === item.id ? 'page' : undefined" @click="moreOpen = false">
           <span v-formatted-text="$t(item.label)" />
           <span v-if="item.asset" class="nav-icon nav-icon--asset" :class="`nav-icon--${item.asset}`" aria-hidden="true" />
-          <component :is="item.icon" v-else class="nav-icon" aria-hidden="true" />
+          <component :is="item.icon" v-else-if="item.icon" class="nav-icon" aria-hidden="true" />
         </router-link>
       </template>
     </nav>

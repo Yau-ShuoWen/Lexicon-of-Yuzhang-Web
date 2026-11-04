@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { useI18n } from 'vue-i18n'
 import TextDiffEditor from '../../components/Compare/TextDiffEditor.vue'
+import RichTextImageTextarea from '../../components/Text/RichTextImageTextarea.vue'
 import { confirm } from '../../services/confirmService.js'
 import { showError, showSuccess } from '../../services/ToastService.js'
 import { hasPermission } from '../../utils/auth.js'
 import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 import { getDiaryForEdit, updateDiary } from './diaryApi.js'
+import './diarySkeleton.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,16 +19,26 @@ const diaryId = computed(() => String(route.params.id || ''))
 const canEdit = computed(() => hasPermission('diary.edit'))
 
 const visibilityOptions = computed(() => [
-  { value: 'private', label: t('diary.editor.private'), hint: t('diary.editor.private_hint') },
-  { value: 'friend', label: t('diary.editor.friend'), hint: t('diary.editor.friend_hint') },
-  { value: 'stranger', label: t('diary.editor.stranger'), hint: t('diary.editor.stranger_hint') }
+  { value: 'private', label: t('diary.editor.private') },
+  { value: 'friend', label: t('diary.editor.friend') },
+  { value: 'stranger', label: t('diary.editor.stranger') }
 ])
 
 const form = ref(null)
 const loading = ref(true)
 const saving = ref(false)
-const activePublicModal = ref(null)
+const imageUploading = ref(false)
+const activeVersion = ref('private')
+const editorMode = ref('plain')
+const dragPosition = ref(0)
+const isDraggingVisibility = ref(false)
 const loadError = ref('')
+const visibilityLevels = ['private', 'friend', 'stranger']
+const visibilityIndex = computed({
+  get: () => Math.max(0, visibilityLevels.indexOf(form.value?.visibility || 'private')),
+  set: index => setVisibility(visibilityLevels[Number(index)] || 'private')
+})
+const availableVersions = computed(() => visibilityOptions.value.slice(0, visibilityIndex.value + 1))
 
 const friendEditorValue = computed({
   get: () => form.value?.forFriend ?? '',
@@ -46,14 +58,6 @@ const currentVisibility = computed(() => form.value?.visibility || 'private')
 const currentVisibilityLabel = computed(() => (
   visibilityOptions.value.find(item => item.value === currentVisibility.value)?.label || t('diary.editor.private')
 ))
-const showFriendVersion = computed(() => Boolean(
-  form.value && (currentVisibility.value !== 'private' || form.value.forFriend !== null)
-))
-const showStrangerVersion = computed(() => Boolean(
-  form.value && (currentVisibility.value === 'stranger' || form.value.forStranger !== null)
-))
-const canEditFriendVersion = computed(() => currentVisibility.value !== 'private')
-const canEditStrangerVersion = computed(() => currentVisibility.value === 'stranger')
 const fieldsToClearOnSave = computed(() => {
   if (!form.value) return []
 
@@ -77,6 +81,7 @@ function normalizeForm(value) {
     date: value?.date ?? '',
     sort: value?.sort ?? 1,
     content: normalizeRichTextSyntax(value?.content ?? ''),
+    images: value?.images ?? {},
     forFriend: value?.forFriend ?? null,
     forStranger: value?.forStranger ?? null,
     startDate: value?.startDate ?? '',
@@ -96,6 +101,9 @@ async function loadDiary() {
   loadError.value = ''
   try {
     form.value = normalizeForm(await getDiaryForEdit(diaryId.value))
+    dragPosition.value = visibilityIndex.value
+    activeVersion.value = 'private'
+    editorMode.value = 'plain'
   } catch (error) {
     console.error(error)
     loadError.value = error.message || t('diary.editor.load_failed')
@@ -105,45 +113,42 @@ async function loadDiary() {
   }
 }
 
-function changeVisibility() {
+function setVisibility(value) {
   if (!form.value) return
-
-  if (form.value.visibility === 'private') {
-    return
+  form.value.visibility = value
+  if (visibilityLevels.indexOf(activeVersion.value) > visibilityLevels.indexOf(value)) {
+    activeVersion.value = value
   }
-
-  if (form.value.forFriend === null || form.value.forFriend === undefined) {
+  if (value !== 'private' && form.value.forFriend == null) {
     form.value.forFriend = ''
   }
-
-  if (form.value.visibility === 'friend') {
-    return
-  }
-
-  if (form.value.forStranger === null || form.value.forStranger === undefined) {
+  if (value === 'stranger' && form.value.forStranger == null) {
     form.value.forStranger = ''
   }
 }
 
-function openPublicEditor(version) {
-  if (currentVisibility.value === 'private') return
-  if (version === 'stranger' && currentVisibility.value !== 'stranger') return
-  activePublicModal.value = version
+function moveVisibility(event) {
+  dragPosition.value = Number(event.target.value)
+  setVisibility(visibilityLevels[Math.round(dragPosition.value)])
 }
 
-function closePublicEditor() {
-  if (!saving.value) activePublicModal.value = null
+function finishVisibilityDrag() {
+  isDraggingVisibility.value = false
+  dragPosition.value = visibilityIndex.value
 }
 
-function publicEmptyLabels() {
-  if (!form.value || currentVisibility.value === 'private') return []
+function stepVisibility(event) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const next = Math.max(0, Math.min(2, visibilityIndex.value + (event.key === 'ArrowRight' ? 1 : -1)))
+  setVisibility(visibilityLevels[next])
+  dragPosition.value = next
+}
 
-  const labels = []
-  if (!String(form.value.forFriend ?? '').trim()) labels.push(t('diary.editor.friend_version'))
-  if (currentVisibility.value === 'stranger' && !String(form.value.forStranger ?? '').trim()) {
-    labels.push(t('diary.editor.stranger_version'))
-  }
-  return labels
+function selectVersion(value) {
+  if (!availableVersions.value.some(option => option.value === value)) return
+  activeVersion.value = value
+  editorMode.value = 'plain'
 }
 
 function buildPayload() {
@@ -162,6 +167,10 @@ function buildPayload() {
 
 async function saveDiary() {
   if (!form.value || saving.value) return
+  if (imageUploading.value || form.value.content.includes('⟦图片上传中:')) {
+    showError('图片仍在上传，请稍后保存')
+    return
+  }
 
   if (!form.value.date) {
     showError(t('diary.editor.date_required'))
@@ -171,12 +180,24 @@ async function saveDiary() {
     showError(t('diary.editor.sort_invalid'))
     return
   }
-  if (form.value.content === null || form.value.content === undefined) {
+  if (!String(form.value.content ?? '').trim()) {
     showError(t('diary.editor.content_required'))
+    activeVersion.value = 'private'
     return
   }
 
-  const emptyLabels = publicEmptyLabels()
+  if (visibilityIndex.value >= 1 && !String(form.value.forFriend ?? '').trim()) {
+    showError(t('diary.editor.version_required', { label: t('diary.editor.friend_version') }))
+    activeVersion.value = 'friend'
+    editorMode.value = 'plain'
+    return
+  }
+  if (visibilityIndex.value >= 2 && !String(form.value.forStranger ?? '').trim()) {
+    showError(t('diary.editor.version_required', { label: t('diary.editor.stranger_version') }))
+    activeVersion.value = 'stranger'
+    editorMode.value = 'plain'
+    return
+  }
   if (fieldsToClearOnSave.value.length) {
     const shouldClear = await confirm({
       title: t('diary.editor.lower_confirm_title'),
@@ -189,26 +210,10 @@ async function saveDiary() {
     if (!shouldClear) return
   }
 
-  if (emptyLabels.length) {
-    const shouldSubmitEmpty = await confirm({
-      title: t('diary.editor.empty_public_title'),
-      message: t('diary.editor.empty_public', {labels: emptyLabels.join('、')}),
-      actions: [
-        { key: true, text: t('diary.editor.submit_anyway'), class: 'dev-btn-small dev-add-btn' },
-        { key: false, text: t('diary.editor.return_edit'), class: 'dev-btn-small dev-normal-button' }
-      ]
-    })
-    if (!shouldSubmitEmpty) {
-      activePublicModal.value = emptyLabels.includes(t('diary.editor.friend_version')) ? 'friend' : 'stranger'
-      return
-    }
-  }
-
   saving.value = true
   try {
     const saved = await updateDiary(diaryId.value, buildPayload())
     form.value = normalizeForm(saved)
-    activePublicModal.value = null
     showSuccess(t('diary.editor.save_success'))
   } catch (error) {
     console.error(error)
@@ -245,7 +250,7 @@ onMounted(loadDiary)
           v-if="form"
           class="dev-add-btn dev-btn-small"
           type="button"
-          :disabled="saving"
+          :disabled="saving || imageUploading"
           @click="saveDiary"
         >
           {{ saving ? $t('diary.editor.saving') : $t('diary.editor.save') }}
@@ -253,7 +258,21 @@ onMounted(loadDiary)
       </div>
     </div>
 
-    <div v-if="loading" class="diary-editor-state panel">{{ $t('diary.editor.loading') }}</div>
+    <div v-if="loading" class="diary-editor-skeleton" aria-hidden="true">
+      <section class="diary-editor-skeleton__panel panel">
+        <div class="diary-meta-grid">
+          <div v-for="item in 4" :key="item" class="diary-editor-skeleton__field">
+            <span class="diary-editor-skeleton__label diary-skeleton-shimmer" />
+            <span class="diary-editor-skeleton__input diary-skeleton-shimmer" />
+          </div>
+        </div>
+      </section>
+      <section class="diary-editor-skeleton__panel panel">
+        <div class="diary-editor-skeleton__line diary-skeleton-shimmer" />
+        <div class="diary-editor-skeleton__line diary-skeleton-shimmer" />
+        <div class="diary-editor-skeleton__line diary-editor-skeleton__line--short diary-skeleton-shimmer" />
+      </section>
+    </div>
     <div v-else-if="loadError" class="diary-editor-state panel">
       <strong>{{ loadError }}</strong>
       <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">{{ $t('diary.editor.back') }}</button>
@@ -280,59 +299,18 @@ onMounted(loadDiary)
           </label>
         </div>
 
-        <div class="diary-settings-row">
-          <div class="visibility-setting">
-            <div class="visibility-options" role="radiogroup" :aria-label="$t('diary.editor.visibility')">
-              <label
-                v-for="option in visibilityOptions"
-                :key="option.value"
-                class="visibility-option"
-                :class="{ active: form.visibility === option.value }"
-              >
-                <input v-model="form.visibility" type="radio" :value="option.value" @change="changeVisibility" />
-                <span>
-                  <strong>{{ option.label }}</strong>
-                  <small>{{ option.hint }}</small>
-                </span>
-              </label>
+        <div class="diary-version-controls">
+          <div class="diary-visibility">
+            <div class="diary-visibility__arrows" :aria-label="$t('diary.editor.select_version')">
+              <button v-for="(option, index) in availableVersions" :key="option.value" type="button" class="diary-visibility__arrow" :class="{ 'is-selected': activeVersion === option.value }" :style="{ left: ['18px', '50%', 'calc(100% - 18px)'][index] }" :aria-label="`${$t('diary.editor.select_version')}：${option.label}`" :aria-pressed="activeVersion === option.value" @click="selectVersion(option.value)" />
             </div>
-          </div>
-
-          <div class="diary-public-version-setting">
-            <div v-if="!showFriendVersion && !showStrangerVersion" class="public-empty-state">
-              {{ $t('diary.editor.private_notice') }}
+            <div class="diary-visibility__track" :class="{ 'is-dragging': isDraggingVisibility }">
+              <span class="diary-visibility__progress" :style="{ width: dragPosition === 0 ? '0' : `calc(36px + (100% - 36px) * ${dragPosition / 2})` }" />
+              <span v-for="index in 3" :key="index" class="diary-visibility__tick" :class="{ 'is-reached': dragPosition >= index - 1 }" :style="{ left: ['18px', '50%', 'calc(100% - 18px)'][index - 1] }" />
+              <input :value="dragPosition" type="range" min="0" max="2" step="0.01" :aria-label="$t('diary.editor.visibility')" :aria-valuetext="currentVisibilityLabel" @pointerdown="isDraggingVisibility = true" @input="moveVisibility" @change="finishVisibilityDrag" @pointercancel="finishVisibilityDrag" @keydown="stepVisibility" />
             </div>
-            <div v-else class="public-version-summary">
-              <div v-if="showFriendVersion" class="public-version-summary__item">
-                <span>{{ $t('diary.editor.friend_version') }}</span>
-                <strong :class="{ 'is-empty': !String(form.forFriend ?? '').trim() }">
-                  {{ String(form.forFriend ?? '').trim() ? $t('diary.editor.filled') : $t('diary.editor.empty') }}
-                </strong>
-                <em v-if="!canEditFriendVersion" class="public-version-summary__pending">{{ $t('diary.editor.pending') }}</em>
-                <button
-                  v-if="canEditFriendVersion"
-                  class="dev-normal-button dev-btn-small"
-                  type="button"
-                  @click="openPublicEditor('friend')"
-                >
-                  {{ $t('diary.editor.edit') }}
-                </button>
-              </div>
-              <div v-if="showStrangerVersion" class="public-version-summary__item">
-                <span>{{ $t('diary.editor.stranger_version') }}</span>
-                <strong :class="{ 'is-empty': !String(form.forStranger ?? '').trim() }">
-                  {{ String(form.forStranger ?? '').trim() ? $t('diary.editor.filled') : $t('diary.editor.empty') }}
-                </strong>
-                <em v-if="!canEditStrangerVersion" class="public-version-summary__pending">{{ $t('diary.editor.pending') }}</em>
-                <button
-                  v-if="canEditStrangerVersion"
-                  class="dev-normal-button dev-btn-small"
-                  type="button"
-                  @click="openPublicEditor('stranger')"
-                >
-                  {{ $t('diary.editor.edit') }}
-                </button>
-              </div>
+            <div class="diary-visibility__labels" aria-hidden="true">
+              <span v-for="option in visibilityOptions" :key="option.value" :class="{ 'is-editing': activeVersion === option.value }">{{ option.label }}</span>
             </div>
           </div>
         </div>
@@ -340,49 +318,33 @@ onMounted(loadDiary)
       </section>
 
       <section class="diary-editor-panel panel">
-        <textarea
+        <RichTextImageTextarea
+          v-if="activeVersion === 'private'"
           v-model="form.content"
-          class="diary-main-input"
-          rows="18"
+          :owner-id="diaryId"
+          :images="form.images"
           :placeholder="$t('diary.editor.content_placeholder')"
-          spellcheck="false"
-        ></textarea>
-      </section>
-
-    </div>
-
-    <div v-if="activePublicModal && form" class="diary-modal-backdrop" @click.self="closePublicEditor">
-      <section
-        class="diary-public-modal"
-        role="dialog"
-        aria-modal="true"
-        :aria-labelledby="`public-editor-title-${activePublicModal}`"
-      >
-        <header class="diary-modal-header">
-          <div>
-            <h2 :id="`public-editor-title-${activePublicModal}`">
-              {{ activePublicModal === 'friend' ? `${$t('diary.editor.edit')}${$t('diary.editor.friend_version')}` : `${$t('diary.editor.edit')}${$t('diary.editor.stranger_version')}` }}
-            </h2>
+          @upload-state-change="imageUploading = $event"
+          @image-added="image => form.images = { ...form.images, [image.id]: image }"
+        />
+        <template v-else>
+          <div class="diary-version-editor__head">
+            <h2>{{ activeVersion === 'friend' ? $t('diary.editor.friend_version') : $t('diary.editor.stranger_version') }}</h2>
+            <div class="diary-version-editor__modes" role="group" :aria-label="$t('diary.editor.edit_mode')">
+              <button type="button" :class="{ active: editorMode === 'plain' }" @click="editorMode = 'plain'">{{ $t('diary.editor.plain_edit') }}</button>
+              <button type="button" :class="{ active: editorMode === 'compare' }" @click="editorMode = 'compare'">{{ $t('diary.editor.compare_edit') }}</button>
+            </div>
           </div>
-          <button
-            class="diary-modal-close"
-            type="button"
-            :disabled="saving"
-            :aria-label="$t('diary.editor.close_version')"
-            @click="closePublicEditor"
-          >×</button>
-        </header>
-
-        <div class="diary-modal-body">
+          <textarea v-if="editorMode === 'plain' && activeVersion === 'friend'" v-model="friendEditorValue" class="diary-version-editor__textarea ordinary-input" :aria-label="$t('diary.editor.friend_version')" />
+          <textarea v-else-if="editorMode === 'plain'" v-model="strangerEditorValue" class="diary-version-editor__textarea ordinary-input" :aria-label="$t('diary.editor.stranger_version')" />
           <TextDiffEditor
-            v-if="activePublicModal === 'friend'"
+            v-else-if="activeVersion === 'friend'"
             v-model:source="form.content"
             v-model:target="friendEditorValue"
             :source-label="$t('diary.editor.main_version')"
             :target-label="$t('diary.editor.friend_version')"
             compare-url="/api/diary/edit/diff"
           />
-
           <TextDiffEditor
             v-else
             v-model:source="form.content"
@@ -391,10 +353,11 @@ onMounted(loadDiary)
             :target-label="$t('diary.editor.stranger_version')"
             compare-url="/api/diary/edit/diff"
           />
-        </div>
-
+        </template>
       </section>
+
     </div>
+
   </main>
 </template>
 
@@ -405,25 +368,11 @@ onMounted(loadDiary)
   padding-bottom: 48px;
 }
 
-.diary-editor-header,
-.diary-panel-title,
-.diary-modal-header,
-.public-version-summary,
-.visibility-setting {
+.diary-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-}
-
-.diary-settings-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 18px;
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid #e2ebe3;
 }
 
 .diary-editor-header {
@@ -431,33 +380,13 @@ onMounted(loadDiary)
   margin-bottom: 20px;
 }
 
-.diary-editor-header h1,
-.diary-panel-title h2,
-.diary-modal-header h2 {
+.diary-editor-header h1 {
   margin: 0;
   color: var(--color-primary-dark, #24582b);
 }
 
 .diary-editor-header h1 {
   font-size: clamp(1.45rem, 2.2vw, 2rem);
-}
-
-.diary-editor-kicker,
-.diary-editor-section-kicker {
-  margin: 0 0 7px;
-  color: var(--color-primary, #2e7d32);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
-.diary-editor-hint,
-.diary-section-hint,
-.visibility-setting p,
-.diary-modal-header p {
-  margin: 7px 0 0;
-  color: var(--color-text-light, #6d7480);
-  font-size: 0.88rem;
 }
 
 .diary-editor-header-actions {
@@ -476,14 +405,20 @@ onMounted(loadDiary)
   color: var(--color-text-light, #6d7480);
 }
 
+.diary-editor-skeleton { display: flex; flex-direction: column; gap: 16px; }
+.diary-editor-skeleton__field { display: flex; flex-direction: column; gap: 7px; }
+.diary-editor-skeleton__label,
+.diary-editor-skeleton__input,
+.diary-editor-skeleton__line { display: block; border-radius: 4px; }
+.diary-editor-skeleton__label { width: 72px; height: 14px; }
+.diary-editor-skeleton__input { width: 100%; height: 40px; }
+.diary-editor-skeleton__line { width: 100%; height: 17px; margin-bottom: 16px; }
+.diary-editor-skeleton__line--short { width: 70%; }
+
 .diary-editor-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.diary-panel-title {
-  align-items: flex-start;
 }
 
 .diary-meta-grid {
@@ -502,8 +437,7 @@ onMounted(loadDiary)
   font-weight: 600;
 }
 
-.ordinary-input,
-.diary-main-input {
+.ordinary-input {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid #cad8cc;
@@ -519,214 +453,57 @@ onMounted(loadDiary)
   padding: 7px 10px;
 }
 
-.ordinary-input:focus,
-.diary-main-input:focus {
+.ordinary-input:focus {
   border-color: var(--color-primary, #2e7d32);
   box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
 }
 
-.visibility-setting {
-  min-width: 0;
-  align-items: flex-start;
-}
-
-.diary-public-version-setting {
-  min-width: 0;
-}
-
-.diary-field-label {
-  display: block;
-  color: var(--color-text, #30353b);
-  font-size: 0.84rem;
-  font-weight: 700;
-}
-
-.visibility-options {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.visibility-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 122px;
-  padding: 9px 12px;
-  border: 1px solid #d1ddd3;
-  border-radius: 10px;
-  background: #fafdfb;
-  color: #59636a;
-  cursor: pointer;
-}
-
-.visibility-option.active {
-  border-color: #8eb994;
-  background: #eef8ef;
-  color: #24582b;
-}
-
-.visibility-option input {
-  accent-color: var(--color-primary, #2e7d32);
-}
-
-.visibility-option span {
+.diary-version-controls {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.visibility-option small {
-  color: #7d8780;
-  font-size: 0.7rem;
-  font-weight: 400;
-}
-
-.version-badge {
-  padding: 5px 10px;
-  border-radius: 999px;
-  color: #526276;
-  background: #edf2f7;
-  font-size: 0.78rem;
-}
-
-.version-badge--private {
-  color: #2d6e38;
-  background: #eaf6ed;
-}
-
-.diary-main-input {
-  display: block;
-  min-height: 360px;
-  margin-top: 16px;
-  padding: 14px;
-  resize: vertical;
-  font-size: 16px;
-  white-space: pre-wrap;
-}
-
-.public-version-panel {
-  padding-bottom: 20px;
-}
-
-.public-empty-state {
-  margin-top: 0;
-  padding: 16px;
-  border: 1px dashed #cbdccc;
-  border-radius: 9px;
-  color: #637267;
-  background: #f7fbf7;
-}
-
-.public-empty-state code {
-  color: #356a3b;
-}
-
-.public-version-summary {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  margin-top: 0;
-}
-
-.public-version-summary__item {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: #f5f8f5;
-  color: #56625a;
-  font-size: 0.82rem;
+  gap: 10px;
+  width: min(300px, 100%);
+  margin-top: 24px;
+  margin-left: auto;
+  padding-top: 24px;
 }
 
-.public-version-summary__item strong {
-  color: #2e7d32;
-}
+.diary-visibility { width: 100%; margin-top: 0; }
+.diary-visibility__arrows { position: relative; height: 24px; margin-bottom: 6px; }
+.diary-visibility__arrow { position: absolute; top: 0; width: 28px; height: 24px; padding: 2px 4px; border: 0; background: transparent; color: #a3aca4; cursor: pointer; transform: translateX(-50%); }
+.diary-visibility__arrow::before { content: ''; display: block; width: 20px; height: 20px; background: currentColor; -webkit-mask: url('../../assets/icons/to-down.svg') center / contain no-repeat; mask: url('../../assets/icons/to-down.svg') center / contain no-repeat; }
+.diary-visibility__arrow:hover { color: var(--color-primary-dark); }
+.diary-visibility__arrow.is-selected { color: var(--color-primary); }
+.diary-visibility__track { position: relative; height: 36px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 999px; background: #e6ebe6; }
+.diary-visibility__progress { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: #9bcda0; transition: width .15s ease; }
+.diary-visibility__track.is-dragging .diary-visibility__progress { transition: none; }
+.diary-visibility__tick { position: absolute; top: 50%; z-index: 1; width: 6px; height: 6px; border-radius: 50%; background: #97a69a; transform: translate(-50%, -50%); pointer-events: none; }
+.diary-visibility__tick.is-reached { background: #f5fff5; }
+.diary-visibility input[type="range"] { position: absolute; z-index: 2; inset: 0; display: block; width: 100%; height: 100%; margin: 0; appearance: none; background: transparent; cursor: pointer; }
+.diary-visibility input[type="range"]::-webkit-slider-thumb { width: 34px; height: 34px; appearance: none; border: 2px solid var(--color-primary); border-radius: 50%; background: #fff; }
+.diary-visibility input[type="range"]::-moz-range-thumb { width: 30px; height: 30px; border: 2px solid var(--color-primary); border-radius: 50%; background: #fff; }
+.diary-visibility__labels { display: flex; justify-content: space-between; margin-top: 10px; color: var(--color-text-light); font-size: .8rem; }
+.diary-visibility__labels .is-editing { color: var(--color-primary-dark); font-weight: 700; }
 
-.public-version-summary__item strong.is-empty {
-  color: #a2671d;
-}
+.diary-version-editor__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.diary-version-editor__head h2 { margin: 0; color: var(--color-primary-dark); font-size: 1.1rem; }
+.diary-version-editor__modes { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--color-border); border-radius: 8px; }
+.diary-version-editor__modes button { padding: 6px 12px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-light); font: inherit; cursor: pointer; }
+.diary-version-editor__modes button.active { background: #e9f3e9; color: var(--color-primary-dark); }
+.diary-version-editor__textarea { display: block; min-height: 420px; padding: 14px; resize: vertical; font: inherit; line-height: 1.7; }
 
-.public-version-summary__pending {
-  color: #a2671d;
-  font-size: 0.74rem;
-  font-style: normal;
-}
-
-.diary-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  background: rgba(20, 38, 24, 0.46);
-  backdrop-filter: blur(5px);
-}
-
-.diary-public-modal {
-  display: flex;
-  flex-direction: column;
-  width: min(1800px, calc(100vw - 24px));
-  max-height: calc(100vh - 24px);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 18px;
-  background: #f5faf6;
-  box-shadow: 0 28px 80px rgba(15, 37, 19, 0.34);
-}
-
-.diary-modal-header {
-  flex: 0 0 auto;
-  padding: 10px 22px;
-}
-
-.diary-modal-header {
-  align-items: flex-start;
-  border-bottom: 1px solid #d7e8d8;
-}
-
-.diary-modal-header h2 {
-  font-size: 1.25rem;
-}
-
-.diary-modal-close {
-  border: 0;
-  background: transparent;
-  color: #6a756d;
-  font-size: 30px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.diary-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-height: 0;
-  padding: 10px 22px;
-  overflow: auto;
-}
 
 @media (max-width: 900px) {
-  .diary-editor-header,
-  .visibility-setting {
+  .diary-editor-header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .diary-settings-row {
-    grid-template-columns: 1fr;
   }
 
   .diary-meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .visibility-options {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 600px) {
@@ -747,30 +524,6 @@ onMounted(loadDiary)
     grid-template-columns: 1fr;
   }
 
-  .visibility-options {
-    grid-template-columns: 1fr;
-  }
-
-  .diary-panel-title,
-  .public-version-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .diary-modal-backdrop {
-    padding: 6px;
-  }
-
-  .diary-public-modal {
-    width: calc(100vw - 12px);
-    max-height: calc(100vh - 12px);
-    border-radius: 13px;
-  }
-
-  .diary-modal-header,
-  .diary-modal-body {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
+  .diary-version-editor__head { align-items: flex-start; flex-direction: column; }
 }
 </style>

@@ -24,6 +24,18 @@ function splitStructuralLines(text) {
 }
 
 function renderLine(line, orderedIndex, context) {
+    const picture = line.match(/^\{p (?:(.*?)=>)?([1-9][0-9]*)}\s*$/)
+    if (picture && context.images) {
+        const caption = picture[1]?.trim() || ''
+        const image = context.images?.[picture[2]]
+        const escape = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        return {
+            html: image?.url
+                ? `<figure class="rt-picture"><img src="${escape(image.url)}" data-image-id="${picture[2]}" alt="${escape(caption)}" loading="lazy">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
+                : '<span class="rt-picture-missing">图片暂时无法显示</span>',
+            orderedIndex: 0, block: true
+        }
+    }
     if (/^[ \t]*-{5,}[ \t]*$/.test(line)) {
         return {html: '<hr class="rt-hr">', orderedIndex: 0, consumesBreak: true}
     }

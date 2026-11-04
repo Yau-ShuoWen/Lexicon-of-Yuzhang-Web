@@ -57,8 +57,14 @@ function renderTag(tag, inner, context, renderInline) {
     if (tag === 'u') {
         const data = splitDisplayTarget(inner, !/^https?:\/\/\S+$/i.test(inner.trim()))
         if (!data) return `{u ${inner}}`
-        const target = /^https?:\/\//i.test(data.target) ? data.target : `https://${data.target}`
-        return `<a href="${target}" target="_blank" rel="noopener noreferrer" class="normal-link">${render(data.display)}</a>`
+        const separator = data.target.indexOf('||')
+        const privateTarget = separator === -1 ? data.target : data.target.slice(0, separator).trim()
+        const publicTarget = separator === -1 ? '' : data.target.slice(separator + 2).trim()
+        if (!privateTarget || (separator !== -1 && !publicTarget)) return `{u ${inner}}`
+        const selectedTarget = separator !== -1 && context.viewMode && context.viewMode !== 'self'
+            ? publicTarget : privateTarget
+        const target = /^https?:\/\//i.test(selectedTarget) ? selectedTarget : `https://${selectedTarget}`
+        return `<a href="${target.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" target="_blank" rel="noopener noreferrer" class="normal-link">${render(data.display)}</a>`
     }
 
     return `{${tag} ${render(inner)}}`

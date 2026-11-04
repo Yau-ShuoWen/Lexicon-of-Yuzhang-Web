@@ -8,6 +8,7 @@ import { closeHistory } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { request } from '../../services/request.js'
 import closeIcon from '../../assets/icons/close.svg'
+import downloadIcon from '../../assets/icons/download.svg'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -20,10 +21,20 @@ const picturePattern = /^\{p (?:(.*?)=>)?([1-9][0-9]*)}$/
 const editor = shallowRef(null)
 const fileInput = ref(null)
 const uploading = ref(false)
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+let uploadCount = 0
+function changeUpload(delta) {
+  uploadCount += delta
+  uploading.value = uploadCount > 0
+  emit('upload-state-change', uploading.value)
+}
 const dragging = ref(false)
 const previewId = ref(null)
 const zoom = ref(1)
 const viewer = ref(null)
+const previewCanvas = ref(null)
+const previewOffset = ref({ x: 0, y: 0 })
+let previewDrag = null
 const recoveredImages = ref({})
 const pendingImages = new Set()
 const retryTimers = new Map()
@@ -151,8 +162,32 @@ async function recoverImage(id, force = false) {
   } catch (error) { console.warn('日记图片无法获取', id, error); scheduleRetry(id) }
   finally { pendingImages.delete(id) }
 }
-function openPreview(id) { previewId.value = id; zoom.value = 1; nextTick(() => viewer.value?.focus()) }
-function closePreview() { previewId.value = null }
+function openPreview(id) {
+  const source = [...document.querySelectorAll('.rich-image-editor__picture')].find(node => node.dataset.imageId === id)?.querySelector('img')
+  if (!source?.naturalWidth) return
+  previewId.value = id
+  zoom.value = 1
+  previewOffset.value = { x: 0, y: 0 }
+  nextTick(() => {
+    const canvas = previewCanvas.value
+    if (canvas) {
+      canvas.width = source.naturalWidth
+      canvas.height = source.naturalHeight
+      canvas.getContext('2d').drawImage(source, 0, 0)
+    }
+    viewer.value?.focus()
+  })
+}
+function closePreview() { previewDrag = null; previewId.value = null }
+function startPreviewDrag(event) {
+  if (event.button !== 0) return
+  previewDrag = { x: event.clientX - previewOffset.value.x, y: event.clientY - previewOffset.value.y }
+  event.currentTarget.setPointerCapture(event.pointerId)
+}
+function movePreviewDrag(event) {
+  if (previewDrag) previewOffset.value = { x: event.clientX - previewDrag.x, y: event.clientY - previewDrag.y }
+}
+function endPreviewDrag() { previewDrag = null }
 function setZoom(value) { zoom.value = Math.min(4, Math.max(.25, value)) }
 const pictures = computed(() => [...props.modelValue.matchAll(/^\{p (?:(.*?)=>)?([1-9][0-9]*)}$/gm)].map(match => ({ id: match[2], caption: match[1] || '' })))
 const activePicture = computed(() => pictures.value.find(picture => picture.id === previewId.value))
@@ -197,8 +232,19 @@ const DiaryImage = Image.extend({
         prepareClipboardImage(dom.dataset.imageId, img.src)
       })
       img.addEventListener('error', () => { dom.classList.remove('rich-image-editor__picture--loaded'); scheduleRetry(dom.dataset.imageId) })
-      dom.addEventListener('dblclick', () => openPreview(dom.dataset.imageId))
-      dom.append(spinner, img)
+      const controls = document.createElement('span')
+      controls.className = 'rich-image-editor__controls'
+      let pictureWidth = 160
+      img.addEventListener('click', () => openPreview(dom.dataset.imageId))
+      for (const [label, action] of [['缩小', () => { pictureWidth = Math.max(80, pictureWidth - 40); dom.style.setProperty('--picture-width', `${pictureWidth}px`) }], ['放大', () => { pictureWidth = Math.min(400, pictureWidth + 40); dom.style.setProperty('--picture-width', `${pictureWidth}px`) }]]) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = label
+        button.addEventListener('mousedown', event => event.preventDefault())
+        button.addEventListener('click', event => { event.stopPropagation(); action() })
+        controls.append(button)
+      }
+      dom.append(spinner, img, controls)
       const update = (nextNode, nextDecorations = []) => {
         if (nextNode.type.name !== 'image') return false
         rangeSelected = nextDecorations.some(decoration => decoration.type?.attrs?.class?.includes('rich-image-editor__picture--selected'))
@@ -232,8 +278,7 @@ function pendingPosition(token) {
   return found
 }
 async function savePastedImage(token, source, alt) {
-  uploading.value = true
-  emit('upload-state-change', true)
+  changeUpload(1)
   try {
     const response = await fetch(source)
     if (!response.ok) throw new Error('图片读取失败')
@@ -258,18 +303,18 @@ async function savePastedImage(token, source, alt) {
     if (position !== null) editor.value.commands.deleteRange({ from: position, to: position + 1 })
     alert(error.message || '粘贴图片失败')
   } finally {
-    uploading.value = false
-    emit('upload-state-change', false)
+    changeUpload(-1)
   }
 }
-async function upload(file) {
-  if (uploading.value || !file || !editor.value) return
+async function upload(file, appendToEnd = false) {
+  if (!file || !editor.value) return
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert('只支持 JPEG、PNG、WebP 图片'); return }
   if (file.size > 10 * 1024 * 1024) { alert('图片不能超过 10 MB'); return }
   const token = `pending:${crypto.randomUUID()}`
-  editor.value.chain().focus().insertContent([{ type: 'image', attrs: { src: '', imageId: token, alt: '' } }, { type: 'paragraph' }]).run()
-  uploading.value = true
-  emit('upload-state-change', true)
+  const insertion = editor.value.chain().focus()
+  if (appendToEnd) insertion.setTextSelection(editor.value.state.doc.content.size)
+  insertion.insertContent([{ type: 'image', attrs: { src: '', imageId: token, alt: '' } }, { type: 'paragraph' }]).run()
+  changeUpload(1)
   try {
     const body = new FormData()
     body.append('file', file)
@@ -286,9 +331,31 @@ async function upload(file) {
     if (position !== null) editor.value.commands.deleteRange({ from: position, to: position + 1 })
     alert(error.message || '图片上传失败')
   } finally {
-    uploading.value = false
-    emit('upload-state-change', false)
+    changeUpload(-1)
     if (fileInput.value) fileInput.value.value = ''
+  }
+}
+async function chooseImage() {
+  if (!/Android/i.test(navigator.userAgent) || typeof window.showOpenFilePicker !== 'function') {
+    fileInput.value?.click()
+    return
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [{ description: '图片', accept: {
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/webp': ['.webp']
+      } }],
+      excludeAcceptAllOption: true
+    })
+    if (handle) await upload(await handle.getFile(), true)
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      console.warn('系统文件选择器无法打开', error)
+      fileInput.value?.click()
+    }
   }
 }
 onMounted(() => {
@@ -388,17 +455,13 @@ watch(() => props.images, images => {
 
 <template>
   <div class="rich-image-editor" :class="{ 'rich-image-editor--dragging': dragging }" @dragover="dragging = true" @dragleave="dragging = false" @drop="dragging = false">
-    <div class="rich-image-editor__head"><span>正文</span><button type="button" :disabled="uploading" @click="fileInput.click()">{{ uploading ? '上传中……' : '上传图片' }}</button></div>
+    <div class="rich-image-editor__head"><span>正文</span><button type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></div>
     <EditorContent :editor="editor" />
-    <div class="rich-image-editor__hint">可在正文中输入文字、复制粘贴或拖入图片；双击图片可预览。</div>
-    <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="upload($event.target.files[0])" />
+    <div class="rich-image-editor__hint">可在正文中输入文字、复制粘贴或拖入图片；点击图片可预览。</div>
+    <input ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile)" />
     <Teleport to="body">
-      <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click.self="closePreview">
-        <div class="diary-image-viewer__panel">
-          <header class="diary-image-viewer__toolbar"><span>图片 {{ pictures.findIndex(picture => picture.id === previewId) + 1 }} / {{ pictures.length }}</span><div class="diary-image-viewer__controls"><button type="button" aria-label="缩小" :disabled="zoom <= .25" @click="setZoom(zoom - .25)">−</button><span>{{ Math.round(zoom * 100) }}%</span><button type="button" aria-label="放大" :disabled="zoom >= 4" @click="setZoom(zoom + .25)">＋</button><button type="button" @click="setZoom(1)">重置</button></div></header>
-          <div class="diary-image-viewer__stage" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))"><div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" /></button><img v-if="activeImage?.url" :src="activeImage.url" :alt="activePicture.caption" :style="{ zoom }" /><div v-else>图片加载中</div></div></div>
-          <footer class="diary-image-viewer__footer"><button type="button" :disabled="pictures.length < 2" @click="movePreview(-1)">上一张</button><a v-if="activeImage?.url" :href="activeImage.url" target="_blank" rel="noopener noreferrer">打开图片 URL</a><button type="button" :disabled="pictures.length < 2" @click="movePreview(1)">下一张</button></footer>
-        </div>
+      <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click.self="closePreview" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
+        <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
       </div>
     </Teleport>
   </div>
@@ -406,15 +469,19 @@ watch(() => props.images, images => {
 
 <style scoped>
 .rich-image-editor { width: 100%; }
+.rich-image-editor__file-input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 .rich-image-editor__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--color-text); font-weight: 600; }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; line-height: 1.55; overflow-wrap: anywhere; outline: none; }
 .rich-image-editor :deep(.rich-image-editor__body:focus) { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
-.rich-image-editor :deep(.rich-image-editor__picture) { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: min(160px, 100%); height: 110px; margin: 8px auto 8px 0; border: 1px solid #b8c8bb; border-radius: 4px; background: #f7faf7; cursor: zoom-in; }
+.rich-image-editor :deep(.rich-image-editor__picture) { position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: min(var(--picture-width, 160px), calc(100% - 55px)); height: calc(var(--picture-width, 160px) * .6875); margin: 8px auto 8px 0; border: 1px solid #b8c8bb; border-radius: 4px; background: #f7faf7; }
+.rich-image-editor :deep(.rich-image-editor__controls) { position: absolute; left: calc(100% + 6px); top: 0; display: flex; flex-direction: column; gap: 4px; }
+.rich-image-editor :deep(.rich-image-editor__controls button) { padding: 3px; font-size: 12px; white-space: nowrap; }
 .rich-image-editor :deep(.rich-image-editor__picture--selected) { border-color: #2f6fed; outline: 2px solid #2f6fed; outline-offset: 2px; background: #eaf1ff; }
-.rich-image-editor :deep(.rich-image-editor__picture img) { display: none; max-width: 148px; max-height: 98px; object-fit: contain; }
+.rich-image-editor :deep(.rich-image-editor__picture img) { display: none; max-width: 100%; max-height: 100%; object-fit: contain; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded img) { display: block; }
+.rich-image-editor :deep(.rich-image-editor__picture img) { cursor: zoom-in; }
 .rich-image-editor :deep(.rich-image-editor__spinner) { width: 22px; height: 22px; border: 2px solid #cbd8cd; border-top-color: var(--color-primary); border-radius: 50%; animation: rich-image-spin .8s linear infinite; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded .rich-image-editor__spinner) { display: none; }
 @keyframes rich-image-spin { to { transform: rotate(360deg); } }
@@ -435,4 +502,12 @@ watch(() => props.images, images => {
 .diary-image-viewer__footer { border-top: 1px solid #454545; }
 .diary-image-viewer__footer a { color: #fff; }
 @media (max-width: 760px) { .diary-image-viewer__toolbar, .diary-image-viewer__footer, .diary-image-viewer__controls { flex-wrap: wrap; } }
+.diary-image-viewer { display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; }
+.diary-image-viewer__image-wrap { position: relative; width: fit-content; margin: auto; }
+.diary-image-viewer__image-wrap canvas { display: block; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; cursor: grab; touch-action: none; }
+.diary-image-viewer__image-wrap canvas:active { cursor: grabbing; }
+.diary-image-viewer .diary-image-viewer__close, .diary-image-viewer__download { position: absolute; z-index: 2; top: -40px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .9); user-select: none; }
+.diary-image-viewer .diary-image-viewer__close { right: 0; }
+.diary-image-viewer__download { right: 40px; }
+.diary-image-viewer__download img { width: 18px; height: 18px; pointer-events: none; }
 </style>

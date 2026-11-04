@@ -448,6 +448,7 @@ export default {
             private: '私人', friend: '亲友', stranger: '公开', private_hint: '只保存私人版本', friend_hint: '保存私人和亲友版本', stranger_hint: '保存私人、亲友和公开版本',
             private_notice: '当前仅保存私人版本。', filled: '已填写', empty: '暂为空', pending: '提交后清除', edit: '编辑', content_placeholder: '在这里编辑完整日记内容……',
             friend_version: '亲友版本', stranger_version: '公开版本', main_version: '私人版本', close_version: '关闭版本编辑窗口',
+            select_version: '编辑版本', edit_mode: '编辑方式', plain_edit: '普通编辑', compare_edit: '对比编辑', version_required: '请先填写{label}',
             saving: '保存中……', save: '保存修改', no_permission: '没有日记编辑权限', load_failed: '加载日记失败', save_success: '日记保存成功', retry: '请稍后重试',
             date_required: '请选择日记日期', sort_invalid: 'sort 必须是大于 0 的整数', content_required: '正文不能为空',
             lower_confirm_title: '确认降低公开范围', lower_confirm: '{labels}将在确认提交后保存为 null，当前内容会被清除。确定继续吗？', clear_submit: '确认提交并清除', return_edit: '返回修改',

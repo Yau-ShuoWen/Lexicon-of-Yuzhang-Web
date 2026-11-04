@@ -6,13 +6,14 @@ const BLOCK = /^:::(style|script)\s*\n([\s\S]*?)\n:::\s*(?:\n|$)/gm
 export function renderDiaryBody(element, source) {
   const refreshImages = source && typeof source === 'object' ? source.refreshImages : null
   const images = source && typeof source === 'object' ? source.images : {}
+  const viewMode = source && typeof source === 'object' ? source.viewMode : 'self'
   source = source && typeof source === 'object' ? source.text : source
   const blocks = []
   const body = String(source ?? '').replace(/\r\n?/g, '\n').replace(BLOCK, (_, type, content) => {
     blocks.push({type, content})
     return ''
   })
-  element.innerHTML = formatRichText(body, images) || ''
+  element.innerHTML = formatRichText(body, images, { viewMode }) || ''
   for (const img of element.querySelectorAll('.rt-picture img[data-image-id]')) {
     img.addEventListener('error', async () => {
       try {

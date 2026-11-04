@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { User, Connection, View } from '@element-plus/icons-vue'
 import diaryBodyStyle from './diaryBodyStyle.js'
 import closeIcon from '../../assets/icons/close.svg'
+import downloadIcon from '../../assets/icons/download.svg'
 import writingIcon from '../../assets/书写.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
@@ -135,18 +136,46 @@ const loading = ref(true)
 const showSkeleton = ref(false)
 const animateDetail = ref(false)
 const diary = ref(null)
+const diaryBody = computed(() => ({ text: diary.value?.content, images: diary.value?.images, refreshImages: refreshDiaryImages, viewMode: viewMode.value }))
 const previewImage = ref(null)
+const previewCanvas = ref(null)
 const previewZoom = ref(1)
+const previewOffset = ref({ x: 0, y: 0 })
+let previewDrag = null
+function startPreviewDrag(event) {
+  if (event.button !== 0) return
+  previewDrag = { x: event.clientX - previewOffset.value.x, y: event.clientY - previewOffset.value.y }
+  event.currentTarget.setPointerCapture(event.pointerId)
+}
+function movePreviewDrag(event) {
+  if (!previewDrag) return
+  previewOffset.value = { x: event.clientX - previewDrag.x, y: event.clientY - previewDrag.y }
+}
+function endPreviewDrag() { previewDrag = null }
 const previewDialog = ref(null)
 function openImagePreview(event) {
   const image = event.target.closest?.('.rt-picture img')
   if (!image) return
-  previewImage.value = { src: image.src, alt: image.alt }
+  previewImage.value = { element: image }
   previewZoom.value = 1
-  nextTick(() => previewDialog.value?.focus())
+  previewOffset.value = { x: 0, y: 0 }
+  nextTick(() => {
+    const canvas = previewCanvas.value
+    if (canvas) {
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      canvas.getContext('2d').drawImage(image, 0, 0)
+    }
+    previewDialog.value?.focus()
+  })
 }
-function closeImagePreview() { previewImage.value = null }
-function changePreviewZoom(step) { previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value + step)) }
+function closeImagePreview() {
+  previewDrag = null
+  previewImage.value = null
+}
+function changePreviewZoom(step) {
+  previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value + step))
+}
 const nearby = ref({prev: null, next: null})
 let skeletonTimer = null
 let detailAnimationTimer = null
@@ -236,11 +265,10 @@ useHead({
 
 function startLoading() {
   loading.value = true
-  diary.value = null
   showSkeleton.value = false
   clearTimeout(skeletonTimer)
   skeletonTimer = setTimeout(() => {
-    if (loading.value) {
+    if (loading.value && !diary.value) {
       showSkeleton.value = true
     }
   }, 180)
@@ -251,10 +279,12 @@ function stopLoading() {
   showSkeleton.value = false
   clearTimeout(skeletonTimer)
   animateDetail.value = false
-  clearTimeout(detailAnimationTimer)
-  detailAnimationTimer = setTimeout(() => {
-    animateDetail.value = true
-  }, 0)
+  cancelAnimationFrame(detailAnimationTimer)
+  nextTick(() => {
+    detailAnimationTimer = requestAnimationFrame(() => {
+      animateDetail.value = true
+    })
+  })
 }
 
 async function loadDiary() {
@@ -264,12 +294,15 @@ async function loadDiary() {
     const entry = diaryId.value
         ? await getDiaryById(language.value, diaryId.value, requestedView.value)
         : null
-    await preloadDiaryImages(entry)
     if (sequence !== loadSequence) return
     diary.value = entry
-    nearby.value = diaryId.value
-        ? await getNearbyDiaries(diaryId.value, requestedView.value)
-        : {prev: null, next: null}
+    stopLoading()
+    preloadDiaryImages(entry)
+    if (diaryId.value) {
+      getNearbyDiaries(diaryId.value, requestedView.value).then(result => {
+        if (sequence === loadSequence) nearby.value = result
+      }).catch(error => console.warn('相邻日记加载失败', error))
+    }
   } catch (error) {
     if (sequence !== loadSequence) return
     console.error(error)
@@ -278,7 +311,7 @@ async function loadDiary() {
     nearby.value = {prev: null, next: null}
   }
   finally {
-    if (sequence === loadSequence) stopLoading()
+    if (sequence === loadSequence && loading.value) stopLoading()
   }
 }
 
@@ -295,7 +328,7 @@ watch(
 
 onBeforeUnmount(() => {
   clearTimeout(skeletonTimer)
-  clearTimeout(detailAnimationTimer)
+  cancelAnimationFrame(detailAnimationTimer)
 })
 </script>
 
@@ -362,8 +395,8 @@ onBeforeUnmount(() => {
         <div
             v-if="diary.content"
             class="content-block__body content-block__body--article"
-            v-diary-body-style="{ text: diary.content, images: diary.images, refreshImages: refreshDiaryImages }"
-            @dblclick="openImagePreview"
+            v-diary-body-style="diaryBody"
+            @click="openImagePreview"
         />
         <div v-else class="empty-box" v-formatted-text="text.noContent"/>
       </section>
@@ -381,7 +414,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
       <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown.esc="closeImagePreview" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
-        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" /></button><img :src="previewImage.src" :alt="previewImage.alt" :style="{ zoom: previewZoom }" /></div>
+        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.element.src" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
       </div>
     </Teleport>
 
@@ -513,13 +546,19 @@ onBeforeUnmount(() => {
   font-size: 17px;
 }
 .content-block__body--article :deep(.rt-picture) { margin: 12px 0; text-align: left; }
-.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; width: auto; height: auto; max-width: min(400px, 100%); max-height: 400px; margin: 0; padding: 4px; border: 1px solid #b8c8bb; border-radius: 4px; object-fit: contain; cursor: zoom-in; }
+.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; width: auto; height: auto; max-width: min(400px, 100%); max-height: 400px; margin: 0; object-fit: contain; cursor: zoom-in; }
+.content-block__body--article :deep(.rt-picture img), .diary-detail-preview__close, .diary-detail-preview__download { user-select: none; -webkit-user-select: none; }
+.diary-detail-preview__close img, .diary-detail-preview__download img { user-select: none; -webkit-user-select: none; pointer-events: none; }
 .content-block__body--article :deep(.rt-picture figcaption) { text-align: left; }
 @media (max-width: 560px) {
   .content-block__body--article :deep(.rt-picture img) { width: 100%; max-width: 100%; max-height: none; }
 }
 .diary-detail-preview { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; background: rgba(0, 0, 0, .55); }
 .diary-detail-preview__image-wrap { position: relative; width: fit-content; margin: auto; }
+.diary-detail-preview__image-wrap canvas { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; cursor: grab; touch-action: none; }
+.diary-detail-preview__image-wrap canvas:active { cursor: grabbing; }
+.diary-detail-preview__download { position: absolute; z-index: 2; top: -40px; right: 40px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; background: rgba(255, 255, 255, .9); }
+.diary-detail-preview__download img { width: 18px; height: 18px; }
 .diary-detail-preview__image-wrap > img { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; }
 .diary-detail-preview__close { position: absolute; z-index: 1; top: -40px; right: 0; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .9); cursor: pointer; }
 .diary-detail-preview__close img { width: 16px; height: 16px; filter: brightness(0); }

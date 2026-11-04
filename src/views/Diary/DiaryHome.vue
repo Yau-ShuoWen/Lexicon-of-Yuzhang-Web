@@ -222,10 +222,10 @@ function stopCatalogLoading() {
   clearTimeout(catalogSkeletonTimer)
 }
 
-async function loadCatalog() {
+async function loadCatalog(fresh = false) {
   startCatalogLoading()
   try {
-    catalog.value = await getDiaryCatalog(viewMode.value)
+    catalog.value = await getDiaryCatalog(viewMode.value, fresh)
   } catch (error) {
     console.error(error)
     showError(error.message || '加载目录失败')
@@ -254,12 +254,12 @@ function stopListLoading() {
   listRenderKey.value += 1
 }
 
-async function loadList() {
+async function loadList(fresh = false) {
   startListLoading()
   try {
     listItems.value = activeSearch.value
-      ? await searchDiaries(language.value, activeSearch.value, viewMode.value)
-      : await queryDiaries(language.value, filters.value, viewMode.value)
+      ? await searchDiaries(language.value, activeSearch.value, viewMode.value, fresh)
+      : await queryDiaries(language.value, filters.value, viewMode.value, fresh)
   } catch (error) {
     console.error(error)
     showError(error.message || '加载日记列表失败')
@@ -303,10 +303,12 @@ function clearSearch() {
   })
 }
 
-async function loadPage() {
+async function loadPage(fresh = false) {
   syncFiltersFromQuery()
-  await Promise.all([loadCatalog(), loadList()])
+  await Promise.all([loadCatalog(fresh), loadList(fresh)])
 }
+
+function refreshPage() { loadPage(true) }
 
 // 标记本页主动推送的 query（由归档点击触发），避免 watcher 重复整页刷新
 let skipNextWatch = false
@@ -434,7 +436,7 @@ onBeforeUnmount(() => {
               <img :src="searchIcon" alt="" aria-hidden="true" />
             </button>
           </form>
-          <button class="diary-refresh" type="button" :title="text.refresh" :aria-label="text.refresh" :disabled="loadingCatalog || loadingList" @click="loadPage">
+          <button class="diary-refresh" type="button" :title="text.refresh" :aria-label="text.refresh" :disabled="loadingCatalog || loadingList" @click="refreshPage">
             <img :src="refreshIcon" alt="" />
           </button>
           <button v-if="canEdit" class="dev-add-btn dev-btn-small diary-add-button" type="button" @click="openCreateDialog">

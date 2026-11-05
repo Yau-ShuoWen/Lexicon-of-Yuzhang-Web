@@ -38,6 +38,7 @@ let previewDrag = null
 const recoveredImages = ref({})
 const pendingImages = new Set()
 const retryTimers = new Map()
+const retryCounts = new Map()
 const clipboardImages = new Map()
 const pendingClipboardImages = new Map()
 const emittedValues = new Set()
@@ -101,6 +102,11 @@ function textOf(node) {
 function plainFromSlice(slice) {
   return slice.content.content.map(node => node.textBetween(0, node.content.size, '\n')).join('\n')
 }
+function plainTextSlice(text, schema) {
+  const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line =>
+    schema.nodes.paragraph.create(null, line ? schema.text(line) : undefined))
+  return new Slice(Fragment.fromArray(paragraphs), 1, 1)
+}
 function handlePlainClipboard(view, event, cut = false) {
   const selection = view.state.selection
   if (selection.empty || !event.clipboardData) return false
@@ -147,6 +153,14 @@ function setImageInDocument(id, image, retry = false) {
 }
 function scheduleRetry(id) {
   if (retryTimers.has(id) || String(id).startsWith('pending:')) return
+  const attempts = retryCounts.get(id) || 0
+  if (attempts >= 3) {
+    for (const node of document.querySelectorAll('.rich-image-editor__picture')) {
+      if (node.dataset.imageId === String(id)) node.classList.add('rich-image-editor__picture--failed')
+    }
+    return
+  }
+  retryCounts.set(id, attempts + 1)
   retryTimers.set(id, setTimeout(() => {
     retryTimers.delete(id)
     if (editor.value?.getJSON().content?.some(node => String(node.attrs?.imageId) === String(id))) recoverImage(id, true)
@@ -156,7 +170,8 @@ async function recoverImage(id, force = false) {
   if (pendingImages.has(id) || (!force && imageFor(id)?.url)) return
   pendingImages.add(id)
   try {
-    const image = await request(`/api/diary/edit/${props.ownerId}/image/${id}`)
+    const image = await request(`/api/diary/edit/${props.ownerId}/image/${id}`, { timeout: 15000 })
+    retryCounts.delete(id)
     recoveredImages.value = { ...recoveredImages.value, [id]: image }
     setImageInDocument(id, image, force)
   } catch (error) { console.warn('日记图片无法获取', id, error); scheduleRetry(id) }
@@ -229,6 +244,7 @@ const DiaryImage = Image.extend({
       img.draggable = false
       img.addEventListener('load', () => {
         dom.classList.add('rich-image-editor__picture--loaded')
+        dom.classList.remove('rich-image-editor__picture--failed')
         prepareClipboardImage(dom.dataset.imageId, img.src)
       })
       img.addEventListener('error', () => { dom.classList.remove('rich-image-editor__picture--loaded'); scheduleRetry(dom.dataset.imageId) })
@@ -288,7 +304,7 @@ async function savePastedImage(token, source, alt) {
     }
     const body = new FormData()
     body.append('file', blob, `pasted.${blob.type.split('/')[1]}`)
-    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body })
+    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
     const position = pendingPosition(token)
     if (position !== null) {
       const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, {
@@ -318,7 +334,7 @@ async function upload(file, appendToEnd = false) {
   try {
     const body = new FormData()
     body.append('file', file)
-    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body })
+    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
     const position = pendingPosition(token)
     if (position !== null) {
       const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, { src: image.url, imageId: String(image.id), alt: '' })
@@ -398,10 +414,7 @@ onMounted(() => {
         return result
       },
       clipboardTextParser: (text, context, plain, view) => {
-        const schema = view.state.schema
-        const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line =>
-          schema.nodes.paragraph.create(null, line ? schema.text(line) : undefined))
-        return new Slice(Fragment.fromArray(paragraphs), 0, 0)
+        return plainTextSlice(text, view.state.schema)
       },
       handleDOMEvents: {
         copy: (view, event) => handlePlainClipboard(view, event),
@@ -421,9 +434,7 @@ onMounted(() => {
         }
         const plainText = event.clipboardData?.getData('text/plain')
         if (plainText) {
-          const paragraphs = plainText.replace(/\r\n?/g, '\n').split('\n').map(line =>
-            view.state.schema.nodes.paragraph.create(null, line ? view.state.schema.text(line) : undefined))
-          view.dispatch(closeHistory(view.state.tr).replaceSelection(new Slice(Fragment.fromArray(paragraphs), 0, 0)))
+          view.dispatch(closeHistory(view.state.tr).replaceSelection(plainTextSlice(plainText, view.state.schema)))
           return true
         }
         const files = [...(event.clipboardData?.files || [])].filter(file => file.type.startsWith('image/'))
@@ -484,6 +495,8 @@ watch(() => props.images, images => {
 .rich-image-editor :deep(.rich-image-editor__picture img) { cursor: zoom-in; }
 .rich-image-editor :deep(.rich-image-editor__spinner) { width: 22px; height: 22px; border: 2px solid #cbd8cd; border-top-color: var(--color-primary); border-radius: 50%; animation: rich-image-spin .8s linear infinite; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded .rich-image-editor__spinner) { display: none; }
+.rich-image-editor :deep(.rich-image-editor__picture--failed .rich-image-editor__spinner) { display: none; }
+.rich-image-editor :deep(.rich-image-editor__picture--failed::before) { content: '图片加载失败'; color: var(--color-text-light); font-size: 12px; }
 @keyframes rich-image-spin { to { transform: rotate(360deg); } }
 .rich-image-editor__hint { margin-top: 8px; color: var(--color-text-light); font-size: .75rem; }
 .rich-image-editor--dragging :deep(.rich-image-editor__body) { outline: 2px dashed var(--color-primary); }

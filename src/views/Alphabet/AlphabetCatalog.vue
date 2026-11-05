@@ -53,6 +53,7 @@ const displayCatalog = computed(() => {
 })
 
 const totalCount = ref(0)
+const titleRevealed = ref(false)
 
 /* ======== 获取数据 ======== */
 
@@ -84,11 +85,22 @@ onMounted(fetchCatalog)
     <!-- ====== 标题区 ====== -->
     <header class="hero">
 
-      <h1 class="big-title">我会几十门语言的字母</h1>
+      <h1 class="big-title">
+        <button
+          class="title-reveal"
+          type="button"
+          :aria-label="titleRevealed ? `我会${loading ? '几十' : totalCount}套语言的字母` : `我会${loading ? '几十' : totalCount}门语言的字母，点击揭晓标题`"
+          @click="titleRevealed = true"
+        >
+          <span class="title-line" :class="{ 'is-hidden': titleRevealed }" aria-hidden="true">
+            我会<strong class="title-number">{{ loading ? '几十' : totalCount }}</strong>门语言<span class="title-masked">的字母</span>
+          </span>
+          <span class="title-line title-answer" :class="{ 'is-visible': titleRevealed }" aria-hidden="true">
+            我会<strong class="title-number">{{ loading ? '几十' : totalCount }}</strong>套语言的字母
+          </span>
+        </button>
+      </h1>
 
-      <p class="hero-stat" v-if="!loading">
-        共收录 <strong>{{ totalCount }}</strong> 种字母
-      </p>
     </header>
 
     <!-- ====== 骨架屏 ====== -->
@@ -152,16 +164,39 @@ onMounted(fetchCatalog)
   line-height: 1.4;
 }
 
-/* 统计行 */
-.hero-stat {
-  margin: 8px auto 0;
-  font-size: .9rem;
-  color: var(--color-text-light);
+.title-reveal {
+  position: relative;
+  display: inline-grid;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
 }
 
-.hero-stat strong {
-  font-weight: 700;
-  color: var(--color-text);
+.title-reveal:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 5px;
+}
+
+.title-line {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  transition: opacity .6s ease-in-out;
+}
+
+.title-line.is-hidden { opacity: 0; }
+.title-answer { opacity: 0; }
+.title-answer.is-visible { opacity: 1; }
+
+.title-number { color: var(--color-primary); }
+
+.title-masked {
+  display: inline-block;
+  filter: blur(2.5px);
+  opacity: .8;
 }
 
 /* ===== 骨架屏 ===== */
@@ -274,6 +309,16 @@ onMounted(fetchCatalog)
 /* ===== mobile ===== */
 
 @media (max-width: 600px) {
+
+  .hero {
+    padding: 26px 4px 18px;
+    margin-bottom: 14px;
+  }
+
+  .big-title {
+    font-size: clamp(1.4rem, 5.5vw, 1.8rem);
+    line-height: 1.35;
+  }
 
   .alphabet-grid,
   .skeleton-grid {

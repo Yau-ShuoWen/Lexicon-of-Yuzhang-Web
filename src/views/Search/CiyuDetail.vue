@@ -5,6 +5,7 @@ import { showError } from "../../services/ToastService.js"
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import SpecialTag from "../../components/Status/SpecialTag.vue";
+import PinyinHelpButton from '../../components/Text/PinyinHelpButton.vue'
 import { isAdminUser, user } from '../../utils/auth.js'
 import { HTTP_CODE, request } from '../../services/request.js'
 
@@ -127,7 +128,10 @@ watch(
           <SpecialTag :special="data.special" type="ciyu" :dialect="dialect"/>
         </div>
         <div class="hanzi-char" v-formatted-text="data.ciyu"/>
-        <div class="pinyin-title" v-formatted-text="data.mainPy"/>
+        <div class="pinyin-title-row">
+          <div class="pinyin-title" v-formatted-text="data.mainPy"/>
+          <PinyinHelpButton />
+        </div>
       </div>
 
       <div v-if="data.mean?.length" class="block-mean">
@@ -249,8 +253,14 @@ watch(
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 0;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
+}
+
+.pinyin-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .detail-main-card .pinyin-title {

@@ -163,16 +163,15 @@
 /* ========================富文本拼音块====================== */
 
 .rt-pinyin-block {
-    display: inline-block;
-    padding:0 2px;
+    display: inline;
 }
 
-.rt-pinyin-trigger {
-    position: relative;
-    display: inline-block;
+.rt-pinyin-block--space-before { margin-left: .25em; }
+.rt-pinyin-block--space-after { margin-right: .25em; }
 
-    padding: 0 2px;
-    line-height: 1;
+.rt-pinyin-trigger {
+    display: inline;
+    line-height: inherit;
 
     font-size: 1em;
     font-family: 'Pinyin AG', 'Cambria', 'Cambria Math', 'Charis SIL', serif;
@@ -188,19 +187,9 @@
     transition: color 0.15s;
 }
 
-.rt-pinyin-trigger::after {
-    content: "";
-    position: absolute;
-    left: 2px;
-    right: 2px;
-    bottom: 2px;
-    height: 1px;
-    background: #1E5721;
-    pointer-events: none;
-}
-
-.rt-pinyin-trigger:hover::after {
-    background: #1E5721;
+.rt-pinyin-trigger:focus-visible {
+    outline: 2px solid #1E5721;
+    outline-offset: 2px;
 }
 
 .rt-pinyin-key {

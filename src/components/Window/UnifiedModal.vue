@@ -409,9 +409,8 @@ onBeforeUnmount(() => {
   max-width: 100%;
   padding: 0;
   overflow-x: auto;
-  scrollbar-width: auto;
+  scrollbar-width: none;
 }
-.unified-modal__body--plain::-webkit-scrollbar { display: initial; }
 .unified-modal__body--plain .unified-modal__content { width: max-content; }
 
 .unified-modal__body--animating {

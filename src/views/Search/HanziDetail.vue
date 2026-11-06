@@ -114,7 +114,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
         <div class="pinyin-summary">
           <span v-for="(item,index) in data.pinyin" :key="index" class="summary-item"
                 v-formatted-text="item.pinyin"/>
-          <PinyinHelpButton />
+          <PinyinHelpButton :initial-pinyin-block="data.initialPinyinBlock" />
         </div>
         <div v-if="data.similar?.length" class="similar-row">
           <span>{{ language === 'sc' ? '相似字：' : '相似字：' }}</span>

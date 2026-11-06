@@ -130,7 +130,7 @@ watch(
         <div class="hanzi-char" v-formatted-text="data.ciyu"/>
         <div class="pinyin-title-row">
           <div class="pinyin-title" v-formatted-text="data.mainPy"/>
-          <PinyinHelpButton />
+          <PinyinHelpButton :initial-pinyin-block="data.initialPinyinBlock" />
         </div>
       </div>
 

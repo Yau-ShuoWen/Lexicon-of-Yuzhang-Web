@@ -117,6 +117,7 @@ onBeforeUnmount(() => {
   <AnchoredPopup
     v-model="visible"
     :anchor="anchor"
+    track-layout
     @mouseenter="onPopupEnter"
     @mouseleave="onPopupLeave"
   >

@@ -21,6 +21,7 @@ const formatDate = (date) => {
 }
 
 const now = new Date()
+const props = defineProps({ user: { type: Object, default: null }, embedded: { type: Boolean, default: false } })
 const today = formatDate(now)
 const currentMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const keyword = ref('')
@@ -195,24 +196,31 @@ watch(currentMonth, () => {
   if (selectedUser.value) loadOverview()
 })
 
+watch(() => props.user, user => {
+  if (user) {
+    selectUser(user)
+    loadOverview()
+  }
+}, { immediate: true })
+
 useHead({title: '用户连胜管理'})
 </script>
 
 <template>
-  <div class="broaden-layout streak-admin">
-    <header class="page-header">
+  <div class="broaden-layout streak-admin" :class="{ 'streak-admin--embedded': embedded }">
+    <header v-if="!embedded" class="page-header">
       <h1>用户连胜管理</h1>
       <p>查询用户后，直接在日历中点击需要调整的日期。</p>
     </header>
 
-    <section class="panel">
+    <section v-if="!embedded" class="panel">
       <DeveloperQueryBar v-model="keyword" placeholder="用户名、手机号或用户 ID" button-text="查询用户" :loading="loadingUser" @submit="searchUser" />
     </section>
 
     <p v-if="error" class="error-text">{{ error }}</p>
 
     <template v-if="selectedUser">
-      <section class="panel selected-panel">
+      <section v-if="!embedded" class="panel selected-panel">
         <div class="section-heading">
           <div>
             <p class="eyebrow">当前用户</p>
@@ -231,6 +239,14 @@ useHead({title: '用户连胜管理'})
           <div><strong>{{ overview.protectionBalance }}</strong><span>保护次数</span></div>
         </div>
       </section>
+
+      <div v-if="embedded && overview" class="metrics">
+        <div><strong>{{ overview.currentStreak }}</strong><span>当前连胜</span></div>
+        <div><strong>{{ overview.longestStreak }}</strong><span>最长连胜</span></div>
+        <div><strong>{{ overview.completedDays }}</strong><span>完成天数</span></div>
+        <div><strong>{{ overview.protectedDays }}</strong><span>保护天数</span></div>
+        <div><strong>{{ overview.protectionBalance }}</strong><span>保护次数</span></div>
+      </div>
 
       <section class="panel calendar-panel">
         <div class="calendar-workspace">
@@ -327,6 +343,7 @@ useHead({title: '用户连胜管理'})
 
 <style scoped>
 .streak-admin { max-width: 980px; margin: 0 auto; padding-top: 34px; padding-bottom: 60px; color: var(--color-text); }
+.streak-admin--embedded { max-width: none; padding: 0; }
 .page-header { margin-bottom: 28px; }
 .page-header h1 { margin: 0 0 8px; color: var(--color-primary-dark); }
 .page-header p { margin: 0; color: var(--color-text-light); }

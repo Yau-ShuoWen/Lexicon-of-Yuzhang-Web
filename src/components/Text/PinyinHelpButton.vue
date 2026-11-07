@@ -18,7 +18,7 @@ const isTraditional = computed(() => route.params.language === 'tc')
 const settingsRoute = computed(() => ({
   name: 'Settings',
   params: { language: route.params.language, dialect: route.params.dialect },
-  hash: '#pronunciation-settings'
+  hash: '#dialect-pinyin-settings'
 }))
 
 function parsePinyinBlock(value) {

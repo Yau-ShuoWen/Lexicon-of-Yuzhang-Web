@@ -174,11 +174,14 @@ async function saveLanguageStyle() {
               </div>
             </div>
           </div>
+        </section>
+        <section id="dialect-pinyin-settings" class="settings-group">
+          <div class="group-header dialect-group-header">
+            <span class="group-icon"><img :src="pinyinIcon" alt=""></span>
+            <h2>方言拼音框</h2>
+            <button class="reset-notations-button" type="button" @click="resetDialectNotations">恢复默认</button>
+          </div>
           <div class="setting-row setting-row--stacked">
-            <div class="setting-copy dialect-setting-header">
-              <h3>方言拼音框</h3>
-              <button class="reset-notations-button" type="button" @click="resetDialectNotations">恢复默认</button>
-            </div>
             <div class="dialect-layout">
               <div class="dialect-selector">
                 <div class="dialect-options dialect-options--active">
@@ -193,14 +196,14 @@ async function saveLanguageStyle() {
                     @dragend="finishDialectDrag"
                   >
                     <span class="drag-handle" aria-hidden="true">⠿</span>
-                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><small v-if="option.note">{{ notationNote(option) }}</small></span>
+                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><span v-if="option.note" class="dialect-option-note">（{{ notationNote(option) }}）</span></span>
                     <button class="notation-action notation-action--remove" type="button" :disabled="selectedDialectOptions.length === 1" :aria-label="`停用${notationLabel(option)}`" @click="removeDialectNotation(option.value)">−</button>
                   </div>
                 </div>
                 <div class="dialect-disabled" :class="{'dialect-disabled--empty': !disabledDialectOptions.length}">
                   <p>未显示</p>
                   <div v-for="option in disabledDialectOptions" :key="option.value" class="dialect-option dialect-option--disabled">
-                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><small v-if="option.note">{{ notationNote(option) }}</small></span>
+                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><span v-if="option.note" class="dialect-option-note">（{{ notationNote(option) }}）</span></span>
                     <button class="notation-action notation-action--add" type="button" :aria-label="`启用${notationLabel(option)}`" @click="addDialectNotation(option.value)">＋</button>
                   </div>
                 </div>
@@ -306,6 +309,9 @@ async function saveLanguageStyle() {
 .pinyin-block-preview{min-width:0}
 .dialect-selector{display:grid;gap:10px}.dialect-options--active .dialect-option{justify-content:flex-start;padding-left:9px;cursor:grab;transition:opacity .15s ease,background .15s ease}.dialect-options--active .dialect-option:active{cursor:grabbing}.dialect-options--active .dialect-option.dragging{opacity:.45;background:#edf5ef}.drag-handle{width:22px;flex:0 0 22px;color:#9aa39c;font-size:1.2rem;line-height:1;text-align:center}.dialect-option-copy{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}.dialect-option-copy strong{color:#343c36;font-size:.86rem;line-height:1.35}.dialect-option-copy small{color:#858d87;font-size:.72rem;white-space:nowrap}.notation-action{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;font-size:1.25rem;line-height:1;cursor:pointer;transition:.15s ease}.notation-action--remove{color:#8b615f}.notation-action--remove:hover:not(:disabled){border-color:#e2cfcd;background:#fbf1f0}.notation-action--remove:disabled{color:#c8cdca;cursor:not-allowed}.notation-action--add{color:#276c3e}.notation-action--add:hover{border-color:#c9ddcf;background:#edf6f0}.dialect-disabled{overflow:hidden;border:1px solid #d8ddda;border-radius:7px;background:#eef0ef}.dialect-disabled>p{margin:0;padding:8px 12px;border-bottom:1px solid #dadddb;color:#858c87;font-size:.72rem;font-weight:600}.dialect-option--disabled{justify-content:flex-start;min-height:48px;padding-left:13px;background:transparent}.dialect-option--disabled+.dialect-option--disabled{border-top:1px solid #dadddb}.dialect-option--disabled .dialect-option-copy strong{color:#818984}.dialect-disabled--empty{display:none}
 .preview-popup{overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff}
-.dialect-setting-header{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialect-setting-header h3{margin:0;font-size:1.2rem}.reset-notations-button{min-height:36px;padding:6px 12px;border:1px solid #b8cdbd;border-radius:6px;color:#1e5721;background:#fff;font-size:.84rem;cursor:pointer;transition:background .15s ease,border-color .15s ease}.reset-notations-button:hover{border-color:#78a384;background:#f2f7f3}.reset-notations-button:focus-visible{outline:2px solid #1e5721;outline-offset:2px}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}
+.preview-popup :deep(.pinyin-result-label),
+.preview-popup :deep(.pinyin-result-value),
+.preview-popup :deep(.pinyin-result-copy){height:50px;min-height:50px;padding-top:0;padding-bottom:0}
+.dialect-group-header h2{margin:0;font-size:1.2rem}.dialect-group-header .reset-notations-button{margin-left:auto}.reset-notations-button{min-height:36px;padding:6px 12px;border:1px solid #b8cdbd;border-radius:6px;color:#1e5721;background:#fff;font-size:.84rem;cursor:pointer;transition:background .15s ease,border-color .15s ease}.reset-notations-button:hover{border-color:#78a384;background:#f2f7f3}.reset-notations-button:focus-visible{outline:2px solid #1e5721;outline-offset:2px}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}.dialect-options--active .dialect-option{min-height:50px}.dialect-option-note{color:#858d87;font-size:.86rem;font-weight:400;white-space:nowrap}
 @media(max-width:820px){.dialect-layout{grid-template-columns:1fr;gap:20px}}
 </style>

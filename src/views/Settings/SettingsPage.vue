@@ -67,7 +67,6 @@ const disabledDialectOptions = computed(() => {
   const selected = new Set(settings.dialectNotations)
   return dialectOptions.filter(item => !selected.has(item.value))
 })
-const standardDialectOption = dialectOptions.find(option => option.value === 'standard')
 const notationLabel = option => route.params.language === 'tc' ? option.labelTc || option.label : option.label
 const notationNote = option => route.params.language === 'tc' ? option.noteTc || option.note : option.note
 const settingsPreviewPairs = computed(() => selectedDialectOptions.value.map(option => {
@@ -207,10 +206,6 @@ async function saveLanguageStyle() {
                 </div>
               </div>
               <div class="pinyin-block-preview" aria-label="方言拼音框展开预览">
-                <span class="preview-example">示例：南昌 </span>
-                <span class="rt-pinyin-block preview-trigger-wrap" aria-label="拼音显示预览">
-                  <span class="rt-pinyin-trigger">{{ standardDialectOption.preview }}</span>
-                </span>
                 <div class="preview-popup">
                   <PinyinResultTable :pairs="settingsPreviewPairs" appearance="preview" />
                 </div>
@@ -309,9 +304,8 @@ async function saveLanguageStyle() {
 .control-line .inline-preview{margin-left:auto;justify-content:flex-end;text-align:right}
 @media(max-width:680px){.control-line{display:grid;grid-template-columns:1fr}.setting-control--language .segmented-control,.setting-control--calendar .segmented-control,.setting-control .segmented-control--three{width:auto}.segmented-control--three{grid-template-columns:repeat(3,minmax(0,1fr))}.control-line .inline-preview{width:auto;min-width:0;margin-left:0;justify-content:flex-end;text-align:right}.save-button{width:100%;min-height:40px}.setting-row--simple{grid-template-columns:1fr auto}}
 .pinyin-block-preview{min-width:0}
-.preview-trigger-wrap{cursor:default}
 .dialect-selector{display:grid;gap:10px}.dialect-options--active .dialect-option{justify-content:flex-start;padding-left:9px;cursor:grab;transition:opacity .15s ease,background .15s ease}.dialect-options--active .dialect-option:active{cursor:grabbing}.dialect-options--active .dialect-option.dragging{opacity:.45;background:#edf5ef}.drag-handle{width:22px;flex:0 0 22px;color:#9aa39c;font-size:1.2rem;line-height:1;text-align:center}.dialect-option-copy{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}.dialect-option-copy strong{color:#343c36;font-size:.86rem;line-height:1.35}.dialect-option-copy small{color:#858d87;font-size:.72rem;white-space:nowrap}.notation-action{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;font-size:1.25rem;line-height:1;cursor:pointer;transition:.15s ease}.notation-action--remove{color:#8b615f}.notation-action--remove:hover:not(:disabled){border-color:#e2cfcd;background:#fbf1f0}.notation-action--remove:disabled{color:#c8cdca;cursor:not-allowed}.notation-action--add{color:#276c3e}.notation-action--add:hover{border-color:#c9ddcf;background:#edf6f0}.dialect-disabled{overflow:hidden;border:1px solid #d8ddda;border-radius:7px;background:#eef0ef}.dialect-disabled>p{margin:0;padding:8px 12px;border-bottom:1px solid #dadddb;color:#858c87;font-size:.72rem;font-weight:600}.dialect-option--disabled{justify-content:flex-start;min-height:48px;padding-left:13px;background:transparent}.dialect-option--disabled+.dialect-option--disabled{border-top:1px solid #dadddb}.dialect-option--disabled .dialect-option-copy strong{color:#818984}.dialect-disabled--empty{display:none}
-.preview-example{color:#4d5650;font-size:.9rem}.preview-trigger-wrap{display:inline-block;padding:0;background:transparent;text-align:left}.preview-trigger-wrap .rt-pinyin-trigger{font-size:1.12rem}.preview-popup{margin-top:12px;overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(24,32,26,.12)}
-.dialect-setting-header{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialect-setting-header h3{margin:0}.reset-notations-button{padding:5px 3px;border:0;border-bottom:1px solid transparent;color:#4e765b;background:transparent;font-size:.84rem;cursor:pointer;transition:color .15s ease,border-color .15s ease}.reset-notations-button:hover{border-bottom-color:#5f8b6d;color:#245f38}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}.pinyin-block-preview{padding-top:0}.preview-trigger-wrap .rt-pinyin-trigger{color:#1E5721;font-size:1.12rem}
+.preview-popup{overflow:hidden;border:1px solid #dfe4e0;border-radius:8px;background:#fff}
+.dialect-setting-header{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialect-setting-header h3{margin:0;font-size:1.2rem}.reset-notations-button{min-height:36px;padding:6px 12px;border:1px solid #b8cdbd;border-radius:6px;color:#1e5721;background:#fff;font-size:.84rem;cursor:pointer;transition:background .15s ease,border-color .15s ease}.reset-notations-button:hover{border-color:#78a384;background:#f2f7f3}.reset-notations-button:focus-visible{outline:2px solid #1e5721;outline-offset:2px}.dialect-layout{grid-template-columns:minmax(300px,1fr) minmax(270px,.85fr);gap:18px}
 @media(max-width:820px){.dialect-layout{grid-template-columns:1fr;gap:20px}}
 </style>

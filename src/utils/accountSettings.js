@@ -22,7 +22,7 @@ function refreshCurrentLinguisticView() {
 }
 
 export const accountSettings = reactive({
-  lacLegacyPinyinReadWrite: false,
+  lacKeyboardScheme: 'gon',
   loading: false,
   saving: false,
   version: 0,
@@ -40,9 +40,9 @@ function announce(change) {
 function acceptChange(data) {
   if (accountSettings.saving) return
   if (token.value && user.value?.id != null && data?.userId === user.value.id) {
-    const nextValue = data.value === true
-    if (nextValue === accountSettings.lacLegacyPinyinReadWrite) return
-    accountSettings.lacLegacyPinyinReadWrite = nextValue
+    const nextValue = data.value === 'yzc' ? 'yzc' : 'gon'
+    if (nextValue === accountSettings.lacKeyboardScheme) return
+    accountSettings.lacKeyboardScheme = nextValue
     accountSettings.version = Number(data.version) || 0
     refreshCurrentLinguisticView()
   }
@@ -55,22 +55,22 @@ export async function refreshAccountSettings() {
   if (!currentToken) {
     loadedToken = ''
     accountSettings.loading = false
-    accountSettings.lacLegacyPinyinReadWrite = false
+    accountSettings.lacKeyboardScheme = 'gon'
     return
   }
   accountSettings.loading = true
   if (loadedToken !== currentToken) {
-    accountSettings.lacLegacyPinyinReadWrite = false
+    accountSettings.lacKeyboardScheme = 'gon'
     accountSettings.version = 0
   }
   try {
     const data = await request('/api/user/settings')
     if (currentGeneration !== generation || token.value !== currentToken) return
-    const nextValue = data?.lacLegacyPinyinReadWrite === true
-    if (loadedToken === currentToken && nextValue !== accountSettings.lacLegacyPinyinReadWrite) {
+    const nextValue = data?.lacKeyboardScheme === 'yzc' ? 'yzc' : 'gon'
+    if (loadedToken === currentToken && nextValue !== accountSettings.lacKeyboardScheme) {
       refreshCurrentLinguisticView()
     }
-    accountSettings.lacLegacyPinyinReadWrite = nextValue
+    accountSettings.lacKeyboardScheme = nextValue
     accountSettings.version = Number(data?.version) || 0
     loadedToken = currentToken
   } catch {
@@ -80,8 +80,8 @@ export async function refreshAccountSettings() {
   }
 }
 
-export async function setLegacyPinyinReadWrite(value) {
-  if (typeof value !== 'boolean' || accountSettings.saving) return
+export async function setLacKeyboardScheme(value) {
+  if (!['gon', 'yzc'].includes(value) || accountSettings.saving) return
   accountSettings.error = ''
   if (!token.value) {
     accountSettings.error = '登录后才能保存此设置'
@@ -89,22 +89,22 @@ export async function setLegacyPinyinReadWrite(value) {
   }
   accountSettings.saving = true
   const currentToken = token.value
-  const previousValue = accountSettings.lacLegacyPinyinReadWrite
-  accountSettings.lacLegacyPinyinReadWrite = value
+  const previousValue = accountSettings.lacKeyboardScheme
+  accountSettings.lacKeyboardScheme = value
   try {
     const data = await request('/api/user/settings', {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({lacLegacyPinyinReadWrite: value, version: accountSettings.version})
+      body: JSON.stringify({lacKeyboardScheme: value, version: accountSettings.version})
     })
     if (token.value !== currentToken) return
-    accountSettings.lacLegacyPinyinReadWrite = data?.lacLegacyPinyinReadWrite === true
+    accountSettings.lacKeyboardScheme = data?.lacKeyboardScheme === 'yzc' ? 'yzc' : 'gon'
     accountSettings.version = Number(data?.version) || 0
-    if (user.value?.id != null) announce({userId: user.value.id, value: accountSettings.lacLegacyPinyinReadWrite, version: accountSettings.version})
+    if (user.value?.id != null) announce({userId: user.value.id, value: accountSettings.lacKeyboardScheme, version: accountSettings.version})
     refreshCurrentLinguisticView()
   } catch {
     if (token.value === currentToken) {
-      accountSettings.lacLegacyPinyinReadWrite = previousValue
+      accountSettings.lacKeyboardScheme = previousValue
       await refreshAccountSettings()
       accountSettings.error = '保存失败，请重试'
     }

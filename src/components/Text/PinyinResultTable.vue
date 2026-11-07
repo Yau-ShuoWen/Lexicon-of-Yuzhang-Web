@@ -104,6 +104,7 @@ onMounted(scheduleAlignment)
 @media(max-width:750px){.pinyin-result-table--panel{min-height:180px}}
 /* IPA 的非调号部分沿用原来拼音文本在结果表中的字号。 */
 .pinyin-result-unit :deep(.rt-ipa-syllable){font-size:1em;line-height:inherit}
+.pinyin-result-table--plain{width:max-content;max-width:100%;overflow:visible}
 .pinyin-result-value,.pinyin-result-value *{user-select:text;-webkit-user-select:text}
 @media(max-width:560px){.pinyin-result-grid{grid-template-columns:minmax(max-content,1fr) 42px}.pinyin-result-label{position:static;grid-column:1/-1;min-height:0;padding:9px 14px 5px;border-right:0}.pinyin-result-value,.pinyin-result-copy{min-height:44px}.pinyin-result-value{padding:5px 8px 12px 14px}.pinyin-result-copy{padding-bottom:7px}.pinyin-result-value.pinyin-result-cell--divided,.pinyin-result-copy.pinyin-result-cell--divided{border-top:0}}
 </style>

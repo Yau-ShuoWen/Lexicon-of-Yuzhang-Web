@@ -8,7 +8,6 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({
   editorLanguage: 'pair',
   mandarinNotation: 'pinyin',
   dialectNotations: ['standard', 'keyboard', 'putonghua'],
-  pinnedDialectNotation: 'standard',
   soundEnabled: true,
   weekdayStyle: 'weekday'
 })
@@ -35,18 +34,12 @@ export function getUserSettings() {
           .map(item => LEGACY_DIALECT_NOTATIONS[item] || item)
           .filter(item => DIALECT_NOTATIONS.has(item)))]
       : [...DEFAULT_USER_SETTINGS.dialectNotations]
-    const storedPinned = LEGACY_DIALECT_NOTATIONS[stored.pinnedDialectNotation] || stored.pinnedDialectNotation
-    const pinnedDialectNotation = dialectNotations.includes(storedPinned)
-      ? storedPinned
-      : dialectNotations[0] || DEFAULT_USER_SETTINGS.pinnedDialectNotation
-
     return {
       languageStyle: VALID_VALUES.languageStyle.has(stored.languageStyle) ? stored.languageStyle : DEFAULT_USER_SETTINGS.languageStyle,
       editorLanguage: VALID_VALUES.editorLanguage.has(stored.editorLanguage) ? stored.editorLanguage :
         (VALID_VALUES.editorLanguage.has(localStorage.getItem('sc-tc-default-edit-language')) ? localStorage.getItem('sc-tc-default-edit-language') : DEFAULT_USER_SETTINGS.editorLanguage),
       mandarinNotation: VALID_VALUES.mandarinNotation.has(stored.mandarinNotation) ? stored.mandarinNotation : DEFAULT_USER_SETTINGS.mandarinNotation,
       dialectNotations,
-      pinnedDialectNotation,
       soundEnabled: typeof stored.soundEnabled === 'boolean' ? stored.soundEnabled : DEFAULT_USER_SETTINGS.soundEnabled,
       weekdayStyle: VALID_VALUES.weekdayStyle.has(stored.weekdayStyle) ? stored.weekdayStyle : DEFAULT_USER_SETTINGS.weekdayStyle
     }

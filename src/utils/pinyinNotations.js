@@ -1,12 +1,12 @@
 import { getUserSettings } from './userSettings.js'
 
 export const PINYIN_NOTATIONS = Object.freeze([
-    {value: 'putonghua', label: '读起来像普通话的', note: '普通话拟音', preview: 'lān→ còng↘'},
-    {value: 'standard', label: '标准写法', preview: 'lān còng'},
-    {value: 'keyboard', label: '键盘输入', preview: 'lan4 cong1'},
-    {value: 'yzcIPA', label: '本词典使用 IPA', preview: "lan˧˥ ts'ɔŋ˦˨"},
-    {value: 'other', label: '其他版拼音', note: '如果有', preview: 'lān ceòng'},
-    {value: 'dictIPA', label: '辞书对应版本 IPA', note: '如果有', preview: "lan˦˦˦ ts'ɔŋ˦˨"}
+    {value: 'putonghua', label: '近似读音', labelTc: '近似讀音', preview: 'lān→ còng↘'},
+    {value: 'standard', label: '标准写法', labelTc: '標準寫法', preview: 'lān còng'},
+    {value: 'keyboard', label: '键盘输入', labelTc: '鍵盤輸入', preview: 'lan4 cong1'},
+    {value: 'yzcIPA', label: '国际音标', labelTc: '國際音標', preview: "lan˧˥ ts'ɔŋ˦˨"},
+    {value: 'other', label: '其他版拼音', labelTc: '其他版拼音', note: '如果有', noteTc: '如果有', preview: 'lān ceòng'},
+    {value: 'dictIPA', label: '辞书里的国际音标', labelTc: '辭書裡的國際音標', note: '如果有', noteTc: '如果有', preview: "lan˦˦˦ ts'ɔŋ˦˨"}
 ])
 
 export function selectPinyinPairs(pairs, settings = getUserSettings()) {

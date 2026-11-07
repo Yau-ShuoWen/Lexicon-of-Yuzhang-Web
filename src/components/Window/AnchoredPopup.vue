@@ -4,13 +4,20 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   anchor: {type: Object, default: null},
-  mobileBreakpoint: {type: Number, default: 768}
+  mobileBreakpoint: {type: Number, default: 768},
+  trackLayout: {type: Boolean, default: false}
 })
 
 const emit = defineEmits(['update:modelValue', 'close', 'mouseenter', 'mouseleave'])
 const panelRef = ref(null)
 const mobile = ref(false)
 const position = ref({left: '', top: ''})
+let layoutObserver = null
+
+function stopLayoutObserver() {
+  layoutObserver?.disconnect()
+  layoutObserver = null
+}
 
 function requestClose(reason) {
   emit('update:modelValue', false)
@@ -22,17 +29,20 @@ function place() {
   if (!panel || !props.anchor || mobile.value) return
 
   const anchorRect = props.anchor.getBoundingClientRect()
-  const panelRect = panel.getBoundingClientRect()
+  // 拼音弹窗的过渡动画会缩放测量结果，追踪布局时使用未变形的尺寸。
+  const panelRect = props.trackLayout ? null : panel.getBoundingClientRect()
+  const panelWidth = props.trackLayout ? panel.offsetWidth : panelRect.width
+  const panelHeight = props.trackLayout ? panel.offsetHeight : panelRect.height
   const gap = 10
   const viewportGap = 12
   const left = Math.max(viewportGap, Math.min(
-    anchorRect.left + anchorRect.width / 2 - panelRect.width / 2,
-    window.innerWidth - panelRect.width - viewportGap
+    anchorRect.left + anchorRect.width / 2 - panelWidth / 2,
+    window.innerWidth - panelWidth - viewportGap
   ))
   const below = anchorRect.bottom + gap
-  const top = below + panelRect.height <= window.innerHeight - viewportGap
+  const top = below + panelHeight <= window.innerHeight - viewportGap
     ? below
-    : Math.max(viewportGap, anchorRect.top - panelRect.height - gap)
+    : Math.max(viewportGap, anchorRect.top - panelHeight - gap)
   position.value = {left: `${left}px`, top: `${top}px`}
 }
 
@@ -55,6 +65,7 @@ function handleViewportChange() {
 
 watch(() => props.modelValue, async open => {
   if (!open) {
+    stopLayoutObserver()
     document.removeEventListener('pointerdown', handlePointerDown, true)
     document.removeEventListener('keydown', handleKeydown)
     window.removeEventListener('scroll', handleViewportChange, true)
@@ -69,9 +80,21 @@ watch(() => props.modelValue, async open => {
   window.addEventListener('resize', handleViewportChange)
   await nextTick()
   place()
+  if (props.trackLayout && panelRef.value) {
+    stopLayoutObserver()
+    layoutObserver = new ResizeObserver(place)
+    layoutObserver.observe(panelRef.value)
+  }
 }, {immediate: true})
 
+watch(() => props.anchor, async () => {
+  if (!props.trackLayout || !props.modelValue) return
+  await nextTick()
+  place()
+})
+
 onBeforeUnmount(() => {
+  stopLayoutObserver()
   document.removeEventListener('pointerdown', handlePointerDown, true)
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('scroll', handleViewportChange, true)

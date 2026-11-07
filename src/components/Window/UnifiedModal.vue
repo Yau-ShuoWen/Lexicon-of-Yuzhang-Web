@@ -15,6 +15,8 @@ const props = defineProps({
   closeOnBackdrop: { type: Boolean, default: true },
   closeOnEscape: { type: Boolean, default: true },
   showClose: { type: Boolean, default: true },
+  plain: { type: Boolean, default: false },
+  elevated: { type: Boolean, default: false },
   backdropBlur: { type: Boolean, default: true },
   lockTop: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
@@ -174,6 +176,12 @@ watch(() => props.loading, loading => {
   loadingTimer = null
   if (!loading) {
     showLoadingIndicator.value = false
+    if (props.plain) {
+      contentResizeObserver?.disconnect()
+      animatingHeight.value = false
+      bodyHeight.value = null
+      return
+    }
     nextTick(() => {
       const targetHeight = measureBodyTargetHeight()
       if (!targetHeight) {
@@ -220,7 +228,8 @@ onBeforeUnmount(() => {
         class="unified-modal-backdrop"
         :class="{
           'unified-modal-backdrop--blur': backdropBlur,
-          'unified-modal-backdrop--top-locked': lockTop
+          'unified-modal-backdrop--top-locked': lockTop,
+          'unified-modal-backdrop--elevated': elevated
         }"
         @pointerdown="handleBackdropPointerDown"
         @pointerup="handleBackdropPointerUp"
@@ -230,15 +239,16 @@ onBeforeUnmount(() => {
         <section
           ref="dialogRef"
           class="unified-modal"
-          :class="dialogClass"
+          :class="[dialogClass, {'unified-modal--plain': plain}]"
           role="dialog"
           aria-modal="true"
           :aria-busy="loading"
-          :aria-labelledby="titleId"
+          :aria-labelledby="plain ? undefined : titleId"
+          :aria-label="plain ? title : undefined"
           :aria-describedby="description ? descriptionId : undefined"
           tabindex="-1"
         >
-          <header class="unified-modal__header">
+          <header v-if="!plain" class="unified-modal__header">
             <div class="unified-modal__heading">
               <h2 :id="titleId">{{ title }}</h2>
               <p v-if="description" :id="descriptionId">{{ description }}</p>
@@ -260,7 +270,8 @@ onBeforeUnmount(() => {
             class="unified-modal__body"
             :class="{
               'unified-modal__body--loading': loading,
-              'unified-modal__body--animating': animatingHeight
+              'unified-modal__body--animating': animatingHeight,
+              'unified-modal__body--plain': plain
             }"
             :style="bodyStyle"
           >
@@ -299,6 +310,7 @@ onBeforeUnmount(() => {
 }
 
 .unified-modal-backdrop::-webkit-scrollbar { display: none; }
+.unified-modal-backdrop--elevated { z-index: 10001; }
 .unified-modal-backdrop--blur { backdrop-filter: blur(5px); }
 .unified-modal-backdrop--top-locked {
   align-items: start;
@@ -323,6 +335,14 @@ onBeforeUnmount(() => {
 .unified-modal--small { max-width: 420px; }
 .unified-modal--medium { max-width: 600px; }
 .unified-modal--large { max-width: 900px; }
+.unified-modal--plain {
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  border: 1px solid #d9dfda;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(22, 42, 28, .18), 0 3px 10px rgba(22, 42, 28, .1);
+}
 
 .unified-modal__header {
   display: flex;
@@ -383,6 +403,15 @@ onBeforeUnmount(() => {
 }
 
 .unified-modal__body::-webkit-scrollbar { display: none; }
+.unified-modal__body--plain {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.unified-modal__body--plain .unified-modal__content { width: max-content; }
 
 .unified-modal__body--animating {
   overflow: hidden;
@@ -455,6 +484,7 @@ onBeforeUnmount(() => {
 
   .unified-modal__header { padding: 13px 16px; }
   .unified-modal__body { padding: 18px; }
+  .unified-modal__body--plain { padding: 0; }
   .unified-modal__footer { padding: 14px 18px 18px; }
 }
 

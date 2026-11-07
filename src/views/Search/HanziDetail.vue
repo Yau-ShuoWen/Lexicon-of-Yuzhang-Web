@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import SpecialTag from '../../components/Status/SpecialTag.vue'
+import PinyinHelpButton from '../../components/Text/PinyinHelpButton.vue'
 import { showError } from '../../services/ToastService.js'
 import { isAdminUser, user } from '../../utils/auth.js'
 import { HTTP_CODE, request } from '../../services/request.js'
@@ -113,6 +114,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
         <div class="pinyin-summary">
           <span v-for="(item,index) in data.pinyin" :key="index" class="summary-item"
                 v-formatted-text="item.pinyin"/>
+          <PinyinHelpButton :initial-pinyin-block="data.initialPinyinBlock" />
         </div>
         <div v-if="data.similar?.length" class="similar-row">
           <span>{{ language === 'sc' ? '相似字：' : '相似字：' }}</span>
@@ -262,9 +264,9 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
   color: #1e5721
 }
 
-.summary-item:not(:last-child)::after {
+.summary-item + .summary-item::before {
   content: '／';
-  margin-left: 10px;
+  margin-right: 10px;
   color: var(--color-text-light)
 }
 

@@ -31,7 +31,8 @@ export function parseInline(text, context = getRouteContext()) {
         if (text[index] === ' ' && text[index + 1] === ' ') {
             let end = index + 2
             while (text[end] === ' ') end++
-            html += '&nbsp;'.repeat(end - index)
+            const betweenPinyinSyllables = text[index - 1] === ']' && text[end] === '['
+            html += '&nbsp;'.repeat(betweenPinyinSyllables ? 2 : end - index)
             index = end
             continue
         }

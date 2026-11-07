@@ -1,5 +1,3 @@
-import { selectPinyinPairs } from '../pinyinNotations.js'
-
 export function consumePinyinBlock(text, start, context, renderInline) {
     if (text[start] !== '▕') return null
     const end = text.indexOf('▏', start + 1)
@@ -30,11 +28,16 @@ export function consumePinyinBlock(text, start, context, renderInline) {
         })
     }
 
-    const visiblePairs = selectPinyinPairs(pairs)
-    const triggerHtml = visiblePairs[0]?.valueHtml || renderInline(triggerRaw, context)
+    const triggerHtml = pairs.find(pair => pair.tag === 'standard')?.valueHtml || renderInline(triggerRaw, context)
     const payload = encodeURIComponent(JSON.stringify({trigger: triggerHtml, pairs}))
+    const hasTextBefore = start > 0 && !/\s/.test(text[start - 1]) && text[start - 1] !== '▏'
+    const hasTextAfter = end + 1 < text.length && !/\s/.test(text[end + 1]) && text[end + 1] !== '▕'
+    const spacingClass = [
+        hasTextBefore && 'rt-pinyin-block--space-before',
+        hasTextAfter && 'rt-pinyin-block--space-after'
+    ].filter(Boolean).join(' ')
     return {
         nextIndex: end + 1,
-        html: `<span class="rt-pinyin-block"><span class="rt-pinyin-trigger" data-pinyin-data="${payload}">${triggerHtml}</span></span>`
+        html: `<span class="rt-pinyin-block ${spacingClass}"><span class="rt-pinyin-trigger" role="button" tabindex="0" data-pinyin-data="${payload}">${triggerHtml}</span></span>`
     }
 }

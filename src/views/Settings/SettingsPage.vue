@@ -67,12 +67,14 @@ const disabledDialectOptions = computed(() => {
   const selected = new Set(settings.dialectNotations)
   return dialectOptions.filter(item => !selected.has(item.value))
 })
-const pinnedDialectOption = computed(() => selectedDialectOptions.value[0])
+const standardDialectOption = dialectOptions.find(option => option.value === 'standard')
+const notationLabel = option => route.params.language === 'tc' ? option.labelTc || option.label : option.label
+const notationNote = option => route.params.language === 'tc' ? option.noteTc || option.note : option.note
 const settingsPreviewPairs = computed(() => selectedDialectOptions.value.map(option => {
   const isIPA = option.value.toLowerCase().includes('ipa')
   const valueItems = option.preview.trim().split(/\s+/).filter(Boolean)
     .map(item => formatRichText(isIPA ? `[-${item}]` : `[${item}]`))
-  return {tag: option.value, label: option.label, valueItems, isIPA}
+  return {tag: option.value, label: notationLabel(option), valueItems, isIPA}
 }))
 
 watch(settings, value => saveUserSettings({...value, dialectNotations: [...value.dialectNotations]}), {deep: true})
@@ -81,13 +83,11 @@ function removeDialectNotation(value) {
   const index = settings.dialectNotations.indexOf(value)
   if (index < 0 || settings.dialectNotations.length === 1) return
   settings.dialectNotations.splice(index, 1)
-  settings.pinnedDialectNotation = settings.dialectNotations[0]
 }
 
 function addDialectNotation(value) {
   if (settings.dialectNotations.includes(value)) return
   settings.dialectNotations.push(value)
-  settings.pinnedDialectNotation = settings.dialectNotations[0]
 }
 
 function startDialectDrag(value, event) {
@@ -103,7 +103,6 @@ function moveDialectNotation(beforeValue) {
   if (!value || from < 0 || to < 0 || from === to) return
   settings.dialectNotations.splice(from, 1)
   settings.dialectNotations.splice(to, 0, value)
-  settings.pinnedDialectNotation = settings.dialectNotations[0]
 }
 
 function finishDialectDrag() {
@@ -112,7 +111,6 @@ function finishDialectDrag() {
 
 function resetDialectNotations() {
   settings.dialectNotations = [...DEFAULT_USER_SETTINGS.dialectNotations]
-  settings.pinnedDialectNotation = settings.dialectNotations[0]
 }
 
 async function saveLanguageStyle() {
@@ -196,22 +194,22 @@ async function saveLanguageStyle() {
                     @dragend="finishDialectDrag"
                   >
                     <span class="drag-handle" aria-hidden="true">⠿</span>
-                    <span class="dialect-option-copy"><strong>{{ option.label }}</strong><small v-if="option.note">{{ option.note }}</small></span>
-                    <button class="notation-action notation-action--remove" type="button" :disabled="selectedDialectOptions.length === 1" :aria-label="`停用${option.label}`" @click="removeDialectNotation(option.value)">−</button>
+                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><small v-if="option.note">{{ notationNote(option) }}</small></span>
+                    <button class="notation-action notation-action--remove" type="button" :disabled="selectedDialectOptions.length === 1" :aria-label="`停用${notationLabel(option)}`" @click="removeDialectNotation(option.value)">−</button>
                   </div>
                 </div>
                 <div class="dialect-disabled" :class="{'dialect-disabled--empty': !disabledDialectOptions.length}">
                   <p>未显示</p>
                   <div v-for="option in disabledDialectOptions" :key="option.value" class="dialect-option dialect-option--disabled">
-                    <span class="dialect-option-copy"><strong>{{ option.label }}</strong><small v-if="option.note">{{ option.note }}</small></span>
-                    <button class="notation-action notation-action--add" type="button" :aria-label="`启用${option.label}`" @click="addDialectNotation(option.value)">＋</button>
+                    <span class="dialect-option-copy"><strong>{{ notationLabel(option) }}</strong><small v-if="option.note">{{ notationNote(option) }}</small></span>
+                    <button class="notation-action notation-action--add" type="button" :aria-label="`启用${notationLabel(option)}`" @click="addDialectNotation(option.value)">＋</button>
                   </div>
                 </div>
               </div>
               <div class="pinyin-block-preview" aria-label="方言拼音框展开预览">
                 <span class="preview-example">示例：南昌 </span>
                 <span class="rt-pinyin-block preview-trigger-wrap" aria-label="拼音显示预览">
-                  <span v-if="pinnedDialectOption" class="rt-pinyin-trigger">{{ pinnedDialectOption.preview }}</span>
+                  <span class="rt-pinyin-trigger">{{ standardDialectOption.preview }}</span>
                 </span>
                 <div class="preview-popup">
                   <PinyinResultTable :pairs="settingsPreviewPairs" appearance="preview" />

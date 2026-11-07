@@ -1,5 +1,3 @@
-import { selectPinyinPairs } from '../pinyinNotations.js'
-
 export function consumePinyinBlock(text, start, context, renderInline) {
     if (text[start] !== '▕') return null
     const end = text.indexOf('▏', start + 1)
@@ -30,8 +28,7 @@ export function consumePinyinBlock(text, start, context, renderInline) {
         })
     }
 
-    const visiblePairs = selectPinyinPairs(pairs)
-    const triggerHtml = visiblePairs[0]?.valueHtml || renderInline(triggerRaw, context)
+    const triggerHtml = pairs.find(pair => pair.tag === 'standard')?.valueHtml || renderInline(triggerRaw, context)
     const payload = encodeURIComponent(JSON.stringify({trigger: triggerHtml, pairs}))
     const hasTextBefore = start > 0 && !/\s/.test(text[start - 1]) && text[start - 1] !== '▏'
     const hasTextAfter = end + 1 < text.length && !/\s/.test(text[end + 1]) && text[end + 1] !== '▕'

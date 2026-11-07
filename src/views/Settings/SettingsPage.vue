@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_USER_SETTINGS, saveUserSettings, useUserSettings } from '../../utils/userSettings.js'
-import { accountSettings, setLegacyPinyinReadWrite } from '../../utils/accountSettings.js'
+import { accountSettings, setLacKeyboardScheme } from '../../utils/accountSettings.js'
 import { isLoggedIn } from '../../utils/auth.js'
 import { PINYIN_NOTATIONS } from '../../utils/pinyinNotations.js'
 import { formatRichText } from '../../utils/textFormatter.js'
@@ -229,15 +229,15 @@ async function confirmLanguageStyle() {
             </button>
           </div>
           <div class="setting-row setting-row--stacked">
-            <div class="segmented-control segmented-control--two input-scheme-control" :style="{'--selected-index': accountSettings.lacLegacyPinyinReadWrite ? 1 : 0}">
+            <div class="segmented-control segmented-control--two input-scheme-control" :style="{'--selected-index': accountSettings.lacKeyboardScheme === 'gon' ? 1 : 0}">
               <span class="selection-indicator" aria-hidden="true"></span>
-              <label :class="{selected: !accountSettings.lacLegacyPinyinReadWrite}">
-                <input type="radio" name="input-scheme" :checked="!accountSettings.lacLegacyPinyinReadWrite" :disabled="!isLoggedIn() || accountSettings.loading || accountSettings.saving" @change="setLegacyPinyinReadWrite(false)">
+              <label :class="{selected: accountSettings.lacKeyboardScheme === 'yzc'}">
+                <input type="radio" name="input-scheme" :checked="accountSettings.lacKeyboardScheme === 'yzc'" :disabled="!isLoggedIn() || accountSettings.loading || accountSettings.saving" @change="setLacKeyboardScheme('yzc')">
                 <span class="option-icon input-scheme-icon">yzc</span>
                 <span>豫章词方案</span>
               </label>
-              <label :class="{selected: accountSettings.lacLegacyPinyinReadWrite}">
-                <input type="radio" name="input-scheme" :checked="accountSettings.lacLegacyPinyinReadWrite" :disabled="!isLoggedIn() || accountSettings.loading || accountSettings.saving" @change="setLegacyPinyinReadWrite(true)">
+              <label :class="{selected: accountSettings.lacKeyboardScheme === 'gon'}">
+                <input type="radio" name="input-scheme" :checked="accountSettings.lacKeyboardScheme === 'gon'" :disabled="!isLoggedIn() || accountSettings.loading || accountSettings.saving" @change="setLacKeyboardScheme('gon')">
                 <span class="option-icon input-scheme-icon">gon</span>
                 <span>赣语输入法方案</span>
               </label>
@@ -346,8 +346,8 @@ async function confirmLanguageStyle() {
 .input-method-help{display:grid;place-items:center;width:30px;height:30px;padding:3px;border:0;border-radius:50%;background:transparent;cursor:pointer}
 .input-method-help img{display:block;width:22px;height:22px}
 .input-method-help:focus-visible{outline:2px solid #1e5721;outline-offset:2px}
-.input-scheme-control{box-sizing:border-box;width:min(520px,100%)}
-.input-scheme-control label{white-space:nowrap}
+.input-scheme-control{box-sizing:border-box;width:min(440px,100%)}
+.input-scheme-control label{gap:6px;padding-right:14px;padding-left:14px;font-size:.9rem;white-space:nowrap}
 .input-scheme-control label:has(input:disabled){cursor:not-allowed}
 .input-scheme-icon{font-family:'Cambria',serif;font-size:1rem;font-weight:600;line-height:1}
 .input-method-status{margin:0;color:#858d87;font-size:.82rem}

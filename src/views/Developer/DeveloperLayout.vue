@@ -16,8 +16,7 @@ const groups = [
     { label: '特殊符号复制栏', path: 'tool/special-symbol' },
   ] },
   { title: '运行监控', icon: Monitor, items: [
-    { label: '用户信息', path: 'pending/users' },
-    { label: '用户连胜管理', path: 'streak-admin' },
+    { label: '用户管理', path: 'users' },
   ] },
   { title: '语言学', icon: Collection, items: [
     { label: '编辑汉字', path: 'hanzi-filter', matches: ['hanzi-filter', 'hanzi-editor', 'hanzi-creator'] },

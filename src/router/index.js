@@ -310,9 +310,15 @@ const routes = [
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
+                        path: 'users',
+                        name: 'DeveloperUsers',
+                        component: () => import('../views/Developer/UserWorkspace.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'streak-admin',
                         name: 'StreakAdmin',
-                        component: () => import('../views/Developer/Study/StreakAdmin.vue'),
+                        redirect: to => ({ path: `/${to.params.language}/${to.params.dialect}/dev/users` }),
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {

@@ -159,8 +159,8 @@ useHead({ title: '用户管理' })
 
 <style scoped>
 .user-workspace { max-width: 1060px; margin: 0 auto; padding: 34px 24px 70px; color: var(--color-text); }
-h1, h2, p { margin-top: 0; }
-header p, .note, .identity p { color: var(--color-text-light); }
+h2, p { margin-top: 0; }
+.note { color: var(--color-text-light); }
 .lookup-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .search-panel { width: min(100%, 520px); }
 .lookup-username { min-width: 0; overflow-wrap: anywhere; font-size: 1.5rem; }
@@ -170,11 +170,10 @@ header p, .note, .identity p { color: var(--color-text-light); }
 .user-list-row span { color: var(--color-text-light); }
 .load-more, .back-list { margin-top: 14px; padding: 8px 12px; border: 0; background: transparent; color: var(--color-primary-dark); cursor: pointer; }
 .user-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; color: var(--color-text-light); font-size: .9rem; }
-.content-panel { margin-top: 0; padding: 24px; border: 1px solid var(--color-border); border-radius: 0 0 14px 14px; background: var(--color-background-alt); }
+.content-panel { margin-top: 0; padding: 24px; border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 14px 14px; background: var(--color-background-alt); }
 .tabs { display: flex; gap: 6px; overflow-x: auto; margin-top: 20px; border-bottom: 1px solid var(--color-border); }
 .tabs button { flex: none; padding: 12px 18px; border: 0; background: transparent; color: inherit; cursor: pointer; }
 .tabs button.active { border-bottom: 3px solid var(--color-primary); font-weight: 700; }
-.content-panel { border-top: 0; }
 label { display: grid; gap: 7px; max-width: 470px; margin: 18px 0; }
 input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; background: white; color: inherit; }
 .actions { display: flex; gap: 10px; margin-top: 22px; }.actions button { padding: 9px 20px; border: 1px solid var(--color-primary); border-radius: 8px; background: white; color: var(--color-primary-dark); cursor: pointer; }.actions button:last-child { background: var(--color-primary); color: white; }.actions button:disabled { opacity: .5; }

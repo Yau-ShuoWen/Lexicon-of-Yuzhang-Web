@@ -39,6 +39,8 @@ const hasMoreExtraResults = computed(() => {
 const hasResults = computed(() => {
   return (results.value?.[0]?.length || 0) + (results.value?.[1]?.length || 0) > 0
 })
+const mainHanziResults = computed(() => results.value?.[0]?.filter(result => result.tag === 'hanzi') || [])
+const mainWordResults = computed(() => results.value?.[0]?.filter(result => result.tag !== 'hanzi') || [])
 
 useHead({
   title: () => {
@@ -155,7 +157,7 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
 </script>
 
 <template>
-  <div class="narrow-layout">
+  <div class="narrow-layout search-results-layout">
 
     <div class="nav-button-wrapper">
       <router-link class="search-back-button" :to="getPath('home')">
@@ -198,9 +200,22 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
       <!-- 主结果 -->
       <div v-if="results[0]?.length" class="results-group">
 
-        <div class="results-list">
+        <div v-if="mainHanziResults.length" class="results-list hanzi-results-list">
+          <router-link v-for="(result, index) in mainHanziResults" :key="`hanzi-${index}`"
+                       class="search-result-item hanzi-item" :to="getResultLink(result)">
+            <div class="result-content">
+              <div class="result-main">
+                <h3 class="result-title" v-formatted-text="result.title"/>
+                <p class="result-explain" v-formatted-text="result.explain"/>
+              </div>
+              <img v-if="result.special === true" :src="ideaIcon" class="result-icon" alt=""/>
+              <svg class="result-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </router-link>
+        </div>
+        <div v-if="mainWordResults.length" class="results-list" :class="{'word-results-after-hanzi': mainHanziResults.length}">
           <router-link
-              v-for="(result, index) in results[0]"
+              v-for="(result, index) in mainWordResults"
               :key="`main-${index}`"
               :class="['search-result-item', result.tag === 'hanzi'? 'hanzi-item': 'ciyu-item']"
               :to="getResultLink(result)"
@@ -405,6 +420,8 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   flex-direction: column;
   gap: 13px;
 }
+.hanzi-results-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.word-results-after-hanzi { margin-top: 22px; }
 
 .search-result-item {
   --result-accent: #4f8e53;
@@ -435,6 +452,12 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   --result-icon-bg: rgba(244, 251, 239, .58);
   background: #c5dfa7;
 }
+.hanzi-item .result-content { min-height: 82px; padding: 13px 16px; gap: 8px; }
+.hanzi-item .result-main { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.hanzi-item .result-title { margin: 0; }
+.hanzi-item .result-explain { min-width: 0; margin: 0; color: #405c42; font-size: 18px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.hanzi-item .result-icon { margin-left: auto; }
+.hanzi-item .result-arrow { margin-left: 0; }
 
 .ciyu-item {
   --result-accent: #4f7fa9;
@@ -665,7 +688,16 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   }
 }
 
+@media (min-width: 1100px) {
+  .search-results-layout { max-width: 900px; }
+  .hanzi-results-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 600px) {
+  .hanzi-results-list { grid-template-columns: minmax(0, 1fr); }
+  .hanzi-item .result-main { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+  .hanzi-item .result-explain { font-size: 16px; }
+  .hanzi-item .result-content { align-items: center; min-height: 68px; padding: 12px 16px; }
+  .hanzi-item .result-icon, .hanzi-item .result-arrow { margin-top: 0; }
   .result-relation { display: block; margin: 4px 0 0; font-size: .72em; line-height: 1.3; }
   .nav-button-wrapper {
     margin-bottom: 18px;
@@ -704,7 +736,6 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
     margin-top: 26px;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .search-result-item,
   .search-action-button,

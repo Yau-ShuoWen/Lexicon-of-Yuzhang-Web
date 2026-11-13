@@ -107,6 +107,7 @@ export default {
         back_to_home:'返回首页',
         random_again: '再随机一个',
         more_result: '加载更多结果',
+        less_relevant: '下面是相关程度较低的词语',
         no_more: '数据持续录入中，没有找到的内容请耐心等待',
         try_random: '要不随机抽一个？',
         try_feedback: '还是和我们反馈？'

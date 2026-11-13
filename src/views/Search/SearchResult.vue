@@ -243,6 +243,7 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
 
       <!-- 补充结果 -->
       <div v-if="results[1]?.length" class="results-group extra-group">
+        <div v-if="visibleExtraResults.length" class="extra-divider"><span>{{ $t('search_result.less_relevant') }}</span></div>
 
         <TransitionGroup v-if="visibleExtraResults.length" name="result-expand" tag="div" class="results-list">
           <router-link
@@ -321,32 +322,31 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-height: 42px;
-  padding: 5px 14px 5px 6px;
-  border-radius: 13px;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   color: var(--color-text);
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(46, 91, 52, .09), 0 2px 6px rgba(31, 62, 36, .05);
-  font-weight: 600;
+  background: var(--color-background);
+  font-weight: 500;
   text-decoration: none;
-  transition: background-color .22s ease, box-shadow .22s ease;
+  transition: background-color .2s ease, border-color .2s ease;
 }
 
 .search-back-button:hover,
 .search-back-button:focus-visible {
-  outline: none;
-  background: #f8fbf6;
-  box-shadow: 0 9px 23px rgba(46, 91, 52, .14), 0 3px 8px rgba(31, 62, 36, .06);
+  background: var(--color-border-light);
+  border-color: #bfcfc2;
 }
+.search-back-button:focus-visible,
+.search-action-button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 .search-back-button__icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 20px;
+  height: 20px;
   color: var(--color-primary-dark);
-  background: #dcebd3;
 }
 
 .search-back-button__icon svg {
@@ -367,39 +367,31 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-height: 42px;
-  padding: 5px 14px 5px 6px;
-  border: 0;
-  border-radius: 13px;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   color: var(--color-text);
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(46, 91, 52, .09), 0 2px 6px rgba(31, 62, 36, .05);
+  background: var(--color-background);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color .22s ease, box-shadow .22s ease, filter .22s ease;
+  transition: background-color .2s ease, border-color .2s ease;
 }
 
 .search-action-button:hover,
 .search-action-button:focus-visible {
-  outline: none;
-  background: #f8fbf6;
-  box-shadow: 0 9px 23px rgba(46, 91, 52, .14), 0 3px 8px rgba(31, 62, 36, .06);
-}
-
-.search-action-button:active {
-  filter: brightness(.975);
+  background: var(--color-border-light);
+  border-color: #bfcfc2;
 }
 
 .search-action-button__icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
-  border-radius: 9px;
   color: var(--color-primary-dark);
-  background: #dcebd3;
 }
 
 .search-action-button__icon svg {
@@ -433,22 +425,15 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   overflow: hidden;
   color: inherit;
   text-decoration: none;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--result-accent) 10%, transparent),
-    0 2px 7px rgba(31, 45, 36, .045);
-  transition: background-color .22s ease, box-shadow .22s ease, filter .22s ease;
+  box-shadow: 0 2px 7px rgba(31, 45, 36, .05);
+  transition: background-color .2s ease;
   cursor: pointer;
-}
-
-.search-result-item:hover,
-.search-result-item:focus-visible {
-  outline: none;
-  filter: saturate(1.035) brightness(.985);
-  box-shadow: 0 11px 28px color-mix(in srgb, var(--result-accent) 16%, transparent),
-    0 3px 9px rgba(31, 45, 36, .06);
 }
 
 .hanzi-item {
   --result-accent: #4f8e53;
+  --result-bg: #c5dfa7;
+  --result-hover-bg: #bed8a3;
   --result-icon-bg: rgba(244, 251, 239, .58);
   background: #c5dfa7;
 }
@@ -461,26 +446,33 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
 
 .ciyu-item {
   --result-accent: #4f7fa9;
+  --result-bg: #c9def1;
+  --result-hover-bg: #c1d6e9;
   --result-icon-bg: rgba(245, 250, 255, .66);
   background: #c9def1;
 }
 
 .extra-item {
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--result-accent) 9%, transparent),
-    0 2px 6px rgba(31, 45, 34, .04);
+  box-shadow: 0 2px 7px rgba(31, 45, 36, .04);
 }
 
 .extra-item.hanzi-item {
-  --result-accent: #72945c;
+  --result-accent: #277b7c;
+  --result-bg: #d3eae7;
+  --result-hover-bg: #c8e2df;
   --result-icon-bg: rgba(255, 255, 255, .5);
-  background: #e1eed5;
+  background: var(--result-bg);
 }
 
 .extra-item.ciyu-item {
-  --result-accent: #a27b49;
-  --result-icon-bg: rgba(255, 251, 244, .62);
-  background: #f0e0c7;
+  --result-accent: #277b7c;
+  --result-bg: #d3eae7;
+  --result-hover-bg: #c8e2df;
+  --result-icon-bg: rgba(245, 255, 253, .7);
+  background: var(--result-bg);
 }
+.search-result-item:hover,
+.search-result-item:focus-visible { background: var(--result-hover-bg); }
 
 .results-section {
   padding-bottom: 100px;
@@ -496,6 +488,9 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   flex-direction: column;
   gap: 18px;
 }
+.extra-divider { display: flex; align-items: center; gap: 14px; color: #457a7b; font-size: 14px; }
+.extra-divider::before, .extra-divider::after { content: ''; flex: 1; height: 1px; background: #a9cfcb; }
+.extra-divider span { flex: 0 1 auto; text-align: center; }
 
 .load-more-btn {
   align-self: center;
@@ -552,13 +547,13 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
 }
 
 .result-arrow {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   margin-left: 12px;
   flex-shrink: 0;
   color: var(--result-accent);
-  opacity: .28;
-  transition: opacity .22s ease;
+  opacity: .5;
+  transition: color .2s ease, opacity .2s ease, transform .2s ease;
 }
 
 .result-arrow path {
@@ -571,7 +566,9 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
 
 .search-result-item:hover .result-arrow,
 .search-result-item:focus-visible .result-arrow {
-  opacity: .72;
+  color: #31575a;
+  opacity: 1;
+  transform: translateX(5px);
 }
 
 .search-end-tip {
@@ -592,7 +589,7 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
   background: #eef3eb;
   color: var(--color-text-light);
   text-align: center;
-  box-shadow: 0 8px 22px rgba(46, 91, 52, .07), 0 2px 7px rgba(31, 62, 36, .04);
+  box-shadow: 0 2px 7px rgba(31, 62, 36, .04);
 }
 
 .search-empty-state__mark {

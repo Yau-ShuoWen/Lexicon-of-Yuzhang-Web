@@ -20,6 +20,7 @@ const dialect = computed(() => route.params.dialect)
 const query = computed(() => route.params.query)
 const notFound = ref(false)
 const isAdmin = computed(() => isAdminUser(user.value))
+const mandarinWords = computed(() => data.value?.relatedWords?.filter(word => Number(word.type) === 1) || [])
 const seoDescription = computed(() => data.value
     ? `${data.value.ciyu}的方言读音、释义和相关词语。`
     : '查询词语的方言读音、释义和相关词语。')
@@ -150,6 +151,22 @@ watch(
             <div class="note-item" v-for="(m, i) in data.note" :key="i">
               <div class="note-item-left" v-formatted-text="m.left"></div>
               <div v-formatted-text="m.right"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="mandarinWords.length || data.synonyms?.length" class="block-note">
+        <div class="section">
+          <h3 class="section-title">相关词语</h3>
+          <div class="mean-list">
+            <div v-for="(word, i) in mandarinWords" :key="`mandarin-${i}`" class="note-item">
+              <div class="note-item-left">{{ word.relationName }}</div>
+              <div>{{ word.word }}<span v-if="word.description">：{{ word.description }}</span></div>
+            </div>
+            <div v-for="(word, i) in data.synonyms" :key="`synonym-${i}`" class="note-item">
+              <div class="note-item-left">方言同义词</div>
+              <div>{{ word.word }}<span v-if="word.description">：{{ word.description }}</span></div>
             </div>
           </div>
         </div>

@@ -53,6 +53,26 @@ const openedRichItem = ref(null)
 const richDraft = ref(null)
 const richEditorRef = ref(null)
 const closingRich = ref(false)
+const openedSimilar = ref(null)
+const similarDraft = ref(null)
+const similarEditorRef = ref(null)
+const descriptionEditorRef = ref(null)
+function openSimilar(item) {
+  openedSimilar.value = item
+  similarDraft.value = item
+  if (Number(similarDraft.value.type) === 1 && !similarDraft.value.mandarinRelation)
+    similarDraft.value.mandarinRelation = '='
+  if (!similarDraft.value.description || typeof similarDraft.value.description !== 'object')
+    similarDraft.value.description = {sc: '', tc: ''}
+}
+async function closeSimilar() {
+  if (similarEditorRef.value?.hasPendingChanges() && !await similarEditorRef.value.synchronize()) return
+  if (descriptionEditorRef.value?.hasPendingChanges() && !await descriptionEditorRef.value.synchronize()) return
+  openedSimilar.value = null
+  similarDraft.value = null
+  similarEditorRef.value = null
+  descriptionEditorRef.value = null
+}
 const setRichEditor = editor => { richEditorRef.value = editor }
 function openRich(item, field) {
   openedRichItem.value = {item, field}
@@ -108,6 +128,10 @@ const saveData = async () => {
     if (openedRichItem.value) {
       await closeRich()
       if (openedRichItem.value) return
+    }
+    if (openedSimilar.value) {
+      await closeSimilar()
+      if (openedSimilar.value) return
     }
     for (const editor of pairEditors.values()) {
       if (editor.hasPendingChanges() && !await editor.synchronize()) return
@@ -224,23 +248,16 @@ onMounted(() => {
         </div>
         <HanziSortable
             v-model="updateData.similar"
-            :item-label="t('ciyu_editor.similar')" :auto-sort="true"
-            :create-item="() => ({type:1, text: { sc: '', tc: '' }})"
+            :item-label="t('ciyu_editor.similar')" :auto-sort="true" layout="grid" class="similar-sortable"
+            :create-item="() => ({type:1, mandarinRelation:'=', description:{sc:'', tc:''}, text: { sc: '', tc: '' }})"
         >
           <template #default="{ item, index }">
-            <div class="array-item">
-
-              <select v-model="item.type" class="middle-input">
-                <option value="4">{{ t('ciyu_editor.dialect_synonym') }}</option>
-                <option value="5">{{ t('ciyu_editor.dialect_related') }}</option>
-                <option value="1">{{ t('ciyu_editor.mandarin_equivalent') }}</option>
-                <option value="2">{{ t('ciyu_editor.search_word') }}</option>
-                <option value="3">{{ t('ciyu_editor.common_misspelling') }}</option>
-              </select>
-              <ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
-                             :pair="item.text" layout="small" :rich-text="false" :dialect="dialect.toString()"
-                             @update:pair="item.text = $event"/>
-
+            <div class="similar-preview" role="button" tabindex="0" @dblclick="openSimilar(item)" @keydown.enter="openSimilar(item)">
+              <span class="similar-preview__type">{{ t(`ciyu_editor.${({1:'mandarin_equivalent',2:'search_word',3:'common_misspelling',4:'dialect_synonym',5:'dialect_related'})[Number(item.type)] || 'similar'}`) }}</span>
+              <span>{{ item.text?.tc || item.text?.sc || '新词语' }}</span>
+              <span v-if="Number(item.type) === 1">{{ item.mandarinRelation || '=' }}</span>
+              <span v-if="item.description?.[language]" class="similar-preview__description">{{ item.description[language] }}</span>
+              <button type="button" @click.stop="openSimilar(item)">编辑</button>
             </div>
           </template>
         </HanziSortable>
@@ -375,6 +392,38 @@ onMounted(() => {
         <footer class="rich-modal__footer"><button type="button" @click="closeRich">完成</button></footer>
       </section>
     </div>
+    <div v-if="openedSimilar && similarDraft" class="rich-modal-backdrop" @pointerdown.self="closeSimilar" @keydown.esc="closeSimilar">
+      <section class="rich-modal similar-modal" role="dialog" aria-modal="true" :aria-label="t('ciyu_editor.similar')">
+        <header class="rich-modal__header">
+          <h2>{{ t('ciyu_editor.similar') }}</h2>
+          <button type="button" aria-label="关闭" @click="closeSimilar">×</button>
+        </header>
+        <div class="similar-modal__choices">
+          <label>类型
+            <select v-model.number="similarDraft.type" class="middle-input">
+              <option :value="4">{{ t('ciyu_editor.dialect_synonym') }}</option>
+              <option :value="5">{{ t('ciyu_editor.dialect_related') }}</option>
+              <option :value="1">{{ t('ciyu_editor.mandarin_equivalent') }}</option>
+              <option :value="2">{{ t('ciyu_editor.search_word') }}</option>
+              <option :value="3">{{ t('ciyu_editor.common_misspelling') }}</option>
+            </select>
+          </label>
+          <label v-if="Number(similarDraft.type) === 1">对应关系
+            <select v-model="similarDraft.mandarinRelation" class="middle-input">
+              <option value="=">同义词</option>
+              <option value="≈">近义词</option>
+            </select>
+          </label>
+        </div>
+        <ScTcEditorLab :ref="editor => similarEditorRef = editor" :pair="similarDraft.text" layout="small"
+                       :rich-text="false" :dialect="dialect.toString()" @update:pair="similarDraft.text = $event"/>
+        <label>说明
+          <ScTcEditorLab :ref="editor => descriptionEditorRef = editor" :pair="similarDraft.description"
+                         :dialect="dialect.toString()" layout="middle" :rich-text="false"
+                         @update:pair="similarDraft.description = $event"/>
+        </label>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -399,6 +448,18 @@ onMounted(() => {
 .rich-preview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .rich-preview :deep(.result) { padding: 0; margin: 0; }
 .rich-preview__empty { color: var(--color-text-light); }
+.similar-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 42px; font-size: 17px; cursor: pointer; }
+.similar-preview__type { color: var(--color-text-light); font-size: 14px; }
+.similar-preview__description { color: var(--color-text-light); font-size: 14px; }
+.similar-preview button { margin-left: auto; }
+.similar-sortable.hanzi-sortable--grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.similar-sortable :deep(.hanzi-sortable__add) { grid-column: 1; }
+.similar-modal { display: flex; flex-direction: column; gap: 14px; scrollbar-width: none; }
+.similar-modal::-webkit-scrollbar { display: none; }
+.similar-modal__choices { display: flex; flex-wrap: wrap; gap: 14px; }
+.similar-modal label { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: 14px; }
+.similar-modal label > .middle-input { flex: none; width: min(220px, 100%); min-height: 36px; height: 36px; padding: 4px 8px; font-size: 14px; }
+.similar-modal label > :deep(.lab-editor) { width: 100%; }
 .rich-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #15281a80; }
 .rich-modal { box-sizing: border-box; width: min(1080px, 100%); max-height: min(90vh, 900px); overflow: auto; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 18px 50px #1126184d; }
 .rich-modal__header, .rich-modal__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -417,12 +478,19 @@ onMounted(() => {
 .pinyin-preview :deep(.rt-pinyin) { line-height: 1.2; }
 .word-link { color: var(--color-primary-dark); text-decoration: none; }
 .word-link:hover { text-decoration: underline; }
+@media (max-width: 1100px) {
+  .similar-sortable.hanzi-sortable--grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 600px) {
+  .similar-sortable.hanzi-sortable--grid { grid-template-columns: minmax(0, 1fr); }
+  .similar-preview { flex-wrap: wrap; }
   .edit-page { padding: 12px 0 36px; }
   .form-section { padding: 14px; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
   .rich-item { grid-template-columns: minmax(0, 1fr); }
   .rich-modal { padding: 18px; }
+  .similar-modal { width: 100%; max-height: 90dvh; gap: 12px; }
+  .similar-modal label > .middle-input { width: 100%; }
   .pinyin-input-row { grid-template-columns: minmax(0,1fr) 18px minmax(90px,.6fr); }
 }
 </style>

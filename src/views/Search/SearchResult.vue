@@ -147,6 +147,11 @@ const getResultLink = (result) => {
 
   return '/'
 }
+
+const wordTitle = result => result.tag === 'ciyu' && result.info?.relatedWords?.some(word => Number(word.type) === 1)
+  ? String(result.info.query) : result.title
+const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWords?.some(word => Number(word.type) === 1)
+  ? String(result.title).slice(String(result.info.query).length).trim() : ''
 </script>
 
 <template>
@@ -203,7 +208,10 @@ const getResultLink = (result) => {
             <div class="result-content">
 
               <div class="result-main">
-                <h3 class="result-title" v-formatted-text="result.title"/>
+                <h3 class="result-title">
+                  <span v-formatted-text="wordTitle(result)"/>
+                  <span v-if="wordRelation(result)" class="result-relation" v-text="wordRelation(result)"/>
+                </h3>
                 <p class="result-explain" v-formatted-text="result.explain"/>
               </div>
 
@@ -232,7 +240,10 @@ const getResultLink = (result) => {
             <div class="result-content">
 
               <div class="result-main">
-                <h3 class="result-title" v-formatted-text="result.title"/>
+                <h3 class="result-title">
+                  <span v-formatted-text="wordTitle(result)"/>
+                  <span v-if="wordRelation(result)" class="result-relation" v-text="wordRelation(result)"/>
+                </h3>
                 <p class="result-explain" v-formatted-text="result.explain"/>
               </div>
 
@@ -495,6 +506,7 @@ const getResultLink = (result) => {
   user-select: none;
   -webkit-user-select: none;
 }
+.result-relation { margin-left: .18em; color: #53636d; font-size: .78em; font-weight: 700; }
 
 .result-explain {
   color: var(--color-text-light);
@@ -654,6 +666,7 @@ const getResultLink = (result) => {
 }
 
 @media (max-width: 600px) {
+  .result-relation { display: block; margin: 4px 0 0; font-size: .72em; line-height: 1.3; }
   .nav-button-wrapper {
     margin-bottom: 18px;
   }
@@ -665,10 +678,12 @@ const getResultLink = (result) => {
   .result-content {
     min-height: 78px;
     padding: 15px 16px;
+    align-items: flex-start;
   }
 
   .result-title {
     font-size: 21px;
+    line-height: 1.35;
   }
 
   .result-explain {
@@ -677,10 +692,12 @@ const getResultLink = (result) => {
 
   .result-icon {
     margin-left: 10px;
+    margin-top: 20px;
   }
 
   .result-arrow {
     margin-left: 8px;
+    margin-top: 25px;
   }
 
   .extra-group {

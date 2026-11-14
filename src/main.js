@@ -4,7 +4,7 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
-import { initializeAuth } from './utils/auth'
+import { initializeAuth, installAuthSync } from './utils/auth'
 import './utils/accountSettings.js'
 import i18n from './internationalization.js'
 import formattedTextDirective from './utils/formattedText.js'
@@ -33,4 +33,5 @@ app.use(router)
 
 // 页面渲染不能依赖后端认证请求完成，否则调试断点会让整个应用白屏。
 app.mount('#app')
+installAuthSync()
 void initializeAuth()

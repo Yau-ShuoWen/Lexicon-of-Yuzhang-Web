@@ -440,6 +440,7 @@ async function verifyDevAccess(token) {
             }
         }
     } catch (error) {
+        if (localStorage.getItem(AUTH_TOKEN_KEY) !== token) return false
         const code = error.code || error.status
         if (isBackendUnavailableError(error) || ![HTTP_CODE.NOT_LOGIN, HTTP_CODE.NO_PERMISSION].includes(code)) {
             // 后端暂时不可用时沿用原有的本地管理员回退逻辑。

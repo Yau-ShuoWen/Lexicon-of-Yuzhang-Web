@@ -11,7 +11,7 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import './diarySkeleton.css'
 import { showError } from '../../services/ToastService.js'
-import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
+import { getDiaryVisibilityLevel, hasPermission, token } from '../../utils/auth.js'
 import {
   formatDateLabel,
   formatDateTimeLabel,
@@ -321,7 +321,7 @@ async function refreshDiaryImages() {
 }
 
 watch(
-    () => [language.value, diaryId.value, requestedView.value],
+    () => [language.value, diaryId.value, requestedView.value, token.value],
     loadDiary,
     {immediate: true}
 )

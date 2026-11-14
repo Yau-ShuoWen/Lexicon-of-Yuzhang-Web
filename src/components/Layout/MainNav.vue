@@ -2,14 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Grid, House, Monitor, Notebook, Setting, User } from '@element-plus/icons-vue'
-import { isAdminUser } from '../../utils/auth.js'
+import { isAdminUser, user } from '../../utils/auth.js'
 
 const route = useRoute()
 const router = useRouter()
 const ready = ref(false)
 const moreOpen = ref(false)
 const navContainer = ref(null)
-const currentUser = ref(null)
+const currentUser = user
 const isEditing = ref(false)
 let normalViewportHeight = 0
 
@@ -76,14 +76,6 @@ const moreItems = computed(() => [
   { id: 'blog', label: 'nav.author_blog', to: pathTo('ysw/home'), icon: House },
 ])
 
-function loadCurrentUser() {
-  try {
-    const raw = localStorage.getItem('auth-user')
-    currentUser.value = raw ? JSON.parse(raw) : null
-  } catch {
-    currentUser.value = null
-  }
-}
 
 function selectMoreItem(path) {
   // 同一路由不会触发路由监听，直接收起面板即可。
@@ -138,14 +130,11 @@ function handleViewportResize() {
 watch(() => route.fullPath, () => {
   // 路由更新后再关闭面板，避免跨区域跳转前滑块退回原位置。
   moreOpen.value = false
-  loadCurrentUser()
 })
 
 onMounted(async () => {
-  loadCurrentUser()
   normalViewportHeight = viewportHeight()
   isEditing.value = isTextEntry(document.activeElement)
-  window.addEventListener('storage', loadCurrentUser)
   window.addEventListener('resize', handleViewportResize)
   window.visualViewport?.addEventListener('resize', handleViewportResize)
   document.addEventListener('focusin', handleFocusIn)
@@ -157,7 +146,6 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('storage', loadCurrentUser)
   window.removeEventListener('resize', handleViewportResize)
   window.visualViewport?.removeEventListener('resize', handleViewportResize)
   document.removeEventListener('focusin', handleFocusIn)

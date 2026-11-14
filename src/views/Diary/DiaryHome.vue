@@ -10,7 +10,7 @@ import './diarySkeleton.css'
 import DiaryArchive from './DiaryArchive.vue'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
 import { showError, showSuccess } from '../../services/ToastService.js'
-import { getDiaryVisibilityLevel, hasPermission } from '../../utils/auth.js'
+import { getDiaryVisibilityLevel, hasPermission, token } from '../../utils/auth.js'
 import {
   createDiary,
   formatDateLabel,
@@ -222,17 +222,25 @@ function stopCatalogLoading() {
   clearTimeout(catalogSkeletonTimer)
 }
 
+let catalogSequence = 0
+let listSequence = 0
 async function loadCatalog(fresh = false) {
+  const sequence = ++catalogSequence
+  const requestToken = token.value
   startCatalogLoading()
+  catalog.value = []
   try {
-    catalog.value = await getDiaryCatalog(viewMode.value, fresh)
+    const data = await getDiaryCatalog(viewMode.value, fresh)
+    if (sequence !== catalogSequence || token.value !== requestToken) return
+    catalog.value = data
   } catch (error) {
+    if (sequence !== catalogSequence || token.value !== requestToken) return
     console.error(error)
     showError(error.message || '加载目录失败')
     catalog.value = []
   }
   finally {
-    stopCatalogLoading()
+    if (sequence === catalogSequence) stopCatalogLoading()
   }
 }
 
@@ -255,18 +263,24 @@ function stopListLoading() {
 }
 
 async function loadList(fresh = false) {
+  const sequence = ++listSequence
+  const requestToken = token.value
   startListLoading()
+  listItems.value = []
   try {
-    listItems.value = activeSearch.value
+    const data = activeSearch.value
       ? await searchDiaries(language.value, activeSearch.value, viewMode.value, fresh)
       : await queryDiaries(language.value, filters.value, viewMode.value, fresh)
+    if (sequence !== listSequence || token.value !== requestToken) return
+    listItems.value = data
   } catch (error) {
+    if (sequence !== listSequence || token.value !== requestToken) return
     console.error(error)
     showError(error.message || '加载日记列表失败')
     listItems.value = []
   }
   finally {
-    stopListLoading()
+    if (sequence === listSequence) stopListLoading()
   }
 }
 
@@ -371,6 +385,7 @@ function openDetail(item) {
 watch(
   () => [
     language.value,
+    token.value,
     viewMode.value,
     route.query.year,
     route.query.month,
@@ -388,6 +403,8 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  catalogSequence += 1
+  listSequence += 1
   clearTimeout(catalogSkeletonTimer)
   clearTimeout(listSkeletonTimer)
 })

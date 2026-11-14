@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { HTTP_CODE, isBackendUnavailableError, request } from '../services/request.js'
+import { HTTP_CODE, request } from '../services/request.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
@@ -9,7 +9,7 @@ const isAuthenticated = ref(false)
 const user = ref(null)
 const token = ref(localStorage.getItem(AUTH_TOKEN_KEY) || '')
 
-const getStoredUser = () => {
+const readStoredUser = () => {
     const raw = localStorage.getItem(AUTH_USER_KEY)
     if (!raw) return null
     try {
@@ -18,6 +18,10 @@ const getStoredUser = () => {
         return null
     }
 }
+
+user.value = readStoredUser()
+const getStoredUser = () => token.value ? user.value : null
+let authGeneration = 0
 
 const getUserPermissions = () => {
     const currentUser = getStoredUser()
@@ -105,6 +109,7 @@ const hasPermission = (permission) => {
 }
 
 const clearAuth = () => {
+    authGeneration += 1
     isAuthenticated.value = false
     user.value = null
     token.value = ''
@@ -113,6 +118,7 @@ const clearAuth = () => {
 }
 
 const saveAuth = (userData, userToken) => {
+    authGeneration += 1
     isAuthenticated.value = true
     user.value = userData
     token.value = userToken
@@ -136,58 +142,69 @@ const preserveAuthForBackendUnavailable = (savedToken, savedUser, error = null) 
 
 const initializeAuth = async () => {
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY)
-    const savedUser = getStoredUser()
-
     if (!savedToken) {
         clearAuth()
         return
     }
-
+    const generation = authGeneration
+    const isCurrent = () => generation === authGeneration && localStorage.getItem(AUTH_TOKEN_KEY) === savedToken
     try {
-        await request(`/api/user/check-auth?t=${encodeURIComponent(savedToken)}`, {
-            timeout: AUTH_CHECK_TIMEOUT_MS
+        // 每次读取最新资料，避免旧权限和缓存的验证结果长期留在客户端。
+        const profile = await request(`/api/user/me?t=${encodeURIComponent(savedToken)}`, {
+            timeout: AUTH_CHECK_TIMEOUT_MS, cache: 'no-store'
         })
-
-        isAuthenticated.value = true
-        token.value = savedToken
-        user.value = savedUser
-        if (!savedUser) {
-            const profile = await request(`/api/user/me?t=${encodeURIComponent(savedToken)}`, {
-                timeout: AUTH_CHECK_TIMEOUT_MS
-            })
-            if (profile) {
-                localStorage.setItem(AUTH_USER_KEY, JSON.stringify(profile))
-                user.value = profile
-            }
-        }
-        return
+        if (!isCurrent()) return
+        if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return
+        saveAuth(profile, savedToken)
     } catch (error) {
+        if (!isCurrent()) return
         const code = error.code || error.status
-
-        if (isBackendUnavailableError(error) || code !== HTTP_CODE.NOT_LOGIN) {
-            preserveAuthForBackendUnavailable(savedToken, savedUser, error)
-            return
-        }
-
-        console.error('验证登录状态失败:', error)
+        if (code === HTTP_CODE.NOT_LOGIN) clearAuth()
+        else preserveAuthForBackendUnavailable(savedToken, readStoredUser(), error)
     }
-
-    clearAuth()
 }
 
 const logout = async () => {
-    const currentToken = token.value || localStorage.getItem(AUTH_TOKEN_KEY)
+    const currentToken = localStorage.getItem(AUTH_TOKEN_KEY)
+    // 旧退出请求返回时不能清除后来登录的新会话。
+    clearAuth()
     if (currentToken) {
         try {
-            await request(`/api/user/logout?t=${encodeURIComponent(currentToken)}`)
+            await request(`/api/user/logout?t=${encodeURIComponent(currentToken)}`, {
+                headers: {'X-Auth-Token': currentToken}, cache: 'no-store'
+            })
         } catch (error) {
             console.error('退出登录失败:', error)
         }
     }
-    clearAuth()
 }
 
-const isLoggedIn = () => !!localStorage.getItem(AUTH_TOKEN_KEY)
+let authSyncInstalled = false
+const installAuthSync = () => {
+    if (authSyncInstalled) return
+    authSyncInstalled = true
+    let checking = false
+    let checkedAt = 0
+    const revalidate = () => {
+        if (document.visibilityState === 'hidden' || checking || Date.now() - checkedAt < 15_000) return
+        checking = true
+        checkedAt = Date.now()
+        void initializeAuth().finally(() => { checking = false })
+    }
+    window.addEventListener('storage', event => {
+        if (event.key !== null && ![AUTH_TOKEN_KEY, AUTH_USER_KEY].includes(event.key)) return
+        authGeneration += 1
+        token.value = localStorage.getItem(AUTH_TOKEN_KEY) || ''
+        user.value = token.value ? readStoredUser() : null
+        isAuthenticated.value = false
+        void initializeAuth()
+    })
+    window.addEventListener('focus', revalidate)
+    window.addEventListener('pageshow', revalidate)
+    document.addEventListener('visibilitychange', revalidate)
+}
+
+const isLoggedIn = () => !!token.value
 
 const getToken = () => localStorage.getItem(AUTH_TOKEN_KEY)
 
@@ -203,6 +220,7 @@ export {
     user,
     token,
     initializeAuth,
+    installAuthSync,
     saveAuth,
     clearAuth,
     logout,

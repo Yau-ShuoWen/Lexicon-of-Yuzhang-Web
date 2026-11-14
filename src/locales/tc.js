@@ -110,7 +110,9 @@ export default {
         less_relevant: '下面是相關程度較低的詞語',
         no_more: '資料持續錄入中，沒有找到的內容請耐心等待',
         try_random: '要不隨機抽一個？',
-        try_feedback: '還是和我們反饋？'
+        try_feedback: '還是和我們反饋？',
+        empty_title: '南昌話有千千萬', empty_line: '唯獨箇裡冇得看',
+        empty_random: '隨機抽一個', empty_feedback: '反饋'
     },
     search_detail: {
         definition: '釋義', notes: '註釋', dictionary: '辭書', not_found_suffix: '（未找到）',

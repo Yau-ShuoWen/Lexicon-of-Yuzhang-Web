@@ -70,6 +70,11 @@ const routes = [
                         component: () => import('../views/Search/SearchResult.vue')
                     },
                     {
+                        path: 'feedback',
+                        name: 'SearchFeedback',
+                        component: () => import('../views/Search/Feedback.vue')
+                    },
+                    {
                         path: 'h/:query',
                         name: 'HanziDetail',
                         component: () => import('../views/Search/HanziDetail.vue'),

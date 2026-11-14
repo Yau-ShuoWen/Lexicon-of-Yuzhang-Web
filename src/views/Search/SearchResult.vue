@@ -1,11 +1,12 @@
 <script setup>
 import { ref, computed, nextTick, onActivated, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { showError, showWarning } from "../../services/ToastService.js";
+import { showError } from "../../services/ToastService.js";
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import ideaIcon from "../../assets/icons/special/idea.svg"
 import { request } from '../../services/request.js'
+import NoResult from './NoResult.vue'
 
 defineOptions({name: 'SearchResult'})
 
@@ -67,12 +68,7 @@ const handleSearch = async (query, searchKey) => {
 
     results.value = await request(`/api/search/${language.value}/${dialect.value}/query?${params}`)
 
-    const mainCount = results.value?.[0]?.length || 0
-    const extraCount = results.value?.[1]?.length || 0
-
-    if (mainCount + extraCount <= 0) {
-      showWarning('沒有查詢到結果')
-    }
+    // 空结果由页面统一展示。
   } catch (err) {
     console.error('查询失败:', err)
     showError('查询失败，请稍後再試')
@@ -305,12 +301,7 @@ const wordRelation = result => result.tag === 'ciyu' && result.info?.relatedWord
         <!--            还是和我们反馈  v-formatted-text="$t('search_result.try_feedback')-->
       </div>
 
-      <div v-if="!hasResults" class="search-empty-state">
-        <div class="search-empty-state__mark" aria-hidden="true">?</div>
-        <div class="search-empty-state__text" v-formatted-text="$t('common.no_result')"/>
-        <router-link class="normal-link" :to="getPath('search?q=random')"
-                     v-formatted-text="$t('search_result.try_random')"/>
-      </div>
+      <NoResult v-if="!hasResults" show-random />
 
     </div>
   </div>

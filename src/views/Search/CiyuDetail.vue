@@ -8,6 +8,7 @@ import SpecialTag from "../../components/Status/SpecialTag.vue";
 import PinyinHelpButton from '../../components/Text/PinyinHelpButton.vue'
 import { isAdminUser, user } from '../../utils/auth.js'
 import { HTTP_CODE, request } from '../../services/request.js'
+import NoResult from './NoResult.vue'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -184,31 +185,7 @@ watch(
 
     </div>
 
-    <div v-else-if="notFound" class="detail-content dictionary-detail-style">
-
-      <div class="block-pinyin">
-        <div class="section">
-          <h2 class="pinyin-title">
-            {{ query }}：{{ $t('search_detail.entry_missing') }}
-          </h2>
-
-          <p style="margin-top: 10px; color: var(--color-text-light);">
-            {{ $t('search_detail.no_definition') }}
-<!--            嘗試更換方言或者詞語-->
-          </p>
-
-          <!-- 反馈按钮（保留结构，暂时注释） -->
-          <!--
-          <div class="feedback-area" style="margin-top: 16px;">
-            <button class="feedback-button">
-              {{ $t('search_detail.feedback') }}
-            </button>
-          </div>
-          -->
-        </div>
-      </div>
-
-    </div>
+    <NoResult v-else-if="notFound" />
 
   </div>
 </template>

@@ -9,6 +9,7 @@ import { showError } from '../../services/ToastService.js'
 import { isAdminUser, user } from '../../utils/auth.js'
 import { HTTP_CODE, request } from '../../services/request.js'
 import { useUserSettings } from '../../utils/userSettings.js'
+import NoResult from './NoResult.vue'
 
 const {t} = useI18n()
 const route = useRoute()
@@ -171,12 +172,7 @@ watch(() => route.params.query, fetchHanzi, {immediate: true})
       </div>
     </div>
 
-    <div v-else-if="notFound" class="detail-content dictionary-detail-style">
-      <div class="block-pinyin">
-        <h2>{{ query }}：{{ $t('search_detail.entry_missing') }}</h2>
-        <p class="missing-text">{{ $t('search_detail.no_definition') }}</p>
-      </div>
-    </div>
+    <NoResult v-else-if="notFound" />
   </div>
 </template>
 

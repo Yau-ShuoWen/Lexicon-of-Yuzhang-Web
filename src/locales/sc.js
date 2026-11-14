@@ -110,7 +110,9 @@ export default {
         less_relevant: '下面是相关程度较低的词语',
         no_more: '数据持续录入中，没有找到的内容请耐心等待',
         try_random: '要不随机抽一个？',
-        try_feedback: '还是和我们反馈？'
+        try_feedback: '还是和我们反馈？',
+        empty_title: '南昌话有千千万', empty_line: '唯独箇里冇得看',
+        empty_random: '随机抽一个', empty_feedback: '反馈'
     },
     search_detail: {
         definition: '释义', notes: '注释', dictionary: '辞书', not_found_suffix: '（未找到）',

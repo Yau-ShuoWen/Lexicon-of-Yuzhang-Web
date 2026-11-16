@@ -1,6 +1,6 @@
 <script setup>
 import {computed, onMounted, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
@@ -10,13 +10,12 @@ import RichText from '../../../components/Text/RichText.vue'
 import {showError, showSuccess} from '../../../services/ToastService.js'
 import {getToken} from '../../../utils/auth.js'
 import {request} from '../../../services/request.js'
+import saveIcon from '../../../assets/icons/save.svg'
 
 const route = useRoute()
-const router = useRouter()
 const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = id => ({name: 'HanziEditor', params: {language: language.value, dialect: dialect.value, id}, query: route.query})
 
 const emptyData = () => ({
   id: null,
@@ -33,8 +32,6 @@ const mandarinOptions = ref([])
 const wordSuggestions = ref([])
 const suggestionsLoading = ref(false)
 const suggestionsFailed = ref(false)
-const prevId = ref(null)
-const nextId = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const pairEditors = new Map()
@@ -91,15 +88,6 @@ const loadMandarinOptions = async () => {
   })
 }
 
-const loadNearBy = async id => {
-  const params = new URLSearchParams({id})
-  const nearby = await request(`/api/edit/hanzi/get-nearby/${dialect.value}?${params}`, {
-    headers: {'X-Auth-Token': getToken() || ''}
-  })
-  prevId.value = nearby.left
-  nextId.value = nearby.right
-}
-
 const loadWordSuggestions = async id => {
   suggestionsLoading.value = true
   suggestionsFailed.value = false
@@ -128,7 +116,7 @@ const loadHanzi = async id => {
     })
     updateData.value.pinyin ??= []
     updateData.value.pinyin.forEach(item => item.mandarin ??= [])
-    await Promise.all([loadMandarinOptions(), loadNearBy(id), loadWordSuggestions(id)])
+    await Promise.all([loadMandarinOptions(), loadWordSuggestions(id)])
   } catch (error) {
     showError(t('hanzi_editor.load_failed', {message: error.message}))
   } finally {
@@ -170,14 +158,9 @@ onMounted(() => loadHanzi(route.params.id))
 <template>
   <div class="hanzi-editor-page">
     <div class="nav-buttons">
-      <button :disabled="!prevId" class="dev-nav-button dev-btn dev-btn-small" @click="router.replace(getPath(prevId))">
-        {{ prevId ? t('hanzi_editor.previous') : t('hanzi_editor.first') }}
-      </button>
-      <button :disabled="!nextId" class="dev-nav-button dev-btn-small" @click="router.replace(getPath(nextId))">
-        {{ nextId ? t('hanzi_editor.next') : t('hanzi_editor.last') }}
-      </button>
+      <router-link class="return-link" :to="{name: 'HanziFilter', params: {language, dialect}, query: route.query.q ? {q: route.query.q} : {}}">返回列表</router-link>
       <button :disabled="isSaving" class="dev-add-btn dev-btn-small" @click="saveData">
-        {{ isSaving ? t('hanzi_editor.saving') : t('hanzi_editor.save') }}
+        <img class="save-icon" :src="saveIcon" alt="" aria-hidden="true" />{{ isSaving ? t('hanzi_editor.saving') : t('hanzi_editor.save') }}
       </button>
     </div>
 
@@ -307,6 +290,9 @@ onMounted(() => loadHanzi(route.params.id))
 .hanzi-editor-page { min-width: 0; width: 100%; padding: 12px 0 56px; }
 .nav-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .nav-buttons .dev-add-btn { margin-left: auto; }
+.return-link { display: inline-flex; align-items: center; padding: 0 16px; border: 1px solid #c6d4c9; border-radius: 7px; background: #fff; color: var(--color-primary-dark); text-decoration: none; }
+.return-link:hover { background: #edf5ee; }
+.save-icon { width: 18px; height: 18px; margin-right: 7px; vertical-align: -3px; filter: brightness(0) invert(1); }
 .edit-form { display: flex; flex-direction: column; gap: 18px; }
 .form-section { min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: rgba(255,255,255,.75); }
 .form-section h3 { margin: 0 0 18px; color: var(--color-primary-dark); font-size: 18px; }
@@ -366,7 +352,6 @@ onMounted(() => loadHanzi(route.params.id))
   .note-item { grid-template-columns: minmax(0, 1fr); }
   .note-modal { padding: 18px; }
   .mandarin-line { align-items: flex-start; }
-  .nav-buttons .dev-add-btn { margin-left: 0; }
 }
 @media (max-width: 440px) {
   .pinyin-input-row { grid-template-columns: 1fr 18px 1fr; }

@@ -1,6 +1,6 @@
 <script setup>
 import {computed, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useHead} from '@vueuse/head'
 import {showError} from '../../../services/ToastService.js'
@@ -11,6 +11,7 @@ import DeveloperQueryBar from '../DeveloperQueryBar.vue'
 import HanziEditor from './HanziEditor.vue'
 
 const route = useRoute()
+const router = useRouter()
 const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
@@ -50,8 +51,13 @@ const runSearch = async (term, append = false) => {
 
 const performSearch = async () => {
   const term = searchText.value.trim()
-  await runSearch(term)
+  if (route.name === 'HanziFilter' && (route.query.q || '') === term) return runSearch(term)
+  await router.push({name: 'HanziFilter', params: {language: language.value, dialect: dialect.value}, query: term ? {q: term} : {}})
 }
+
+const openEditor = item => router.push({name: 'HanziEditor',
+  params: {language: language.value, dialect: dialect.value, id: item.editId},
+  query: activeQuery.value ? {q: activeQuery.value} : {}})
 
 watch([() => route.name, () => route.query.q, dialect], ([name, query]) => {
   searchText.value = typeof query === 'string' ? query : ''
@@ -83,13 +89,13 @@ const notePreview = notes => {
     <HanziEditor v-if="editing" :key="route.params.id"/>
 
     <div v-else class="results-section">
-      <div class="table-scroll"><table class="hanzi-table">
+      <div class="table-frame"><div class="table-scroll"><table class="hanzi-table">
         <colgroup><col class="col-id"><col class="col-character"><col class="col-character"><col class="col-dialect"><col class="col-mandarin"><col class="col-note"></colgroup>
         <thead><tr><th scope="col">ID</th><th scope="col">简</th><th scope="col">繁</th><th scope="col">方言拼音</th><th scope="col">汉语拼音</th><th scope="col">说明</th></tr></thead>
         <tbody v-for="item in searchResults" :key="item.id">
-          <tr v-for="(pronunciation, index) in (item.pinyin?.length ? item.pinyin : [null])" :key="index">
+          <tr v-for="(pronunciation, index) in (item.pinyin?.length ? item.pinyin : [null])" :key="index" @dblclick="openEditor(item)">
             <th v-if="index === 0" scope="row" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="id-cell">
-              <router-link :to="{name: 'HanziEditor', params: {language, dialect, id: item.editId}, query: {q: searchText}}">{{ item.id }}</router-link>
+              <router-link :to="{name: 'HanziEditor', params: {language, dialect, id: item.editId}, query: activeQuery ? {q: activeQuery} : {}}">{{ item.id }}</router-link>
             </th>
             <td v-if="index === 0" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="character-cell" :colspan="item.sc === item.tc ? 2 : 1">{{ item.sc }}</td>
             <td v-if="index === 0 && item.sc !== item.tc" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="character-cell">{{ item.tc }}</td>
@@ -100,7 +106,7 @@ const notePreview = notes => {
             </td>
           </tr>
         </tbody>
-      </table></div>
+      </table></div></div>
       <div v-if="hasSearched && !isLoading && !searchResults.length" class="no-results">{{ t('hanzi_editor.no_results') }}</div>
       <div class="table-footer"><button v-if="hasMore" type="button" :disabled="isLoading" @click="runSearch(activeQuery, true)">{{ isLoading ? '加载中…' : '加载更多' }}</button></div>
     </div>
@@ -109,20 +115,25 @@ const notePreview = notes => {
 
 <style scoped>
 .entry-workspace { box-sizing: border-box; width: 100%; min-width: 0; margin: 0 auto; padding: 0 24px 56px; }
-.search-section { position: sticky; top: 0; z-index: 10; padding: 20px 0 16px; }
+.search-section { position: sticky; top: 0; z-index: 10; padding: 20px 0 22px; }
+.search-section::before { position: absolute; z-index: -1; inset: 0 -24px -28px; background: var(--app-bg-color, var(--color-background-alt)); content: ''; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%); mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%); }
 .results-section { margin: 12px auto 0; }
-.table-scroll { width: 100%; overflow-x: auto; border: 1px solid #b9cbbd; border-radius: 9px; background: #fff; box-shadow: 0 5px 18px rgb(30 70 40 / 10%); }
-.hanzi-table { width: 100%; min-width: 760px; table-layout: fixed; border-collapse: collapse; background: #fff; color: var(--color-text); text-align: left; }
-.col-id { width: 5%; }
-.col-character { width: 5%; }
-.col-dialect { width: 18%; }
-.col-mandarin { width: 23%; }
-.col-note { width: 44%; }
-.hanzi-table th, .hanzi-table td { padding: 12px 14px; border: 1px solid #d1ddd3; vertical-align: middle; }
+.table-frame { border: 1px solid #b9cbbd; border-radius: 12px; overflow: hidden; background: #fff; }
+.table-scroll { width: 100%; overflow-x: auto; }
+.hanzi-table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: #fff; color: var(--color-text); text-align: left; }
+.col-id { width: 72px; }
+.col-character { width: 76px; }
+.col-dialect { width: 240px; }
+.col-mandarin { width: 300px; }
+.hanzi-table th, .hanzi-table td { padding: 12px 14px; border: 0; border-right: 1px solid #d1ddd3; border-bottom: 1px solid #d1ddd3; vertical-align: middle; }
+.hanzi-table thead th:last-child, .hanzi-table .note-cell { border-right: 0; }
+.hanzi-table tbody:last-of-type tr:last-child > * { border-bottom: 0; }
+.hanzi-table tbody:last-of-type tr:first-child > [rowspan] { border-bottom: 0; }
 .hanzi-table thead { background: #e7efe9; }
-.hanzi-table thead th { color: #21472b; }
+.hanzi-table thead th { box-sizing: border-box; height: 72px; color: #21472b; font-size: 22px; }
+.hanzi-table thead th:nth-child(2), .hanzi-table thead th:nth-child(3) { text-align: center; }
 .hanzi-table tbody:nth-of-type(even) { background: #f7faf7; }
-.hanzi-table tbody:hover { background: #edf5ee; }
+.hanzi-table tbody:hover { background: #edf5ee; cursor: pointer; }
 .id-cell { font-weight: 500; }
 .id-cell a { color: var(--color-primary-dark); text-decoration: underline; }
 .character-cell { font-size: 22px; }
@@ -136,5 +147,6 @@ const notePreview = notes => {
 @media (max-width: 600px) {
   .entry-workspace { padding: 0 12px 36px; }
   .search-section { padding-top: 12px; }
+  .search-section::before { right: -12px; left: -12px; }
 }
 </style>

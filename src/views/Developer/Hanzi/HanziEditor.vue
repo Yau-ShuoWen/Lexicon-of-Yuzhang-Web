@@ -4,7 +4,6 @@ import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
-import DraggableList from '../../../components/Layout/DraggableList.vue'
 import HanziSortable from './HanziSortable.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import {showError, showSuccess} from '../../../services/ToastService.js'
@@ -276,13 +275,14 @@ onMounted(() => loadHanzi(route.params.id))
       <div class="secondary-sections">
       <section class="form-section form-section--similar">
         <h3>{{ t('hanzi_editor.similar') }} <span class="section-count">{{ updateData.similar.length }}</span></h3>
-        <DraggableList v-model="updateData.similar" :createItem="() => ({text:{sc:'',tc:''}})" :draggable="false">
+        <HanziSortable v-model="updateData.similar" layout="list" :item-label="t('hanzi_editor.similar')" :auto-sort="true"
+          :create-item="() => ({text:{sc:'',tc:''},sort:null})">
           <template #default="{item,index}">
-            <div class="array-item"><ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
+            <div class="similar-item"><span class="similar-number">{{ index + 1 }}</span><ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
               :pair="item.text" :dialect="dialect.toString()" layout="small" :rich-text="false"
               @update:pair="item.text = $event"/></div>
           </template>
-        </DraggableList>
+        </HanziSortable>
       </section>
 
       <section class="form-section">
@@ -359,6 +359,9 @@ onMounted(() => loadHanzi(route.params.id))
 .pinyin-preview :deep(.result) { min-width: 0; line-height: 1.2; white-space: nowrap; }
 .pinyin-preview :deep(.rt-pinyin) { line-height: 1.2; }
 .note-item { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: start; gap: 14px; min-width: 0; }
+.similar-item { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 10px; min-width: 0; }
+.similar-number { padding-top: 9px; color: var(--color-text-light); font-size: 14px; text-align: center; }
+.similar-item :deep(.lab-editor) { min-width: 0; }
 .note-item .short-input { max-width: none; }
 .note-preview { min-width: 0; min-height: 42px; max-height: 110px; overflow: hidden; cursor: pointer; color: var(--color-text); }
 .note-preview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
@@ -396,10 +399,6 @@ onMounted(() => loadHanzi(route.params.id))
 .form-section--primary :deep(.hanzi-sortable__card) { padding: 14px; border-radius: 6px; }
 .form-section :deep(.hanzi-sortable__add) { justify-self: end; width: 42px; height: 42px; border-radius: 7px; }
 .form-section :deep(.hanzi-sortable__add img) { width: 20px; height: 20px; }
-.form-section--similar :deep(.add-bar) { order: 2; align-self: flex-end; margin: 0; }
-.form-section--similar :deep(.add-bar button) { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid #58a869; border-radius: 7px; background: #58a869; color: transparent; font-size: 0; }
-.form-section--similar :deep(.add-bar button::before) { content: '+'; color: #fff; font-size: 29px; font-weight: 300; line-height: 1; }
-.form-section--similar :deep(.add-bar button:hover) { border-color: #4c985c; background: #4c985c; }
 @media (max-width: 600px) {
   .hanzi-editor-page { padding: 12px 0 36px; }
   .form-section, .entry-heading { padding: 20px 16px; }

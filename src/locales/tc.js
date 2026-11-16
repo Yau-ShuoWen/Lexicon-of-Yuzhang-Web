@@ -432,7 +432,7 @@ export default {
         copy_ge: '箇', copy_go: '嗰', copy_he: '許', copy_xi: '係', copy_gak: '噶', copy_jie: '渠',
     },
     hanzi_editor: {
-        title: '編輯漢字', search_placeholder: '篩選需要編輯的漢字', search_results: '搜尋結果（點擊編輯）', no_results: '未找到相關漢字', search_failed: '搜尋失敗：{message}',
+        title: '編輯漢字', search_placeholder: '查詢漢字或輸入 py san1', search_results: '搜尋結果（點擊編輯）', no_results: '未找到相關漢字', search_failed: '搜尋失敗：{message}',
         previous: '上一條', first: '第一條', next: '下一條', last: '最後一條',
         saving: '儲存中……', save: '儲存修改', save_success: '儲存成功！', load_failed: '載入失敗：{message}',
         traditional: '繁體：', simplified: '簡體：', special: '特殊性標記', status: '詞條狀態',

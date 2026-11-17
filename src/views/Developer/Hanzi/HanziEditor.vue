@@ -4,19 +4,26 @@ import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import LoadingIcon from '../../../components/Status/LoadingIcon.vue'
 import ScTcEditorLab from '../../../components/Text/ScTcEditorLab.vue'
-import DraggableList from '../../../components/Layout/DraggableList.vue'
 import HanziSortable from './HanziSortable.vue'
 import RichText from '../../../components/Text/RichText.vue'
 import {showError, showSuccess} from '../../../services/ToastService.js'
+import {confirm} from '../../../services/confirmService.js'
 import {getToken} from '../../../utils/auth.js'
 import {request} from '../../../services/request.js'
+import saveIcon from '../../../assets/icons/save.svg'
+import backIcon from '../../../assets/icons/to-left.svg'
+import tagIcon from '../../../assets/icons/calendar/bookmark.svg'
 
 const route = useRoute()
 const router = useRouter()
 const {t} = useI18n()
 const language = computed(() => route.params.language)
 const dialect = computed(() => route.params.dialect)
-const getPath = id => ({name: 'HanziEditor', params: {language: language.value, dialect: dialect.value, id}, query: route.query})
+const returnToPrevious = () => {
+  if (window.history.state?.back) return router.back()
+  return router.push({name: 'HanziFilter', params: {language: language.value, dialect: dialect.value},
+    query: route.query.q ? {q: route.query.q} : {}})
+}
 
 const emptyData = () => ({
   id: null,
@@ -29,14 +36,17 @@ const emptyData = () => ({
 })
 
 const updateData = ref(emptyData())
+const originalData = ref(null)
+const hasChanges = computed(() => originalData.value !== null &&
+    JSON.stringify(updateData.value) !== originalData.value)
 const mandarinOptions = ref([])
 const wordSuggestions = ref([])
 const suggestionsLoading = ref(false)
 const suggestionsFailed = ref(false)
-const prevId = ref(null)
-const nextId = ref(null)
+const suggestionsLoaded = ref(false)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const isDeleting = ref(false)
 const pairEditors = new Map()
 const openedNoteItem = ref(null)
 const noteDraft = ref(null)
@@ -91,16 +101,8 @@ const loadMandarinOptions = async () => {
   })
 }
 
-const loadNearBy = async id => {
-  const params = new URLSearchParams({id})
-  const nearby = await request(`/api/edit/hanzi/get-nearby/${dialect.value}?${params}`, {
-    headers: {'X-Auth-Token': getToken() || ''}
-  })
-  prevId.value = nearby.left
-  nextId.value = nearby.right
-}
-
 const loadWordSuggestions = async id => {
+  suggestionsLoaded.value = true
   suggestionsLoading.value = true
   suggestionsFailed.value = false
   try {
@@ -111,14 +113,22 @@ const loadWordSuggestions = async id => {
   } catch (error) {
     wordSuggestions.value = []
     suggestionsFailed.value = true
+    suggestionsLoaded.value = false
     console.error('词语读音建议加载失败', error)
   } finally {
     suggestionsLoading.value = false
   }
 }
 
+const onSuggestionsToggle = event => {
+  if (event.target.open && !suggestionsLoaded.value) loadWordSuggestions(route.params.id)
+}
+
 const loadHanzi = async id => {
   isLoading.value = true
+  originalData.value = null
+  suggestionsLoaded.value = false
+  wordSuggestions.value = []
   openedNoteItem.value = null
   noteDraft.value = null
   try {
@@ -128,7 +138,8 @@ const loadHanzi = async id => {
     })
     updateData.value.pinyin ??= []
     updateData.value.pinyin.forEach(item => item.mandarin ??= [])
-    await Promise.all([loadMandarinOptions(), loadNearBy(id), loadWordSuggestions(id)])
+    await loadMandarinOptions()
+    originalData.value = JSON.stringify(updateData.value)
   } catch (error) {
     showError(t('hanzi_editor.load_failed', {message: error.message}))
   } finally {
@@ -140,6 +151,7 @@ const usedByOther = (mandarinId, currentIndex) => updateData.value.pinyin.some(
     (item, index) => index !== currentIndex && item.mandarin?.includes(mandarinId))
 
 const saveData = async () => {
+  if (isLoading.value || isSaving.value || isDeleting.value || !hasChanges.value) return
   isSaving.value = true
   try {
     for (const editor of pairEditors.values()) {
@@ -160,6 +172,35 @@ const saveData = async () => {
   }
 }
 
+const deleteHanzi = async () => {
+  if (isLoading.value || isSaving.value || isDeleting.value || !originalData.value) return
+  const character = updateData.value.hanzi.sc === updateData.value.hanzi.tc
+      ? updateData.value.hanzi.sc
+      : `${updateData.value.hanzi.sc} / ${updateData.value.hanzi.tc}`
+  const accepted = await confirm({
+    title: '删除汉字',
+    message: `确定删除“${character}”及其相似汉字记录吗？此操作无法撤销。`,
+    actions: [
+      {key: false, text: '取消', class: 'dev-btn-small dev-normal-button'},
+      {key: true, text: '确认删除', class: 'dev-btn-small dev-remove-btn'}
+    ]
+  })
+  if (!accepted) return
+  isDeleting.value = true
+  try {
+    await request(`/api/edit/hanzi/${dialect.value}/${route.params.id}`, {
+      method: 'DELETE', headers: {'X-Auth-Token': getToken() || ''}
+    })
+    showSuccess('汉字已删除')
+    await router.replace({name: 'HanziFilter', params: {language: language.value, dialect: dialect.value},
+      query: route.query.q ? {q: route.query.q} : {}})
+  } catch (error) {
+    showError(error.message)
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 watch(() => route.params.id, id => id && loadHanzi(id))
 watch([() => updateData.value.hanzi.sc, () => updateData.value.hanzi.tc], () => {
   loadMandarinOptions().catch(error => showError(error.message))
@@ -170,61 +211,71 @@ onMounted(() => loadHanzi(route.params.id))
 <template>
   <div class="hanzi-editor-page">
     <div class="nav-buttons">
-      <button :disabled="!prevId" class="dev-nav-button dev-btn dev-btn-small" @click="router.replace(getPath(prevId))">
-        {{ prevId ? t('hanzi_editor.previous') : t('hanzi_editor.first') }}
+      <button type="button" class="editor-action return-link" @click="returnToPrevious"><img class="back-icon" :src="backIcon" alt="" aria-hidden="true" />返回</button>
+      <button type="button" :disabled="isLoading || isSaving || isDeleting || !hasChanges" class="editor-action dev-add-btn" @click="saveData">
+        <img class="save-icon" :src="saveIcon" alt="" aria-hidden="true" />{{ isSaving ? t('hanzi_editor.saving') : t('hanzi_editor.save') }}
       </button>
-      <button :disabled="!nextId" class="dev-nav-button dev-btn-small" @click="router.replace(getPath(nextId))">
-        {{ nextId ? t('hanzi_editor.next') : t('hanzi_editor.last') }}
-      </button>
-      <button :disabled="isSaving" class="dev-add-btn dev-btn-small" @click="saveData">
-        {{ isSaving ? t('hanzi_editor.saving') : t('hanzi_editor.save') }}
+      <button type="button" :disabled="isLoading || isSaving || isDeleting || !originalData" class="editor-action delete-entry" @click="deleteHanzi">
+        <svg class="delete-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6"/></svg>{{ isDeleting ? '正在删除……' : '删除汉字' }}
       </button>
     </div>
 
     <LoadingIcon v-if="isLoading" :show-text="true"/>
     <div v-else class="edit-form">
-      <div class="form-section form-grid">
-        <div><h4>{{ t('hanzi_editor.traditional') }}{{ updateData.hanzi.tc }}</h4><h4>{{ t('hanzi_editor.simplified') }}{{ updateData.hanzi.sc }}</h4></div>
-        <div class="form-field">
-          <label>{{ t('hanzi_editor.special') }}</label>
-          <select v-model.number="updateData.special" class="short-input">
-            <option :value="0">{{ t('hanzi_editor.normal_hanzi') }}</option><option :value="1">{{ t('hanzi_editor.dialect_hanzi') }}</option>
-            <option :value="2">{{ t('hanzi_editor.rare_hanzi') }}</option><option :value="3">{{ t('hanzi_editor.unused_hanzi') }}</option>
-            <option :value="4">{{ t('hanzi_editor.migration_conflict') }}</option>
-          </select>
+      <section class="entry-heading">
+        <h3>基本信息</h3>
+        <span class="entry-identity__id">ID {{ updateData.id }}</span>
+        <div class="basic-fields">
+          <div class="entry-identity">
+            <div class="entry-identity__value">
+              <span class="entry-identity__character">{{ updateData.hanzi.sc }}</span>
+              <template v-if="updateData.hanzi.sc !== updateData.hanzi.tc">
+                <span class="entry-identity__separator">/</span>
+                <span class="entry-identity__character">{{ updateData.hanzi.tc }}</span>
+              </template>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>{{ t('hanzi_editor.special') }}</label>
+            <select v-model.number="updateData.special" class="short-input">
+              <option :value="0">{{ t('hanzi_editor.normal_hanzi') }}</option><option :value="1">{{ t('hanzi_editor.dialect_hanzi') }}</option>
+              <option :value="2">{{ t('hanzi_editor.rare_hanzi') }}</option><option :value="3">{{ t('hanzi_editor.unused_hanzi') }}</option>
+              <option :value="4">{{ t('hanzi_editor.migration_conflict') }}</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>{{ t('hanzi_editor.status') }}</label>
+            <select v-model.number="updateData.status" class="short-input">
+              <option :value="1">{{ t('hanzi_editor.newly_created') }}</option><option :value="2">{{ t('hanzi_editor.needs_content') }}</option>
+              <option :value="3">{{ t('hanzi_editor.basically_complete') }}</option><option :value="4">{{ t('hanzi_editor.uncertain') }}</option>
+            </select>
+          </div>
         </div>
-        <div class="form-field">
-          <label>{{ t('hanzi_editor.status') }}</label>
-          <select v-model.number="updateData.status" class="short-input">
-            <option :value="1">{{ t('hanzi_editor.newly_created') }}</option><option :value="2">{{ t('hanzi_editor.needs_content') }}</option>
-            <option :value="3">{{ t('hanzi_editor.basically_complete') }}</option><option :value="4">{{ t('hanzi_editor.uncertain') }}</option>
-          </select>
-        </div>
-      </div>
+      </section>
 
-      <div class="form-section">
+      <section class="form-section form-section--primary">
         <h3>{{ t('hanzi_editor.pinyin') }}</h3>
         <HanziSortable v-model="updateData.pinyin" layout="grid" :item-label="t('hanzi_editor.pinyin')"
           :create-item="() => ({tag:{sc:'待定',tc:'待定'},pinyin:'',code:null,mandarin:[]})">
           <template #default="{item,index}">
             <div class="pinyin-item">
-              <div class="array-item pinyin-input-row" :class="{'pinyin-input-row--no-preview': !item.pinyin}">
-                <select class="form-control small-input" :value="JSON.stringify(item.tag)"
+              <div class="array-item pinyin-input-row">
+                <label class="pinyin-tag-control" aria-label="读音类型"><img class="pinyin-tag-icon" :src="tagIcon" alt=""><select class="form-control small-input" :value="JSON.stringify(item.tag)"
                         @change="e => item.tag=JSON.parse(e.target.value)">
                   <option v-for="opt in tagOptions" :key="opt.sc" :value="JSON.stringify(opt)">{{ opt[language] }}</option>
-                </select>
-                <input v-model="item.pinyin" class="form-control pinyin-input" type="text" :aria-label="t('hanzi_editor.pinyin')">
-                <span v-if="item.pinyin" class="pinyin-arrow" aria-hidden="true">→</span>
-                <div v-if="item.pinyin" class="pinyin-preview">
-                  <RichText :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
+                </select></label>
+                <label class="pinyin-control"><input v-model="item.pinyin" class="form-control pinyin-input" type="text" aria-label="方言拼音"></label>
+                <span class="pinyin-arrow" aria-hidden="true">→</span>
+                <div class="pinyin-control"><div class="pinyin-preview">
+                  <RichText v-if="item.pinyin" :language="language.toString()" :dialect="dialect.toString()" :all-pinyin="true"
                             :model-value="item.pinyin" :plain="true"/>
-                </div>
+                </div></div>
               </div>
 
               <div class="mandarin-line">
                 <span class="mandarin-label">{{ t('hanzi_editor.mandarin') }}</span>
-                <div v-if="isAutomaticMapping" class="gray-text compact-hint">
-                  <span v-formatted-text="mandarinOptions[0].info"/>{{ t('hanzi_editor.automatic') }}
+                <div v-if="isAutomaticMapping" class="mandarin-auto">
+                  <span class="mandarin-reading" v-formatted-text="mandarinOptions[0].info"/><span class="automatic-hint">{{ t('hanzi_editor.automatic') }}</span>
                 </div>
                 <div v-else-if="mandarinOptions.length" class="mandarin-options">
                   <label v-for="option in mandarinOptions" :key="option.mandarinId" class="checkbox-item">
@@ -239,9 +290,9 @@ onMounted(() => loadHanzi(route.params.id))
           </template>
         </HanziSortable>
 
-        <div class="word-suggestions">
-          <h4>{{ t('hanzi_editor.suggestions_title') }}</h4>
-          <p class="suggestion-hint">{{ t('hanzi_editor.suggestions_hint') }}</p>
+        <details class="word-suggestions" @toggle="onSuggestionsToggle">
+          <summary>{{ t('hanzi_editor.suggestions_title') }}</summary>
+          <div class="suggestion-content">
           <div v-if="suggestionsLoading" class="gray-text compact-hint">{{ t('hanzi_editor.suggestions_loading') }}</div>
           <div v-else-if="suggestionsFailed" class="gray-text compact-hint">{{ t('hanzi_editor.suggestions_failed') }}</div>
           <div v-else-if="wordSuggestions.length" class="suggestion-list">
@@ -256,21 +307,24 @@ onMounted(() => loadHanzi(route.params.id))
             </div>
           </div>
           <div v-else class="gray-text compact-hint">{{ t('hanzi_editor.suggestions_empty') }}</div>
-        </div>
-      </div>
+          </div>
+        </details>
+      </section>
 
-      <div class="form-section">
+      <div class="secondary-sections">
+      <section class="form-section form-section--similar">
         <h3>{{ t('hanzi_editor.similar') }}</h3>
-        <DraggableList v-model="updateData.similar" :createItem="() => ({text:{sc:'',tc:''}})" :draggable="false">
+        <HanziSortable v-model="updateData.similar" layout="list" :item-label="t('hanzi_editor.similar')" :auto-sort="true"
+          :create-item="() => ({text:{sc:'',tc:''},sort:null})">
           <template #default="{item,index}">
-            <div class="array-item"><ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
+            <div class="similar-item"><span class="similar-number">{{ index + 1 }}</span><ScTcEditorLab :ref="editor => setPairEditor(`similar:${index}`, editor)"
               :pair="item.text" :dialect="dialect.toString()" layout="small" :rich-text="false"
               @update:pair="item.text = $event"/></div>
           </template>
-        </DraggableList>
-      </div>
+        </HanziSortable>
+      </section>
 
-      <div class="form-section">
+      <section class="form-section">
         <h3>{{ t('hanzi_editor.notes') }}</h3>
         <HanziSortable v-model="updateData.note" layout="list" :item-label="t('hanzi_editor.notes')" :auto-sort="true"
           :create-item="() => ({left:'usage',right:{sc:'',tc:''}})">
@@ -290,6 +344,7 @@ onMounted(() => loadHanzi(route.params.id))
             </div>
           </template>
         </HanziSortable>
+      </section>
       </div>
     </div>
     <div v-if="openedNoteItem && noteDraft" class="note-modal-backdrop" @pointerdown.self="closeNote" @keydown.esc="closeNote">
@@ -304,23 +359,43 @@ onMounted(() => loadHanzi(route.params.id))
 </template>
 
 <style scoped>
-.hanzi-editor-page { min-width: 0; width: 100%; padding: 12px 0 56px; }
-.nav-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-.nav-buttons .dev-add-btn { margin-left: auto; }
-.edit-form { display: flex; flex-direction: column; gap: 18px; }
-.form-section { min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: rgba(255,255,255,.75); }
-.form-section h3 { margin: 0 0 18px; color: var(--color-primary-dark); font-size: 18px; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); align-items: center; gap: 18px; }
-.form-grid h4 { margin: 4px 0; color: var(--color-text); font-size: 18px; }
+.hanzi-editor-page { box-sizing: border-box; width: 100%; max-width: 980px; min-width: 0; margin: 0 auto; padding: 12px 0 48px; }
+.nav-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.editor-action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 14px; border-radius: 6px; font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
+.return-link { border: 1px solid #c6d4c9; background: #fff; color: var(--color-primary-dark); }
+.return-link:hover { background: #edf5ee; }
+.nav-buttons .dev-add-btn { border: 1px solid #4caf50; }
+.delete-entry { margin-left: auto; border: 1px solid #c76868; background: #fff; color: #a63838; }
+.delete-entry:hover:not(:disabled) { background: #fff1f1; }
+.delete-entry:disabled { opacity: .5; cursor: not-allowed; }
+.delete-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.back-icon { width: 16px; height: 16px; }
+.save-icon { width: 18px; height: 18px; filter: brightness(0) invert(1); }
+.dev-add-btn:disabled .save-icon { filter: brightness(0); opacity: .55; }
+.edit-form { display: block; overflow: hidden; border: 1px solid #cbd9ce; border-radius: 9px; background: #fff; }
+.entry-heading { position: relative; min-width: 0; padding: 24px 30px; }
+.entry-heading h3 { margin: 0 0 20px; color: var(--color-primary-dark); font-size: 24px; font-weight: 750; }
+.basic-fields { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: end; }
+.entry-identity { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.entry-identity__value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; min-height: 38px; }
+.entry-identity__id { position: absolute; top: 26px; right: 30px; color: var(--color-text-light); font-size: 11px; font-weight: 400; white-space: nowrap; }
+.entry-identity__character { color: var(--color-primary-dark); font-size: 29px; font-weight: 750; line-height: 1.15; }
+.entry-identity__separator { color: #809185; font-size: 21px; font-weight: 400; }
+.form-section { min-width: 0; margin: 0; padding: 24px 30px; border: 0; border-top: 1px solid #dfe8e1; background: #fff; }
+.form-section h3 { margin: 0 0 20px; color: var(--color-primary-dark); font-size: 24px; font-weight: 750; }
+.secondary-sections { display: block; }
 .form-field { display: flex; flex-direction: column; gap: 7px; }
-.form-field label { color: var(--color-text-light); font-size: 14px; }
-.short-input { width: 100%; max-width: 190px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-background); color: var(--color-text); }
+.form-field label, .field-label { color: #405a46; font-size: 14px; font-weight: 650; }
+.short-input { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-background); color: var(--color-text); }
 .short-input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .pinyin-item { min-width: 0; }
 .array-item { display: flex; align-items: center; gap: 10px; min-width: 0; margin-bottom: 10px; }
 .array-item input { padding: 7px 10px; }
-.pinyin-input-row { display: grid; grid-template-columns: 120px minmax(105px, 1fr) 18px minmax(90px, .65fr); align-items: center; }
-.pinyin-input-row--no-preview .pinyin-input { grid-column: 2 / -1; }
+.pinyin-input-row { display: grid; grid-template-columns: 158px 120px 18px 150px; align-items: center; }
+.pinyin-control { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.pinyin-tag-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pinyin-tag-icon { flex: none; width: 19px; height: 19px; }
+.pinyin-tag-control select { flex: 1; }
 .pinyin-input-row select { width: 100%; min-width: 0; height: 36px; border: 1px solid #c8d2ca; border-radius: 6px; }
 .pinyin-input { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; border: 1px solid #c8d2ca; border-radius: 6px; background: #fff; box-shadow: none; outline: none; }
 .pinyin-input:focus, .pinyin-input:focus-visible { border-color: #6f8775; box-shadow: none; outline: none; }
@@ -329,8 +404,11 @@ onMounted(() => loadHanzi(route.params.id))
 .pinyin-preview :deep(.result) { min-width: 0; line-height: 1.2; white-space: nowrap; }
 .pinyin-preview :deep(.rt-pinyin) { line-height: 1.2; }
 .note-item { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: start; gap: 14px; min-width: 0; }
+.similar-item { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 10px; min-width: 0; }
+.similar-number { padding-top: 9px; color: var(--color-text-light); font-size: 14px; text-align: center; }
+.similar-item :deep(.lab-editor) { min-width: 0; }
 .note-item .short-input { max-width: none; }
-.note-preview { min-width: 0; min-height: 42px; cursor: pointer; color: var(--color-text); }
+.note-preview { min-width: 0; min-height: 42px; max-height: 110px; overflow: hidden; cursor: pointer; color: var(--color-text); }
 .note-preview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .note-preview :deep(.result) { padding: 0; margin: 0; }
 .note-preview__empty { color: var(--color-text-light); }
@@ -344,33 +422,45 @@ onMounted(() => loadHanzi(route.params.id))
 .note-modal__footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e0e9e2; }
 .note-modal__footer button { padding: 7px 11px; border: 1px solid #b7d1bc; border-radius: 7px; background: #f5faf5; color: #326d3b; cursor: pointer; }
 .mandarin-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 28px; }
-.mandarin-label { color: var(--color-text-light); font-size: 14px; white-space: nowrap; }
+.mandarin-label { color: #405a46; font-size: 14px; font-weight: 650; white-space: nowrap; }
+.mandarin-reading, .mandarin-options { color: var(--color-text); font-size: 19px; }
+.mandarin-auto { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; }
+.automatic-hint { color: var(--color-text-light); font-size: 13px; }
 .compact-hint { font-size: 14px; }
 .mandarin-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .checkbox-item { display: flex; align-items: center; gap: 6px; }
 .big-check { transform: scale(1.3); }
-.word-suggestions { margin-top: 20px; padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-background-alt); }
-.word-suggestions h4 { margin: 0 0 4px; color: var(--color-primary-dark); }
-.suggestion-hint { margin: 0 0 12px; color: var(--color-text-light); font-size: 13px; }
+.word-suggestions { margin-top: 14px; padding-top: 11px; border-top: 1px solid #e0e9e2; }
+.word-suggestions summary { width: fit-content; color: var(--color-text-light); font-size: 14px; cursor: pointer; }
+.word-suggestions summary:hover { color: var(--color-primary-dark); }
+.suggestion-content { padding-top: 12px; }
 .suggestion-list { display: flex; flex-direction: column; gap: 10px; }
-.suggestion-item { display: flex; align-items: flex-start; gap: 14px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-background); }
+.suggestion-item { display: flex; align-items: flex-start; gap: 14px; padding: 8px 0; border-bottom: 1px solid #e7ede8; }
 .suggestion-item > strong { min-width: 72px; color: var(--color-primary-dark); }
 .suggestion-words { display: flex; flex-wrap: wrap; gap: 8px; }
 .suggestion-word { display: inline-flex; align-items: baseline; gap: 5px; }
 .suggestion-word small { color: var(--color-text-light); }
+.form-section--primary :deep(.hanzi-sortable--grid) { grid-template-columns: minmax(0, 1fr); }
+.form-section--primary :deep(.hanzi-sortable__card) { padding: 14px; border-radius: 6px; }
+.form-section :deep(.hanzi-sortable__add) { justify-self: end; width: 42px; height: 42px; border-radius: 7px; }
+.form-section :deep(.hanzi-sortable__add img) { width: 20px; height: 20px; }
+.form-section :deep(.hanzi-sortable__remove) { width: 42px; height: 42px; border: 1px solid #e4b7b7; border-radius: 7px; background: #fff; }
+.form-section :deep(.hanzi-sortable__remove:hover) { background: #fff1f1; }
+.form-section :deep(.hanzi-sortable__remove svg) { width: 20px; height: 20px; }
 @media (max-width: 600px) {
   .hanzi-editor-page { padding: 12px 0 36px; }
-  .form-section { padding: 14px; }
+  .form-section, .entry-heading { padding: 20px 16px; }
+  .entry-identity__id { top: 22px; right: 16px; }
+  .basic-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .entry-identity { grid-column: 1 / -1; }
   .array-item:not(.pinyin-input-row) { align-items: stretch; flex-direction: column; }
-  .pinyin-input-row { grid-template-columns: 100px minmax(90px, 1fr) 18px minmax(75px, .6fr); }
+  .pinyin-input-row { grid-template-columns: 138px minmax(80px, 120px) 18px minmax(90px, 150px); }
   .note-item { grid-template-columns: minmax(0, 1fr); }
   .note-modal { padding: 18px; }
   .mandarin-line { align-items: flex-start; }
-  .nav-buttons .dev-add-btn { margin-left: 0; }
 }
 @media (max-width: 440px) {
-  .pinyin-input-row { grid-template-columns: 1fr 18px 1fr; }
-  .pinyin-input-row select { grid-column: 1 / -1; }
-  .pinyin-input-row--no-preview .pinyin-input { grid-column: 1 / -1; }
+  .pinyin-input-row { grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); }
+  .pinyin-input-row .pinyin-tag-control { grid-column: 1 / -1; }
 }
 </style>

@@ -9,6 +9,7 @@ import { useHead } from '@vueuse/head'
 import { useI18n } from 'vue-i18n'
 import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
+import TextInfo from '../../components/Status/TextInfo.vue'
 import { tableFromDocument } from '../../utils/pinyinDocument.js'
 import informationIcon from '../../assets/icons/about.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
@@ -27,8 +28,10 @@ const panels = ['table', 'input', 'faq']
 const storageKey = 'pinyin-panel'
 const savedPanel = localStorage.getItem(storageKey)
 const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
-const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: `${t('dialect.' + dialect.value)}输入法`, faq: '常见问题' })[activePanel.value])
+const hasSwitchedPanel = ref(false)
+const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), faq: t('pinyin_table.faq_title') })[activePanel.value])
 function switchPanel(direction) {
+  hasSwitchedPanel.value = true
   const index = panels.indexOf(activePanel.value)
   activePanel.value = panels[(index + direction + panels.length) % panels.length]
   localStorage.setItem(storageKey, activePanel.value)
@@ -78,7 +81,7 @@ async function fetchTable() {
 
   } catch (e) {
     console.error(e)
-    showError('加载拼音表失败')
+    showError(t('pinyin_table.load_failed'))
   }
   finally {
     stopLoading()
@@ -112,17 +115,17 @@ watch([dialect, language], fetchTable)
         <img :src="informationIcon" alt="" draggable="false" />
         <span>{{ $t('pinyin_table.hint') }}</span>
       </p>
-      <p v-else class="hero-hint">{{ activePanel === 'input' ? '通用赣语拼音方案' : '补充说明' }}</p>
+      <p v-else class="hero-hint">{{ $t(activePanel === 'input' ? 'pinyin_table.input_label' : 'pinyin_table.faq_label') }}</p>
 
-      <nav class="panel-navigation" aria-label="拼音页面切换">
-        <button type="button" aria-label="上一个界面" @click="switchPanel(-1)"><img :src="leftIcon" alt="" /></button>
-        <button type="button" aria-label="下一个界面" @click="switchPanel(1)"><img :src="rightIcon" alt="" /></button>
+      <nav class="panel-navigation" :aria-label="$t('pinyin_table.panel_navigation')">
+        <button type="button" :aria-label="$t('pinyin_table.previous_panel')" @click="switchPanel(-1)"><img :src="leftIcon" alt="" /></button>
+        <button type="button" :aria-label="$t('pinyin_table.next_panel')" @click="switchPanel(1)"><img :src="rightIcon" alt="" /></button>
       </nav>
 
     </header>
 
-    <div v-if="activePanel === 'table'" class="pinyin-content-host">
-      <PinyinTableSkeleton v-if="showSkeleton" key="skeleton" />
+    <div v-show="activePanel === 'table'" class="pinyin-content-host">
+      <PinyinTableSkeleton v-if="showSkeleton && !hasSwitchedPanel" key="skeleton" />
 
       <div v-else-if="hasData" key="content" class="pinyin-container">
         <div class="this-table-block">
@@ -130,7 +133,7 @@ watch([dialect, language], fetchTable)
               v-for="(grid, gridIndex) in pinyinData"
               :key="grid.id || grid.code + '-' + gridIndex"
               class="attribute-group"
-              :class="'accent-' + (gridIndex % 3)"
+              :class="['accent-' + (gridIndex % 3), { 'initial-enter': !hasSwitchedPanel }]"
               :style="{ animationDelay: (gridIndex * 120) + 'ms' }"
           >
 
@@ -146,7 +149,7 @@ watch([dialect, language], fetchTable)
                       v-for="(item, itemIndex) in group.item"
                       :key="item.id"
                       class="item-box"
-                      :class="{ invalid: !item.exist }"
+                      :class="{ invalid: !item.exist, 'initial-item-enter': !hasSwitchedPanel }"
                       type="button"
                       :disabled="!item.exist"
                       :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
@@ -162,19 +165,26 @@ watch([dialect, language], fetchTable)
         </div>
       </div>
     </div>
-    <div v-if="activePanel === 'input'" class="panel-content">
-      <section class="input-guide" aria-label="输入法说明">
-        <h2>输入法说明</h2>
-        <p>南昌话输入法的使用说明将在这里补充。</p>
-      </section>
-      <PinyinTransfer :dialect="dialect.toString()" :language="language.toString()" />
+    <div v-show="activePanel === 'input'" class="panel-content">
+      <div v-if="showSkeleton && !hasSwitchedPanel" class="panel-skeleton">
+        <section class="skeleton-card"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
+        <section class="skeleton-card accent-1"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
+      </div>
+      <template v-else>
+        <section class="input-guide" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.input_guide')">
+          <div class="pinyin-group-header"><h3>{{ $t('pinyin_table.input_guide') }}</h3></div>
+          <TextInfo :dialect="dialect.toString()" :language="language.toString()" :text-key="`pinyin-explain:${dialect}`" />
+        </section>
+        <PinyinTransfer :class="{ 'initial-enter': !hasSwitchedPanel }" :dialect="dialect.toString()" :language="language.toString()" />
+      </template>
     </div>
-    <section v-if="activePanel === 'faq'" class="pinyin-faq" aria-label="常见问题">
-      <h2>常见问题</h2>
+    <section v-if="showSkeleton && !hasSwitchedPanel" v-show="activePanel === 'faq'" class="skeleton-card" aria-hidden="true"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
+    <section v-else v-show="activePanel === 'faq'" class="pinyin-faq" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.faq_title')">
+      <div class="pinyin-group-header"><h3>{{ $t('pinyin_table.faq_title') }}</h3></div>
       <div v-if="!faq.length" class="pinyin-faq__fallback">
-        <details><summary>怎样查看某个拼音的详细信息？</summary><p>在拼音表中点击方格，即可查看该拼音的详细信息。灰色方格不可点击。</p></details>
-        <details><summary>怎样使用拼音转换？</summary><p>切换到“南昌话输入法”，在拼音转换框中输入拼音，结果会自动显示在下方。</p></details>
-        <details><summary>声调符号标在哪里？</summary><p>有 a、o、e 时标在最后一个上；否则有 i、u、ü 时标在第一个上。只有 m、n、ng 时，分别标在 m、n、n 上。</p></details>
+        <details><summary>{{ $t('pinyin_table.faq_detail_question') }}</summary><p>{{ $t('pinyin_table.faq_detail_answer') }}</p></details>
+        <details><summary>{{ $t('pinyin_table.faq_transfer_question') }}</summary><p>{{ $t('pinyin_table.faq_transfer_answer', { dialect: $t('dialect.' + dialect) }) }}</p></details>
+        <details><summary>{{ $t('pinyin_table.faq_tone_question') }}</summary><p>{{ $t('pinyin_table.faq_tone_answer') }}</p></details>
       </div>
       <details v-for="entry in faq" :key="entry.id" class="pinyin-faq__item">
         <summary><span v-formatted-text="entry.question?.[language] || entry.question?.sc || ''" /></summary>
@@ -251,16 +261,16 @@ watch([dialect, language], fetchTable)
   padding: 0;
   border: 0;
   border-radius: 11px;
-  background: #376847;
+  background: rgba(36, 92, 53, .12);
   display: grid;
   place-items: center;
   cursor: pointer;
 }
-.panel-navigation button img { width: 12px; height: 12px; filter: brightness(0) invert(1); }
-.panel-navigation button:hover, .panel-navigation button:focus-visible { background: #245c35; }
+.panel-navigation button img { width: 16px; height: 16px; opacity: .65; }
+.panel-navigation button:hover, .panel-navigation button:focus-visible { background: rgba(36, 92, 53, .28); }
+.panel-navigation button:hover img, .panel-navigation button:focus-visible img { opacity: 1; }
 .panel-content { min-width: 0; }
-.input-guide { padding: 22px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
-.input-guide h2 { margin: 0 0 12px; font-size: 19px; }
+.input-guide { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .input-guide p { margin: 0; }
 .pinyin-faq__fallback details { border-top: 1px solid #dce8dd; }
 .pinyin-faq__fallback summary { padding: 14px 2px; cursor: pointer; font-weight: 650; }
@@ -274,8 +284,8 @@ watch([dialect, language], fetchTable)
 
   padding: 22px 20px;
   box-shadow: var(--pinyin-card-shadow);
-  animation: fadeInUp 0.55s ease both;
 }
+.initial-enter { animation: fadeInUp .55s ease both; }
 
 .pinyin-group-header {
   display: flex;
@@ -355,12 +365,10 @@ watch([dialect, language], fetchTable)
   justify-content: center;
   font: inherit;
 
-  opacity: 0;
-  animation: itemIn 0.45s ease forwards;
-
   cursor: pointer;
   transition: border-color .18s ease, background .18s ease;
 }
+.initial-item-enter { opacity: 0; animation: itemIn .45s ease forwards; }
 
 .item-box:not(:disabled):hover,
 .item-box:not(:disabled):focus-visible {
@@ -404,11 +412,20 @@ watch([dialect, language], fetchTable)
 .pinyin-content-host {
   min-width: 0;
 }
-.pinyin-faq { margin-top: 30px; padding: 22px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
-.pinyin-faq h2 { margin: 0 0 14px; color: #245c35; font-size: 21px; }
+.pinyin-faq { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .pinyin-faq__item { border-top: 1px solid #dce8dd; }
 .pinyin-faq__item summary { padding: 14px 2px; color: var(--color-text); font-weight: 650; cursor: pointer; }
 .pinyin-faq__answer { padding: 0 2px 16px; color: var(--color-text); line-height: 1.7; white-space: pre-wrap; }
+.panel-skeleton { display: grid; gap: 18px; }
+.skeleton-card { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.skeleton-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.skeleton-heading::before { content: ''; width: 6px; height: 22px; border-radius: 4px; background: var(--color-primary); }
+.accent-1 .skeleton-heading::before { background: var(--color-secondary); }
+.skeleton-title { width: 140px; height: 22px; border-radius: var(--border-radius-md); }
+.skeleton-line { display: block; width: 100%; height: 52px; border-radius: var(--border-radius-md); }
+.shimmer { position: relative; overflow: hidden; background: #eaf0e9; }
+.shimmer::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: skeleton-shimmer 1.35s infinite; }
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }
 
 .this-table-block {
   display: flex;
@@ -437,6 +454,9 @@ watch([dialect, language], fetchTable)
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .initial-enter, .initial-item-enter, .shimmer::after { animation: none; opacity: 1; }
 }
 
 .pinyin-layout {

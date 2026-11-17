@@ -11,6 +11,8 @@ import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
 import { tableFromDocument } from '../../utils/pinyinDocument.js'
 import informationIcon from '../../assets/icons/about.svg'
+import leftIcon from '../../assets/icons/to-left.svg'
+import rightIcon from '../../assets/icons/to-right.svg'
 
 
 const route = useRoute()
@@ -21,6 +23,16 @@ const {t} = useI18n()
 
 const pinyinData = ref([])
 const faq = ref([])
+const panels = ['table', 'input', 'faq']
+const storageKey = 'pinyin-panel'
+const savedPanel = localStorage.getItem(storageKey)
+const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
+const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: `${t('dialect.' + dialect.value)}输入法`, faq: '常见问题' })[activePanel.value])
+function switchPanel(direction) {
+  const index = panels.indexOf(activePanel.value)
+  activePanel.value = panels[(index + direction + panels.length) % panels.length]
+  localStorage.setItem(storageKey, activePanel.value)
+}
 const loading = ref(true)
 const showSkeleton = ref(false)
 const showDetail = ref(false)
@@ -93,17 +105,23 @@ watch([dialect, language], fetchTable)
     <header class="pinyin-hero">
 
       <h1 class="hero-title">
-        {{ $t('dialect.' + dialect) }}{{ $t('pinyin_table.title') }}
+        {{ panelTitle }}
       </h1>
 
-      <p class="hero-hint">
+      <p v-if="activePanel === 'table'" class="hero-hint">
         <img :src="informationIcon" alt="" draggable="false" />
         <span>{{ $t('pinyin_table.hint') }}</span>
       </p>
+      <p v-else class="hero-hint">{{ activePanel === 'input' ? '通用赣语拼音方案' : '补充说明' }}</p>
+
+      <nav class="panel-navigation" aria-label="拼音页面切换">
+        <button type="button" aria-label="上一个界面" @click="switchPanel(-1)"><img :src="leftIcon" alt="" /></button>
+        <button type="button" aria-label="下一个界面" @click="switchPanel(1)"><img :src="rightIcon" alt="" /></button>
+      </nav>
 
     </header>
 
-    <div class="pinyin-content-host">
+    <div v-if="activePanel === 'table'" class="pinyin-content-host">
       <PinyinTableSkeleton v-if="showSkeleton" key="skeleton" />
 
       <div v-else-if="hasData" key="content" class="pinyin-container">
@@ -144,14 +162,25 @@ watch([dialect, language], fetchTable)
         </div>
       </div>
     </div>
-    <section v-if="faq.length" class="pinyin-faq" aria-label="拼音表问答">
+    <div v-if="activePanel === 'input'" class="panel-content">
+      <section class="input-guide" aria-label="输入法说明">
+        <h2>输入法说明</h2>
+        <p>南昌话输入法的使用说明将在这里补充。</p>
+      </section>
+      <PinyinTransfer :dialect="dialect.toString()" :language="language.toString()" />
+    </div>
+    <section v-if="activePanel === 'faq'" class="pinyin-faq" aria-label="常见问题">
       <h2>常见问题</h2>
+      <div v-if="!faq.length" class="pinyin-faq__fallback">
+        <details><summary>怎样查看某个拼音的详细信息？</summary><p>在拼音表中点击方格，即可查看该拼音的详细信息。灰色方格不可点击。</p></details>
+        <details><summary>怎样使用拼音转换？</summary><p>切换到“南昌话输入法”，在拼音转换框中输入拼音，结果会自动显示在下方。</p></details>
+        <details><summary>声调符号标在哪里？</summary><p>有 a、o、e 时标在最后一个上；否则有 i、u、ü 时标在第一个上。只有 m、n、ng 时，分别标在 m、n、n 上。</p></details>
+      </div>
       <details v-for="entry in faq" :key="entry.id" class="pinyin-faq__item">
         <summary><span v-formatted-text="entry.question?.[language] || entry.question?.sc || ''" /></summary>
         <div class="pinyin-faq__answer" v-formatted-text="entry.answer?.[language] || entry.answer?.sc || ''" />
       </details>
     </section>
-    <PinyinTransfer :dialect="dialect.toString()" :language="language.toString()" />
   </div>
   <PinyinDetail
       :show="showDetail"
@@ -168,6 +197,7 @@ watch([dialect, language], fetchTable)
 
 
 .pinyin-hero {
+  position: relative;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   padding: 28px;
@@ -194,7 +224,7 @@ watch([dialect, language], fetchTable)
   margin: 0;
   padding: 7px 11px;
   border: 1px solid #a9cfb1;
-  border-radius: var(--border-radius-md);
+  border-radius: 999px;
   color: #315f3c;
   background: #e5f3e7;
   font-size: 13px;
@@ -207,6 +237,34 @@ watch([dialect, language], fetchTable)
   flex: 0 0 16px;
   opacity: .72;
 }
+
+.panel-navigation {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  display: flex;
+  gap: 16px;
+}
+.panel-navigation button {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: #376847;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.panel-navigation button img { width: 12px; height: 12px; filter: brightness(0) invert(1); }
+.panel-navigation button:hover, .panel-navigation button:focus-visible { background: #245c35; }
+.panel-content { min-width: 0; }
+.input-guide { padding: 22px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.input-guide h2 { margin: 0 0 12px; font-size: 19px; }
+.input-guide p { margin: 0; }
+.pinyin-faq__fallback details { border-top: 1px solid #dce8dd; }
+.pinyin-faq__fallback summary { padding: 14px 2px; cursor: pointer; font-weight: 650; }
+.pinyin-faq__fallback p { margin: 0; padding: 0 2px 16px; line-height: 1.7; }
 
 /* ======== 分组卡片 ======== */
 .attribute-group {
@@ -419,8 +477,9 @@ watch([dialect, language], fetchTable)
   }
 
   .pinyin-hero {
-    padding: 22px 18px 20px;
+    padding: 22px 18px 84px;
   }
+  .panel-navigation { right: 18px; bottom: 16px; }
 
   .hero-title {
     font-size: 24px;

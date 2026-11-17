@@ -1,9 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnifiedModal from '../../components/Window/UnifiedModal.vue'
-import { getToken } from '../../utils/auth'
-import { request } from '../../services/request.js'
 import bookIcon from '../../assets/icons/calendar/book.svg'
 import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
 import bookmarkIcon from '../../assets/icons/calendar/bookmark.svg'
@@ -12,7 +10,8 @@ import toRightIcon from '../../assets/icons/to-right.svg'
 import { useUserSettings } from '../../utils/userSettings.js'
 
 const props = defineProps({
-  modelValue: {type: Boolean, default: false}
+  modelValue: {type: Boolean, default: false},
+  records: {type: Array, default: () => []}
 })
 const emit = defineEmits(['update:modelValue'])
 const {t, tm} = useI18n()
@@ -21,9 +20,7 @@ const visible = computed({get: () => props.modelValue, set: value => emit('updat
 const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const today = formatDate(new Date())
 const currentMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-const records = ref({})
-const loading = ref(false)
-const error = ref('')
+const slideDirection = ref('next')
 const userSettings = useUserSettings()
 const weekdays = computed(() => userSettings.weekdayStyle === 'youbi'
   ? ['月', '火', '水', '木', '金', '土', '日']
@@ -40,9 +37,10 @@ const monthRange = computed(() => {
   const lastOffset = 6 - ((last.getDay() + 6) % 7)
   const start = new Date(first.getFullYear(), first.getMonth(), 1 - firstOffset)
   const end = new Date(last.getFullYear(), last.getMonth(), last.getDate() + lastOffset)
-  return {start, end, from: formatDate(start), to: formatDate(end)}
+  return {start, end}
 })
-const statusOf = (date) => records.value[formatDate(date)] || 'empty'
+const recordMap = computed(() => Object.fromEntries(props.records.map(item => [item.date, item.status])))
+const statusOf = (date) => recordMap.value[formatDate(date)] || 'empty'
 const isCurrentMonth = (date) => date.getMonth() === currentMonth.value.getMonth() && date.getFullYear() === currentMonth.value.getFullYear()
 const weeks = computed(() => {
   const result = []
@@ -78,26 +76,10 @@ const weeks = computed(() => {
   return result
 })
 
-const load = async () => {
-  loading.value = true;
-  error.value = ''
-  try {
-    const {from, to} = monthRange.value
-    const data = await request(`/api/study/streak?t=${encodeURIComponent(getToken())}&from=${from}&to=${to}`)
-    records.value = Object.fromEntries((data.records || []).map(item => [item.date, item.status]))
-  } catch (e) {
-    error.value = e.message || t('study.streak.load_failed')
-  }
-  finally {
-    loading.value = false
-  }
-}
 const changeMonth = (offset) => {
+  slideDirection.value = offset < 0 ? 'previous' : 'next'
   currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + offset, 1)
 }
-watch([visible, currentMonth], () => {
-  if (visible.value) load()
-}, {immediate: true})
 </script>
 
 <template>
@@ -106,46 +88,80 @@ watch([visible, currentMonth], () => {
     :title="$t('study.streak.calendar')"
     size="medium"
     lock-top
+    plain
+    :backdrop-blur="false"
+    :content-max-height="560"
   >
-    <div class="calendar-toolbar">
-      <button type="button" class="month-button" :aria-label="$t('study.streak.previous_month')" @click="changeMonth(-1)">
-        <img :src="toLeftIcon" alt="" aria-hidden="true">
-      </button>
-      <h3>{{ monthTitle }}</h3>
-      <button type="button" class="month-button" :aria-label="$t('study.streak.next_month')" @click="changeMonth(1)">
-        <img :src="toRightIcon" alt="" aria-hidden="true">
-      </button>
-    </div>
-    <div class="weekday-row"><span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span></div>
-    <div
-      class="calendar-grid-shell"
-      :class="`calendar-grid-shell--${weeks.length}`"
-    >
-      <p v-if="loading" class="calendar-state">{{ $t('study.streak.loading') }}</p>
-      <p v-else-if="error" class="calendar-state error">{{ error }}</p>
-      <div v-else class="calendar-grid">
-        <div v-for="(week, weekIndex) in weeks" :key="weekIndex" class="calendar-week">
-          <span v-if="week.fullWeek" class="streak-pill full-pill" aria-hidden="true"/>
-          <span v-else v-for="segment in week.segments" :key="`${segment.start}-${segment.length}`"
-                class="streak-pill light-pill"
-                :style="{left: `${segment.start * (100 / 7)}%`, width: `${segment.length * (100 / 7)}%`}"
-                aria-hidden="true"/>
-          <div v-for="day in week.days" :key="day.key" class="calendar-day"
-               :class="{outside: !day.isCurrentMonth, protected: day.status === 'protected', completed: day.status === 'completed', missed: day.status === 'missed', today: day.isToday}">
-            <img v-if="day.status === 'protected'" class="calendar-icon bookmark-icon" :src="bookmarkIcon"
-                 :alt="$t('study.streak.protected_day')"/>
-            <img v-else-if="day.isToday" class="calendar-icon"
-                 :src="day.status === 'completed' ? bookIcon : bookGrayIcon"
-                 :alt="day.status === 'completed' ? $t('study.streak.today_completed') : $t('study.streak.today_incomplete')"/>
-            <span v-else class="day-number">{{ day.number }}</span>
+    <div class="streak-calendar-content">
+      <div class="calendar-toolbar">
+        <button type="button" class="month-button" :aria-label="$t('study.streak.previous_month')" @click="changeMonth(-1)">
+          <img :src="toLeftIcon" alt="" aria-hidden="true">
+        </button>
+        <h3>{{ monthTitle }}</h3>
+        <button type="button" class="month-button" :aria-label="$t('study.streak.next_month')" @click="changeMonth(1)">
+          <img :src="toRightIcon" alt="" aria-hidden="true">
+        </button>
+      </div>
+      <div class="weekday-row"><span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span></div>
+      <div class="calendar-grid-shell" :class="`calendar-grid-shell--${weeks.length}`">
+        <Transition :name="`calendar-slide-${slideDirection}`">
+          <div :key="`${currentMonth.getFullYear()}-${currentMonth.getMonth()}`" class="calendar-grid">
+            <div v-for="(week, weekIndex) in weeks" :key="weekIndex" class="calendar-week">
+              <span v-if="week.fullWeek" class="streak-pill full-pill" aria-hidden="true"/>
+              <span v-else v-for="segment in week.segments" :key="`${segment.start}-${segment.length}`"
+                    class="streak-pill light-pill"
+                    :style="{left: `${segment.start * (100 / 7)}%`, width: `${segment.length * (100 / 7)}%`}"
+                    aria-hidden="true"/>
+              <div v-for="day in week.days" :key="day.key" class="calendar-day"
+                   :class="{outside: !day.isCurrentMonth, protected: day.status === 'protected', completed: day.status === 'completed', missed: day.status === 'missed', today: day.isToday}">
+                <img v-if="day.status === 'protected'" class="calendar-icon bookmark-icon" :src="bookmarkIcon"
+                     :alt="$t('study.streak.protected_day')"/>
+                <img v-else-if="day.isToday" class="calendar-icon"
+                     :src="day.status === 'completed' ? bookIcon : bookGrayIcon"
+                     :alt="day.status === 'completed' ? $t('study.streak.today_completed') : $t('study.streak.today_incomplete')"/>
+                <span v-else class="day-number">{{ day.number }}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </Transition>
       </div>
     </div>
   </UnifiedModal>
 </template>
 
 <style scoped>
+.streak-calendar-content {
+  box-sizing: border-box;
+  width: min(550px, calc(100vw - 48px));
+  padding: 24px;
+}
+
+:global(.unified-modal-backdrop:has(.streak-calendar-content)) {
+  background: rgba(0, 0, 0, .38);
+}
+
+:global(.unified-modal-backdrop--top-locked:has(.streak-calendar-content)) {
+  padding-top: clamp(140px, 18vh, 220px);
+}
+
+:global(.unified-modal--plain:has(.streak-calendar-content)) {
+  border-radius: 20px;
+}
+
+@media (max-width: 640px) {
+  :global(.unified-modal-backdrop--top-locked:has(.streak-calendar-content)) {
+    padding-top: 112px;
+  }
+
+  :global(.unified-modal--plain:has(.streak-calendar-content)) {
+    max-width: calc(100vw - 24px);
+  }
+
+  .streak-calendar-content {
+    width: min(550px, calc(100vw - 24px));
+  }
+}
+
 .calendar-toolbar {
   display: grid;
   grid-template-columns: 40px 1fr 40px;
@@ -186,14 +202,14 @@ watch([visible, currentMonth], () => {
 .weekday-row {
   margin-bottom: 7px;
   color: #89a08d;
-  font-size: .75rem;
+  font-size: 1rem;
   text-align: center;
 }
 
 .calendar-grid-shell {
   position: relative;
   overflow: hidden;
-  transition: height .2s cubic-bezier(.22, .8, .3, 1);
+  transition: height .25s cubic-bezier(.22, .8, .3, 1);
 }
 
 .calendar-grid-shell--4 { height: 216px; }
@@ -201,6 +217,20 @@ watch([visible, currentMonth], () => {
 .calendar-grid-shell--6 { height: 324px; }
 
 .calendar-grid { height: 100%; }
+
+.calendar-slide-next-enter-active, .calendar-slide-next-leave-active,
+.calendar-slide-previous-enter-active, .calendar-slide-previous-leave-active {
+  transition: transform .25s cubic-bezier(.22, .8, .3, 1), opacity .25s ease;
+}
+
+.calendar-slide-next-leave-active, .calendar-slide-previous-leave-active {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+.calendar-slide-next-enter-from, .calendar-slide-previous-leave-to { transform: translateX(35%); opacity: 0; }
+.calendar-slide-next-leave-to, .calendar-slide-previous-enter-from { transform: translateX(-35%); opacity: 0; }
 
 .calendar-week {
   position: relative;
@@ -215,7 +245,7 @@ watch([visible, currentMonth], () => {
   justify-content: center;
   min-height: 54px;
   color: #58715d;
-  font-size: .9rem;
+  font-size: 1.1rem;
 }
 
 .calendar-day.outside {
@@ -268,17 +298,9 @@ watch([visible, currentMonth], () => {
   background: #a8d3a9;
 }
 
-.calendar-state {
-  display: grid;
-  height: 100%;
-  place-items: center;
-  padding: 0;
-  color: #77907b;
-  text-align: center;
-}
-
-.calendar-state.error {
-  color: #b76055;
+@media (prefers-reduced-motion: reduce) {
+  .calendar-grid-shell, .calendar-slide-next-enter-active, .calendar-slide-next-leave-active,
+  .calendar-slide-previous-enter-active, .calendar-slide-previous-leave-active { transition: none; }
 }
 
 @media (max-width: 520px) {

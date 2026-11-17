@@ -9,6 +9,7 @@ import bookGrayIcon from '../../assets/icons/calendar/book-gray.svg'
 const streak = ref(0)
 const todayStatus = ref(null)
 const loaded = ref(false)
+const calendarRecords = ref([])
 const calendarVisible = ref(false)
 const todayCompleted = computed(() => todayStatus.value === 'completed')
 
@@ -17,9 +18,10 @@ const loadStreak = async () => {
   if (!token) return
 
   try {
-    const data = await request(`/api/study/streak?t=${encodeURIComponent(token)}`)
+    const data = await request(`/api/study/streak/calendar?t=${encodeURIComponent(token)}`)
     streak.value = data?.currentStreak || 0
     todayStatus.value = data?.todayStatus || null
+    calendarRecords.value = data?.records || []
     loaded.value = true
   } catch (e) {
     // 连胜信息只是首页辅助内容，读取失败时继续保持占位但不显示错误状态。
@@ -40,7 +42,7 @@ onMounted(loadStreak)
     <strong :class="{'is-inactive': !todayCompleted}">{{ streak }}</strong>
   </button>
 
-  <StreakCalendar v-model="calendarVisible" />
+  <StreakCalendar v-model="calendarVisible" :records="calendarRecords" />
 </template>
 
 <style scoped>

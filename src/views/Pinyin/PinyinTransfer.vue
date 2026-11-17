@@ -92,7 +92,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="pinyin-transfer">
     <header class="transfer-heading">
-      <h2>拼音转换</h2>
+      <h2>{{ $t('pinyin_table.transfer_title') }}</h2>
     </header>
     <div class="transfer-body">
       <div class="transfer-field">
@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 22px;
   border-radius: 4px;
-  background: var(--color-primary);
+  background: var(--color-secondary);
 }
 
 .transfer-heading h2 {

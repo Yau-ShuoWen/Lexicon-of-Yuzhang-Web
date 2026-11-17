@@ -32,20 +32,7 @@
     --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 
-    --app-bg-color:
-         /* 原方案：  #e9f6e9; 问题：太鲜艳，视觉疲劳*/
-
-            radial-gradient(
-            circle at 12% 20%,
-            rgba(40, 150, 90, 0.07),
-            transparent 28%
-    ),
-    radial-gradient(
-            circle at 88% 82%,
-            rgba(210, 150, 90, 0.05),
-            transparent 30%
-    ),
-    #f7faf8;/*现方案：尚可*/
+    --app-bg-color:#F7FAF8;
 
     --card-bg-color: #bfe1c4;
 

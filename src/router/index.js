@@ -103,6 +103,28 @@ const routes = [
                         meta: {requiresAuth: true}
                     },
                     {
+                        path: 'home',
+                        redirect: to => ({name: 'StudyMe', params: {language: to.params.language, dialect: to.params.dialect}})
+                    },
+                    {
+                        path: 'parts',
+                        name: 'StudyParts',
+                        component: () => import('../views/Study/StudyPath.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'parts/:partId(\\d+)',
+                        name: 'StudyPartPath',
+                        component: () => import('../views/Study/StudyPath.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
+                        path: 'parts/:partId(\\d+)/chapters/:chapterId(\\d+)',
+                        name: 'StudyChapterPath',
+                        component: () => import('../views/Study/StudyPath.vue'),
+                        meta: {requiresAuth: true}
+                    },
+                    {
                         path: 'question',
                         name: 'StudyQuestion',
                         component: () => import('../views/Study/Question.vue'),
@@ -305,13 +327,13 @@ const routes = [
                     {
                         path: 'study-curriculum',
                         name: 'StudyCurriculumEditor',
-                        component: () => import('../views/Developer/Study/StudyPartEditor.vue'),
+                        component: () => import('../views/Developer/Study/StudyCurriculumWorkspace.vue'),
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
                         path: 'study-curriculum/:partId(\\d+)/chapters',
                         name: 'StudyChapterEditor',
-                        component: () => import('../views/Developer/Study/StudyChapterEditor.vue'),
+                        redirect: to => ({name: 'StudyCurriculumEditor', params: {language: to.params.language, dialect: to.params.dialect}, query: {tab: 'chapter', partId: to.params.partId}}),
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {

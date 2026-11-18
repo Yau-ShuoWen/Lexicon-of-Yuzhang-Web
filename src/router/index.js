@@ -362,7 +362,7 @@ const routes = [
                 name: 'Blog',
                 component: () => import('../views/Personal/LayoutBlog.vue'),
                 redirect: to => {
-                    return {path: `/${to.params.language}/${to.params.dialect}/ysw/alphabet`}
+                    return {path: `/${to.params.language}/${to.params.dialect}/ysw/home`}
                 },
                 children: [
 
@@ -398,6 +398,17 @@ const routes = [
                         name: 'DiaryHome',
                         component: () => import('../views/Diary/DiaryHome.vue')
                     },
+                    {
+                        path: 'columns',
+                        name: 'YswColumns',
+                        component: () => import('../views/Personal/YswColumns.vue')
+                    },
+                    ...['catchphrase', 'sketch', 'meme'].map(section => ({
+                        path: section,
+                        name: `Ysw${section[0].toUpperCase()}${section.slice(1)}`,
+                        component: () => import('../views/Personal/YswPlaceholder.vue'),
+                        props: { section }
+                    })),
                     {
                         path: 'diary/edit/:id(\\d+)',
                         name: 'DiaryEditor',

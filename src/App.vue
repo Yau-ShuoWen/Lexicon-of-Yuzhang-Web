@@ -11,7 +11,8 @@ import { useSiteSeo } from "./utils/seo.js";
 
 const route = useRoute()
 const isDeveloperArea = computed(() => route.path.includes('/dev/'))
-const showMainNav = computed(() => route.meta?.hideNav !== true && !isDeveloperArea.value)
+const isBlogArea = computed(() => route.path.includes('/ysw/'))
+const showMainNav = computed(() => route.meta?.hideNav !== true && !isDeveloperArea.value && !isBlogArea.value)
 
 useSiteSeo(route)
 
@@ -24,7 +25,7 @@ useSiteSeo(route)
     <!-- 主导航与渐隐层，样式与逻辑在 MainNav.vue 内部 -->
     <MainNav v-if="showMainNav"/>
 
-    <main class="page-container" :class="{'no-main-nav': !showMainNav, 'developer-container': isDeveloperArea}">
+    <main class="page-container" :class="{'no-main-nav': !showMainNav, 'developer-container': isDeveloperArea, 'blog-container': isBlogArea}">
       <router-view/>
       <ConfirmWindow/>
       <ToastWindow/>
@@ -40,6 +41,10 @@ useSiteSeo(route)
 }
 
 .page-container.developer-container {
+  max-width: none;
+  padding-bottom: 0;
+}
+.page-container.blog-container {
   max-width: none;
   padding-bottom: 0;
 }

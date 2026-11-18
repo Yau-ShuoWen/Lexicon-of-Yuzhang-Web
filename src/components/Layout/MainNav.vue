@@ -19,7 +19,7 @@ const pathTo = (path) => `/${language.value}/${dialect.value}/${path}`
 const shouldShowNav = computed(() => !route.meta?.hideNav)
 const isAdmin = computed(() => isAdminUser(currentUser.value))
 
-// 开发者和作者博客沿用各自的导航；统一导航只负责进入这两个区域。
+// 开发者和说文屋里沿用各自的导航；统一导航只负责进入这两个区域。
 const navMode = computed(() => {
   if (route.path.includes('/dev/')) return 'developer'
   if (route.path.includes('/ysw/')) return 'blog'

@@ -374,6 +374,7 @@ async function chooseImage() {
     }
   }
 }
+defineExpose({ chooseImage })
 onMounted(() => {
   editor.value = new Editor({
     content: toDocument(props.modelValue),

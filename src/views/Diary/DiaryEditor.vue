@@ -11,6 +11,9 @@ import { hasPermission } from '../../utils/auth.js'
 import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 import { getDiaryForEdit, updateDiary } from './diaryApi.js'
 import './diarySkeleton.css'
+import backIcon from '../../assets/icons/to-left.svg'
+import saveIcon from '../../assets/icons/save.svg'
+import uploadIcon from '../../assets/icons/to-up.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +28,7 @@ const visibilityOptions = computed(() => [
 ])
 
 const form = ref(null)
+const imageEditor = ref(null)
 const loading = ref(true)
 const saving = ref(false)
 const imageUploading = ref(false)
@@ -241,11 +245,8 @@ onMounted(loadDiary)
 <template>
   <main class="broaden-layout diary-editor-page">
     <div class="diary-editor-header">
-      <div>
-        <h1>{{ $t('diary.editor.title') }}</h1>
-      </div>
       <div class="diary-editor-header-actions">
-        <button class="dev-normal-button dev-btn-small" type="button" @click="goBack">{{ $t('diary.editor.back_detail') }}</button>
+        <button class="dev-normal-button dev-btn-small" type="button" @click="goBack"><img :src="backIcon" alt="" />{{ $t('diary.editor.back_detail') }}</button>
         <button
           v-if="form"
           class="dev-add-btn dev-btn-small"
@@ -253,8 +254,9 @@ onMounted(loadDiary)
           :disabled="saving || imageUploading"
           @click="saveDiary"
         >
-          {{ saving ? $t('diary.editor.saving') : $t('diary.editor.save') }}
+          <img :src="saveIcon" alt="" />{{ saving ? $t('diary.editor.saving') : $t('diary.editor.save') }}
         </button>
+        <button v-if="form && activeVersion === 'private'" class="dev-normal-button dev-btn-small" type="button" @click="imageEditor?.chooseImage()"><img :src="uploadIcon" alt="" />上传图片</button>
       </div>
     </div>
 
@@ -280,6 +282,7 @@ onMounted(loadDiary)
 
     <div v-else-if="form" class="diary-editor-form">
       <section class="diary-editor-panel panel">
+        <div class="diary-editor-meta-row">
         <div class="diary-meta-grid">
           <label class="diary-field">
             <span>{{ $t('diary.editor.date') }}</span>
@@ -314,12 +317,14 @@ onMounted(loadDiary)
             </div>
           </div>
         </div>
+        </div>
 
       </section>
 
       <section class="diary-editor-panel panel">
         <RichTextImageTextarea
           v-if="activeVersion === 'private'"
+          ref="imageEditor"
           v-model="form.content"
           :owner-id="diaryId"
           :images="form.images"
@@ -363,7 +368,7 @@ onMounted(loadDiary)
 
 <style scoped>
 .diary-editor-page {
-  max-width: 1540px;
+  max-width: 1200px;
   padding-top: 32px;
   padding-bottom: 48px;
 }
@@ -371,22 +376,8 @@ onMounted(loadDiary)
 .diary-editor-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
-}
-
-.diary-editor-header {
-  align-items: flex-start;
   margin-bottom: 20px;
-}
-
-.diary-editor-header h1 {
-  margin: 0;
-  color: var(--color-primary-dark, #24582b);
-}
-
-.diary-editor-header h1 {
-  font-size: clamp(1.45rem, 2.2vw, 2rem);
 }
 
 .diary-editor-header-actions {
@@ -395,6 +386,9 @@ onMounted(loadDiary)
   align-items: center;
   gap: 9px;
 }
+.diary-editor-header-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.diary-editor-header-actions img { width: 16px; height: 16px; }
+.diary-editor-header-actions .dev-add-btn img { filter: brightness(0) invert(1); }
 
 .diary-editor-state {
   display: flex;
@@ -420,10 +414,11 @@ onMounted(loadDiary)
   flex-direction: column;
   gap: 16px;
 }
+.diary-editor-meta-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
 
 .diary-meta-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 190px));
   gap: 14px;
   margin-top: 0px;
 }
@@ -433,7 +428,7 @@ onMounted(loadDiary)
   flex-direction: column;
   gap: 7px;
   color: var(--color-text, #30353b);
-  font-size: 0.84rem;
+  font-size: .88rem;
   font-weight: 600;
 }
 
@@ -449,8 +444,9 @@ onMounted(loadDiary)
 }
 
 .ordinary-input {
-  min-height: 38px;
-  padding: 7px 10px;
+  min-height: 42px;
+  padding: 8px 11px;
+  font-size: .9rem;
 }
 
 .ordinary-input:focus {
@@ -463,10 +459,10 @@ onMounted(loadDiary)
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: min(300px, 100%);
-  margin-top: 24px;
+  width: min(250px, 100%);
+  margin-top: 0;
   margin-left: auto;
-  padding-top: 24px;
+  padding-top: 0;
 }
 
 .diary-visibility { width: 100%; margin-top: 0; }
@@ -492,16 +488,12 @@ onMounted(loadDiary)
 .diary-version-editor__modes button { padding: 6px 12px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-light); font: inherit; cursor: pointer; }
 .diary-version-editor__modes button.active { background: #e9f3e9; color: var(--color-primary-dark); }
 .diary-version-editor__textarea { display: block; min-height: 420px; padding: 14px; resize: vertical; font: inherit; line-height: 1.7; }
+.diary-editor-page :deep(.rich-image-editor__head button) { display: none; }
 
 
 @media (max-width: 900px) {
-  .diary-editor-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .diary-meta-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 190px));
   }
 
 }
@@ -511,19 +503,19 @@ onMounted(loadDiary)
     padding: 24px 12px 36px;
   }
 
-  .diary-editor-header-actions,
-  .diary-editor-header-actions button {
-    width: 100%;
-  }
+  .diary-editor-header-actions { width: 100%; }
 
   .diary-editor-panel {
     padding: 16px;
   }
 
   .diary-meta-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .diary-version-editor__head { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 420px) {
+  .diary-meta-grid { grid-template-columns: minmax(0, 280px); }
 }
 </style>

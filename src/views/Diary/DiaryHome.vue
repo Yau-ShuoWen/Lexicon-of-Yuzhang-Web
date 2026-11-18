@@ -597,8 +597,9 @@ onBeforeUnmount(() => {
  */
 @media (min-width: 901px) {
   .diary-page {
-    height: calc(100vh - var(--header-height));
-    height: calc(100dvh - var(--header-height));
+    box-sizing: border-box;
+    height: calc(100vh - var(--header-height) - 24px);
+    height: calc(100dvh - var(--header-height) - 24px);
     padding-bottom: 10px;
   }
 

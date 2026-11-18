@@ -44,7 +44,7 @@ const items = [
   { path: 'catchphrase', label: 'nav.catchphrase' },
   { path: 'sketch', label: 'nav.sketch' },
   { path: 'meme', label: 'nav.meme' },
-  { path: 'columns', label: 'nav.columns' }
+  { path: 'git', label: 'nav.columns' }
 ]
 const viewHost = ref(null)
 const navElement = ref(null)
@@ -133,8 +133,8 @@ watch(() => route.params.language, scheduleMeasure)
 .ysw-icon--catchphrase { -webkit-mask-image: url('../../assets/icons/blockquoteTag/聊天.svg'); mask-image: url('../../assets/icons/blockquoteTag/聊天.svg'); }
 .ysw-icon--sketch { -webkit-mask-image: url('../../assets/书写.svg'); mask-image: url('../../assets/书写.svg'); }
 .ysw-icon--meme { -webkit-mask-image: url('../../assets/icons/search.svg'); mask-image: url('../../assets/icons/search.svg'); }
-.ysw-icon--columns { -webkit-mask-image: url('../../assets/icons/blockquoteTag/代码.svg'); mask-image: url('../../assets/icons/blockquoteTag/代码.svg'); }
-.ysw-icon--meme, .ysw-icon--columns { width: 21px; height: 21px; }
+.ysw-icon--git { -webkit-mask-image: url('../../assets/icons/blockquoteTag/代码.svg'); mask-image: url('../../assets/icons/blockquoteTag/代码.svg'); }
+.ysw-icon--meme, .ysw-icon--git { width: 21px; height: 21px; }
 .ysw-dictionary { display: inline-flex; align-items: center; gap: 7px; flex: none; margin-left: auto; color: var(--color-text); text-decoration: none; white-space: nowrap; }
 .ysw-dictionary:hover { color: #287442; }
 .ysw-external-icon { width: 17px; height: 17px; background: currentColor; -webkit-mask: url('../../assets/icons/外链.svg') center / contain no-repeat; mask: url('../../assets/icons/外链.svg') center / contain no-repeat; }
@@ -145,7 +145,7 @@ watch(() => route.params.language, scheduleMeasure)
 .ysw-nav--compact .ysw-links { justify-content: flex-start; gap: 12px; }
 .ysw-nav--compact .ysw-link { flex-direction: column; gap: 3px; min-width: 48px; padding: 8px 3px; font-size: 12px; line-height: 1.2; }
 .ysw-nav--compact .ysw-link svg, .ysw-nav--compact .ysw-icon { width: 21px; height: 21px; }
-.ysw-nav--compact .ysw-icon--meme, .ysw-nav--compact .ysw-icon--columns { width: 24px; height: 24px; }
+.ysw-nav--compact .ysw-icon--meme, .ysw-nav--compact .ysw-icon--git { width: 24px; height: 24px; }
 .ysw-nav--menu { height: 58px; padding: 0 16px; }
 .ysw-nav--menu .ysw-brand { font-size: inherit; }
 .ysw-nav--menu .ysw-links, .ysw-nav--menu .ysw-dictionary { display: none; }

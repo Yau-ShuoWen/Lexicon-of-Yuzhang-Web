@@ -60,9 +60,9 @@ export default {
         tutorial: '教程',
         about: '關於',
         settings: '設定', study: '學習', developer: '開發者', start_study: '開始學習', profile_center: '個人中心', dictionary: '詞典', developer_home: '開發者首頁', ysw_home: '屋裡', diary: '日記',
-        alphabet: '字母', catchphrase: '口頭禪', sketch: '速寫', meme: '梗百科', columns: '譜絡格欄目', dialect_dictionary: '方言詞典', ysw_navigation: '說文屋裡導航',
+        alphabet: '字母', catchphrase: '口頭禪', sketch: '速寫', meme: '梗百科', columns: '代碼庫', dialect_dictionary: '方言詞典', ysw_navigation: '說文屋裡導航',
     },
-    ysw_columns: { edit: '編輯欄目', title: '欄目標題', quote: '開場文案', group: '分組名稱', name: '項目名稱', note: '項目說明', url: '倉庫連結', sc: '簡體', tc: '繁體' },
+    ysw_columns: { edit: '編輯', title: '欄目標題', quote: '開場文案', group: '分類名稱', name: '倉庫標題', note: '說明文字', url: '倉庫連結', sc: '簡體', tc: '繁體' },
     about_page: {
         about: '關於',
         version: '版本',

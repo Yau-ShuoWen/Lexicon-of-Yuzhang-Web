@@ -1,6 +1,6 @@
 // 首次部署的展示数据。数据库写入 ysw-columns:v1 后，以 KVS 文档为准。
 const pair = (sc, tc) => ({ sc, tc })
-export const yswColumnsSeed = {
+export const yswGitSeed = {
   version: 1,
   title: pair('谱络格栏目', '譜絡格欄目'),
   quote: pair('一个谱络格蓝猫儿🐱正在谱络格榄茗🍵着一个谱络格栏目💻', '一個譜絡格藍貓兒🐱正在譜絡格欖茗🍵著一個譜絡格欄目💻'),

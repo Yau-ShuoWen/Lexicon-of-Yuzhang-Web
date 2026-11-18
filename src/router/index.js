@@ -399,9 +399,9 @@ const routes = [
                         component: () => import('../views/Diary/DiaryHome.vue')
                     },
                     {
-                        path: 'columns',
-                        name: 'YswColumns',
-                        component: () => import('../views/Personal/YswColumns.vue')
+                        path: 'git',
+                        name: 'YswGit',
+                        component: () => import('../views/Personal/YswGit.vue')
                     },
                     ...['catchphrase', 'sketch', 'meme'].map(section => ({
                         path: section,

@@ -60,9 +60,9 @@ export default {
         tutorial: '教程',
         settings: '设置',
         about:  '关于', study: '学习', developer: '开发者', start_study: '开始学习', profile_center: '个人中心', dictionary: '词典', developer_home: '开发者首页', ysw_home: '屋里', diary: '日记',
-        alphabet: '字母', catchphrase: '口头禅', sketch: '速写', meme: '梗百科', columns: '谱络格栏目', dialect_dictionary: '方言词典', ysw_navigation: '说文屋里导航',
+        alphabet: '字母', catchphrase: '口头禅', sketch: '速写', meme: '梗百科', columns: '代码库', dialect_dictionary: '方言词典', ysw_navigation: '说文屋里导航',
     },
-    ysw_columns: { edit: '编辑栏目', title: '栏目标题', quote: '开场文案', group: '分组名称', name: '项目名称', note: '项目说明', url: '仓库链接', sc: '简体', tc: '繁体' },
+    ysw_columns: { edit: '编辑', title: '栏目标题', quote: '开场文案', group: '分类名称', name: '仓库标题', note: '说明文字', url: '仓库链接', sc: '简体', tc: '繁体' },
     about_page: {
         about:  '关于',
         version:'版本',

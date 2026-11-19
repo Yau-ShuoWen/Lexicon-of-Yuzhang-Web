@@ -13,12 +13,12 @@ export function renderDiaryBody(element, source) {
     blocks.push({type, content})
     return ''
   })
-  element.innerHTML = formatRichText(body, images, { viewMode }) || ''
+  element.innerHTML = formatRichText(body, images, { viewMode, diaryPictures: true }) || ''
   for (const img of element.querySelectorAll('.rt-picture img[data-image-id]')) {
     img.addEventListener('error', async () => {
       try {
         const refreshed = await refreshImages?.()
-        const url = refreshed?.[img.dataset.imageId]?.url
+        const url = refreshed?.[img.dataset.imageId]?.url || images?.[img.dataset.imageId]?.url
         if (!url) throw new Error('图片地址不可用')
         img.addEventListener('error', () => { img.replaceWith(document.createTextNode('图片加载失败')) }, { once: true })
         img.src = url

@@ -24,6 +24,22 @@ function splitDisplayTarget(text, requireTarget = false) {
 function renderTag(tag, inner, context, renderInline) {
     const render = value => renderInline(value, {...context, insideTag: true})
 
+    if (tag === 'pg' && context.diaryPictures && context.images) return `<span class="rt-picture-group">${render(inner)}</span>`
+
+    if (tag === 'p' && context.diaryPictures && context.images) {
+        // 旧版本的数字 ID 继续读取；新内容使用 UUID。图片可嵌入列表和表格单元格。
+        const match = inner.match(/^(?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~([0-9]{2,3}))?$/)
+        if (match) {
+            const id = match[2]
+            const caption = (match[1] || '').trim()
+            const image = context.images[id]
+            const escape = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            return image?.url
+                ? `<span class="rt-picture"><img src="${escape(image.thumbnailUrl || image.url)}" data-image-id="${id}" ${match[3] ? 'data-display-width="true" ' : ''}alt="${escape(caption)}" loading="lazy" style="${match[3] ? `width:${Math.min(900, Math.max(80, Number(match[3])))}px;max-width:100%` : 'max-width:min(400px, 100%)'}">${caption ? `<span class="rt-picture-caption">${escape(caption)}</span>` : ''}</span>`
+                : '<span class="rt-picture-missing">图片暂时无法显示</span>'
+        }
+    }
+
     if (tag === 'code') return `<code class="rt-code">${escapeHtml(inner).replace(/\n/g, '<br>')}</code>`
     if (tag === 'b') return `<b>${render(inner)}</b>`
     if (tag === 'i') return `<i>${render(inner)}</i>`

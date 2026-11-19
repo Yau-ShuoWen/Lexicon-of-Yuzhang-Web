@@ -142,35 +142,63 @@ const previewCanvas = ref(null)
 const previewZoom = ref(1)
 const previewOffset = ref({ x: 0, y: 0 })
 let previewDrag = null
+const previewPointers = new Map()
+let pinchDistance = 0
 function startPreviewDrag(event) {
-  if (event.button !== 0) return
-  previewDrag = { x: event.clientX - previewOffset.value.x, y: event.clientY - previewOffset.value.y }
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  previewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (previewPointers.size === 2) {
+    const [first, second] = [...previewPointers.values()]
+    pinchDistance = Math.hypot(first.x - second.x, first.y - second.y)
+    previewDrag = null
+  }
+  if (previewPointers.size === 1) previewDrag = { x: event.clientX - previewOffset.value.x, y: event.clientY - previewOffset.value.y }
   event.currentTarget.setPointerCapture(event.pointerId)
 }
 function movePreviewDrag(event) {
-  if (!previewDrag) return
-  previewOffset.value = { x: event.clientX - previewDrag.x, y: event.clientY - previewDrag.y }
+  if (!previewPointers.has(event.pointerId)) return
+  previewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (previewPointers.size === 2) {
+    const [first, second] = [...previewPointers.values()]
+    const distance = Math.hypot(first.x - second.x, first.y - second.y)
+    if (pinchDistance) previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value * distance / pinchDistance))
+    pinchDistance = distance
+    previewDrag = null
+  } else if (previewDrag) previewOffset.value = { x: event.clientX - previewDrag.x, y: event.clientY - previewDrag.y }
 }
-function endPreviewDrag() { previewDrag = null }
+function endPreviewDrag(event) { previewPointers.delete(event.pointerId); pinchDistance = 0; previewDrag = null }
 const previewDialog = ref(null)
 function openImagePreview(event) {
   const image = event.target.closest?.('.rt-picture img')
   if (!image) return
-  previewImage.value = { element: image }
+  const originalUrl = diary.value?.images?.[image.dataset.imageId]?.url || image.src
+  previewImage.value = { element: image, originalUrl }
   previewZoom.value = 1
   previewOffset.value = { x: 0, y: 0 }
   nextTick(() => {
     const canvas = previewCanvas.value
     if (canvas) {
-      canvas.width = image.naturalWidth
-      canvas.height = image.naturalHeight
-      canvas.getContext('2d').drawImage(image, 0, 0)
+      const original = new Image()
+      original.onload = () => {
+        if (previewImage.value?.element !== image) return
+        canvas.width = original.naturalWidth
+        canvas.height = original.naturalHeight
+        canvas.getContext('2d').drawImage(original, 0, 0)
+      }
+      original.onerror = () => {
+        canvas.width = image.naturalWidth
+        canvas.height = image.naturalHeight
+        canvas.getContext('2d').drawImage(image, 0, 0)
+      }
+      original.src = originalUrl
     }
     previewDialog.value?.focus()
   })
 }
 function closeImagePreview() {
   previewDrag = null
+  previewPointers.clear()
+  pinchDistance = 0
   previewImage.value = null
 }
 function changePreviewZoom(step) {
@@ -414,7 +442,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
       <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown.esc="closeImagePreview" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
-        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.element.src" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
+        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.originalUrl" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
       </div>
     </Teleport>
 
@@ -546,12 +574,18 @@ onBeforeUnmount(() => {
   font-size: 17px;
 }
 .content-block__body--article :deep(.rt-picture) { margin: 12px 0; text-align: left; }
-.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; width: auto; height: auto; max-width: min(400px, 100%); max-height: 400px; margin: 0; object-fit: contain; cursor: zoom-in; }
+.content-block__body--article :deep(.rt-picture-group) { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+.content-block__body--article :deep(.rt-picture-group .rt-picture) { display: inline-block; margin: 0; }
+.content-block__body--article :deep(.rt-picture-group .rt-picture img) { width: auto; height: auto; max-width: 88px !important; max-height: 88px; object-fit: contain; }
+.content-block__body--article :deep(.rt-table .rt-picture) { display: inline-block; margin: 0; vertical-align: middle; }
+.content-block__body--article :deep(.rt-table .rt-picture img:not([data-display-width])) { width: 96px; height: auto; }
+.content-block__body--article :deep(.rt-table .rt-picture img) { max-width: none !important; }
+.content-block__body--article :deep(.rt-picture img) { box-sizing: border-box; display: block; height: auto; max-width: 100%; margin: 0; object-fit: contain; cursor: zoom-in; }
 .content-block__body--article :deep(.rt-picture img), .diary-detail-preview__close, .diary-detail-preview__download { user-select: none; -webkit-user-select: none; }
 .diary-detail-preview__close img, .diary-detail-preview__download img { user-select: none; -webkit-user-select: none; pointer-events: none; }
 .content-block__body--article :deep(.rt-picture figcaption) { text-align: left; }
 @media (max-width: 560px) {
-  .content-block__body--article :deep(.rt-picture img) { width: 100%; max-width: 100%; max-height: none; }
+  .content-block__body--article :deep(.rt-picture img) { max-width: 100%; }
 }
 .diary-detail-preview { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; background: rgba(0, 0, 0, .55); }
 .diary-detail-preview__image-wrap { position: relative; width: fit-content; margin: auto; }

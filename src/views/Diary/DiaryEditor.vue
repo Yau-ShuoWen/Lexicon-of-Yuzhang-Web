@@ -10,6 +10,7 @@ import { showError, showSuccess } from '../../services/ToastService.js'
 import { hasPermission } from '../../utils/auth.js'
 import { normalizeRichTextSyntax } from '../../utils/textFormatter.js'
 import { getDiaryForEdit, updateDiary } from './diaryApi.js'
+import { request } from '../../services/request.js'
 import './diarySkeleton.css'
 import backIcon from '../../assets/icons/to-left.svg'
 import saveIcon from '../../assets/icons/save.svg'
@@ -32,12 +33,27 @@ const imageEditor = ref(null)
 const loading = ref(true)
 const saving = ref(false)
 const imageUploading = ref(false)
+const recycleOpen = ref(false)
+const recycleImages = ref([])
+const recycleLoading = ref(false)
 const activeVersion = ref('private')
 const editorMode = ref('plain')
 const dragPosition = ref(0)
 const isDraggingVisibility = ref(false)
 const loadError = ref('')
 const visibilityLevels = ['private', 'friend', 'stranger']
+async function toggleRecycle() {
+  recycleOpen.value = !recycleOpen.value
+  if (!recycleOpen.value) return
+  recycleLoading.value = true
+  try { recycleImages.value = await request('/api/diary/edit/images/recycle') }
+  catch (error) { showError(error.message || '图片回收站加载失败') }
+  finally { recycleLoading.value = false }
+}
+function imageAdded(image) {
+  form.value.images = { ...form.value.images, [image.publicId || image.id]: image }
+  if (recycleOpen.value) recycleImages.value = [image, ...recycleImages.value.filter(item => item.id !== image.id)]
+}
 const visibilityIndex = computed({
   get: () => Math.max(0, visibilityLevels.indexOf(form.value?.visibility || 'private')),
   set: index => setVisibility(visibilityLevels[Number(index)] || 'private')
@@ -330,8 +346,20 @@ onMounted(loadDiary)
           :images="form.images"
           :placeholder="$t('diary.editor.content_placeholder')"
           @upload-state-change="imageUploading = $event"
-          @image-added="image => form.images = { ...form.images, [image.id]: image }"
+          @image-added="imageAdded"
         />
+        <section v-if="activeVersion === 'private'" class="diary-image-recycle">
+          <button type="button" @click="toggleRecycle">{{ recycleOpen ? '收起图片回收站' : '查看图片回收站' }}</button>
+          <div v-if="recycleOpen" class="diary-image-recycle__items">
+            <span v-if="recycleLoading">正在加载图片……</span>
+            <span v-else-if="!recycleImages.length">回收站暂无图片</span>
+            <div v-for="image in recycleImages" v-else :key="image.id" class="diary-image-recycle__item">
+              <img :src="image.thumbnailUrl || image.url" :alt="image.originalName" loading="lazy" />
+              <span>{{ image.originalName }}</span>
+              <button v-if="image.objectName?.startsWith(`image/diary/${diaryId}/`)" type="button" @click="imageEditor?.insertExistingImage(image)">放回正文</button>
+            </div>
+          </div>
+        </section>
         <template v-else>
           <div class="diary-version-editor__head">
             <h2>{{ activeVersion === 'friend' ? $t('diary.editor.friend_version') : $t('diary.editor.stranger_version') }}</h2>
@@ -488,7 +516,13 @@ onMounted(loadDiary)
 .diary-version-editor__modes button { padding: 6px 12px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-light); font: inherit; cursor: pointer; }
 .diary-version-editor__modes button.active { background: #e9f3e9; color: var(--color-primary-dark); }
 .diary-version-editor__textarea { display: block; min-height: 420px; padding: 14px; resize: vertical; font: inherit; line-height: 1.7; }
-.diary-editor-page :deep(.rich-image-editor__head button) { display: none; }
+.diary-editor-page :deep(.rich-image-editor__head-actions button:last-child) { display: none; }
+.diary-image-recycle { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+.diary-image-recycle > button, .diary-image-recycle__item button { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 5px; background: #fff; color: var(--color-text); cursor: pointer; }
+.diary-image-recycle__items { display: grid; gap: 8px; max-height: 300px; overflow: auto; margin-top: 10px; }
+.diary-image-recycle__item { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.diary-image-recycle__item img { width: 48px; height: 48px; object-fit: contain; }
+.diary-image-recycle__item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
 @media (max-width: 900px) {

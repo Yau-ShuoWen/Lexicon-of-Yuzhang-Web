@@ -24,14 +24,14 @@ function splitStructuralLines(text) {
 }
 
 function renderLine(line, orderedIndex, context) {
-    const picture = line.match(/^\{p (?:(.*?)=>)?([1-9][0-9]*)}\s*$/)
-    if (picture && context.images) {
+    const picture = line.match(/^\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~([0-9]{2,3}))?}\s*$/)
+    if (picture && context.diaryPictures && context.images) {
         const caption = picture[1]?.trim() || ''
         const image = context.images?.[picture[2]]
         const escape = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
         return {
             html: image?.url
-                ? `<figure class="rt-picture"><img src="${escape(image.url)}" data-image-id="${picture[2]}" alt="${escape(caption)}" loading="lazy">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
+                ? `<figure class="rt-picture"><img src="${escape(image.thumbnailUrl || image.url)}" data-image-id="${picture[2]}" alt="${escape(caption)}" loading="lazy" style="${picture[3] ? `width:${Math.min(900, Math.max(80, Number(picture[3])))}px;max-width:100%` : 'max-width:min(400px, 100%)'}">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
                 : '<span class="rt-picture-missing">图片暂时无法显示</span>',
             orderedIndex: 0, block: true
         }

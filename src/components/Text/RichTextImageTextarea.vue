@@ -15,10 +15,8 @@ import downloadIcon from '../../assets/icons/download.svg'
 import zoomInIcon from '../../assets/icons/zoom-in.svg'
 import zoomOutIcon from '../../assets/icons/zoom-out.svg'
 import moveIcon from '../../assets/icons/move.svg'
-import copyIcon from '../../assets/icons/copy.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
-import groupIcon from '../../assets/icons/group.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
 
@@ -35,6 +33,9 @@ const embeddedPicturePattern = /\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f
 const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const editor = shallowRef(null)
 const fileInput = ref(null)
+const insertMenu = ref(null)
+const mobileInsertButton = ref(null)
+let pendingInsertPosition = null
 const uploading = ref(false)
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
@@ -49,7 +50,6 @@ const previewId = ref(null)
 const previewGroupIds = ref([])
 const activeImagePosition = ref(null)
 const activeImageWidth = ref(160)
-const imageToolsOpen = ref(false)
 const zoom = ref(1)
 const viewer = ref(null)
 const previewCanvas = ref(null)
@@ -67,59 +67,34 @@ const emittedValues = new Set()
 let internalDragActive = false
 const editorHovered = ref(false)
 const fullPreview = ref(false)
-const fullPreviewDialog = ref(null)
 const fullPreviewBody = ref(null)
 
 function renderFullPreview() {
   const body = fullPreviewBody.value
   if (!body || !fullPreview.value) return
   renderDiaryBody(body, { text: props.modelValue, images: { ...props.images, ...recoveredImages.value }, viewMode: 'self' })
-  for (const [index, img] of [...body.querySelectorAll('.rt-picture img[data-image-id]')].entries()) {
-    if (img.closest('.rt-picture-group')) continue
-    const controls = document.createElement('span')
-    controls.className = 'diary-full-preview__size'
-    for (const [label, step, icon] of [['缩小', -40, zoomOutIcon], ['放大', 40, zoomInIcon]]) {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.title = label + '图片'
-      button.setAttribute('aria-label', label + '图片')
-      const graphic = document.createElement('img')
-      graphic.src = icon
-      graphic.alt = ''
-      button.append(graphic)
-      button.addEventListener('click', () => resizePreviewImage(index, img, step))
-      controls.append(button)
-    }
-    const unit = document.createElement('span')
-    unit.className = 'diary-full-preview__picture-unit'
-    img.replaceWith(unit)
-    unit.append(img, controls)
-  }
 }
-function resizePreviewImage(index, img, step) {
-  const instance = editor.value
-  if (!instance) return
-  let count = 0
-  let target = null
-  instance.state.doc.descendants((node, position) => {
-    if (node.type.name !== 'image') return
-    if (count++ === index) target = { node, position }
-  })
-  if (!target) return
-  const current = Math.round(img.getBoundingClientRect().width) || Math.min(400, img.naturalWidth || 400)
-  const width = Math.min(900, Math.max(80, current + step))
-  instance.view.dispatch(instance.state.tr.setNodeMarkup(target.position, undefined, { ...target.node.attrs, displayWidth: width }))
-  nextTick(renderFullPreview)
-}
-function openFullPreview() {
-  fullPreview.value = true
-  nextTick(() => { renderFullPreview(); fullPreviewDialog.value?.focus() })
+function toggleFullPreview() {
+  fullPreview.value = !fullPreview.value
+  if (fullPreview.value) { closeInsertMenu(); nextTick(renderFullPreview) }
+  else nextTick(() => editor.value?.commands.focus())
 }
 function openFullPreviewImage(event) {
   const image = event.target.closest?.('.rt-picture img[data-image-id]')
   if (image) openPreview(image.dataset.imageId)
 }
-function closeFullPreview() { fullPreview.value = false; editor.value?.commands.focus() }
+function onFullPreviewContextMenu(event) {
+  const image = event.target.closest?.('.rt-picture img[data-image-id]')
+  if (!image) return
+  event.preventDefault()
+  const index = [...fullPreviewBody.value.querySelectorAll('.rt-picture img[data-image-id]')].indexOf(image)
+  let count = 0
+  let position = null
+  editor.value?.state.doc.descendants((node, at) => {
+    if (node.type.name === 'image' && count++ === index) position = at
+  })
+  if (position !== null) openImageMenu(position, event.clientX, event.clientY)
+}
 
 function imageFor(id) { return recoveredImages.value[id] || props.images[id] }
 function blobDataUrl(blob) {
@@ -393,6 +368,52 @@ function insertEmptyGroup(position) {
   instance.view.dispatch(instance.state.tr.insert(target, node))
   return key
 }
+function closeInsertMenu() { insertMenu.value = null }
+function openInsertMenuAt(position, x, y) {
+  const instance = editor.value
+  if (!instance || position == null) return
+  pendingInsertPosition = Math.max(0, Math.min(position, instance.state.doc.content.size))
+  insertMenu.value = {
+    x: Math.max(8, Math.min(x, window.innerWidth - 168)),
+    y: Math.max(8, Math.min(y, window.innerHeight - 100))
+  }
+}
+function onEditorContextMenu(view, event) {
+  if (event.target.closest?.('.rich-image-editor__picture, .rich-image-editor__group')) return false
+  if (!view.state.selection.empty) return false
+  const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+  if (position == null) return false
+  event.preventDefault()
+  openInsertMenuAt(position, event.clientX, event.clientY)
+  return true
+}
+function updateMobileInsertButton(view) {
+  if (!isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
+  const position = view.state.selection.from
+  const coords = view.coordsAtPos(position)
+  mobileInsertButton.value = {
+    position,
+    x: Math.max(8, Math.min(coords.left - 42, window.innerWidth - 42)),
+    y: Math.max(8, Math.min(coords.top, window.innerHeight - 42))
+  }
+}
+function openMobileInsertMenu() {
+  const button = mobileInsertButton.value
+  if (button) openInsertMenuAt(button.position, button.x, button.y + 38)
+}
+function insertGroupFromMenu() {
+  insertEmptyGroup(pendingInsertPosition)
+  closeInsertMenu()
+}
+function insertImageFromMenu() {
+  closeInsertMenu()
+  chooseImage(pendingInsertPosition)
+}
+function onOutsideInsertMenu(event) {
+  if (!event.target.closest?.('.rich-image-editor__insert-menu, .rich-image-editor__mobile-insert')) closeInsertMenu()
+}
+function onInsertMenuKeydown(event) { if (event.key === 'Escape') closeInsertMenu() }
+function refreshMobileInsertButton() { if (editor.value) updateMobileInsertButton(editor.value.view) }
 function removeGroup(key, keepImages = false) {
   const instance = editor.value
   const position = groupPosition(key)
@@ -503,13 +524,20 @@ function releaseBoxDrag(event) {
   finishBoxDrag(keepPreview)
 }
 function cancelBoxDrag(event) { if (boxDrag?.pointerId === event.pointerId) finishBoxDrag() }
-function selectImage(position, showTools = false) {
+function selectImage(position) {
   const node = editor.value?.state.doc.nodeAt(position)
   if (node?.type.name !== 'image') return
   activeImagePosition.value = position
   activeImageWidth.value = Number(node.attrs.displayWidth) || 160
   editor.value.commands.setNodeSelection(position)
-  imageToolsOpen.value = showTools
+}
+function openImageMenu(position, x, y) {
+  selectImage(position)
+  insertMenu.value = {
+    kind: 'image',
+    x: Math.max(8, Math.min(x, window.innerWidth - 218)),
+    y: Math.max(8, Math.min(y, window.innerHeight - 184))
+  }
 }
 function resizeSelectedImage(width) {
   const instance = editor.value
@@ -520,6 +548,7 @@ function resizeSelectedImage(width) {
   activeImageWidth.value = value
   const transaction = instance.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, displayWidth: value })
   instance.view.dispatch(transaction.setSelection(NodeSelection.create(transaction.doc, position)))
+  if (fullPreview.value) nextTick(renderFullPreview)
 }
 function deleteSelectedImage() {
   const instance = editor.value
@@ -527,7 +556,7 @@ function deleteSelectedImage() {
   const node = position == null ? null : instance?.state.doc.nodeAt(position)
   if (node?.type.name !== 'image') return
   activeImagePosition.value = null
-  imageToolsOpen.value = false
+  closeInsertMenu()
   instance.view.dispatch(instance.state.tr.delete(position, position + node.nodeSize))
 }
 function copySelectedImage() {
@@ -550,9 +579,9 @@ function onViewerKeydown(event) {
   else if (event.key === '-') { event.preventDefault(); setZoom(zoom.value - .1) }
 }
 function onPreviewShortcut(event) {
-  if (event.key !== 'F2' || event.repeat || previewId.value || fullPreview.value || !editorHovered.value) return
+  if (event.key !== 'F2' || event.repeat || previewId.value || !editorHovered.value) return
   event.preventDefault()
-  openFullPreview()
+  toggleFullPreview()
 }
 
 const DiaryImageGroup = Node.create({
@@ -673,12 +702,22 @@ const DiaryImage = Image.extend({
         if (event.detail > 1) { clearTimeout(clickTimer); return }
         clickTimer = setTimeout(() => openPreview(dom.dataset.imageId), 230)
       })
-      img.addEventListener('dblclick', event => {
+      dom.addEventListener('contextmenu', event => {
         event.preventDefault()
         event.stopPropagation()
         clearTimeout(clickTimer)
         const position = getPos()
-        if (typeof position === 'number') selectImage(position, true)
+        if (typeof position === 'number') openImageMenu(position, event.clientX, event.clientY)
+      })
+      if (isMobile) img.addEventListener('dblclick', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        clearTimeout(clickTimer)
+        const position = getPos()
+        if (typeof position === 'number') {
+          const rect = dom.getBoundingClientRect()
+          openImageMenu(position, rect.left, rect.bottom)
+        }
       })
       const controls = document.createElement('span')
       controls.className = 'rich-image-editor__controls'
@@ -789,9 +828,11 @@ async function upload(file, appendToEnd = false, position = null) {
   } finally {
     changeUpload(-1)
     if (fileInput.value) fileInput.value.value = ''
+    pendingInsertPosition = null
   }
 }
-async function chooseImage() {
+async function chooseImage(position = null) {
+  pendingInsertPosition = typeof position === 'number' ? position : null
   if (!/Android/i.test(navigator.userAgent) || typeof window.showOpenFilePicker !== 'function') {
     fileInput.value?.click()
     return
@@ -806,7 +847,7 @@ async function chooseImage() {
       } }],
       excludeAcceptAllOption: true
     })
-    if (handle) await upload(await handle.getFile(), true)
+    if (handle) await upload(await handle.getFile(), pendingInsertPosition === null, pendingInsertPosition)
   } catch (error) {
     if (error?.name !== 'AbortError') {
       console.warn('系统文件选择器无法打开', error)
@@ -824,6 +865,9 @@ function insertExistingImage(image) {
 defineExpose({ chooseImage, insertExistingImage })
 onMounted(() => {
   window.addEventListener('keydown', onPreviewShortcut)
+  window.addEventListener('keydown', onInsertMenuKeydown)
+  window.addEventListener('scroll', refreshMobileInsertButton, true)
+  document.addEventListener('pointerdown', onOutsideInsertMenu)
   editor.value = new Editor({
     content: toDocument(props.modelValue),
     extensions: [StarterKit.configure({
@@ -871,6 +915,9 @@ onMounted(() => {
         return plainTextSlice(text, view.state.schema)
       },
       handleDOMEvents: {
+        contextmenu: onEditorContextMenu,
+        focus: () => { queueMicrotask(refreshMobileInsertButton); return false },
+        blur: () => { mobileInsertButton.value = null; return false },
         dragstart: () => { internalDragActive = true; return false },
         dragend: () => { internalDragActive = false; return false },
         drop: () => { setTimeout(() => { internalDragActive = false }, 0); return false },
@@ -913,15 +960,18 @@ onMounted(() => {
     },
     onUpdate: updateModel,
     onSelectionUpdate: ({ editor: instance }) => {
+      updateMobileInsertButton(instance.view)
+      if (insertMenu.value?.kind !== 'image' || selection.node?.type.name !== 'image') closeInsertMenu()
       const selection = instance.state.selection
       if (selection.node?.type.name === 'image') {
         activeImagePosition.value = selection.from
         activeImageWidth.value = Number(selection.node.attrs.displayWidth) || 160
-      } else { activeImagePosition.value = null; imageToolsOpen.value = false }
+      } else { activeImagePosition.value = null }
     }
   })
+  if (isMobile) nextTick(() => updateMobileInsertButton(editor.value.view))
 })
-onUnmounted(() => { finishBoxDrag(); window.removeEventListener('keydown', onPreviewShortcut); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
+onUnmounted(() => { finishBoxDrag(); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
 watch(() => props.modelValue, value => {
   if (emittedValues.has(value) || !editor.value || value === fromDocument()) return
   emittedValues.clear()
@@ -935,22 +985,25 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 
 <template>
   <div class="rich-image-editor" :class="{ 'rich-image-editor--dragging': dragging }" @pointerenter="editorHovered = true" @pointerleave="editorHovered = false" @dragover="dragging = true" @dragleave="dragging = false" @drop="dragging = false">
-    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
-    <div v-if="imageToolsOpen && activeImagePosition !== null" class="rich-image-editor__size-toolbar">
-      <span>图片大小</span>
-      <button type="button" aria-label="缩小图片" @click="resizeSelectedImage(activeImageWidth - 40)"><img :src="zoomOutIcon" alt="" /></button>
-      <input type="range" min="80" max="900" step="10" :value="activeImageWidth" aria-label="图片大小" @input="resizeSelectedImage($event.target.value)" />
-      <button type="button" aria-label="放大图片" @click="resizeSelectedImage(activeImageWidth + 40)"><img :src="zoomInIcon" alt="" /></button>
-      <span>{{ activeImageWidth }}px</span>
-      <button type="button" aria-label="复制原图" @click="copySelectedImage"><img :src="copyIcon" alt="" /></button>
-      <button type="button" aria-label="删除图片" @click="deleteSelectedImage"><img :src="closeIcon" alt="" /></button>
-    </div>
-    <div class="rich-image-editor__workarea"><EditorContent :editor="editor" /><aside class="rich-image-editor__toolbox" aria-label="日记编辑工具"><span>工具箱</span><button type="button" class="rich-image-editor__group-tool" aria-label="拖入图片组" title="拖进正文创建图片组" @pointerdown="startBoxDrag($event, 'new', $event.currentTarget)" @keydown.enter.prevent="insertEmptyGroup()" @keydown.space.prevent="insertEmptyGroup()"><img :src="groupIcon" alt="" /><span>图片组</span></button></aside></div>
-    <div class="rich-image-editor__hint">从右侧拖入图片组，再把图片拖进格子；单击图片预览，双击调整大小或删除。鼠标停在正文上按 F2 可预览整篇日记。</div>
-    <input ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile)" />
+    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @click="toggleFullPreview">{{ fullPreview ? '继续编辑' : '预览正文' }}</button><button v-if="!fullPreview" type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
+    <div v-show="!fullPreview" class="rich-image-editor__workarea"><EditorContent :editor="editor" /></div>
+    <div v-show="fullPreview" ref="fullPreviewBody" class="diary-inline-preview" aria-label="日记正文预览" @click="openFullPreviewImage" @contextmenu="onFullPreviewContextMenu" />
+    <div class="rich-image-editor__hint">{{ fullPreview ? (isMobile ? '点击继续编辑返回正文。' : '右键图片可调整大小；按 F2 或点击继续编辑返回正文。') : isMobile ? '在正文光标旁点＋插入图片或图片组；双击图片调整大小或删除。' : '在正文中右键插入图片或图片组，右键图片可调整大小或删除；单击图片预览。按 F2 可切换预览。' }}</div>
+    <input ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile && pendingInsertPosition === null, pendingInsertPosition)" />
     <Teleport to="body">
-      <div v-if="fullPreview" ref="fullPreviewDialog" class="diary-full-preview" role="dialog" aria-modal="true" aria-label="日记正文预览" tabindex="-1" @keydown.esc="closeFullPreview" @click.self="closeFullPreview">
-        <div class="diary-full-preview__page"><div class="diary-full-preview__head"><span>日记正文预览</span><button type="button" aria-label="关闭预览" @click="closeFullPreview"><img :src="closeIcon" alt="" /></button></div><div ref="fullPreviewBody" class="diary-full-preview__body" @click="openFullPreviewImage" /></div>
+      <button v-if="mobileInsertButton && !insertMenu && !fullPreview" type="button" class="rich-image-editor__mobile-insert" :style="{ left: `${mobileInsertButton.x}px`, top: `${mobileInsertButton.y}px` }" aria-label="插入图片或图片组" @pointerdown.prevent @click="openMobileInsertMenu">＋</button>
+      <div v-if="insertMenu" class="rich-image-editor__insert-menu" :style="{ left: `${insertMenu.x}px`, top: `${insertMenu.y}px` }" role="menu" :aria-label="insertMenu.kind === 'image' ? '图片操作' : '插入内容'">
+        <template v-if="insertMenu.kind === 'image'">
+          <div class="rich-image-editor__menu-heading">图片大小 <span>{{ activeImageWidth }}px</span></div>
+          <div class="rich-image-editor__menu-size"><button type="button" aria-label="缩小图片" @click="resizeSelectedImage(activeImageWidth - 40)">−</button><input type="range" min="80" max="900" step="10" :value="activeImageWidth" aria-label="图片大小" @input="resizeSelectedImage($event.target.value)" /><button type="button" aria-label="放大图片" @click="resizeSelectedImage(activeImageWidth + 40)">＋</button></div>
+          <div class="rich-image-editor__menu-divider"></div>
+          <button type="button" role="menuitem" @click="copySelectedImage(); closeInsertMenu()">复制原图</button>
+          <button type="button" role="menuitem" @click="deleteSelectedImage">删除图片</button>
+        </template>
+        <template v-else>
+          <button type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
+          <button type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
+        </template>
       </div>
       <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click.self="closePreview" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
         <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__previous" aria-label="上一张图片" @click="movePreview(-1)"><img :src="leftIcon" alt="" /></button><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__next" aria-label="下一张图片" @click="movePreview(1)"><img :src="rightIcon" alt="" /></button></div>
@@ -964,15 +1017,17 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__file-input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 .rich-image-editor__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--color-text); font-weight: 600; }
 .rich-image-editor__head-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.rich-image-editor__workarea { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: start; gap: 10px; }
+.rich-image-editor__workarea { min-width: 0; }
 .rich-image-editor__workarea > div { min-width: 0; }
-.rich-image-editor__toolbox { position: sticky; top: 12px; display: grid; gap: 8px; padding: 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #f8faf8; color: var(--color-text); font-size: 13px; }
-.rich-image-editor__group-tool { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 58px; padding: 8px; border: 1px dashed #8ba891 !important; background: #fff; touch-action: none; cursor: grab; }
-.rich-image-editor__group-tool img { width: 20px; height: 20px; }
-.rich-image-editor__size-toolbar { position: fixed; right: 12px; bottom: 12px; z-index: 2500; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; box-sizing: border-box; width: min(560px, calc(100vw - 24px)); min-height: 44px; padding: 6px 8px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); font-size: 13px; }
-.rich-image-editor__size-toolbar input[type=range] { width: min(180px, 30vw); accent-color: var(--color-primary); }
-.rich-image-editor__size-toolbar button { display: grid; place-items: center; width: 30px; height: 30px; padding: 5px; }
-.rich-image-editor__size-toolbar button img { width: 17px; height: 17px; }
+.rich-image-editor__insert-menu { position: fixed; z-index: 3000; display: grid; min-width: 168px; padding: 4px; border: 1px solid #d5d9d5; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); color: #252a31; font-size: 13px; line-height: 1.35; }
+.rich-image-editor__insert-menu button { min-height: 29px; padding: 5px 12px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rich-image-editor__insert-menu button:hover, .rich-image-editor__insert-menu button:focus-visible { background: #edf3ee; }
+.rich-image-editor__menu-heading { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px 3px; color: #515b54; }
+.rich-image-editor__menu-size { display: flex; align-items: center; gap: 3px; padding: 0 5px 5px; }
+.rich-image-editor__menu-size button { flex: none; width: 26px; padding: 0; text-align: center; }
+.rich-image-editor__menu-size input { width: 132px; accent-color: #417a51; }
+.rich-image-editor__menu-divider { height: 1px; margin: 4px -4px; background: #e4e9e4; }
+.rich-image-editor__mobile-insert { position: fixed; z-index: 2999; width: 36px; height: 36px; padding: 0; border: 1px solid #9db5a2; border-radius: 50%; background: #fff; color: #254d34; font-size: 24px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; line-height: 1.55; overflow-wrap: anywhere; outline: none; }
 .rich-image-editor :deep(.rich-image-editor__body:focus) { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
@@ -1006,28 +1061,14 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 @keyframes rich-image-spin { to { transform: rotate(360deg); } }
 .rich-image-editor__hint { margin-top: 8px; color: var(--color-text-light); font-size: .75rem; }
 .rich-image-editor--dragging :deep(.rich-image-editor__body) { outline: 2px dashed var(--color-primary); }
-.diary-full-preview { position: fixed; z-index: 3100; inset: 0; overflow: auto; padding: 28px 14px; background: rgba(0, 0, 0, .55); outline: none; }
-.diary-full-preview__page { box-sizing: border-box; width: min(960px, 100%); min-height: 70vh; margin: auto; padding: 24px; background: var(--color-background, #fff); color: var(--color-text); }
-.diary-full-preview__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid #cad8cc; font-size: 18px; font-weight: 600; }
-.diary-full-preview__head button { display: grid; place-items: center; width: 32px; height: 32px; padding: 6px; border: 1px solid #cad8cc; background: #fff; cursor: pointer; }
-.diary-full-preview__head img { width: 16px; height: 16px; }
-.diary-full-preview__body { padding-top: 22px; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; }
-.diary-full-preview__body :deep(.rt-picture) { margin: 12px 0; text-align: left; }
-.diary-full-preview__body :deep(.rt-picture img[data-image-id]) { display: inline-block; height: auto; max-width: 100%; margin: 0; vertical-align: middle; }
-.diary-full-preview__body :deep(.rt-picture-group) { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
-.diary-full-preview__body :deep(.rt-picture-group .rt-picture) { display: inline-block; margin: 0; }
-.diary-full-preview__body :deep(.rt-picture-group .rt-picture img[data-image-id]) { width: 96px !important; height: 96px !important; max-width: none !important; max-height: none !important; object-fit: cover; }
-.diary-full-preview__body :deep(.diary-full-preview__picture-unit) { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; vertical-align: middle; white-space: nowrap; }
-.diary-full-preview__body :deep(.diary-full-preview__picture-unit > img) { min-width: 0; }
-.diary-full-preview__body :deep(.rt-table .rt-picture) { display: inline-block; margin: 0; vertical-align: middle; }
-.diary-full-preview__body :deep(.rt-table .diary-full-preview__picture-unit) { max-width: none; }
-.diary-full-preview__body :deep(.rt-table .diary-full-preview__picture-unit > img) { flex: none; max-width: none !important; }
-.diary-full-preview__body :deep(.rt-table .rt-picture img[data-image-id]:not([data-display-width])) { width: 96px; height: auto; }
-.diary-full-preview__body :deep(.diary-full-preview__size) { flex: none; display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
-.diary-full-preview__body :deep(.diary-full-preview__size button) { display: grid; place-items: center; width: 28px; height: 28px; padding: 4px; border: 1px solid #cad8cc; border-radius: 4px; background: #fff; cursor: pointer; }
-.diary-full-preview__body :deep(.diary-full-preview__size img) { display: block; width: 17px; height: 17px; margin: 0; }
-@media (max-width: 600px) { .diary-full-preview__page { padding: 16px; } }
-@media (max-width: 650px) { .rich-image-editor__workarea { grid-template-columns: minmax(0, 1fr); } .rich-image-editor__toolbox { position: static; grid-row: 1; grid-template-columns: auto 1fr; align-items: center; } .rich-image-editor__group-tool { min-height: 40px; } }
+.diary-inline-preview { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; }
+.diary-inline-preview :deep(.rt-picture) { margin: 12px 0; text-align: left; }
+.diary-inline-preview :deep(.rt-picture img[data-image-id]) { display: inline-block; height: auto; max-width: 100%; margin: 0; vertical-align: middle; cursor: zoom-in; }
+.diary-inline-preview :deep(.rt-picture-group) { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+.diary-inline-preview :deep(.rt-picture-group .rt-picture) { display: inline-block; margin: 0; }
+.diary-inline-preview :deep(.rt-picture-group .rt-picture img[data-image-id]) { width: 96px !important; height: 96px !important; max-width: none !important; max-height: none !important; object-fit: cover; }
+.diary-inline-preview :deep(.rt-table .rt-picture) { display: inline-block; margin: 0; vertical-align: middle; }
+.diary-inline-preview :deep(.rt-table .rt-picture img[data-image-id]:not([data-display-width])) { width: 96px; height: auto; }
 .diary-image-viewer { position: fixed; z-index: 3200; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, .55); outline: none; }
 .diary-image-viewer__previous, .diary-image-viewer__next { position: fixed; top: 50%; z-index: 3; width: 42px; height: 42px; font-size: 30px; line-height: 1; transform: translateY(-50%); }
 .diary-image-viewer__previous img, .diary-image-viewer__next img { width: 18px; height: 18px; }

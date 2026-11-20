@@ -138,6 +138,7 @@ const animateDetail = ref(false)
 const diary = ref(null)
 const diaryBody = computed(() => ({ text: diary.value?.content, images: diary.value?.images, refreshImages: refreshDiaryImages, viewMode: viewMode.value }))
 const previewImage = ref(null)
+const previewGroupImages = ref([])
 const previewCanvas = ref(null)
 const previewZoom = ref(1)
 const previewOffset = ref({ x: 0, y: 0 })
@@ -171,6 +172,11 @@ const previewDialog = ref(null)
 function openImagePreview(event) {
   const image = event.target.closest?.('.rt-picture img')
   if (!image) return
+  const group = image.closest('.rt-picture-group')
+  previewGroupImages.value = group ? [...group.querySelectorAll('.rt-picture img[data-image-id]')] : [image]
+  showImagePreview(image)
+}
+function showImagePreview(image) {
   const originalUrl = diary.value?.images?.[image.dataset.imageId]?.url || image.src
   previewImage.value = { element: image, originalUrl }
   previewZoom.value = 1
@@ -195,11 +201,22 @@ function openImagePreview(event) {
     previewDialog.value?.focus()
   })
 }
+function moveImagePreview(step) {
+  const images = previewGroupImages.value
+  const index = images.findIndex(image => image === previewImage.value?.element)
+  if (index >= 0 && images.length > 1) showImagePreview(images[(index + step + images.length) % images.length])
+}
+function onImagePreviewKeydown(event) {
+  if (event.key === 'Escape') closeImagePreview()
+  else if (event.key === 'ArrowLeft') moveImagePreview(-1)
+  else if (event.key === 'ArrowRight') moveImagePreview(1)
+}
 function closeImagePreview() {
   previewDrag = null
   previewPointers.clear()
   pinchDistance = 0
   previewImage.value = null
+  previewGroupImages.value = []
 }
 function changePreviewZoom(step) {
   previewZoom.value = Math.min(4, Math.max(.25, previewZoom.value + step))
@@ -441,8 +458,8 @@ onBeforeUnmount(() => {
     <div v-else class="empty-box panel" v-formatted-text="text.notFound"/>
 
     <Teleport to="body">
-      <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown.esc="closeImagePreview" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
-        <div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.originalUrl" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
+      <div v-if="previewImage" ref="previewDialog" class="diary-detail-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @click.self="closeImagePreview" @keydown="onImagePreviewKeydown" @wheel.prevent="changePreviewZoom($event.deltaY < 0 ? .1 : -.1)">
+        <button v-if="previewGroupImages.length > 1" type="button" class="diary-detail-preview__previous" aria-label="上一张图片" @click="moveImagePreview(-1)"><img :src="leftIcon" alt="" /></button><div class="diary-detail-preview__image-wrap"><button type="button" class="diary-detail-preview__close" aria-label="关闭预览" @click="closeImagePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a class="diary-detail-preview__download" :href="previewImage.originalUrl" :download="`diary-image-${previewImage.element.dataset.imageId || 'original'}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewZoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div><button v-if="previewGroupImages.length > 1" type="button" class="diary-detail-preview__next" aria-label="下一张图片" @click="moveImagePreview(1)"><img :src="rightIcon" alt="" /></button>
       </div>
     </Teleport>
 
@@ -576,7 +593,7 @@ onBeforeUnmount(() => {
 .content-block__body--article :deep(.rt-picture) { margin: 12px 0; text-align: left; }
 .content-block__body--article :deep(.rt-picture-group) { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
 .content-block__body--article :deep(.rt-picture-group .rt-picture) { display: inline-block; margin: 0; }
-.content-block__body--article :deep(.rt-picture-group .rt-picture img) { width: auto; height: auto; max-width: 88px !important; max-height: 88px; object-fit: contain; }
+.content-block__body--article :deep(.rt-picture-group .rt-picture img) { width: 96px !important; height: 96px !important; max-width: none !important; max-height: none !important; object-fit: cover; }
 .content-block__body--article :deep(.rt-table .rt-picture) { display: inline-block; margin: 0; vertical-align: middle; }
 .content-block__body--article :deep(.rt-table .rt-picture img:not([data-display-width])) { width: 96px; height: auto; }
 .content-block__body--article :deep(.rt-table .rt-picture img) { max-width: none !important; }
@@ -588,6 +605,10 @@ onBeforeUnmount(() => {
   .content-block__body--article :deep(.rt-picture img) { max-width: 100%; }
 }
 .diary-detail-preview { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 50px 18px 18px; background: rgba(0, 0, 0, .55); }
+.diary-detail-preview__previous, .diary-detail-preview__next { position: fixed; top: 50%; z-index: 3; width: 42px; height: 42px; padding: 0; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: #333; font-size: 30px; line-height: 1; cursor: pointer; transform: translateY(-50%); }
+.diary-detail-preview__previous img, .diary-detail-preview__next img { width: 18px; height: 18px; }
+.diary-detail-preview__previous { left: 12px; }
+.diary-detail-preview__next { right: 12px; }
 .diary-detail-preview__image-wrap { position: relative; width: fit-content; margin: auto; }
 .diary-detail-preview__image-wrap canvas { display: block; width: auto; height: auto; max-width: calc(100vw - 36px); max-height: calc(100vh - 88px); object-fit: contain; cursor: grab; touch-action: none; }
 .diary-detail-preview__image-wrap canvas:active { cursor: grabbing; }

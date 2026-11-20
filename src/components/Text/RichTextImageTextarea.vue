@@ -1,9 +1,11 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { Fragment, Slice } from '@tiptap/pm/model'
+import { NodeSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
 import { closeHistory } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -14,6 +16,10 @@ import zoomInIcon from '../../assets/icons/zoom-in.svg'
 import zoomOutIcon from '../../assets/icons/zoom-out.svg'
 import moveIcon from '../../assets/icons/move.svg'
 import copyIcon from '../../assets/icons/copy.svg'
+import leftIcon from '../../assets/icons/to-left.svg'
+import rightIcon from '../../assets/icons/to-right.svg'
+import groupIcon from '../../assets/icons/group.svg'
+import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
 
 const props = defineProps({
@@ -26,7 +32,7 @@ const emit = defineEmits(['update:modelValue', 'upload-state-change', 'image-add
 // 旧版本数字 ID 仅兼容读取；新图片使用非连续的 UUID 标识。
 const picturePattern = /^\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~([0-9]{2,3}))?}$/
 const embeddedPicturePattern = /\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
-const embeddedElementPattern = /\{pg (?:\{p [^{}]+}){2,}}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
+const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const editor = shallowRef(null)
 const fileInput = ref(null)
 const uploading = ref(false)
@@ -40,6 +46,10 @@ function changeUpload(delta) {
 }
 const dragging = ref(false)
 const previewId = ref(null)
+const previewGroupIds = ref([])
+const activeImagePosition = ref(null)
+const activeImageWidth = ref(160)
+const imageToolsOpen = ref(false)
 const zoom = ref(1)
 const viewer = ref(null)
 const previewCanvas = ref(null)
@@ -104,6 +114,10 @@ function resizePreviewImage(index, img, step) {
 function openFullPreview() {
   fullPreview.value = true
   nextTick(() => { renderFullPreview(); fullPreviewDialog.value?.focus() })
+}
+function openFullPreviewImage(event) {
+  const image = event.target.closest?.('.rt-picture img[data-image-id]')
+  if (image) openPreview(image.dataset.imageId)
 }
 function closeFullPreview() { fullPreview.value = false; editor.value?.commands.focus() }
 
@@ -201,30 +215,25 @@ function copyPicture(node, event = null) {
   }
   return true
 }
+function pictureToDocument(source) {
+  const picture = source.match(picturePattern)
+  if (!picture) return null
+  return { type: 'image', attrs: { src: imageFor(picture[2])?.url || '', imageId: picture[2], alt: picture[1] || '', displayWidth: Number(picture[3]) || 160 } }
+}
 function toDocument(value) {
   return {
     type: 'doc',
     content: value.replace(/\r/g, '').split('\n').map(line => {
       const content = []
-      const group = line.match(/^\{pg ((?:\{p [^{}]+}){2,})}$/)
-      if (group) {
-        const members = [...group[1].matchAll(embeddedPicturePattern)]
-        if (members.map(member => member[0]).join('') === group[1]) {
-          const groupId = crypto.randomUUID()
-          for (const member of members) {
-            const picture = member[0].match(picturePattern)
-            content.push({ type: 'image', attrs: { src: imageFor(picture[2])?.url || '', imageId: picture[2], alt: picture[1] || '', displayWidth: Number(picture[3]) || 160, groupId } })
-          }
-          return { type: 'paragraph', content }
-        }
-      }
       let offset = 0
       for (const match of line.matchAll(embeddedElementPattern)) {
         if (match.index > offset) content.push({ type: 'text', text: line.slice(offset, match.index) })
-        const groupId = match[0].startsWith('{pg ') ? crypto.randomUUID() : null
-        for (const member of match[0].matchAll(embeddedPicturePattern)) {
-          const picture = member[0].match(picturePattern)
-          content.push({ type: 'image', attrs: { src: imageFor(picture[2])?.url || '', imageId: picture[2], alt: picture[1] || '', displayWidth: Number(picture[3]) || 160, groupId } })
+        if (match[0].startsWith('{pg ')) {
+          const members = [...match[0].slice(4, -1).matchAll(embeddedPicturePattern)].map(member => pictureToDocument(member[0])).filter(Boolean)
+          content.push({ type: 'imageGroup', attrs: { groupKey: crypto.randomUUID() }, content: members })
+        } else {
+          const picture = pictureToDocument(match[0])
+          if (picture) content.push(picture)
         }
         offset = match.index + match[0].length
       }
@@ -244,19 +253,7 @@ function textOf(node) {
     const suffix = width !== 160 && width >= 80 && width <= 900 ? `~${width}` : ''
     return caption ? `{p ${caption}=>${id}${suffix}}` : `{p ${id}${suffix}}`
   }
-  if (node.type === 'paragraph') {
-    let result = ''
-    let group = []
-    let currentGroup = null
-    const flush = () => { if (group.length) result += group.length >= 2 ? `{pg ${group.join('')}}` : group.join(''); group = []; currentGroup = null }
-    for (const child of node.content || []) {
-      const groupId = child.type === 'image' ? child.attrs?.groupId : null
-      if (groupId && groupId === currentGroup) group.push(textOf(child))
-      else { flush(); if (groupId) { currentGroup = groupId; group.push(textOf(child)) } else result += textOf(child) }
-    }
-    flush()
-    return result
-  }
+  if (node.type === 'imageGroup') return `{pg ${(node.content || []).map(textOf).join('')}}`
   return (node.content || []).map(textOf).join('')
 }
 function plainFromSlice(slice) {
@@ -334,8 +331,12 @@ async function recoverImage(id, force = false) {
   finally { pendingImages.delete(id) }
 }
 function openPreview(id) {
-  const source = [...document.querySelectorAll('.rich-image-editor__picture')].find(node => node.dataset.imageId === id)?.querySelector('img')
+  const picture = [...(editor.value?.view.dom.querySelectorAll('.rich-image-editor__picture') || [])].find(node => node.dataset.imageId === id)
+  const source = picture?.querySelector('img')
   if (!source?.naturalWidth) return
+  if (!previewGroupIds.value.length) previewGroupIds.value = picture.closest('.rich-image-editor__group')
+    ? [...picture.closest('.rich-image-editor__group').querySelectorAll('.rich-image-editor__picture[data-image-id]')].map(item => item.dataset.imageId)
+    : [id]
   previewId.value = id
   zoom.value = 1
   previewOffset.value = { x: 0, y: 0 }
@@ -349,7 +350,7 @@ function openPreview(id) {
     viewer.value?.focus()
   })
 }
-function closePreview() { previewDrag = null; previewPointers.clear(); pinchDistance = 0; previewId.value = null }
+function closePreview() { previewDrag = null; previewPointers.clear(); pinchDistance = 0; previewId.value = null; previewGroupIds.value = [] }
 function startPreviewDrag(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return
   previewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
@@ -374,26 +375,172 @@ function movePreviewDrag(event) {
 }
 function endPreviewDrag(event) { previewPointers.delete(event.pointerId); pinchDistance = 0; previewDrag = null }
 function setZoom(value) { zoom.value = Math.min(4, Math.max(.25, value)) }
-function setSelectionGroup(grouped) {
-  const instance = editor.value
-  if (!instance) return
-  const { from, to } = instance.state.selection
-  const selected = []
-  instance.state.doc.nodesBetween(from, to, (node, position) => {
-    if (node.type.name === 'image' && position >= from && position < to) selected.push({ node, position })
+function groupPosition(key) {
+  let found = null
+  editor.value?.state.doc.descendants((node, position) => {
+    if (node.type.name === 'imageGroup' && node.attrs.groupKey === key) found = position
   })
-  if (selected.length < (grouped ? 2 : 1)) return
-  const groupId = grouped ? crypto.randomUUID() : null
-  let transaction = instance.state.tr
-  for (const { node, position } of selected) transaction = transaction.setNodeMarkup(position, undefined, { ...node.attrs, groupId })
-  instance.view.dispatch(transaction)
+  return found
+}
+function insertEmptyGroup(position) {
+  const instance = editor.value
+  if (!instance) return false
+  const key = crypto.randomUUID()
+  const node = instance.state.schema.nodes.imageGroup.create({ groupKey: key })
+  const slice = new Slice(Fragment.from(node), 0, 0)
+  const target = dropPoint(instance.state.doc, position ?? instance.state.selection.from, slice)
+  if (target == null) return false
+  instance.view.dispatch(instance.state.tr.insert(target, node))
+  return key
+}
+function removeGroup(key, keepImages = false) {
+  const instance = editor.value
+  const position = groupPosition(key)
+  const node = position == null ? null : instance?.state.doc.nodeAt(position)
+  if (node?.type.name !== 'imageGroup') return
+  instance.view.dispatch(keepImages
+    ? instance.state.tr.replaceWith(position, position + node.nodeSize, node.content)
+    : instance.state.tr.delete(position, position + node.nodeSize))
+}
+function moveNode(source, target) {
+  const instance = editor.value
+  const node = source == null ? null : instance?.state.doc.nodeAt(source)
+  if (!node || target == null || target >= source && target <= source + node.nodeSize) return false
+  let transaction = instance.state.tr.delete(source, source + node.nodeSize)
+  const slice = new Slice(Fragment.from(node), 0, 0)
+  const insertAt = dropPoint(transaction.doc, transaction.mapping.map(target), slice)
+  if (insertAt == null) return false
+  instance.view.dispatch(transaction.insert(insertAt, node))
+  return true
+}
+let boxDrag = null
+function finishBoxDrag(keepPreview = false) {
+  window.removeEventListener('pointermove', moveBoxDrag)
+  window.removeEventListener('pointerup', releaseBoxDrag)
+  window.removeEventListener('pointercancel', cancelBoxDrag)
+  boxDrag?.element.classList.remove('rich-image-editor__drag-source')
+  if (!keepPreview) boxDrag?.preview?.remove()
+  boxDrag = null
+}
+function startBoxDrag(event, kind, element, getPos = null) {
+  if (event.button !== 0 || !editor.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  finishBoxDrag()
+  boxDrag = { kind, element, getPos, pointerId: event.pointerId, x: event.clientX, y: event.clientY, preview: null,
+    key: kind === 'group' ? element.dataset.groupKey : element.dataset.imageId }
+  window.addEventListener('pointermove', moveBoxDrag)
+  window.addEventListener('pointerup', releaseBoxDrag)
+  window.addEventListener('pointercancel', cancelBoxDrag)
+}
+function moveBoxDrag(event) {
+  const drag = boxDrag
+  if (!drag || drag.pointerId !== event.pointerId) return
+  if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finishBoxDrag(); return }
+  if (!drag.preview) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return
+    const rect = drag.element.getBoundingClientRect()
+    drag.offsetX = drag.x - rect.left
+    drag.offsetY = drag.y - rect.top
+    drag.preview = drag.element.cloneNode(true)
+    drag.preview.classList.add('rich-image-editor__drag-preview')
+    Object.assign(drag.preview.style, { width: `${rect.width}px`, height: `${rect.height}px` })
+    drag.element.closest('.rich-image-editor').append(drag.preview)
+    if (drag.kind !== 'new') drag.element.classList.add('rich-image-editor__drag-source')
+    window.getSelection()?.removeAllRanges()
+  }
+  drag.preview.style.left = `${event.clientX - drag.offsetX}px`
+  drag.preview.style.top = `${event.clientY - drag.offsetY}px`
+}
+function releaseBoxDrag(event) {
+  const drag = boxDrag
+  if (!drag || drag.pointerId !== event.pointerId) return
+  const instance = editor.value
+  const targetElement = document.elementFromPoint(event.clientX, event.clientY)
+  const insideEditor = instance?.view.dom.contains(targetElement)
+  let target = insideEditor ? instance.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos : null
+  const sourceGroup = drag.kind === 'image' ? drag.element.closest('.rich-image-editor__group') : null
+  if (sourceGroup && !sourceGroup.contains(targetElement) && target != null) {
+    const position = groupPosition(sourceGroup.dataset.groupKey)
+    const groupNode = position == null ? null : instance.state.doc.nodeAt(position)
+    if (groupNode && target > position && target < position + groupNode.nodeSize) {
+      const rect = sourceGroup.getBoundingClientRect()
+      target = event.clientX >= rect.right || event.clientY >= rect.bottom
+        ? position + groupNode.nodeSize : position
+    }
+  }
+  let keepPreview = false
+  if (!drag.preview && drag.kind === 'new') insertEmptyGroup(instance.state.selection.from)
+  else if (drag.preview && target != null) {
+    const oldRects = new Map([...instance.view.dom.querySelectorAll('[data-image-id], [data-group-key]')]
+      .map(element => [element.dataset.groupKey || element.dataset.imageId, element.getBoundingClientRect()]))
+    const result = drag.kind === 'new' ? insertEmptyGroup(target) : moveNode(drag.getPos(), target)
+    if (result) {
+      keepPreview = true
+      nextTick(() => {
+      for (const element of instance.view.dom.querySelectorAll('[data-image-id], [data-group-key]')) {
+        const old = oldRects.get(element.dataset.groupKey || element.dataset.imageId)
+        if (!old) continue
+        const now = element.getBoundingClientRect()
+        const dx = old.left - now.left, dy = old.top - now.top
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) element.animate([
+          { transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }
+        ], { duration: 180, easing: 'ease-out' })
+      }
+      const moved = drag.kind === 'group' || drag.kind === 'new'
+        ? instance.view.dom.querySelector(`[data-group-key="${drag.kind === 'new' ? result : drag.key}"]`)
+        : [...instance.view.dom.querySelectorAll('[data-image-id]')].find(element => element.dataset.imageId === drag.key)
+      if (moved && drag.preview) {
+        const old = drag.preview.getBoundingClientRect(), now = moved.getBoundingClientRect()
+        setTimeout(() => drag.preview.remove(), 240)
+        drag.preview.animate([{ transform: 'translate(0, 0)', opacity: .75 },
+          { transform: `translate(${now.left - old.left}px, ${now.top - old.top}px)`, opacity: 0 }],
+        { duration: 160, easing: 'ease-out' }).finished.finally(() => drag.preview.remove())
+      } else drag.preview?.remove()
+      })
+    }
+  }
+  finishBoxDrag(keepPreview)
+}
+function cancelBoxDrag(event) { if (boxDrag?.pointerId === event.pointerId) finishBoxDrag() }
+function selectImage(position, showTools = false) {
+  const node = editor.value?.state.doc.nodeAt(position)
+  if (node?.type.name !== 'image') return
+  activeImagePosition.value = position
+  activeImageWidth.value = Number(node.attrs.displayWidth) || 160
+  editor.value.commands.setNodeSelection(position)
+  imageToolsOpen.value = showTools
+}
+function resizeSelectedImage(width) {
+  const instance = editor.value
+  const position = activeImagePosition.value
+  const node = position == null ? null : instance?.state.doc.nodeAt(position)
+  if (node?.type.name !== 'image') return
+  const value = Math.min(900, Math.max(80, Math.round(Number(width) / 10) * 10))
+  activeImageWidth.value = value
+  const transaction = instance.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, displayWidth: value })
+  instance.view.dispatch(transaction.setSelection(NodeSelection.create(transaction.doc, position)))
+}
+function deleteSelectedImage() {
+  const instance = editor.value
+  const position = activeImagePosition.value
+  const node = position == null ? null : instance?.state.doc.nodeAt(position)
+  if (node?.type.name !== 'image') return
+  activeImagePosition.value = null
+  imageToolsOpen.value = false
+  instance.view.dispatch(instance.state.tr.delete(position, position + node.nodeSize))
+}
+function copySelectedImage() {
+  const node = editor.value?.state.doc.nodeAt(activeImagePosition.value)
+  if (node?.type.name === 'image') copyPicture(node)
 }
 const pictures = computed(() => [...props.modelValue.matchAll(/\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g)].map(match => ({ id: match[2], caption: match[1] || '' })))
 const activePicture = computed(() => pictures.value.find(picture => picture.id === previewId.value))
 const activeImage = computed(() => activePicture.value && imageFor(activePicture.value.id))
 function movePreview(step) {
-  const index = pictures.value.findIndex(picture => picture.id === previewId.value)
-  if (index >= 0) previewId.value = pictures.value[(index + step + pictures.value.length) % pictures.value.length]?.id
+  const ids = previewGroupIds.value
+  const index = ids.indexOf(previewId.value)
+  if (index >= 0 && ids.length > 1) openPreview(ids[(index + step + ids.length) % ids.length])
 }
 function onViewerKeydown(event) {
   if (event.key === 'Escape') closePreview()
@@ -408,6 +555,79 @@ function onPreviewShortcut(event) {
   openFullPreview()
 }
 
+const DiaryImageGroup = Node.create({
+  name: 'imageGroup',
+  group: 'inline',
+  inline: true,
+  content: 'image*',
+  draggable: true,
+  selectable: true,
+  isolating: true,
+  addAttributes() {
+    return { groupKey: { default: null, parseHTML: element => element.getAttribute('data-group-key'),
+      renderHTML: attributes => attributes.groupKey ? { 'data-group-key': attributes.groupKey } : {} } }
+  },
+  parseHTML() { return [{ tag: 'span[data-diary-image-group]' }] },
+  renderHTML({ HTMLAttributes }) { return ['span', { ...HTMLAttributes, 'data-diary-image-group': '' }, 0] },
+  addNodeView() {
+    return ({ node, getPos }) => {
+      const dom = document.createElement('span')
+      dom.className = 'rich-image-editor__group'
+      dom.dataset.groupKey = node.attrs.groupKey || crypto.randomUUID()
+      const border = document.createElement('span')
+      border.className = 'rich-image-editor__group-border'
+      border.contentEditable = 'false'
+      const handle = document.createElement('button')
+      handle.type = 'button'
+      handle.title = '拖动整个图片组'
+      handle.setAttribute('aria-label', '拖动整个图片组')
+      const handleImage = document.createElement('img')
+      handleImage.src = moveIcon
+      handleImage.alt = ''
+      handle.append(handleImage)
+      handle.addEventListener('pointerdown', event => startBoxDrag(event, 'group', dom, getPos))
+      border.addEventListener('pointerdown', event => {
+        if (!event.target.closest('button')) startBoxDrag(event, 'group', dom, getPos)
+      })
+      const dissolve = document.createElement('button')
+      dissolve.type = 'button'
+      dissolve.title = '解散图片组，保留图片'
+      dissolve.setAttribute('aria-label', '解散图片组，保留图片')
+      const dissolveImage = document.createElement('img')
+      dissolveImage.src = ungroupIcon
+      dissolveImage.alt = ''
+      dissolve.append(dissolveImage)
+      dissolve.addEventListener('mousedown', event => event.preventDefault())
+      dissolve.addEventListener('click', event => { event.stopPropagation(); removeGroup(dom.dataset.groupKey, true) })
+      const remove = document.createElement('button')
+      remove.type = 'button'
+      remove.title = '删除图片组'
+      remove.setAttribute('aria-label', '删除图片组')
+      const removeImage = document.createElement('img')
+      removeImage.src = closeIcon
+      removeImage.alt = ''
+      remove.append(removeImage)
+      remove.addEventListener('mousedown', event => event.preventDefault())
+      remove.addEventListener('click', event => { event.stopPropagation(); removeGroup(dom.dataset.groupKey) })
+      border.append(handle, dissolve, remove)
+      const contentDOM = document.createElement('span')
+      contentDOM.className = 'rich-image-editor__group-content'
+      dom.append(border, contentDOM)
+      return {
+        dom, contentDOM,
+        update(nextNode) {
+          if (nextNode.type.name !== 'imageGroup') return false
+          dom.dataset.groupKey = nextNode.attrs.groupKey || dom.dataset.groupKey
+          return true
+        },
+        stopEvent: event => Boolean(event.target.closest('button')),
+        selectNode() { dom.classList.add('rich-image-editor__group--selected') },
+        deselectNode() { dom.classList.remove('rich-image-editor__group--selected') }
+      }
+    }
+  }
+})
+
 const DiaryImage = Image.extend({
   addAttributes() {
     return {
@@ -420,13 +640,11 @@ const DiaryImage = Image.extend({
       sourceImageId: { default: null, parseHTML: element => element.getAttribute('data-source-image-id'),
         renderHTML: attributes => attributes.sourceImageId ? { 'data-source-image-id': attributes.sourceImageId } : {} },
       displayWidth: { default: 160, parseHTML: element => Number(element.getAttribute('data-display-width')) || 160,
-        renderHTML: attributes => ({ 'data-display-width': attributes.displayWidth || 160 }) },
-      groupId: { default: null, parseHTML: element => element.getAttribute('data-group-id'),
-        renderHTML: attributes => attributes.groupId ? { 'data-group-id': attributes.groupId } : {} }
+        renderHTML: attributes => ({ 'data-display-width': attributes.displayWidth || 160 }) }
     }
   },
   addNodeView() {
-    return ({ node, decorations, editor: instance, getPos }) => {
+    return ({ node, decorations, getPos }) => {
       const dom = document.createElement('div')
       dom.className = 'rich-image-editor__picture'
       dom.contentEditable = 'false'
@@ -445,47 +663,25 @@ const DiaryImage = Image.extend({
         prepareClipboardImage(dom.dataset.imageId, img.src)
       })
       img.addEventListener('error', () => { dom.classList.remove('rich-image-editor__picture--loaded'); scheduleRetry(dom.dataset.imageId) })
-      const controls = document.createElement('span')
-      controls.className = 'rich-image-editor__controls'
       const legacyLabel = document.createElement('span')
       legacyLabel.className = 'rich-image-editor__legacy'
       legacyLabel.textContent = '旧图'
       legacyLabel.title = '复制这张图片并粘贴回正文，会重新上传原图并生成新标识'
-      let pictureWidth = Number(node.attrs.displayWidth) || 160
-      img.addEventListener('click', () => openPreview(dom.dataset.imageId))
-      for (const [label, step, icon] of [['缩小', -40, zoomOutIcon], ['放大', 40, zoomInIcon]]) {
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.title = label
-        button.setAttribute('aria-label', label + '图片')
-        const iconImage = document.createElement('img')
-        iconImage.src = icon
-        iconImage.alt = ''
-        button.append(iconImage)
-        button.addEventListener('mousedown', event => event.preventDefault())
-        button.addEventListener('click', event => {
-          event.stopPropagation()
-          pictureWidth = Math.min(900, Math.max(80, pictureWidth + step))
-          const position = getPos()
-          if (typeof position === 'number') instance.view.dispatch(instance.state.tr.setNodeMarkup(position, undefined, { ...instance.state.doc.nodeAt(position).attrs, displayWidth: pictureWidth }))
-        })
-        controls.append(button)
-      }
-      const copyButton = document.createElement('button')
-      copyButton.type = 'button'
-      copyButton.title = '复制原图'
-      copyButton.setAttribute('aria-label', '复制原图')
-      const copyGraphic = document.createElement('img')
-      copyGraphic.src = copyIcon
-      copyGraphic.alt = ''
-      copyButton.append(copyGraphic)
-      copyButton.addEventListener('mousedown', event => event.preventDefault())
-      copyButton.addEventListener('click', event => {
+      let clickTimer = null
+      img.addEventListener('click', event => {
         event.stopPropagation()
-        const position = getPos()
-        if (typeof position === 'number') copyPicture(instance.state.doc.nodeAt(position))
+        if (event.detail > 1) { clearTimeout(clickTimer); return }
+        clickTimer = setTimeout(() => openPreview(dom.dataset.imageId), 230)
       })
-      controls.append(copyButton)
+      img.addEventListener('dblclick', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        clearTimeout(clickTimer)
+        const position = getPos()
+        if (typeof position === 'number') selectImage(position, true)
+      })
+      const controls = document.createElement('span')
+      controls.className = 'rich-image-editor__controls'
       const moveButton = document.createElement('button')
       moveButton.type = 'button'
       moveButton.className = 'rich-image-editor__move'
@@ -495,34 +691,7 @@ const DiaryImage = Image.extend({
       moveGraphic.src = moveIcon
       moveGraphic.alt = ''
       moveButton.append(moveGraphic)
-      let touchMove = null
-      moveButton.addEventListener('pointerdown', event => {
-        if (event.pointerType === 'mouse') return
-        event.preventDefault()
-        const position = getPos()
-        if (typeof position !== 'number') return
-        touchMove = { pointerId: event.pointerId, source: position }
-        moveButton.setPointerCapture(event.pointerId)
-        dom.classList.add('rich-image-editor__picture--moving')
-      })
-      moveButton.addEventListener('pointerup', event => {
-        if (!touchMove || touchMove.pointerId !== event.pointerId) return
-        const { source } = touchMove
-        touchMove = null
-        dom.classList.remove('rich-image-editor__picture--moving')
-        const target = instance.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
-        const draggedNode = instance.state.doc.nodeAt(source)
-        if (target == null || !draggedNode || target >= source && target <= source + draggedNode.nodeSize) return
-        let transaction = instance.state.tr.delete(source, source + draggedNode.nodeSize)
-        const mapped = transaction.mapping.map(target)
-        const insertAt = dropPoint(transaction.doc, mapped, new Slice(Fragment.from(draggedNode), 0, 0))
-        if (insertAt == null) return
-        instance.view.dispatch(transaction.insert(insertAt, draggedNode))
-      })
-      moveButton.addEventListener('pointercancel', () => {
-        touchMove = null
-        dom.classList.remove('rich-image-editor__picture--moving')
-      })
+      moveButton.addEventListener('pointerdown', event => startBoxDrag(event, 'image', dom, getPos))
       controls.append(moveButton)
       dom.append(spinner, img, legacyLabel, controls)
       const update = (nextNode, nextDecorations = []) => {
@@ -530,11 +699,9 @@ const DiaryImage = Image.extend({
         rangeSelected = nextDecorations.some(decoration => decoration.type?.attrs?.class?.includes('rich-image-editor__picture--selected'))
         showSelection()
         const id = String(nextNode.attrs.imageId || '')
-        pictureWidth = Number(nextNode.attrs.displayWidth) || 160
-        dom.style.setProperty('--picture-width', `${pictureWidth}px`)
+        dom.style.setProperty('--picture-width', `${Number(nextNode.attrs.displayWidth) || 160}px`)
         dom.dataset.imageId = id
         legacyLabel.hidden = !/^[1-9][0-9]*$/.test(id)
-        dom.classList.toggle('rich-image-editor__picture--grouped', Boolean(nextNode.attrs.groupId))
         if (nextNode.attrs.src) {
           if (img.getAttribute('src') !== nextNode.attrs.src) {
             dom.classList.remove('rich-image-editor__picture--loaded')
@@ -548,7 +715,8 @@ const DiaryImage = Image.extend({
         dom,
         update,
         selectNode() { nodeSelected = true; showSelection() },
-        deselectNode() { nodeSelected = false; showSelection() }
+        deselectNode() { nodeSelected = false; showSelection() },
+        destroy() { clearTimeout(clickTimer) }
       }
     }
   }
@@ -609,7 +777,7 @@ async function upload(file, appendToEnd = false, position = null) {
     const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
     const position = pendingPosition(token)
     if (position !== null) {
-      const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, { src: image.url, imageId: String(image.publicId || image.id), alt: '' })
+      const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, { ...editor.value.state.doc.nodeAt(position).attrs, src: image.url, imageId: String(image.publicId || image.id), alt: '' })
       editor.value.view.dispatch(transaction.setMeta('addToHistory', false))
     }
     emit('image-added', image)
@@ -663,7 +831,7 @@ onMounted(() => {
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false
-    }), DiaryImage.configure({ inline: true })],
+    }), DiaryImageGroup, DiaryImage.configure({ inline: true })],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -743,10 +911,17 @@ onMounted(() => {
         return true
       }
     },
-    onUpdate: updateModel
+    onUpdate: updateModel,
+    onSelectionUpdate: ({ editor: instance }) => {
+      const selection = instance.state.selection
+      if (selection.node?.type.name === 'image') {
+        activeImagePosition.value = selection.from
+        activeImageWidth.value = Number(selection.node.attrs.displayWidth) || 160
+      } else { activeImagePosition.value = null; imageToolsOpen.value = false }
+    }
   })
 })
-onUnmounted(() => { window.removeEventListener('keydown', onPreviewShortcut); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
+onUnmounted(() => { finishBoxDrag(); window.removeEventListener('keydown', onPreviewShortcut); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
 watch(() => props.modelValue, value => {
   if (emittedValues.has(value) || !editor.value || value === fromDocument()) return
   emittedValues.clear()
@@ -760,16 +935,25 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 
 <template>
   <div class="rich-image-editor" :class="{ 'rich-image-editor--dragging': dragging }" @pointerenter="editorHovered = true" @pointerleave="editorHovered = false" @dragover="dragging = true" @dragleave="dragging = false" @drop="dragging = false">
-    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @mousedown.prevent @click="setSelectionGroup(true)">组成图片组</button><button type="button" @mousedown.prevent @click="setSelectionGroup(false)">拆开图片组</button><button type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
-    <EditorContent :editor="editor" />
-    <div class="rich-image-editor__hint">旧图可复制后粘贴为新图片；鼠标停在正文编辑框上按 F2 可预览整篇日记并调整图片大小。</div>
+    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
+    <div v-if="imageToolsOpen && activeImagePosition !== null" class="rich-image-editor__size-toolbar">
+      <span>图片大小</span>
+      <button type="button" aria-label="缩小图片" @click="resizeSelectedImage(activeImageWidth - 40)"><img :src="zoomOutIcon" alt="" /></button>
+      <input type="range" min="80" max="900" step="10" :value="activeImageWidth" aria-label="图片大小" @input="resizeSelectedImage($event.target.value)" />
+      <button type="button" aria-label="放大图片" @click="resizeSelectedImage(activeImageWidth + 40)"><img :src="zoomInIcon" alt="" /></button>
+      <span>{{ activeImageWidth }}px</span>
+      <button type="button" aria-label="复制原图" @click="copySelectedImage"><img :src="copyIcon" alt="" /></button>
+      <button type="button" aria-label="删除图片" @click="deleteSelectedImage"><img :src="closeIcon" alt="" /></button>
+    </div>
+    <div class="rich-image-editor__workarea"><EditorContent :editor="editor" /><aside class="rich-image-editor__toolbox" aria-label="日记编辑工具"><span>工具箱</span><button type="button" class="rich-image-editor__group-tool" aria-label="拖入图片组" title="拖进正文创建图片组" @pointerdown="startBoxDrag($event, 'new', $event.currentTarget)" @keydown.enter.prevent="insertEmptyGroup()" @keydown.space.prevent="insertEmptyGroup()"><img :src="groupIcon" alt="" /><span>图片组</span></button></aside></div>
+    <div class="rich-image-editor__hint">从右侧拖入图片组，再把图片拖进格子；单击图片预览，双击调整大小或删除。鼠标停在正文上按 F2 可预览整篇日记。</div>
     <input ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile)" />
     <Teleport to="body">
       <div v-if="fullPreview" ref="fullPreviewDialog" class="diary-full-preview" role="dialog" aria-modal="true" aria-label="日记正文预览" tabindex="-1" @keydown.esc="closeFullPreview" @click.self="closeFullPreview">
-        <div class="diary-full-preview__page"><div class="diary-full-preview__head"><span>日记正文预览</span><button type="button" aria-label="关闭预览" @click="closeFullPreview"><img :src="closeIcon" alt="" /></button></div><div ref="fullPreviewBody" class="diary-full-preview__body" /></div>
+        <div class="diary-full-preview__page"><div class="diary-full-preview__head"><span>日记正文预览</span><button type="button" aria-label="关闭预览" @click="closeFullPreview"><img :src="closeIcon" alt="" /></button></div><div ref="fullPreviewBody" class="diary-full-preview__body" @click="openFullPreviewImage" /></div>
       </div>
       <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click.self="closePreview" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
-        <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /></div>
+        <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__previous" aria-label="上一张图片" @click="movePreview(-1)"><img :src="leftIcon" alt="" /></button><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__next" aria-label="下一张图片" @click="movePreview(1)"><img :src="rightIcon" alt="" /></button></div>
       </div>
     </Teleport>
   </div>
@@ -780,21 +964,40 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__file-input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 .rich-image-editor__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--color-text); font-weight: 600; }
 .rich-image-editor__head-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rich-image-editor__workarea { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: start; gap: 10px; }
+.rich-image-editor__workarea > div { min-width: 0; }
+.rich-image-editor__toolbox { position: sticky; top: 12px; display: grid; gap: 8px; padding: 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #f8faf8; color: var(--color-text); font-size: 13px; }
+.rich-image-editor__group-tool { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 58px; padding: 8px; border: 1px dashed #8ba891 !important; background: #fff; touch-action: none; cursor: grab; }
+.rich-image-editor__group-tool img { width: 20px; height: 20px; }
+.rich-image-editor__size-toolbar { position: fixed; right: 12px; bottom: 12px; z-index: 2500; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; box-sizing: border-box; width: min(560px, calc(100vw - 24px)); min-height: 44px; padding: 6px 8px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); font-size: 13px; }
+.rich-image-editor__size-toolbar input[type=range] { width: min(180px, 30vw); accent-color: var(--color-primary); }
+.rich-image-editor__size-toolbar button { display: grid; place-items: center; width: 30px; height: 30px; padding: 5px; }
+.rich-image-editor__size-toolbar button img { width: 17px; height: 17px; }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; line-height: 1.55; overflow-wrap: anywhere; outline: none; }
 .rich-image-editor :deep(.rich-image-editor__body:focus) { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
-.rich-image-editor :deep(.rich-image-editor__picture) { --picture-controls-width: 105px; position: relative; display: inline-flex; vertical-align: middle; align-items: center; justify-content: flex-start; box-sizing: border-box; width: min(calc(var(--picture-width, 160px) + var(--picture-controls-width)), 100%); min-height: 48px; height: auto; margin: 8px 0; border: 1px solid #b8c8bb; border-radius: 4px; background: #f7faf7; }
+.rich-image-editor :deep(.rich-image-editor__group) { display: inline-flex; flex-direction: column; box-sizing: border-box; width: min(320px, 100%); min-height: 122px; margin: 8px 6px 12px 0; border: 2px solid #9db5a2; border-radius: 6px; background: #f8faf8; vertical-align: middle; }
+.rich-image-editor :deep(.rich-image-editor__group--selected) { outline: 2px solid #2f6fed; outline-offset: 2px; }
+.rich-image-editor :deep(.rich-image-editor__group-border) { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 30px; padding: 2px 5px; border-bottom: 1px solid #cad8cc; background: #edf3ee; cursor: grab; touch-action: none; }
+.rich-image-editor :deep(.rich-image-editor__group-border button) { display: grid; place-items: center; width: 26px; height: 26px; padding: 4px; }
+.rich-image-editor :deep(.rich-image-editor__group-border button img) { width: 17px; height: 17px; }
+.rich-image-editor :deep(.rich-image-editor__group-content) { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; min-height: 86px; padding: 7px; }
+.rich-image-editor :deep(.rich-image-editor__group-content:empty::before) { content: '把图片拖进这里'; align-self: center; width: 100%; color: var(--color-text-light); font-size: 12px; text-align: center; }
+.rich-image-editor :deep(.rich-image-editor__picture) { position: relative; display: inline-flex; vertical-align: middle; align-items: center; justify-content: flex-start; box-sizing: border-box; width: min(var(--picture-width, 160px), 100%); min-height: 48px; height: auto; margin: 8px 6px 12px 0; border: 1px solid #b8c8bb; border-radius: 4px; background: #f7faf7; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded) { min-height: 0; }
-.rich-image-editor :deep(.rich-image-editor__picture--grouped) { width: min(calc(96px + var(--picture-controls-width)), 100%); }
-.rich-image-editor :deep(.rich-image-editor__controls) { flex: none; display: inline-flex; align-items: center; flex-direction: row; gap: 4px; margin-left: 6px; }
+.rich-image-editor :deep(.rich-image-editor__group-content .rich-image-editor__picture) { width: 88px; height: 88px; min-height: 0; margin: 0; }
+.rich-image-editor :deep(.rich-image-editor__controls) { position: absolute; top: 4px; right: 4px; z-index: 1; display: inline-flex; gap: 3px; padding: 2px; border-radius: 4px; background: rgba(255, 255, 255, .92); }
+.rich-image-editor :deep(.rich-image-editor__controls[hidden]), .rich-image-editor :deep(.rich-image-editor__controls button[hidden]) { display: none; }
 .rich-image-editor :deep(.rich-image-editor__controls button) { display: grid; place-items: center; width: 29px; height: 29px; padding: 4px; }
 .rich-image-editor :deep(.rich-image-editor__controls button img) { display: block; width: 17px; height: 17px; }
 .rich-image-editor :deep(.rich-image-editor__controls .rich-image-editor__move) { touch-action: none; cursor: grab; }
-.rich-image-editor :deep(.rich-image-editor__picture--moving) { outline: 2px solid var(--color-primary); opacity: .75; }
+.rich-image-editor :deep(.rich-image-editor__drag-source) { opacity: .25; }
+.rich-image-editor :deep(.rich-image-editor__drag-preview), .rich-image-editor > .rich-image-editor__drag-preview { position: fixed !important; z-index: 10000; margin: 0 !important; pointer-events: none !important; opacity: .75; box-shadow: 0 3px 10px rgba(0, 0, 0, .16); }
 .rich-image-editor :deep(.rich-image-editor__legacy:not([hidden])) { position: absolute; left: 0; bottom: 0; display: block; max-width: 100%; padding: 3px 5px; background: rgba(255, 248, 224, .95); color: #6e4a15; font-size: 11px; line-height: 1.25; }
 .rich-image-editor :deep(.rich-image-editor__picture--selected) { border-color: #2f6fed; outline: 2px solid #2f6fed; outline-offset: 2px; background: #eaf1ff; }
-.rich-image-editor :deep(.rich-image-editor__picture > img) { display: none; width: min(var(--picture-width, 160px), calc(100% - var(--picture-controls-width))); height: auto; object-fit: contain; cursor: zoom-in; }
+.rich-image-editor :deep(.rich-image-editor__picture > img) { display: none; width: 100%; height: auto; object-fit: contain; cursor: zoom-in; }
+.rich-image-editor :deep(.rich-image-editor__group-content .rich-image-editor__picture > img) { height: 100%; object-fit: cover; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded > img) { display: block; }
 .rich-image-editor :deep(.rich-image-editor__spinner) { width: 22px; height: 22px; border: 2px solid #cbd8cd; border-top-color: var(--color-primary); border-radius: 50%; animation: rich-image-spin .8s linear infinite; }
 .rich-image-editor :deep(.rich-image-editor__picture--loaded .rich-image-editor__spinner) { display: none; }
@@ -813,7 +1016,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .diary-full-preview__body :deep(.rt-picture img[data-image-id]) { display: inline-block; height: auto; max-width: 100%; margin: 0; vertical-align: middle; }
 .diary-full-preview__body :deep(.rt-picture-group) { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
 .diary-full-preview__body :deep(.rt-picture-group .rt-picture) { display: inline-block; margin: 0; }
-.diary-full-preview__body :deep(.rt-picture-group .rt-picture img[data-image-id]) { width: auto; max-width: 88px !important; max-height: 88px; object-fit: contain; }
+.diary-full-preview__body :deep(.rt-picture-group .rt-picture img[data-image-id]) { width: 96px !important; height: 96px !important; max-width: none !important; max-height: none !important; object-fit: cover; }
 .diary-full-preview__body :deep(.diary-full-preview__picture-unit) { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; vertical-align: middle; white-space: nowrap; }
 .diary-full-preview__body :deep(.diary-full-preview__picture-unit > img) { min-width: 0; }
 .diary-full-preview__body :deep(.rt-table .rt-picture) { display: inline-block; margin: 0; vertical-align: middle; }
@@ -824,9 +1027,12 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .diary-full-preview__body :deep(.diary-full-preview__size button) { display: grid; place-items: center; width: 28px; height: 28px; padding: 4px; border: 1px solid #cad8cc; border-radius: 4px; background: #fff; cursor: pointer; }
 .diary-full-preview__body :deep(.diary-full-preview__size img) { display: block; width: 17px; height: 17px; margin: 0; }
 @media (max-width: 600px) { .diary-full-preview__page { padding: 16px; } }
-@media (pointer: coarse) { .rich-image-editor :deep(.rich-image-editor__picture) { --picture-controls-width: 138px; } }
-@media (pointer: fine) { .rich-image-editor :deep(.rich-image-editor__controls .rich-image-editor__move) { display: none; } }
-.diary-image-viewer { position: fixed; z-index: 3000; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, .55); outline: none; }
+@media (max-width: 650px) { .rich-image-editor__workarea { grid-template-columns: minmax(0, 1fr); } .rich-image-editor__toolbox { position: static; grid-row: 1; grid-template-columns: auto 1fr; align-items: center; } .rich-image-editor__group-tool { min-height: 40px; } }
+.diary-image-viewer { position: fixed; z-index: 3200; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, .55); outline: none; }
+.diary-image-viewer__previous, .diary-image-viewer__next { position: fixed; top: 50%; z-index: 3; width: 42px; height: 42px; font-size: 30px; line-height: 1; transform: translateY(-50%); }
+.diary-image-viewer__previous img, .diary-image-viewer__next img { width: 18px; height: 18px; }
+.diary-image-viewer__previous { left: 12px; }
+.diary-image-viewer__next { right: 12px; }
 .diary-image-viewer__panel { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; color: #fff; }
 .diary-image-viewer__toolbar, .diary-image-viewer__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
 .diary-image-viewer__toolbar { border-bottom: 1px solid #454545; }

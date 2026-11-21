@@ -1,3 +1,5 @@
+import { recordDiagnostic, safeRequestPath } from './apiDiagnostics.js'
+
 export const HTTP_CODE = {
     NOT_FOUND: 404,
     NOT_LOGIN: 401,
@@ -31,7 +33,7 @@ function prepareOptions(options) {
  * 统一完成请求、JSON 解析和 APIResponse 解包。
  * 迁移期间遇到旧接口的裸数据时，会直接返回原数据。
  */
-export async function request(url, options = {}) {
+async function executeRequest(url, options = {}, onResponse = () => {}) {
     const {timeout = 0, ...fetchOptions} = options
     const timeoutController = timeout > 0 ? new AbortController() : null
     const externalSignal = fetchOptions.signal
@@ -50,6 +52,7 @@ export async function request(url, options = {}) {
 
     try {
         response = await fetch(url, prepareOptions({...fetchOptions, signal}))
+        onResponse(response.status)
     } catch (error) {
         if (error?.name === 'AbortError') {
             if (timedOut) throw new APIError('请求超时', 0, 0, 'timeout')
@@ -91,6 +94,35 @@ export async function request(url, options = {}) {
     }
 
     return result
+}
+
+export async function request(url, options = {}) {
+    const started = performance.now()
+    const path = safeRequestPath(url)
+    let httpStatus = 0
+    recordDiagnostic({type: '接口', method: options.method || 'GET', path, status: '发起请求'})
+    try {
+        const data = await executeRequest(url, options, status => { httpStatus = status })
+        const actualView = data && !Array.isArray(data) ? data.viewMode : ''
+        const requestedView = new URL(url, location.origin).searchParams.get('view')
+        recordDiagnostic({
+            type: '接口', method: options.method || 'GET', path,
+            status: actualView && requestedView && actualView !== requestedView ? '视角降级' : '成功',
+            httpStatus, duration: Math.round(performance.now() - started),
+            ...(path.startsWith('/api/diary/') && data && !Array.isArray(data)
+                ? {viewMode: data.viewMode || '', availableViews: data.availableViews || []}
+                : {})
+        })
+        return data
+    } catch (error) {
+        recordDiagnostic({
+            type: '接口', method: options.method || 'GET', path,
+            status: '失败', duration: Math.round(performance.now() - started),
+            httpStatus: error.status || 0, code: error.code || 0,
+            kind: error.kind || error.name || '', message: error.message || String(error)
+        })
+        throw error
+    }
 }
 
 export function isBackendUnavailableError(error) {

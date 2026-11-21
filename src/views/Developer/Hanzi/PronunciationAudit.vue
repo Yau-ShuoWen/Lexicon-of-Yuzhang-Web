@@ -5,6 +5,9 @@ import {useHead} from '@vueuse/head'
 import {request} from '../../../services/request.js'
 import {showError} from '../../../services/ToastService.js'
 
+// 路由切换会卸载页面，模块缓存保留各方言最近一次检查结果。
+const resultCache = new Map()
+
 const route = useRoute()
 const dialect = computed(() => route.params.dialect)
 const language = computed(() => route.params.language)
@@ -35,24 +38,39 @@ const filtered = computed(() => selectedType.value === 'ALL'
 const grouped = computed(() => {
   const groups = new Map()
   for (const finding of filtered.value) {
-    const key = finding.character ? `${finding.character}\u0000${finding.wordPinyin || ''}` : `unaligned-${finding.wordId}`
-    if (!groups.has(key)) groups.set(key, {key, character: finding.character, display: finding.wordDisplay, items: []})
+    const display = [...(finding.hanziDisplays || [])].sort().join('、')
+    const key = finding.character ? `${finding.character}\u0000${display}` : `unaligned-${finding.wordId}`
+    if (!groups.has(key)) groups.set(key, {key, character: finding.character, display, items: []})
     groups.get(key).items.push(finding)
   }
   return [...groups.values()]
 })
 const visible = computed(() => grouped.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const typeLabel = type => types.find(item => item.value === type)?.label || type
-const wordLink = finding => ({name: 'CiyuFilter', params: {language: language.value, dialect: dialect.value}, query: {q: finding.word}})
-const characterLink = finding => ({name: 'HanziFilter', params: {language: language.value, dialect: dialect.value}, query: {q: finding.character}})
+const reasonGroups = group => types.slice(1).map(type => ({
+  type: type.value,
+  label: type.label,
+  items: group.items.filter(item => item.type === type.value),
+})).filter(reason => reason.items.length)
+const wordParts = finding => {
+  const characters = Array.from(finding.word || '')
+  const position = finding.position
+  if (position < 0 || position >= characters.length) return {before: finding.word || '—', highlighted: '', after: ''}
+  return {before: characters.slice(0, position).join(''), highlighted: characters[position], after: characters.slice(position + 1).join('')}
+}
+const wordLink = finding => ({name: 'CiyuEditor', params: {language: language.value, dialect: dialect.value, id: finding.wordId}})
+const characterLink = finding => finding.hanziId
+  ? {name: 'HanziEditor', params: {language: language.value, dialect: dialect.value, id: finding.hanziId}}
+  : {name: 'HanziFilter', params: {language: language.value, dialect: dialect.value}, query: {q: finding.character}}
 
 async function scan() {
   const version = ++requestVersion
+  const currentDialect = dialect.value
   loading.value = true
   try {
-    const result = await request(`/api/edit/hanzi/pronunciation-audit/${dialect.value}`)
+    const result = await request(`/api/edit/hanzi/pronunciation-audit/${currentDialect}`)
     if (version !== requestVersion) return
     findings.value = Array.isArray(result) ? result : []
+    resultCache.set(currentDialect, findings.value)
     scanned.value = true
     page.value = 1
   } catch (error) {
@@ -64,12 +82,14 @@ async function scan() {
 
 watch(dialect, () => {
   requestVersion++
-  findings.value = []
-  scanned.value = false
+  const cached = resultCache.get(dialect.value)
+  findings.value = cached || []
+  scanned.value = !!cached
   selectedType.value = 'ALL'
   page.value = 1
   loading.value = false
-})
+  if (!cached) scan()
+}, {immediate: true})
 watch(selectedType, () => { page.value = 1 })
 useHead({title: '读音数据检查'})
 </script>
@@ -91,7 +111,6 @@ useHead({title: '读音数据检查'})
       </button>
     </div>
 
-    <p v-if="!scanned && !loading" class="audit-message">点击“开始检查”读取当前方言的字表和词条。</p>
     <p v-if="loading" class="audit-message" role="status">正在检查，请稍候。</p>
     <p v-if="scanned && !filtered.length" class="audit-message">此分类没有结果。</p>
 
@@ -103,11 +122,14 @@ useHead({title: '读音数据检查'})
           <span class="audit-reading" v-formatted-text="group.display || '—'" />
         </div>
         <div class="audit-item__details">
-          <div v-for="(item, index) in group.items" :key="`${item.wordId}-${item.position}-${item.type}-${index}`" class="audit-occurrence">
-            <span class="audit-type">{{ typeLabel(item.type) }}</span>
-            <router-link :to="wordLink(item)">{{ item.word || '—' }}</router-link>
-            <small>ID {{ item.wordId }}<template v-if="item.position >= 0"> · 第 {{ item.position + 1 }} 字</template></small>
-            <span v-if="item.hanziDisplays?.length">字表 <span v-formatted-text="item.hanziDisplays.join('、')" /></span>
+          <div v-for="reason in reasonGroups(group)" :key="reason.type" class="audit-reason">
+            <span class="audit-type" :class="`audit-type--${reason.type.toLowerCase()}`">{{ reason.label }}</span>
+            <div class="audit-words">
+              <span v-for="(item, index) in reason.items" :key="`${item.wordId}-${item.position}-${index}`" class="audit-word">
+                <router-link :to="wordLink(item)"><template v-if="wordParts(item).highlighted">{{ wordParts(item).before }}<mark>{{ wordParts(item).highlighted }}</mark>{{ wordParts(item).after }}</template><template v-else>{{ item.word || '—' }}</template></router-link>
+                <span v-if="item.wordDisplay" class="audit-word-reading" v-formatted-text="item.wordDisplay" />
+              </span>
+            </div>
           </div>
         </div>
       </article>
@@ -133,16 +155,22 @@ button:disabled { opacity: .55; cursor: default; }
 .audit-summary strong { margin-left: 7px; }
 .audit-message { padding: 22px 0; color: var(--color-text-light); }
 .audit-list { border: 1px solid var(--color-border); border-radius: 7px; background: #fff; }
-.audit-item { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 18px; padding: 11px 16px; }
+.audit-item { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; padding: 13px 16px; }
 .audit-item + .audit-item { border-top: 1px solid var(--color-border); }
 .audit-item__main { display: flex; align-items: baseline; gap: 12px; }
-.audit-character { font-size: 28px; font-weight: 650; }
+.audit-character { font-size: 34px; font-weight: 650; }
 .audit-reading { font-size: 19px; }
-.audit-type { color: var(--color-text-light); }
-.audit-item__details { display: grid; gap: 5px; min-width: 0; color: var(--color-text-light); font-size: 13px; }
-.audit-occurrence { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.audit-item__details small { color: var(--color-text-light); }
+.audit-item__details { display: grid; gap: 9px; min-width: 0; }
+.audit-reason { display: flex; align-items: start; gap: 12px; }
+.audit-type { flex: none; padding: 3px 9px; border: 1px solid #9a4918; border-radius: 999px; background: #fae8d8; color: #71340e; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.audit-type--variant { border-color: #2d648e; background: #e4f0fa; color: #214e72; }
+.audit-type--missing_hanzi, .audit-type--unaligned { border-color: #59616a; background: #edf0f2; color: #3d454d; }
+.audit-type--invalid_word_pinyin, .audit-type--invalid_hanzi_pinyin { border-color: #9d3c51; background: #f9e5e9; color: #76293c; }
+.audit-words { display: flex; flex-wrap: wrap; gap: 6px 18px; min-width: 0; }
+.audit-word { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.audit-word mark { padding: 1px 2px; border-radius: 2px; background: #f6dfa0; color: inherit; }
+.audit-word-reading { color: var(--color-text-light); font-size: 13px; }
 .audit-item a { color: var(--color-primary-dark); }
 .audit-pages { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 20px; }
-@media (max-width: 700px) { .audit-page { padding: 20px 14px 45px; } .audit-header { display: block; } .audit-header > button { margin-top: 18px; } .audit-item { grid-template-columns: 100px minmax(0, 1fr); gap: 10px; padding: 10px; } }
+@media (max-width: 700px) { .audit-page { padding: 20px 14px 45px; } .audit-header { display: block; } .audit-header > button { margin-top: 18px; } .audit-item { grid-template-columns: 110px minmax(0, 1fr); gap: 10px; padding: 10px; } .audit-item__main { flex-wrap: wrap; } .audit-reason { flex-wrap: wrap; gap: 5px; } }
 </style>

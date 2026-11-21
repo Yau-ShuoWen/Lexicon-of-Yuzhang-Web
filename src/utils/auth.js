@@ -1,9 +1,11 @@
 import { ref } from 'vue'
 import { HTTP_CODE, request } from '../services/request.js'
+import { recordDiagnostic } from '../services/apiDiagnostics.js'
 
 const AUTH_TOKEN_KEY = 'auth-token'
 const AUTH_USER_KEY = 'auth-user'
 const AUTH_CHECK_TIMEOUT_MS = 3_000
+const AUTH_RECHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000
 
 const isAuthenticated = ref(false)
 const user = ref(null)
@@ -109,6 +111,7 @@ const hasPermission = (permission) => {
 }
 
 const clearAuth = () => {
+    recordDiagnostic({type: '登录状态', status: '清除本地登录', tokenPresent: !!token.value})
     authGeneration += 1
     isAuthenticated.value = false
     user.value = null
@@ -118,6 +121,8 @@ const clearAuth = () => {
 }
 
 const saveAuth = (userData, userToken) => {
+    recordDiagnostic({type: '登录状态', status: '验证成功', tokenPresent: !!userToken,
+        diaryLevel: Array.isArray(userData?.permissions) ? userData.permissions.filter(p => String(p).startsWith('diary.read.')).join(', ') : ''})
     authGeneration += 1
     isAuthenticated.value = true
     user.value = userData
@@ -131,6 +136,9 @@ const saveAuth = (userData, userToken) => {
 }
 
 const preserveAuthForBackendUnavailable = (savedToken, savedUser, error = null) => {
+    recordDiagnostic({type: '登录状态', status: '验证失败，保留本地资料', tokenPresent: !!savedToken,
+        code: error?.code || 0, httpStatus: error?.status || 0,
+        kind: error?.kind || '', message: error?.message || ''})
     // 后端暂时不可用不等于 Token 失效，保留登录状态，等待后端恢复后再次验证。
     isAuthenticated.value = true
     token.value = savedToken
@@ -202,6 +210,7 @@ const installAuthSync = () => {
     window.addEventListener('focus', revalidate)
     window.addEventListener('pageshow', revalidate)
     document.addEventListener('visibilitychange', revalidate)
+    window.setInterval(revalidate, AUTH_RECHECK_INTERVAL_MS)
 }
 
 const isLoggedIn = () => !!token.value

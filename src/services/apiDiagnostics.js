@@ -1,7 +1,15 @@
 import { ref } from 'vue'
 
 const STORAGE_KEY = 'api-diagnostics-v1'
+const ENABLED_KEY = 'api-diagnostics-enabled'
 const MAX_ENTRIES = 35
+
+export const apiDiagnosticsEnabled = ref(localStorage.getItem(ENABLED_KEY) === '1')
+
+export function setApiDiagnosticsEnabled(enabled) {
+  apiDiagnosticsEnabled.value = Boolean(enabled)
+  try { localStorage.setItem(ENABLED_KEY, enabled ? '1' : '0') } catch { /* ignore */ }
+}
 
 function restore() {
   try {

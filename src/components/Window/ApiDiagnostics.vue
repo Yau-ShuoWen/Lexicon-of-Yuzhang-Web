@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { diagnosticEntries, clearDiagnostics } from '../../services/apiDiagnostics.js'
+import { apiDiagnosticsEnabled, diagnosticEntries, clearDiagnostics } from '../../services/apiDiagnostics.js'
 import { token, user } from '../../utils/auth.js'
 
 const route = useRoute()
@@ -16,7 +16,7 @@ const requestedView = computed(() => String(route.query.view || '未指定'))
 </script>
 
 <template>
-  <button class="api-diagnostics-entry" type="button" @click="open = true">接口诊断{{ diagnosticEntries.length ? ` ${diagnosticEntries.length}` : '' }}</button>
+  <button v-if="apiDiagnosticsEnabled" class="api-diagnostics-entry" type="button" @click="open = true">接口诊断{{ diagnosticEntries.length ? ` ${diagnosticEntries.length}` : '' }}</button>
   <div v-if="open" class="api-diagnostics-backdrop" @click.self="open = false">
     <section class="api-diagnostics-panel" role="dialog" aria-modal="true" aria-label="接口诊断">
       <header class="api-diagnostics-header">

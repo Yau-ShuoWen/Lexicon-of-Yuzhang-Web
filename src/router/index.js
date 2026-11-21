@@ -343,6 +343,12 @@ const routes = [
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
+                        path: 'debug',
+                        name: 'DeveloperDebugMode',
+                        component: () => import('../views/Developer/DebugMode.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'streak-admin',
                         name: 'StreakAdmin',
                         redirect: to => ({ path: `/${to.params.language}/${to.params.dialect}/dev/users` }),

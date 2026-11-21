@@ -17,6 +17,7 @@ const groups = [
   ] },
   { title: '运行监控', icon: Monitor, items: [
     { label: '用户管理', path: 'users' },
+    { label: '调试模式', path: 'debug' },
   ] },
   { title: '语言学', icon: Collection, items: [
     { label: '编辑汉字', path: 'hanzi-filter', matches: ['hanzi-filter', 'hanzi-editor', 'hanzi-creator'] },

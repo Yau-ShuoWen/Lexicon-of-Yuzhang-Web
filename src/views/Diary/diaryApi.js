@@ -1,5 +1,17 @@
-import { getToken } from '../../utils/auth.js'
-import { HTTP_CODE, request } from '../../services/request.js'
+import { clearAuth, getToken } from '../../utils/auth.js'
+import { HTTP_CODE, request as apiRequest } from '../../services/request.js'
+
+async function request(url, options) {
+    const sentToken = getToken()
+    try {
+        return await apiRequest(url, options)
+    } catch (error) {
+        if (sentToken && getToken() === sentToken && error.code === HTTP_CODE.NOT_LOGIN) {
+            clearAuth()
+        }
+        throw error
+    }
+}
 
 function isObject(value) {
     return value !== null && typeof value === 'object'

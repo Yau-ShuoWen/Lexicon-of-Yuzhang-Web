@@ -7,6 +7,7 @@ import MainNav from "./components/Layout/MainNav.vue"
 import ConfirmWindow from "./components/Window/ConfirmWindow.vue"
 import ToastWindow from "./components/Window/ToastWindow.vue";
 import RichTextOverlayHost from "./components/Text/RichTextOverlayHost.vue";
+import ApiDiagnostics from "./components/Window/ApiDiagnostics.vue";
 import { useSiteSeo } from "./utils/seo.js";
 
 const route = useRoute()
@@ -30,6 +31,7 @@ useSiteSeo(route)
       <ConfirmWindow/>
       <ToastWindow/>
       <RichTextOverlayHost/>
+      <ApiDiagnostics/>
     </main>
   </div>
 </template>

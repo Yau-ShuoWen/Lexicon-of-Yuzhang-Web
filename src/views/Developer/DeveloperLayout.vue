@@ -20,6 +20,7 @@ const groups = [
     { label: '调试模式', path: 'debug' },
   ] },
   { title: '语言学', icon: Collection, items: [
+    { label: '读音数据检查', path: 'pronunciation-audit' },
     { label: '编辑汉字', path: 'hanzi-filter', matches: ['hanzi-filter', 'hanzi-editor', 'hanzi-creator'] },
     { label: '导入汉字', path: 'reference-tsv' },
     { label: '编辑词语', path: 'ciyu-filter', matches: ['ciyu-filter', 'ciyu-editor', 'ciyu-creator'] },

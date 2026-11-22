@@ -2,9 +2,8 @@
 import { ref } from 'vue'
 import RichTextImageTextarea from '../../../components/Text/RichTextImageTextarea.vue'
 
-const draft = ref('选中这段文字，松手后在上方添加或取消格式。\n已有格式：{b 加粗}、{i 斜体}、{d 删除线}。\n选中整行可以加标题。这里还有{h 大字}与{code 代码条}。')
+const draft = ref('选中这段文字，松手后在上方添加或取消格式。\n已有格式：{b 加粗}、{i 斜体}、{d 删除线}。\n选中整行可以加标题。这里还有{h 大字}、{dot 着重号}与{code 代码条}。')
 const imagesEnabled = ref(false)
-const codeBoundaryExperiment = ref(true)
 const images = ref({})
 function onImageAdded(image) {
   const id = image?.publicId || image?.id
@@ -15,12 +14,11 @@ function onImageAdded(image) {
 <template>
   <main class="editor-lab">
     <h1>富文本编辑器试验</h1>
-    <p>选中文字并松手，可在选区上方添加或取消格式；右键菜单按项显示。标题须选中整行。代码边界试验：点击框内或紧挨框外的左右边缘，再输入文字，观察字符落在哪侧。格式标记只在下方原文显示。</p>
+    <p>选中文字并松手，可在选区上方添加或取消格式；右键菜单按项显示。标题须选中整行。点击格式边界的内外两侧可选择后续输入的位置。格式标记只在下方原文显示。</p>
     <div class="editor-lab__options">
       <label><input v-model="imagesEnabled" type="checkbox" /> 启用图片</label>
-      <label><input v-model="codeBoundaryExperiment" type="checkbox" /> 试验代码边界</label>
     </div>
-    <RichTextImageTextarea :key="imagesEnabled ? 'images' : 'text'" v-model="draft" :images-enabled="imagesEnabled" :local-images="true" :code-boundary-experiment="codeBoundaryExperiment" :images="images" placeholder="富文本试验内容" @image-added="onImageAdded" />
+    <RichTextImageTextarea :key="imagesEnabled ? 'images' : 'text'" v-model="draft" :images-enabled="imagesEnabled" :local-images="true" :images="images" placeholder="富文本试验内容" @image-added="onImageAdded" />
     <section class="editor-lab__source" aria-label="富文本原文">
       <h2>富文本原文</h2>
       <textarea :value="draft" readonly rows="8" aria-label="富文本原文" />

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
-import { Mark, Node } from '@tiptap/core'
+import { InputRule, Mark, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { Fragment, Slice } from '@tiptap/pm/model'
@@ -19,7 +19,7 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
-import { parseRichEditorText, serializeRichEditorText } from './richEditorSyntax.js'
+import { isAtFormattedJoin, mergeFormattedParagraphs, parseRichEditorText, serializeRichEditorText } from './richEditorSyntax.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -27,7 +27,6 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   imagesEnabled: { type: Boolean, default: true },
   localImages: { type: Boolean, default: false },
-  codeBoundaryExperiment: { type: Boolean, default: false },
   images: { type: Object, default: () => ({}) }
 })
 const emit = defineEmits(['update:modelValue', 'upload-state-change', 'image-added'])
@@ -242,7 +241,7 @@ function toDocument(value) {
 }
 function textOf(node) {
   if (node.type === 'text') return serializeRichEditorText(node)
-  if (node.type === 'codeBoundary') return serializeRichEditorText(node)
+  if (node.type === 'formatBoundary') return serializeRichEditorText(node)
   if (node.type === 'hardBreak') return '\n'
   if (node.type === 'image') {
     const id = String(node.attrs?.imageId || '')
@@ -404,7 +403,8 @@ const textFormats = [
   { key: 'd', label: '删除线', glyph: '删' },
   { key: 'h1', label: '标题', glyph: '标题' },
   { key: 'h', label: '大字', glyph: '大字' },
-  { key: 'code', label: '代码', glyph: '代码' }
+  { key: 'code', label: '代码', glyph: '代码' },
+  { key: 'dot', label: '着重号', glyph: '点' }
 ]
 const formatBubble = ref(null)
 let selectionPointerId = null
@@ -466,26 +466,27 @@ function onSelectionPointerEnd(event) {
   selectionPointerId = null
   if (event.type === 'pointerup') scheduleFormatBubble()
 }
+const boundedFormats = new Set(['b', 'i', 'd', 'h', 'code', 'dot'])
 function formatSelectedText(key) {
   const instance = editor.value
   const selected = insertMenu.value?.kind === 'format' ? insertMenu.value.selection : instance && selectedFormat(instance.state)
   if (!selected || selected.blocked) return
   if (key === 'h1' && !selected.wholeLine) return
-  if (key === 'code') {
+  if (boundedFormats.has(key)) {
     const schema = instance.state.schema
     const tr = instance.state.tr
-    if (selected.key === 'code') {
+    if (selected.key === key) {
       const start = tr.doc.nodeAt(selected.from - 1)
       const end = tr.doc.nodeAt(selected.to)
-      if (start?.type.name !== 'codeBoundary' || start.attrs.side !== 'start'
-        || end?.type.name !== 'codeBoundary' || end.attrs.side !== 'end') return
+      if (start?.type.name !== 'formatBoundary' || start.attrs.side !== 'start' || start.attrs.tag !== key
+        || end?.type.name !== 'formatBoundary' || end.attrs.side !== 'end' || end.attrs.tag !== key) return
       tr.replaceWith(selected.from - 1, selected.to + 1, schema.text(selected.text))
     } else if (!selected.key) {
-      const mark = schema.marks.richFormat.create({ tag: 'code' })
+      const mark = schema.marks.richFormat.create({ tag: key })
       tr.replaceWith(selected.from, selected.to, [
-        schema.nodes.codeBoundary.create({ side: 'start' }),
+        schema.nodes.formatBoundary.create({ side: 'start', tag: key }),
         schema.text(selected.text, [mark]),
-        schema.nodes.codeBoundary.create({ side: 'end' })
+        schema.nodes.formatBoundary.create({ side: 'end', tag: key })
       ])
     } else return
     instance.view.dispatch(tr)
@@ -498,38 +499,107 @@ function formatSelectedText(key) {
   closeInsertMenu()
   instance.commands.focus()
 }
-function selectCodeBoundary(view, _position, event) {
-  if (!props.codeBoundaryExperiment || event.button !== 0) return false
-  const boundary = event.target.closest?.('.rich-image-editor__code-boundary')
+function selectFormatBoundary(view, event) {
+  if (event.button !== 0) return false
+  const boundary = event.target.closest?.('.rich-image-editor__format-boundary')
   if (!boundary || !view.dom.contains(boundary)) return false
   const pos = view.posAtDOM(boundary.parentNode, [...boundary.parentNode.childNodes].indexOf(boundary))
   const node = view.state.doc.nodeAt(pos)
-  if (node?.type.name !== 'codeBoundary') return false
+  if (node?.type.name !== 'formatBoundary') return false
   const rect = boundary.getBoundingClientRect()
   const after = event.clientX >= (rect.left + rect.right) / 2
   const position = pos + (after ? 1 : 0)
-  const mark = view.state.schema.marks.richFormat.create({ tag: 'code' })
+  const mark = view.state.schema.marks.richFormat.create({ tag: node.attrs.tag })
   const inside = node.attrs.side === 'start' ? after : !after
+  event.preventDefault()
   view.focus()
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, position))
     .setStoredMarks(inside ? [mark] : []))
   return true
 }
-function moveAcrossCodeBoundary(view, event) {
-  if (!props.codeBoundaryExperiment || !['ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'].includes(event.key)
+function moveAcrossFormatBoundary(view, event) {
+  if (!['ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'].includes(event.key)
     || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !view.state.selection.empty) return false
   const { $from } = view.state.selection
   const position = $from.pos
   const forward = event.key === 'ArrowRight' || event.key === 'Delete'
   const boundary = forward ? $from.nodeAfter : $from.nodeBefore
-  if (boundary?.type.name !== 'codeBoundary') return false
+  if (boundary?.type.name !== 'formatBoundary') return false
   const target = position + (forward ? 1 : -1)
   const inside = boundary.attrs.side === (forward ? 'start' : 'end')
-  const mark = view.state.schema.marks.richFormat.create({ tag: 'code' })
+  const mark = view.state.schema.marks.richFormat.create({ tag: boundary.attrs.tag })
   event.preventDefault()
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, target))
     .setStoredMarks(inside ? [mark] : []))
   return true
+}
+function splitOrMergeFormattedLine(view, event) {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !view.state.selection.empty) return false
+  const { state } = view
+  const { $from } = state.selection
+  if (!$from.parent.isTextblock) return false
+  const paragraph = $from.parent
+  const paragraphStart = $from.before()
+  const offset = $from.parentOffset
+  if (event.key === 'Enter') {
+    let start = null
+    let pair = null
+    paragraph.forEach((child, at) => {
+      if (child.type.name !== 'formatBoundary') return
+      if (child.attrs.side === 'start') start = { at, tag: child.attrs.tag }
+      else if (start) {
+        if (start.at + 1 <= offset && offset <= at && start.tag === child.attrs.tag) pair = { ...start, end: at }
+        start = null
+      }
+    })
+    if (pair) {
+      const boundary = state.schema.nodes.formatBoundary
+      const leftHasText = offset > pair.at + 1
+      const rightHasText = offset < pair.end
+      let left = paragraph.content.cut(0, offset)
+      let right = paragraph.content.cut(offset, paragraph.content.size)
+      left = leftHasText ? left.append(Fragment.from(boundary.create({ side: 'end', tag: pair.tag })))
+        : left.cut(0, pair.at)
+      right = rightHasText ? Fragment.from(boundary.create({ side: 'start', tag: pair.tag })).append(right)
+        : right.cut(1)
+      const tr = state.tr.replaceWith(paragraphStart, $from.after(), [
+        paragraph.type.create(paragraph.attrs, left), paragraph.type.create(paragraph.attrs, right)
+      ])
+      const nextStart = paragraphStart + left.size + 3
+      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, nextStart + (rightHasText ? 1 : 0)))
+        .setStoredMarks(rightHasText ? [state.schema.marks.richFormat.create({ tag: pair.tag })] : []))
+      event.preventDefault()
+      return true
+    }
+    if ($from.marks().some(mark => mark.type.name === 'richFormat' && mark.attrs.tag === 'h1')) {
+      const tr = state.tr.split($from.pos)
+      const nextStart = $from.pos + 2
+      tr.removeMark(nextStart, nextStart + tr.doc.nodeAt(nextStart - 1).content.size,
+        state.schema.marks.richFormat)
+      view.dispatch(tr.setStoredMarks([]))
+      event.preventDefault()
+      return true
+    }
+  }
+  if (event.key === 'Backspace' || event.key === 'Delete') {
+    if (!isAtFormattedJoin(paragraph, offset, event.key)) return false
+    const previous = event.key === 'Backspace' ? state.doc.resolve(paragraphStart).nodeBefore : null
+    if (event.key === 'Backspace' && !previous) return false
+    const firstStart = event.key === 'Backspace'
+      ? paragraphStart - previous.nodeSize
+      : paragraphStart
+    const merged = mergeFormattedParagraphs(state, firstStart)
+    if (!merged) return false
+    const { tr, cursor, tag } = merged
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursor))
+      .setStoredMarks(tag ? [state.schema.marks.richFormat.create({ tag })] : []))
+    event.preventDefault()
+    return true
+  }
+  return false
+}
+function handleFormattedKeyDown(view, event) {
+  return splitOrMergeFormattedLine(view, event) || moveAcrossFormatBoundary(view, event)
 }
 function openInsertMenuAt(position, x, y) {
   const instance = editor.value
@@ -764,8 +834,16 @@ function onPreviewShortcut(event) {
 
 const RichFormat = Mark.create({
   name: 'richFormat',
-  inclusive: false,
+  inclusive: true,
   excludes: 'richFormat',
+  addInputRules() {
+    return [new InputRule({
+      find: /\{(b|i|d|h1|h|code|dot) ([^{}\r\n]+)}$/,
+      handler: ({ range, match, commands }) => {
+        commands.insertContentAt(range, parseRichEditorText(match[0]))
+      }
+    })]
+  },
   addAttributes() {
     return { tag: {
       default: 'b',
@@ -775,49 +853,54 @@ const RichFormat = Mark.create({
   },
   parseHTML() { return [{ tag: 'span[data-rich-format]' }] },
   renderHTML({ HTMLAttributes }) {
-    const name = { b: 'bold', i: 'italic', d: 'strike', h1: 'heading', h: 'large', code: 'code' }[HTMLAttributes['data-rich-format']]
+    const name = { b: 'bold', i: 'italic', d: 'strike', h1: 'heading', h: 'large', code: 'code', dot: 'dot' }[HTMLAttributes['data-rich-format']]
     return ['span', { ...HTMLAttributes, class: `rich-image-editor__format--${name || 'bold'}` }, 0]
   }
 })
 
-const CodeBoundary = Node.create({
-  name: 'codeBoundary',
+const FormatBoundary = Node.create({
+  name: 'formatBoundary',
   group: 'inline',
   inline: true,
   atom: true,
   selectable: false,
-  addAttributes() { return { side: { default: 'start', parseHTML: element => element.getAttribute('data-code-boundary') } } },
-  parseHTML() { return [{ tag: 'span[data-code-boundary]' }] },
-  renderHTML({ node }) { return ['span', { 'data-code-boundary': node.attrs.side,
-    class: `rich-image-editor__code-boundary rich-image-editor__code-boundary--${node.attrs.side}`, contenteditable: 'false' }, '\u200b'] },
+  addAttributes() { return {
+    side: { default: 'start', parseHTML: element => element.getAttribute('data-format-boundary') },
+    tag: { default: 'code', parseHTML: element => element.getAttribute('data-format-tag') }
+  } },
+  parseHTML() { return [{ tag: 'span[data-format-boundary]' }] },
+  renderHTML({ node }) { return ['span', { 'data-format-boundary': node.attrs.side, 'data-format-tag': node.attrs.tag,
+    class: `rich-image-editor__format-boundary rich-image-editor__format-boundary--${node.attrs.side} rich-image-editor__format-boundary--${node.attrs.tag}`, contenteditable: 'false' }, '\u200b'] },
   addProseMirrorPlugins() {
     return [new Plugin({
       appendTransaction(transactions, _oldState, newState) {
         if (!transactions.some(tr => tr.docChanged)) return null
         const invalid = []
         const tr = newState.tr
-        const codeMark = newState.schema.marks.richFormat.create({ tag: 'code' })
         newState.doc.descendants((node, pos) => {
           if (!node.isTextblock) return
           let open = null
           node.forEach((child, offset) => {
-            if (child.type.name !== 'codeBoundary') return
+            if (child.type.name !== 'formatBoundary') return
             const at = pos + 1 + offset
             if (child.attrs.side === 'start') {
-              if (open !== null) invalid.push([open, open + 1])
-              open = at
+              if (open !== null) invalid.push([open.at, open.at + 1])
+              open = { at, tag: child.attrs.tag }
             } else if (open === null) invalid.push([at, at + 1])
             else {
-              if (at === open + 1) invalid.push([open, at + 1])
-              else newState.doc.nodesBetween(open + 1, at, (inner, innerPos) => {
-                if (inner.isText && !codeMark.isInSet(inner.marks)) {
-                  tr.addMark(innerPos, innerPos + inner.nodeSize, codeMark)
+              if (at === open.at + 1 || child.attrs.tag !== open.tag) {
+                invalid.push([open.at, open.at + 1], [at, at + 1])
+              }
+              else newState.doc.nodesBetween(open.at + 1, at, (inner, innerPos) => {
+                const mark = newState.schema.marks.richFormat.create({ tag: open.tag })
+                if (inner.isText && !mark.isInSet(inner.marks)) {
+                  tr.addMark(innerPos, innerPos + inner.nodeSize, mark)
                 }
               })
               open = null
             }
           })
-          if (open !== null) invalid.push([open, open + 1])
+          if (open !== null) invalid.push([open.at, open.at + 1])
         })
         for (const [from, to] of invalid.reverse()) tr.delete(from, to)
         return tr.steps.length ? tr : null
@@ -1137,7 +1220,7 @@ onMounted(() => {
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false
-    }), RichFormat, CodeBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
+    }), RichFormat, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -1147,11 +1230,21 @@ onMounted(() => {
             selected.push(Decoration.node(position, position + node.nodeSize, { class: 'rich-image-editor__picture--selected' }))
           }
         })
+        state.doc.descendants((node, position) => {
+          if (!node.isTextblock || !node.lastChild || node.lastChild.type.name !== 'formatBoundary'
+            || node.lastChild.attrs.side !== 'end') return
+          selected.push(Decoration.widget(position + node.nodeSize - 1, () => {
+            const landing = document.createElement('span')
+            landing.className = 'rich-image-editor__cursor-landing'
+            landing.contentEditable = 'false'
+            landing.textContent = '\u200b'
+            return landing
+          }, { side: 1, key: `format-end-${position}` }))
+        })
         return DecorationSet.create(state.doc, selected)
       },
       clipboardTextSerializer: plainFromSlice,
-      handleClick: selectCodeBoundary,
-      handleKeyDown: moveAcrossCodeBoundary,
+      handleKeyDown: handleFormattedKeyDown,
       transformCopied: slice => internalDragActive
         ? slice
         : new Slice(copiedFragment(slice.content), slice.openStart, slice.openEnd),
@@ -1178,6 +1271,7 @@ onMounted(() => {
         return plainTextSlice(text, view.state.schema)
       },
       handleDOMEvents: {
+        mousedown: selectFormatBoundary,
         contextmenu: onEditorContextMenu,
         focus: () => { queueMicrotask(refreshMobileInsertButton); return false },
         blur: () => { mobileInsertButton.value = null; return false },
@@ -1314,18 +1408,23 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__menu-divider { height: 1px; margin: 4px -4px; background: #e4e9e4; }
 .rich-image-editor__mobile-insert { position: fixed; z-index: 2999; width: 36px; height: 36px; padding: 0; border: 1px solid #9db5a2; border-radius: 50%; background: #fff; color: #254d34; font-size: 24px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
-.rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; line-height: 1.55; overflow-wrap: anywhere; outline: none; }
-.rich-image-editor :deep(.rich-image-editor__body:focus) { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
+.rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; outline: none; }
+.rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__body p:has(> .rich-image-editor__format--heading)) { margin-top: 1.6em; }
+.rich-image-editor :deep(.rich-image-editor__body p:first-child:has(> .rich-image-editor__format--heading)) { margin-top: 0; }
 .rich-image-editor :deep(.rich-image-editor__format--bold) { font-weight: 700; }
 .rich-image-editor :deep(.rich-image-editor__format--italic) { font-style: italic; }
 .rich-image-editor :deep(.rich-image-editor__format--strike) { text-decoration: line-through; }
-.rich-image-editor :deep(.rich-image-editor__format--heading) { display: inline-block; width: 100%; font-size: 1.4em; font-weight: 700; }
+.rich-image-editor :deep(.rich-image-editor__format--heading) { font-size: 1.4em; font-weight: 700; }
 .rich-image-editor :deep(.rich-image-editor__format--large) { font-size: 1.4em; font-weight: 700; }
-.rich-image-editor :deep(.rich-image-editor__format--code) { padding: 1px 0; border-top: 1px solid #e2e5ea; border-bottom: 1px solid #e2e5ea; background: #f1f3f5; color: #24292f; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; }
-.rich-image-editor :deep(.rich-image-editor__code-boundary) { padding: 1px 3px; border-top: 1px solid #e2e5ea; border-bottom: 1px solid #e2e5ea; background: #f1f3f5; color: transparent; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; }
-.rich-image-editor :deep(.rich-image-editor__code-boundary--start) { border-left: 1px solid #e2e5ea; border-radius: 4px 0 0 4px; }
-.rich-image-editor :deep(.rich-image-editor__code-boundary--end) { border-right: 1px solid #e2e5ea; border-radius: 0 4px 4px 0; }
+.rich-image-editor :deep(.rich-image-editor__format--code) { padding: 1px 0; border-top: 1.5px solid #e2e5ea; border-bottom: 1.5px solid #e2e5ea; background: #f1f3f5; color: #24292f; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; line-height: 1.5; }
+.rich-image-editor :deep(.rich-image-editor__format--dot) { text-emphasis: filled dot; -webkit-text-emphasis: filled dot; text-emphasis-position: under; -webkit-text-emphasis-position: under; }
+.rich-image-editor :deep(.rich-image-editor__format-boundary) { padding: 0 1px; color: transparent; }
+.rich-image-editor :deep(.rich-image-editor__format-boundary--code) { padding: 1px 3px; border-top: 1.5px solid #e2e5ea; border-bottom: 1.5px solid #e2e5ea; background: #f1f3f5; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; line-height: 1.5; }
+.rich-image-editor :deep(.rich-image-editor__format-boundary--code.rich-image-editor__format-boundary--start) { border-left: 1.5px solid #e2e5ea; border-radius: 4px 0 0 4px; }
+.rich-image-editor :deep(.rich-image-editor__format-boundary--code.rich-image-editor__format-boundary--end) { border-right: 1.5px solid #e2e5ea; border-radius: 0 4px 4px 0; }
+.rich-image-editor :deep(.rich-image-editor__cursor-landing) { display: inline; width: 0; overflow: hidden; }
 .rich-image-editor :deep(.rich-image-editor__group) { display: inline-flex; flex-direction: column; box-sizing: border-box; width: min(320px, 100%); min-height: 122px; margin: 8px 6px 12px 0; border: 2px solid #9db5a2; border-radius: 6px; background: #f8faf8; vertical-align: middle; }
 .rich-image-editor :deep(.rich-image-editor__group--selected) { outline: 2px solid #2f6fed; outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__group-border) { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 30px; padding: 2px 5px; border-bottom: 1px solid #cad8cc; background: #edf3ee; cursor: grab; touch-action: none; }

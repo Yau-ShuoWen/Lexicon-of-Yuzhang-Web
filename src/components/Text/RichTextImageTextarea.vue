@@ -1,11 +1,11 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
-import { Node } from '@tiptap/core'
+import { Mark, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { Fragment, Slice } from '@tiptap/pm/model'
-import { NodeSelection } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
 import { closeHistory } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -19,11 +19,15 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
+import { parseRichEditorText, serializeRichEditorText } from './richEditorSyntax.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  ownerId: { type: [String, Number], required: true },
+  ownerId: { type: [String, Number], default: null },
   placeholder: { type: String, default: '' },
+  imagesEnabled: { type: Boolean, default: true },
+  localImages: { type: Boolean, default: false },
+  codeBoundaryExperiment: { type: Boolean, default: false },
   images: { type: Object, default: () => ({}) }
 })
 const emit = defineEmits(['update:modelValue', 'upload-state-change', 'image-added'])
@@ -46,6 +50,13 @@ function changeUpload(delta) {
   emit('upload-state-change', uploading.value)
 }
 const dragging = ref(false)
+function onFileDragOver(event) {
+  if (props.imagesEnabled && event.dataTransfer?.types?.includes('Files')) dragging.value = true
+}
+function onFileDragLeave(event) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  if (event.clientX <= rect.left || event.clientX >= rect.right || event.clientY <= rect.top || event.clientY >= rect.bottom) dragging.value = false
+}
 const previewId = ref(null)
 const previewGroupIds = ref([])
 const activeImagePosition = ref(null)
@@ -62,6 +73,7 @@ const pendingImages = new Set()
 const retryTimers = new Map()
 const retryCounts = new Map()
 const clipboardImages = new Map()
+const localImageBlobs = new Map()
 const pendingClipboardImages = new Map()
 const emittedValues = new Set()
 let internalDragActive = false
@@ -73,6 +85,11 @@ function renderFullPreview() {
   const body = fullPreviewBody.value
   if (!body || !fullPreview.value) return
   renderDiaryBody(body, { text: props.modelValue, images: { ...props.images, ...recoveredImages.value }, viewMode: 'self' })
+  // Older diary pictures have no width suffix. The editor treats them as 160px;
+  // match that size in the inline preview without changing the shared renderer.
+  for (const image of body.querySelectorAll('.rt-picture img[data-image-id]')) {
+    if (!image.style.width) image.style.width = '160px'
+  }
 }
 function toggleFullPreview() {
   fullPreview.value = !fullPreview.value
@@ -106,6 +123,12 @@ function blobDataUrl(blob) {
   })
 }
 async function readDiaryOriginal(id) {
+  if (localImageBlobs.has(id)) return localImageBlobs.get(id)
+  if (props.localImages) {
+    const url = imageFor(id)?.url
+    if (!url) throw new Error('本地图片已失效')
+    return (await fetch(url)).blob()
+  }
   const token = localStorage.getItem('auth-token')
   const response = await fetch(`/api/diary/edit/${props.ownerId}/image/${encodeURIComponent(id)}/original`, {
     headers: token ? { 'X-Auth-Token': token } : {}
@@ -201,8 +224,8 @@ function toDocument(value) {
     content: value.replace(/\r/g, '').split('\n').map(line => {
       const content = []
       let offset = 0
-      for (const match of line.matchAll(embeddedElementPattern)) {
-        if (match.index > offset) content.push({ type: 'text', text: line.slice(offset, match.index) })
+      for (const match of props.imagesEnabled ? line.matchAll(embeddedElementPattern) : []) {
+        if (match.index > offset) content.push(...parseRichEditorText(line.slice(offset, match.index)))
         if (match[0].startsWith('{pg ')) {
           const members = [...match[0].slice(4, -1).matchAll(embeddedPicturePattern)].map(member => pictureToDocument(member[0])).filter(Boolean)
           content.push({ type: 'imageGroup', attrs: { groupKey: crypto.randomUUID() }, content: members })
@@ -212,31 +235,32 @@ function toDocument(value) {
         }
         offset = match.index + match[0].length
       }
-      if (offset < line.length) content.push({ type: 'text', text: line.slice(offset) })
+      if (offset < line.length) content.push(...parseRichEditorText(line.slice(offset)))
       return { type: 'paragraph', content }
     })
   }
 }
 function textOf(node) {
-  if (node.type === 'text') return node.text || ''
+  if (node.type === 'text') return serializeRichEditorText(node)
+  if (node.type === 'codeBoundary') return serializeRichEditorText(node)
   if (node.type === 'hardBreak') return '\n'
   if (node.type === 'image') {
     const id = String(node.attrs?.imageId || '')
     if (!/^([1-9][0-9]*|[0-9a-f-]{36})$/.test(id)) return ''
     const caption = String(node.attrs?.alt || '').replace(/[{}\r\n]/g, '').trim()
     const width = Number(node.attrs?.displayWidth)
-    const suffix = width !== 160 && width >= 80 && width <= 900 ? `~${width}` : ''
+    const suffix = width >= 80 && width <= 900 ? `~${width}` : '~160'
     return caption ? `{p ${caption}=>${id}${suffix}}` : `{p ${id}${suffix}}`
   }
   if (node.type === 'imageGroup') return `{pg ${(node.content || []).map(textOf).join('')}}`
   return (node.content || []).map(textOf).join('')
 }
 function plainFromSlice(slice) {
-  return slice.content.content.map(node => node.textBetween(0, node.content.size, '\n')).join('\n')
+  return slice.content.content.map(node => textOf(node.toJSON())).join('\n')
 }
 function plainTextSlice(text, schema) {
   const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line =>
-    schema.nodes.paragraph.create(null, line ? schema.text(line) : undefined))
+    schema.nodeFromJSON({ type: 'paragraph', content: parseRichEditorText(line) }))
   return new Slice(Fragment.fromArray(paragraphs), 1, 1)
 }
 function handlePlainClipboard(view, event, cut = false) {
@@ -295,6 +319,7 @@ function scheduleRetry(id) {
   }, 3000))
 }
 async function recoverImage(id, force = false) {
+  if (props.localImages) return
   if (pendingImages.has(id) || (!force && imageFor(id)?.url)) return
   pendingImages.add(id)
   try {
@@ -326,6 +351,10 @@ function openPreview(id) {
   })
 }
 function closePreview() { previewDrag = null; previewPointers.clear(); pinchDistance = 0; previewId.value = null; previewGroupIds.value = [] }
+function onViewerBackdropClick(event) {
+  if (event.target.closest?.('canvas, button, a')) return
+  closePreview()
+}
 function startPreviewDrag(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return
   previewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
@@ -369,6 +398,139 @@ function insertEmptyGroup(position) {
   return key
 }
 function closeInsertMenu() { insertMenu.value = null }
+const textFormats = [
+  { key: 'b', label: '粗体', glyph: '粗' },
+  { key: 'i', label: '斜体', glyph: '斜' },
+  { key: 'd', label: '删除线', glyph: '删' },
+  { key: 'h1', label: '标题', glyph: '标题' },
+  { key: 'h', label: '大字', glyph: '大字' },
+  { key: 'code', label: '代码', glyph: '代码' }
+]
+const formatBubble = ref(null)
+let selectionPointerId = null
+let formatBubbleFrame = 0
+function scheduleFormatBubble() {
+  cancelAnimationFrame(formatBubbleFrame)
+  formatBubbleFrame = requestAnimationFrame(() => { formatBubbleFrame = 0; showFormatBubble() })
+}
+function selectedFormat(state) {
+  const { from, to, empty } = state.selection
+  if (empty) return null
+  const start = state.doc.resolve(from)
+  const end = state.doc.resolve(to)
+  if (start.parent !== end.parent || !start.parent.isTextblock) return null
+  const text = state.doc.textBetween(from, to, '\n')
+  if (!text || /[{}\r\n]/.test(text) || to - from !== text.length) return null
+  const tags = new Set()
+  let hasPlain = false
+  let hasOther = false
+  state.doc.nodesBetween(from, to, node => {
+    if (node.isText) {
+      const mark = node.marks.find(item => item.type.name === 'richFormat')
+      if (mark) tags.add(mark.attrs.tag)
+      else hasPlain = true
+    } else if (node.isInline) hasOther = true
+  })
+  if (hasOther || tags.size > 1 || (hasPlain && tags.size)) return { blocked: true }
+  return { from, to, text, key: tags.values().next().value || null,
+    wholeLine: start.parentOffset === 0 && end.parentOffset === start.parent.content.size }
+}
+function showFormatBubble() {
+  const instance = editor.value
+  if (!instance || fullPreview.value) return
+  const selected = selectedFormat(instance.state)
+  if (!selected || selected.blocked) { formatBubble.value = null; return }
+  const selection = window.getSelection()
+  const browserRect = selection?.rangeCount && !selection.isCollapsed && instance.view.dom.contains(selection.anchorNode)
+    ? selection.getRangeAt(0).getClientRects()[0] : null
+  const start = browserRect || instance.view.coordsAtPos(instance.state.selection.from)
+  const end = browserRect || instance.view.coordsAtPos(instance.state.selection.to)
+  const left = browserRect ? browserRect.left : start.left
+  const right = browserRect ? browserRect.right : end.right
+  const top = Math.min(start.top, end.top)
+  const bottom = Math.max(start.bottom, end.bottom)
+  formatBubble.value = {
+    ...selected,
+    x: Math.max(160, Math.min((left + right) / 2, window.innerWidth - 160)),
+    y: top >= 52 ? top - 48 : Math.min(bottom + 8, window.innerHeight - 48)
+  }
+}
+function onEditorPointerDown(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) { formatBubble.value = null; return }
+  if (!event.target.closest?.('.rich-image-editor__body')) return
+  selectionPointerId = event.pointerId
+  formatBubble.value = null
+}
+function onSelectionPointerEnd(event) {
+  if (selectionPointerId !== event.pointerId) return
+  selectionPointerId = null
+  if (event.type === 'pointerup') scheduleFormatBubble()
+}
+function formatSelectedText(key) {
+  const instance = editor.value
+  const selected = insertMenu.value?.kind === 'format' ? insertMenu.value.selection : instance && selectedFormat(instance.state)
+  if (!selected || selected.blocked) return
+  if (key === 'h1' && !selected.wholeLine) return
+  if (key === 'code') {
+    const schema = instance.state.schema
+    const tr = instance.state.tr
+    if (selected.key === 'code') {
+      const start = tr.doc.nodeAt(selected.from - 1)
+      const end = tr.doc.nodeAt(selected.to)
+      if (start?.type.name !== 'codeBoundary' || start.attrs.side !== 'start'
+        || end?.type.name !== 'codeBoundary' || end.attrs.side !== 'end') return
+      tr.replaceWith(selected.from - 1, selected.to + 1, schema.text(selected.text))
+    } else if (!selected.key) {
+      const mark = schema.marks.richFormat.create({ tag: 'code' })
+      tr.replaceWith(selected.from, selected.to, [
+        schema.nodes.codeBoundary.create({ side: 'start' }),
+        schema.text(selected.text, [mark]),
+        schema.nodes.codeBoundary.create({ side: 'end' })
+      ])
+    } else return
+    instance.view.dispatch(tr)
+  } else if (selected.key) {
+    if (selected.key !== key) return
+    instance.view.dispatch(instance.state.tr.removeMark(selected.from, selected.to, instance.state.schema.marks.richFormat))
+  } else instance.view.dispatch(instance.state.tr.addMark(selected.from, selected.to,
+    instance.state.schema.marks.richFormat.create({ tag: key })))
+  formatBubble.value = null
+  closeInsertMenu()
+  instance.commands.focus()
+}
+function selectCodeBoundary(view, _position, event) {
+  if (!props.codeBoundaryExperiment || event.button !== 0) return false
+  const boundary = event.target.closest?.('.rich-image-editor__code-boundary')
+  if (!boundary || !view.dom.contains(boundary)) return false
+  const pos = view.posAtDOM(boundary.parentNode, [...boundary.parentNode.childNodes].indexOf(boundary))
+  const node = view.state.doc.nodeAt(pos)
+  if (node?.type.name !== 'codeBoundary') return false
+  const rect = boundary.getBoundingClientRect()
+  const after = event.clientX >= (rect.left + rect.right) / 2
+  const position = pos + (after ? 1 : 0)
+  const mark = view.state.schema.marks.richFormat.create({ tag: 'code' })
+  const inside = node.attrs.side === 'start' ? after : !after
+  view.focus()
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, position))
+    .setStoredMarks(inside ? [mark] : []))
+  return true
+}
+function moveAcrossCodeBoundary(view, event) {
+  if (!props.codeBoundaryExperiment || !['ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'].includes(event.key)
+    || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !view.state.selection.empty) return false
+  const { $from } = view.state.selection
+  const position = $from.pos
+  const forward = event.key === 'ArrowRight' || event.key === 'Delete'
+  const boundary = forward ? $from.nodeAfter : $from.nodeBefore
+  if (boundary?.type.name !== 'codeBoundary') return false
+  const target = position + (forward ? 1 : -1)
+  const inside = boundary.attrs.side === (forward ? 'start' : 'end')
+  const mark = view.state.schema.marks.richFormat.create({ tag: 'code' })
+  event.preventDefault()
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, target))
+    .setStoredMarks(inside ? [mark] : []))
+  return true
+}
 function openInsertMenuAt(position, x, y) {
   const instance = editor.value
   if (!instance || position == null) return
@@ -380,7 +542,16 @@ function openInsertMenuAt(position, x, y) {
 }
 function onEditorContextMenu(view, event) {
   if (event.target.closest?.('.rich-image-editor__picture, .rich-image-editor__group')) return false
-  if (!view.state.selection.empty) return false
+  formatBubble.value = null
+  const selected = selectedFormat(view.state)
+  if (selected && !selected.blocked) {
+    event.preventDefault()
+    insertMenu.value = { kind: 'format', selection: selected,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - 168)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 240)) }
+    return true
+  }
+  if (!props.imagesEnabled) return false
   const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
   if (position == null) return false
   event.preventDefault()
@@ -388,7 +559,7 @@ function onEditorContextMenu(view, event) {
   return true
 }
 function updateMobileInsertButton(view) {
-  if (!isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
+  if (!props.imagesEnabled || !isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
   const position = view.state.selection.from
   const coords = view.coordsAtPos(position)
   mobileInsertButton.value = {
@@ -411,6 +582,7 @@ function insertImageFromMenu() {
 }
 function onOutsideInsertMenu(event) {
   if (!event.target.closest?.('.rich-image-editor__insert-menu, .rich-image-editor__mobile-insert')) closeInsertMenu()
+  if (!event.target.closest?.('.rich-image-editor__format-bubble, .rich-image-editor__body')) formatBubble.value = null
 }
 function onInsertMenuKeydown(event) { if (event.key === 'Escape') closeInsertMenu() }
 function refreshMobileInsertButton() { if (editor.value) updateMobileInsertButton(editor.value.view) }
@@ -535,6 +707,7 @@ function openImageMenu(position, x, y) {
   selectImage(position)
   insertMenu.value = {
     kind: 'image',
+    position,
     x: Math.max(8, Math.min(x, window.innerWidth - 218)),
     y: Math.max(8, Math.min(y, window.innerHeight - 184))
   }
@@ -560,8 +733,13 @@ function deleteSelectedImage() {
   instance.view.dispatch(instance.state.tr.delete(position, position + node.nodeSize))
 }
 function copySelectedImage() {
-  const node = editor.value?.state.doc.nodeAt(activeImagePosition.value)
-  if (node?.type.name === 'image') copyPicture(node)
+  const instance = editor.value
+  const position = insertMenu.value?.kind === 'image' ? insertMenu.value.position : activeImagePosition.value
+  const node = position == null ? null : instance?.state.doc.nodeAt(position)
+  if (node?.type.name !== 'image') return
+  instance.commands.setNodeSelection(position)
+  instance.view.focus()
+  if (!document.execCommand('copy')) copyPicture(node)
 }
 const pictures = computed(() => [...props.modelValue.matchAll(/\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g)].map(match => ({ id: match[2], caption: match[1] || '' })))
 const activePicture = computed(() => pictures.value.find(picture => picture.id === previewId.value))
@@ -584,12 +762,77 @@ function onPreviewShortcut(event) {
   toggleFullPreview()
 }
 
+const RichFormat = Mark.create({
+  name: 'richFormat',
+  inclusive: false,
+  excludes: 'richFormat',
+  addAttributes() {
+    return { tag: {
+      default: 'b',
+      parseHTML: element => element.getAttribute('data-rich-format'),
+      renderHTML: attributes => ({ 'data-rich-format': attributes.tag })
+    } }
+  },
+  parseHTML() { return [{ tag: 'span[data-rich-format]' }] },
+  renderHTML({ HTMLAttributes }) {
+    const name = { b: 'bold', i: 'italic', d: 'strike', h1: 'heading', h: 'large', code: 'code' }[HTMLAttributes['data-rich-format']]
+    return ['span', { ...HTMLAttributes, class: `rich-image-editor__format--${name || 'bold'}` }, 0]
+  }
+})
+
+const CodeBoundary = Node.create({
+  name: 'codeBoundary',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: false,
+  addAttributes() { return { side: { default: 'start', parseHTML: element => element.getAttribute('data-code-boundary') } } },
+  parseHTML() { return [{ tag: 'span[data-code-boundary]' }] },
+  renderHTML({ node }) { return ['span', { 'data-code-boundary': node.attrs.side,
+    class: `rich-image-editor__code-boundary rich-image-editor__code-boundary--${node.attrs.side}`, contenteditable: 'false' }, '\u200b'] },
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      appendTransaction(transactions, _oldState, newState) {
+        if (!transactions.some(tr => tr.docChanged)) return null
+        const invalid = []
+        const tr = newState.tr
+        const codeMark = newState.schema.marks.richFormat.create({ tag: 'code' })
+        newState.doc.descendants((node, pos) => {
+          if (!node.isTextblock) return
+          let open = null
+          node.forEach((child, offset) => {
+            if (child.type.name !== 'codeBoundary') return
+            const at = pos + 1 + offset
+            if (child.attrs.side === 'start') {
+              if (open !== null) invalid.push([open, open + 1])
+              open = at
+            } else if (open === null) invalid.push([at, at + 1])
+            else {
+              if (at === open + 1) invalid.push([open, at + 1])
+              else newState.doc.nodesBetween(open + 1, at, (inner, innerPos) => {
+                if (inner.isText && !codeMark.isInSet(inner.marks)) {
+                  tr.addMark(innerPos, innerPos + inner.nodeSize, codeMark)
+                }
+              })
+              open = null
+            }
+          })
+          if (open !== null) invalid.push([open, open + 1])
+        })
+        for (const [from, to] of invalid.reverse()) tr.delete(from, to)
+        return tr.steps.length ? tr : null
+      }
+    })]
+  }
+})
+
 const DiaryImageGroup = Node.create({
   name: 'imageGroup',
   group: 'inline',
   inline: true,
   content: 'image*',
-  draggable: true,
+  // 图片组只通过边框的指针手势移动，避免同时触发浏览器原生拖放。
+  draggable: false,
   selectable: true,
   isolating: true,
   addAttributes() {
@@ -779,9 +1022,17 @@ async function savePastedImage(token, source, alt, sourceImageId = null) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type) || blob.size > 10 * 1024 * 1024) {
       throw new Error('粘贴的图片须为 JPEG、PNG 或 WebP，且不超过 10 MB')
     }
-    const body = new FormData()
-    body.append('file', blob, `pasted.${blob.type.split('/')[1]}`)
-    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
+    let image
+    if (props.localImages) {
+      const id = crypto.randomUUID()
+      localImageBlobs.set(id, blob)
+      image = { publicId: id, url: await blobDataUrl(blob) }
+      recoveredImages.value = { ...recoveredImages.value, [id]: image }
+    } else {
+      const body = new FormData()
+      body.append('file', blob, `pasted.${blob.type.split('/')[1]}`)
+      image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
+    }
     const position = pendingPosition(token)
     if (position !== null) {
       const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, {
@@ -811,9 +1062,17 @@ async function upload(file, appendToEnd = false, position = null) {
   else editor.value.commands.insertContentAt(target, placeholder)
   changeUpload(1)
   try {
-    const body = new FormData()
-    body.append('file', file)
-    const image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
+    let image
+    if (props.localImages) {
+      const id = crypto.randomUUID()
+      localImageBlobs.set(id, file)
+      image = { publicId: id, url: await blobDataUrl(file) }
+      recoveredImages.value = { ...recoveredImages.value, [id]: image }
+    } else {
+      const body = new FormData()
+      body.append('file', file)
+      image = await request(`/api/diary/edit/${props.ownerId}/image`, { method: 'POST', body, timeout: 60000 })
+    }
     const position = pendingPosition(token)
     if (position !== null) {
       const transaction = editor.value.state.tr.setNodeMarkup(position, undefined, { ...editor.value.state.doc.nodeAt(position).attrs, src: image.url, imageId: String(image.publicId || image.id), alt: '' })
@@ -868,18 +1127,20 @@ onMounted(() => {
   window.addEventListener('keydown', onInsertMenuKeydown)
   window.addEventListener('scroll', refreshMobileInsertButton, true)
   document.addEventListener('pointerdown', onOutsideInsertMenu)
+  window.addEventListener('pointerup', onSelectionPointerEnd)
+  window.addEventListener('pointercancel', onSelectionPointerEnd)
   editor.value = new Editor({
     content: toDocument(props.modelValue),
     extensions: [StarterKit.configure({
       bold: false, blockquote: false, bulletList: false, code: false, codeBlock: false,
+      dropcursor: false,
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false
-    }), DiaryImageGroup, DiaryImage.configure({ inline: true })],
+    }), RichFormat, CodeBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
-        if (state.selection.empty) return null
         const selected = []
         state.doc.nodesBetween(state.selection.from, state.selection.to, (node, position) => {
           if (node.type.name === 'image' && state.selection.from <= position && state.selection.to >= position + node.nodeSize) {
@@ -889,6 +1150,8 @@ onMounted(() => {
         return DecorationSet.create(state.doc, selected)
       },
       clipboardTextSerializer: plainFromSlice,
+      handleClick: selectCodeBoundary,
+      handleKeyDown: moveAcrossCodeBoundary,
       transformCopied: slice => internalDragActive
         ? slice
         : new Slice(copiedFragment(slice.content), slice.openStart, slice.openEnd),
@@ -935,7 +1198,7 @@ onMounted(() => {
         const html = event.clipboardData?.getData('text/html') || ''
         // Let ProseMirror keep the order of text and images in rich clipboard content.
         // Copied images have their ID removed so paste uploads the original again.
-        if (/<img\b/i.test(html)) {
+        if (props.imagesEnabled && /<img\b/i.test(html)) {
           view.dispatch(closeHistory(view.state.tr))
           return false
         }
@@ -945,11 +1208,13 @@ onMounted(() => {
           return true
         }
         const files = [...(event.clipboardData?.files || [])].filter(file => file.type.startsWith('image/'))
+        if (!props.imagesEnabled) return files.length > 0
         if (files.length !== 1 || event.clipboardData?.getData('text/html')) return false
         upload(files[0], false, { from: view.state.selection.from, to: view.state.selection.to })
         return true
       },
       handleDrop: (view, event) => {
+        if (!props.imagesEnabled) return !!event.dataTransfer?.files?.length
         const files = [...(event.dataTransfer?.files || [])]
         if (!files.length) return false
         if (files.length !== 1) { alert('一次只能上传一张图片'); return true }
@@ -961,8 +1226,10 @@ onMounted(() => {
     onUpdate: updateModel,
     onSelectionUpdate: ({ editor: instance }) => {
       updateMobileInsertButton(instance.view)
-      if (insertMenu.value?.kind !== 'image' || selection.node?.type.name !== 'image') closeInsertMenu()
       const selection = instance.state.selection
+      if (selectionPointerId !== null) formatBubble.value = null
+      else if (formatBubble.value) scheduleFormatBubble()
+      if (insertMenu.value?.kind === 'image' && selection.node?.type.name !== 'image') closeInsertMenu()
       if (selection.node?.type.name === 'image') {
         activeImagePosition.value = selection.from
         activeImageWidth.value = Number(selection.node.attrs.displayWidth) || 160
@@ -971,7 +1238,7 @@ onMounted(() => {
   })
   if (isMobile) nextTick(() => updateMobileInsertButton(editor.value.view))
 })
-onUnmounted(() => { finishBoxDrag(); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
+onUnmounted(() => { finishBoxDrag(); cancelAnimationFrame(formatBubbleFrame); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); window.removeEventListener('pointerup', onSelectionPointerEnd); window.removeEventListener('pointercancel', onSelectionPointerEnd); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
 watch(() => props.modelValue, value => {
   if (emittedValues.has(value) || !editor.value || value === fromDocument()) return
   emittedValues.clear()
@@ -984,14 +1251,17 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 </script>
 
 <template>
-  <div class="rich-image-editor" :class="{ 'rich-image-editor--dragging': dragging }" @pointerenter="editorHovered = true" @pointerleave="editorHovered = false" @dragover="dragging = true" @dragleave="dragging = false" @drop="dragging = false">
-    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @click="toggleFullPreview">{{ fullPreview ? '继续编辑' : '预览正文' }}</button><button v-if="!fullPreview" type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
+  <div class="rich-image-editor" :class="{ 'rich-image-editor--dragging': dragging }" @pointerenter="editorHovered = true" @pointerleave="editorHovered = false" @pointerdown="onEditorPointerDown" @dragover="onFileDragOver" @dragleave="onFileDragLeave" @drop="dragging = false">
+    <div class="rich-image-editor__head"><span>正文</span><span class="rich-image-editor__head-actions"><button type="button" @click="toggleFullPreview">{{ fullPreview ? '继续编辑' : '预览正文' }}</button><button v-if="imagesEnabled && !fullPreview" type="button" @click="chooseImage">{{ uploading ? '继续上传图片' : '上传图片' }}</button></span></div>
     <div v-show="!fullPreview" class="rich-image-editor__workarea"><EditorContent :editor="editor" /></div>
     <div v-show="fullPreview" ref="fullPreviewBody" class="diary-inline-preview" aria-label="日记正文预览" @click="openFullPreviewImage" @contextmenu="onFullPreviewContextMenu" />
-    <div class="rich-image-editor__hint">{{ fullPreview ? (isMobile ? '点击继续编辑返回正文。' : '右键图片可调整大小；按 F2 或点击继续编辑返回正文。') : isMobile ? '在正文光标旁点＋插入图片或图片组；双击图片调整大小或删除。' : '在正文中右键插入图片或图片组，右键图片可调整大小或删除；单击图片预览。按 F2 可切换预览。' }}</div>
-    <input ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile && pendingInsertPosition === null, pendingInsertPosition)" />
+    <div v-if="imagesEnabled" class="rich-image-editor__hint">{{ fullPreview ? (isMobile ? '点击继续编辑返回正文。' : '右键图片可调整大小；按 F2 或点击继续编辑返回正文。') : isMobile ? '在正文光标旁点＋插入图片或图片组；双击图片调整大小或删除。' : '在正文中右键插入图片或图片组，右键图片可调整大小或删除；单击图片预览。按 F2 可切换预览。' }}</div>
+    <input v-if="imagesEnabled" ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile && pendingInsertPosition === null, pendingInsertPosition)" />
     <Teleport to="body">
-      <button v-if="mobileInsertButton && !insertMenu && !fullPreview" type="button" class="rich-image-editor__mobile-insert" :style="{ left: `${mobileInsertButton.x}px`, top: `${mobileInsertButton.y}px` }" aria-label="插入图片或图片组" @pointerdown.prevent @click="openMobileInsertMenu">＋</button>
+      <div v-if="formatBubble && !fullPreview" class="rich-image-editor__format-bubble" :style="{ left: `${formatBubble.x}px`, top: `${formatBubble.y}px` }" role="toolbar" aria-label="文字格式" @mousedown.prevent>
+        <button v-for="format in textFormats.filter(item => item.key !== 'h1' || formatBubble.wholeLine)" :key="format.key" type="button" :class="[`rich-image-editor__format-button--${format.key}`, { 'is-active': formatBubble.key === format.key }]" :aria-label="formatBubble.key === format.key ? `取消${format.label}` : format.label" :title="formatBubble.key === format.key ? `取消${format.label}` : format.label" :disabled="!!formatBubble.key && formatBubble.key !== format.key" @click="formatSelectedText(format.key)">{{ format.glyph }}</button>
+      </div>
+      <button v-if="imagesEnabled && mobileInsertButton && !insertMenu && !fullPreview" type="button" class="rich-image-editor__mobile-insert" :style="{ left: `${mobileInsertButton.x}px`, top: `${mobileInsertButton.y}px` }" aria-label="插入图片或图片组" @pointerdown.prevent @click="openMobileInsertMenu">＋</button>
       <div v-if="insertMenu" class="rich-image-editor__insert-menu" :style="{ left: `${insertMenu.x}px`, top: `${insertMenu.y}px` }" role="menu" :aria-label="insertMenu.kind === 'image' ? '图片操作' : '插入内容'">
         <template v-if="insertMenu.kind === 'image'">
           <div class="rich-image-editor__menu-heading">图片大小 <span>{{ activeImageWidth }}px</span></div>
@@ -1000,12 +1270,15 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
           <button type="button" role="menuitem" @click="copySelectedImage(); closeInsertMenu()">复制原图</button>
           <button type="button" role="menuitem" @click="deleteSelectedImage">删除图片</button>
         </template>
+        <template v-else-if="insertMenu.kind === 'format'">
+          <button v-for="format in textFormats.filter(item => item.key !== 'h1' || insertMenu.selection.wholeLine)" :key="format.key" type="button" role="menuitem" :disabled="!!insertMenu.selection.key && insertMenu.selection.key !== format.key" @mousedown.prevent @click="formatSelectedText(format.key)">{{ insertMenu.selection.key === format.key ? `取消${format.label}` : format.label }}</button>
+        </template>
         <template v-else>
           <button type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
           <button type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
         </template>
       </div>
-      <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click.self="closePreview" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
+      <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click="onViewerBackdropClick" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
         <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__previous" aria-label="上一张图片" @click="movePreview(-1)"><img :src="leftIcon" alt="" /></button><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__next" aria-label="下一张图片" @click="movePreview(1)"><img :src="rightIcon" alt="" /></button></div>
       </div>
     </Teleport>
@@ -1017,11 +1290,23 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__file-input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 .rich-image-editor__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--color-text); font-weight: 600; }
 .rich-image-editor__head-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rich-image-editor__format-bubble { position: fixed; z-index: 3100; display: flex; gap: 2px; padding: 4px; border: 1px solid #cad8cc; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); transform: translateX(-50%); }
+.rich-image-editor__format-bubble button { display: grid; place-items: center; width: 38px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #254d34; font-size: 19px; cursor: pointer; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--b { font-weight: 700; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--i { font-style: italic; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--d { text-decoration: line-through; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--h1,
+.rich-image-editor__format-bubble .rich-image-editor__format-button--h { width: 60px; font-size: 21px; font-weight: 700; line-height: 1; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--code { box-sizing: border-box; width: 56px; height: 32px; margin: 2px; border: 1px solid #d9e0da; background: #f1f3f5; color: #254d34; font-family: 'Microsoft JhengHei', 'HanaMinB', sans-serif; font-size: 19px; line-height: 1; }
+.rich-image-editor__format-bubble button:hover, .rich-image-editor__format-bubble button.is-active { background: #edf3ee; }
+.rich-image-editor__format-bubble button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.rich-image-editor__format-bubble button:disabled { opacity: .35; cursor: default; }
 .rich-image-editor__workarea { min-width: 0; }
 .rich-image-editor__workarea > div { min-width: 0; }
 .rich-image-editor__insert-menu { position: fixed; z-index: 3000; display: grid; min-width: 168px; padding: 4px; border: 1px solid #d5d9d5; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); color: #252a31; font-size: 13px; line-height: 1.35; }
 .rich-image-editor__insert-menu button { min-height: 29px; padding: 5px 12px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .rich-image-editor__insert-menu button:hover, .rich-image-editor__insert-menu button:focus-visible { background: #edf3ee; }
+.rich-image-editor__insert-menu button:disabled { color: #9ca89e; cursor: default; }
 .rich-image-editor__menu-heading { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px 3px; color: #515b54; }
 .rich-image-editor__menu-size { display: flex; align-items: center; gap: 3px; padding: 0 5px 5px; }
 .rich-image-editor__menu-size button { flex: none; width: 26px; padding: 0; text-align: center; }
@@ -1032,6 +1317,15 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; line-height: 1.55; overflow-wrap: anywhere; outline: none; }
 .rich-image-editor :deep(.rich-image-editor__body:focus) { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(46, 125, 50, .1); }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__format--bold) { font-weight: 700; }
+.rich-image-editor :deep(.rich-image-editor__format--italic) { font-style: italic; }
+.rich-image-editor :deep(.rich-image-editor__format--strike) { text-decoration: line-through; }
+.rich-image-editor :deep(.rich-image-editor__format--heading) { display: inline-block; width: 100%; font-size: 1.4em; font-weight: 700; }
+.rich-image-editor :deep(.rich-image-editor__format--large) { font-size: 1.4em; font-weight: 700; }
+.rich-image-editor :deep(.rich-image-editor__format--code) { padding: 1px 0; border-top: 1px solid #e2e5ea; border-bottom: 1px solid #e2e5ea; background: #f1f3f5; color: #24292f; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; }
+.rich-image-editor :deep(.rich-image-editor__code-boundary) { padding: 1px 3px; border-top: 1px solid #e2e5ea; border-bottom: 1px solid #e2e5ea; background: #f1f3f5; color: transparent; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; }
+.rich-image-editor :deep(.rich-image-editor__code-boundary--start) { border-left: 1px solid #e2e5ea; border-radius: 4px 0 0 4px; }
+.rich-image-editor :deep(.rich-image-editor__code-boundary--end) { border-right: 1px solid #e2e5ea; border-radius: 0 4px 4px 0; }
 .rich-image-editor :deep(.rich-image-editor__group) { display: inline-flex; flex-direction: column; box-sizing: border-box; width: min(320px, 100%); min-height: 122px; margin: 8px 6px 12px 0; border: 2px solid #9db5a2; border-radius: 6px; background: #f8faf8; vertical-align: middle; }
 .rich-image-editor :deep(.rich-image-editor__group--selected) { outline: 2px solid #2f6fed; outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__group-border) { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 30px; padding: 2px 5px; border-bottom: 1px solid #cad8cc; background: #edf3ee; cursor: grab; touch-action: none; }

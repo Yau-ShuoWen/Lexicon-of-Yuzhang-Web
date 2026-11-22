@@ -788,7 +788,7 @@
 /* ========================富文本行內代碼塊（{code xxx}）====================== */
 
 .rt-code {
-    font-family: 'Consolas', 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace;
     font-size: 0.92em;
     line-height: 1.5;
 

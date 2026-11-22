@@ -53,6 +53,7 @@
     color: #1f6722;
     font-size: 12px;
     vertical-align: 0.2em;
+    transform: translateY(-3px);
 }
 
 .rt-pinyin {

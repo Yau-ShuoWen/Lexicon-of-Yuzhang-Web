@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } fr
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { InputRule, Mark, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import Paragraph from '@tiptap/extension-paragraph'
 import Image from '@tiptap/extension-image'
 import { Fragment, Slice } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state'
@@ -19,7 +20,7 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
-import { isAtFormattedJoin, mergeFormattedParagraphs, parseRichEditorText, serializeRichEditorText } from './richEditorSyntax.js'
+import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText } from './richEditorSyntax.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -220,8 +221,9 @@ function pictureToDocument(source) {
 function toDocument(value) {
   return {
     type: 'doc',
-    content: value.replace(/\r/g, '').split('\n').map(line => {
-      const content = []
+    content: value.replace(/\r/g, '').split('\n').map(sourceLine => {
+      const { listType, text: line } = parseListLine(sourceLine)
+      const content = listType ? [{ type: 'listMarker', attrs: { listType } }] : []
       let offset = 0
       for (const match of props.imagesEnabled ? line.matchAll(embeddedElementPattern) : []) {
         if (match.index > offset) content.push(...parseRichEditorText(line.slice(offset, match.index)))
@@ -235,11 +237,15 @@ function toDocument(value) {
         offset = match.index + match[0].length
       }
       if (offset < line.length) content.push(...parseRichEditorText(line.slice(offset)))
-      return { type: 'paragraph', content }
+      return { type: 'paragraph', attrs: { listType }, content }
     })
   }
 }
 function textOf(node) {
+  if (node.type === 'paragraph') {
+    return (node.content || []).map(textOf).join('')
+  }
+  if (node.type === 'listMarker') return node.attrs?.listType === 'bullet' ? '- ' : '+ '
   if (node.type === 'text') return serializeRichEditorText(node)
   if (node.type === 'formatBoundary') return serializeRichEditorText(node)
   if (node.type === 'hardBreak') return '\n'
@@ -255,11 +261,15 @@ function textOf(node) {
   return (node.content || []).map(textOf).join('')
 }
 function plainFromSlice(slice) {
-  return slice.content.content.map(node => textOf(node.toJSON())).join('\n')
+  return serializeSelectedRichText(slice.content.content.map(node => node.toJSON()), textOf)
 }
 function plainTextSlice(text, schema) {
-  const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line =>
-    schema.nodeFromJSON({ type: 'paragraph', content: parseRichEditorText(line) }))
+  const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line => {
+    const parsed = parseListLine(line)
+    return schema.nodeFromJSON({ type: 'paragraph', attrs: { listType: parsed.listType },
+      content: [...(parsed.listType ? [{ type: 'listMarker', attrs: { listType: parsed.listType } }] : []),
+        ...parseRichEditorText(parsed.text)] })
+  })
   return new Slice(Fragment.fromArray(paragraphs), 1, 1)
 }
 function handlePlainClipboard(view, event, cut = false) {
@@ -571,6 +581,13 @@ function splitOrMergeFormattedLine(view, event) {
       event.preventDefault()
       return true
     }
+    if (paragraph.attrs.listType) {
+      const tr = state.tr.split($from.pos, 1, [{ type: paragraph.type,
+        attrs: { ...paragraph.attrs, listType: null } }])
+      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, $from.pos + 2)).setStoredMarks([]))
+      event.preventDefault()
+      return true
+    }
     if ($from.marks().some(mark => mark.type.name === 'richFormat' && mark.attrs.tag === 'h1')) {
       const tr = state.tr.split($from.pos)
       const nextStart = $from.pos + 2
@@ -582,6 +599,14 @@ function splitOrMergeFormattedLine(view, event) {
     }
   }
   if (event.key === 'Backspace' || event.key === 'Delete') {
+    if (event.key === 'Backspace' && offset <= 1 && paragraph.attrs.listType
+      && paragraph.firstChild?.type.name === 'listMarker') {
+      const tr = state.tr.delete(paragraphStart + 1, paragraphStart + 2)
+        .setNodeMarkup(paragraphStart, undefined, { ...paragraph.attrs, listType: null })
+      view.dispatch(tr)
+      event.preventDefault()
+      return true
+    }
     if (!isAtFormattedJoin(paragraph, offset, event.key)) return false
     const previous = event.key === 'Backspace' ? state.doc.resolve(paragraphStart).nodeBefore : null
     if (event.key === 'Backspace' && !previous) return false
@@ -855,6 +880,51 @@ const RichFormat = Mark.create({
   renderHTML({ HTMLAttributes }) {
     const name = { b: 'bold', i: 'italic', d: 'strike', h1: 'heading', h: 'large', code: 'code', dot: 'dot' }[HTMLAttributes['data-rich-format']]
     return ['span', { ...HTMLAttributes, class: `rich-image-editor__format--${name || 'bold'}` }, 0]
+  }
+})
+
+const EditorParagraph = Paragraph.extend({
+  addAttributes() {
+    return { ...this.parent?.(), listType: {
+      default: null,
+      parseHTML: element => element.getAttribute('data-list-type'),
+      renderHTML: attrs => attrs.listType ? { 'data-list-type': attrs.listType } : {}
+    } }
+  }
+})
+
+const ListMarker = Node.create({
+  name: 'listMarker',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  addAttributes() { return { listType: {
+    default: 'bullet',
+    parseHTML: element => element.getAttribute('data-list-marker'),
+    renderHTML: attrs => ({ 'data-list-marker': attrs.listType })
+  } } },
+  parseHTML() { return [{ tag: 'span[data-list-marker]' }] },
+  renderHTML({ node }) { return ['span', {
+    'data-list-marker': node.attrs.listType,
+    class: 'rich-image-editor__list-marker', contenteditable: 'false'
+  }, '\u200b'] },
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      appendTransaction(transactions, _oldState, newState) {
+        if (!transactions.some(tr => tr.docChanged)) return null
+        const tr = newState.tr
+        newState.doc.forEach((paragraph, position) => {
+          if (!paragraph.isTextblock) return
+          const listType = paragraph.firstChild?.type.name === 'listMarker'
+            ? paragraph.firstChild.attrs.listType : null
+          if (paragraph.attrs.listType !== listType) {
+            tr.setNodeMarkup(position, undefined, { ...paragraph.attrs, listType })
+          }
+        })
+        return tr.steps.length ? tr : null
+      }
+    })]
   }
 })
 
@@ -1219,8 +1289,8 @@ onMounted(() => {
       dropcursor: false,
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
-      underline: false, trailingNode: false
-    }), RichFormat, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
+      underline: false, trailingNode: false, paragraph: false
+    }), EditorParagraph, ListMarker, RichFormat, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -1228,6 +1298,10 @@ onMounted(() => {
         state.doc.nodesBetween(state.selection.from, state.selection.to, (node, position) => {
           if (node.type.name === 'image' && state.selection.from <= position && state.selection.to >= position + node.nodeSize) {
             selected.push(Decoration.node(position, position + node.nodeSize, { class: 'rich-image-editor__picture--selected' }))
+          }
+          if (node.type.name === 'listMarker' && state.selection.from <= position
+            && state.selection.to >= position + node.nodeSize) {
+            selected.push(Decoration.node(position, position + node.nodeSize, { class: 'rich-image-editor__list-marker--selected' }))
           }
         })
         state.doc.descendants((node, position) => {
@@ -1244,6 +1318,20 @@ onMounted(() => {
         return DecorationSet.create(state.doc, selected)
       },
       clipboardTextSerializer: plainFromSlice,
+      handleTextInput: (view, from, to, text) => {
+        if (text !== ' ' || from !== to) return false
+        const $from = view.state.doc.resolve(from)
+        if (!$from.parent.isTextblock) return false
+        const listType = listTypeForInput($from.parent, $from.parentOffset, text)
+        if (!listType) return false
+        const tr = view.state.tr.delete(from - 1, from)
+        tr.setNodeMarkup($from.before(), undefined, {
+          ...$from.parent.attrs, listType
+        })
+        tr.insert($from.before() + 1, view.state.schema.nodes.listMarker.create({ listType }))
+        view.dispatch(tr)
+        return true
+      },
       handleKeyDown: handleFormattedKeyDown,
       transformCopied: slice => internalDragActive
         ? slice
@@ -1408,9 +1496,16 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__menu-divider { height: 1px; margin: 4px -4px; background: #e4e9e4; }
 .rich-image-editor__mobile-insert { position: fixed; z-index: 2999; width: 36px; height: 36px; padding: 0; border: 1px solid #9db5a2; border-radius: 50%; background: #fff; color: #254d34; font-size: 24px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
-.rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; outline: none; }
+.rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; outline: none; counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-reset: rich-editor-ordered; }
+.rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
+.rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }
+.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="bullet"]::before) { content: '●'; position: relative; top: -4px; color: #1f6722; font-family: PMingLiU, sans-serif; font-size: 12px; }
+.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="ordered"]::before) { content: counter(rich-editor-ordered) '.'; }
+.rich-image-editor :deep(.rich-image-editor__list-marker--selected) { background: #316ac5; }
+.rich-image-editor :deep(.rich-image-editor__list-marker--selected::before) { color: #fff !important; }
 .rich-image-editor :deep(.rich-image-editor__body p:has(> .rich-image-editor__format--heading)) { margin-top: 1.6em; }
 .rich-image-editor :deep(.rich-image-editor__body p:first-child:has(> .rich-image-editor__format--heading)) { margin-top: 0; }
 .rich-image-editor :deep(.rich-image-editor__format--bold) { font-weight: 700; }

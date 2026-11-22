@@ -1,6 +1,17 @@
 const formatPattern = /\{(b|i|d|h1|h|code|dot) ([^{}\r\n]+)}/g
 const boundedFormats = new Set(['b', 'i', 'd', 'h', 'code', 'dot'])
 
+export function parseListLine(line) {
+  if (line.startsWith('- ')) return { listType: 'bullet', text: line.slice(2) }
+  if (line.startsWith('+ ')) return { listType: 'ordered', text: line.slice(2) }
+  return { listType: null, text: line }
+}
+
+export function listTypeForInput(paragraph, offset, text) {
+  if (text !== ' ' || paragraph.attrs.listType || offset !== 1) return null
+  return paragraph.textContent === '-' ? 'bullet' : paragraph.textContent === '+' ? 'ordered' : null
+}
+
 export function parseRichEditorText(value) {
   const content = []
   let offset = 0
@@ -21,6 +32,39 @@ export function serializeRichEditorText(node) {
   const tag = node.marks?.find(mark => mark.type === 'richFormat')?.attrs?.tag
   if (boundedFormats.has(tag)) return value
   return tag ? `{${tag} ${value}}` : value
+}
+
+export function serializeSelectedRichText(paragraphs, serializeOther = () => '') {
+  return paragraphs.map(paragraph => {
+    if (paragraph.type !== 'paragraph') return paragraph.type === 'text'
+      ? serializeSelectedRichText([{ type: 'paragraph', content: [paragraph] }], serializeOther)
+      : serializeOther(paragraph)
+    let result = ''
+    let activeTag = null
+    let activeText = ''
+    const flush = () => {
+      if (activeTag) result += `{${activeTag} ${activeText}}`
+      else result += activeText
+      activeText = ''
+    }
+    for (const node of paragraph.content || []) {
+      if (node.type === 'formatBoundary') continue
+      if (node.type !== 'text') {
+        flush()
+        activeTag = null
+        result += serializeOther(node)
+        continue
+      }
+      const tag = node.marks?.find(mark => mark.type === 'richFormat')?.attrs?.tag || null
+      if (tag !== activeTag) {
+        flush()
+        activeTag = tag
+      }
+      activeText += node.text || ''
+    }
+    flush()
+    return result
+  }).join('\n')
 }
 
 export function mergeFormattedParagraphs(state, firstStart) {

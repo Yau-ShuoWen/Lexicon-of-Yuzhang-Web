@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import RichTextImageTextarea from '../../../components/Text/RichTextImageTextarea.vue'
 
-const draft = ref('选中这段文字，松手后在上方添加或取消格式。\n已有格式：{b 加粗}、{i 斜体}、{d 删除线}。\n选中整行可以加标题。这里还有{h 大字}、{dot 着重号}与{code 代码条}。')
+const draft = ref('选中这段文字，松手后在上方添加或取消格式。\n已有格式：{b 加粗}、{i 斜体}、{d 删除线}。\n选中整行可以加标题。这里还有{h 大字}、{dot 着重号}与{code 代码条}。\n- 无序列表\n+ 有序列表')
 const imagesEnabled = ref(false)
 const images = ref({})
 function onImageAdded(image) {

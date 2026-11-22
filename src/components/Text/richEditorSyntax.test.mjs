@@ -2,11 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Schema } from '@tiptap/pm/model'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
-import { isAtFormattedJoin, mergeFormattedParagraphs, parseRichEditorText, serializeRichEditorText } from './richEditorSyntax.js'
+import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText } from './richEditorSyntax.js'
 
 const schema = new Schema({
-  nodes: { doc: { content: 'paragraph+' }, paragraph: { content: 'inline*' }, text: { group: 'inline' },
-    formatBoundary: { group: 'inline', inline: true, atom: true, attrs: { side: {}, tag: {} } } },
+  nodes: { doc: { content: 'paragraph+' }, paragraph: { content: 'inline*', attrs: { listType: { default: null } } }, text: { group: 'inline' },
+    formatBoundary: { group: 'inline', inline: true, atom: true, attrs: { side: {}, tag: {} } },
+    listMarker: { group: 'inline', inline: true, atom: true, attrs: { listType: {} } } },
   marks: { richFormat: { attrs: { tag: {} }, inclusive: true } }
 })
 const documentOf = text => schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: parseRichEditorText(text) }] })
@@ -97,4 +98,43 @@ test('光标在第二行首字符后时先删除字符，不合并换行', () =>
   const formatted = schema.nodeFromJSON({ type: 'paragraph', content: parseRichEditorText('{b xxxxx}') })
   assert.equal(isAtFormattedJoin(formatted, 1, 'Backspace'), true)
   assert.equal(isAtFormattedJoin(formatted, formatted.content.size - 1, 'Delete'), true)
+})
+
+test('行首减号或加号输入空格时立即成为列表，原文前缀保留', () => {
+  for (const [marker, expected] of [['-', 'bullet'], ['+', 'ordered']]) {
+    const paragraph = schema.node('paragraph', null, schema.text(marker))
+    assert.equal(listTypeForInput(paragraph, 1, ' '), expected)
+    assert.deepEqual(parseListLine(`${marker} 内容`), { listType: expected, text: '内容' })
+    assert.equal(listTypeForInput(paragraph, 1, '字'), null)
+  }
+  assert.equal(listTypeForInput(schema.node('paragraph', null, schema.text('正文')), 1, ' '), null)
+})
+
+test('列表回车生成普通行，列表标记可单次取消', () => {
+  const paragraph = schema.node('paragraph', { listType: 'bullet' }, [
+    schema.node('listMarker', { listType: 'bullet' }), schema.text('内容')
+  ])
+  const doc = schema.node('doc', null, [paragraph])
+  const state = EditorState.create({ schema, doc, selection: TextSelection.create(doc, paragraph.content.size + 1) })
+  const tr = state.tr.split(state.selection.from, 1, [{ type: paragraph.type, attrs: { listType: null } }])
+  assert.equal(tr.doc.child(0).attrs.listType, 'bullet')
+  assert.equal(tr.doc.child(1).attrs.listType, null)
+  const removedMarker = state.tr.delete(1, 2).setNodeMarkup(0, undefined, { listType: null })
+  assert.equal(removedMarker.doc.child(0).attrs.listType, null)
+  assert.equal(removedMarker.doc.child(0).textContent, '内容')
+})
+
+test('复制部分或完整格式文字时得到对应的富文本原文', () => {
+  const doc = documentOf('前{b 加粗}后')
+  const partial = doc.firstChild.content.cut(2, 4).content.map(node => node.toJSON())
+  assert.equal(serializeSelectedRichText([{ type: 'paragraph', content: partial }]), '{b 加粗}')
+  const whole = doc.firstChild.toJSON()
+  assert.equal(serializeSelectedRichText([whole]), '前{b 加粗}后')
+  const marker = { type: 'listMarker', attrs: { listType: 'ordered' } }
+  const text = parseRichEditorText('{dot 着重}')
+  const list = { type: 'paragraph', attrs: { listType: 'ordered' }, content: [marker, ...text] }
+  const other = node => node.type === 'listMarker' ? '+ ' : ''
+  assert.equal(serializeSelectedRichText([list], other), '+ {dot 着重}')
+  assert.equal(serializeSelectedRichText([{ ...list, content: text }], other), '{dot 着重}')
+  assert.equal(serializeSelectedRichText([marker], other), '+ ')
 })

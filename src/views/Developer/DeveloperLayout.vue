@@ -15,6 +15,7 @@ const groups = [
   { title: '用前须知', icon: Reading, items: [
     { label: '简繁转换框', path: 'tool/sc-tc-lab' },
     { label: '富文本使用方法', path: 'test/pinyin-ipa' },
+    { label: '富文本编辑器试验', path: 'tool/rich-text-editor' },
     { label: '特殊符号复制栏', path: 'tool/special-symbol' },
   ] },
   { title: '运行监控', icon: Monitor, items: [

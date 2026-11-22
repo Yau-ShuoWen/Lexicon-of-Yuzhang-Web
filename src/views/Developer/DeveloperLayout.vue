@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Collection, DataAnalysis, Document, Headset, House, Monitor, Reading, Setting } from '@element-plus/icons-vue'
 import exitDictionaryIcon from '../../assets/icons/exit-dictionary.svg'
 
 const route = useRoute()
+const {t} = useI18n()
 const menuOpen = ref(false)
 const base = computed(() => `/${route.params.language}/${route.params.dialect}`)
 const devPath = path => `${base.value}/dev/${path}`
@@ -20,6 +22,7 @@ const groups = [
     { label: '调试模式', path: 'debug' },
   ] },
   { title: '语言学', icon: Collection, items: [
+    { labelKey: 'pronunciation_audit.title', path: 'pronunciation-audit' },
     { label: '编辑汉字', path: 'hanzi-filter', matches: ['hanzi-filter', 'hanzi-editor', 'hanzi-creator'] },
     { label: '导入汉字', path: 'reference-tsv' },
     { label: '编辑词语', path: 'ciyu-filter', matches: ['ciyu-filter', 'ciyu-editor', 'ciyu-creator'] },
@@ -69,7 +72,7 @@ watch(() => route.fullPath, () => { menuOpen.value = false })
           </h2>
           <div class="developer-sidebar__children">
             <router-link v-for="item in group.items" :key="item.path" :to="devPath(item.path)" class="developer-sidebar__link" :class="{ 'developer-sidebar__link--active': isActive(item) }" :aria-current="isActive(item) ? 'page' : undefined">
-              <span class="developer-sidebar__bullet" aria-hidden="true"></span>{{ item.label }}
+              <span class="developer-sidebar__bullet" aria-hidden="true"></span>{{ item.labelKey ? t(item.labelKey) : item.label }}
             </router-link>
           </div>
         </section>

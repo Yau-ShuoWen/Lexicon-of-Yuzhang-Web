@@ -254,6 +254,11 @@ const routes = [
 
                     // 漢字
                     {
+                        path: 'pronunciation-audit',
+                        name: 'PronunciationAudit',
+                        component: () => import('../views/Developer/Hanzi/PronunciationAudit.vue')
+                    },
+                    {
                         path: 'hanzi-creator',
                         name: 'HanziCreator',
                         component: () => import('../views/Developer/Hanzi/HanziCreator.vue'),

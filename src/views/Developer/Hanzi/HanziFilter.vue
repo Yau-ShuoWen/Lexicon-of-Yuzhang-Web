@@ -56,7 +56,7 @@ const performSearch = async () => {
 }
 
 const openEditor = item => router.push({name: 'HanziEditor',
-  params: {language: language.value, dialect: dialect.value, id: item.editId},
+  params: {language: language.value, dialect: dialect.value, id: item.id},
   query: activeQuery.value ? {q: activeQuery.value} : {}})
 
 watch([() => route.name, () => route.query.q, dialect], ([name, query]) => {
@@ -95,7 +95,7 @@ const notePreview = notes => {
         <tbody v-for="item in searchResults" :key="item.id">
           <tr v-for="(pronunciation, index) in (item.pinyin?.length ? item.pinyin : [null])" :key="index" @dblclick="openEditor(item)">
             <th v-if="index === 0" scope="row" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="id-cell">
-              <router-link :to="{name: 'HanziEditor', params: {language, dialect, id: item.editId}, query: activeQuery ? {q: activeQuery} : {}}">{{ item.id }}</router-link>
+              <router-link :to="{name: 'HanziEditor', params: {language, dialect, id: item.id}, query: activeQuery ? {q: activeQuery} : {}}">{{ item.id }}</router-link>
             </th>
             <td v-if="index === 0" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="character-cell" :colspan="item.sc === item.tc ? 2 : 1">{{ item.sc }}</td>
             <td v-if="index === 0 && item.sc !== item.tc" :rowspan="Math.max(item.pinyin?.length || 0, 1)" class="character-cell">{{ item.tc }}</td>

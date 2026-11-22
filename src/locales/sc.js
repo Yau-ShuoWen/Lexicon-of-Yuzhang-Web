@@ -449,6 +449,15 @@ export default {
         copy_pronunciation_focus: '重点在读音上的模板', copy_related_words: '例句相关词语模板',
         copy_ge: '箇', copy_go: '嗰', copy_he: '许', copy_xi: '系', copy_gak: '噶', copy_jie: '渠',
     },
+    pronunciation_audit: {
+        title: '读音数据检查', description: '比较词条的逐字读音与字表。结果只说明数据不一致，不判断哪一处正确。',
+        all: '全部', conflict: '读音冲突', variant: '读音变体', missing_hanzi: '字表缺字',
+        form_mismatch: '字形不一致', missing_hanzi_pinyin: '字表缺读音', unaligned: '无法对齐',
+        invalid_word_pinyin: '词条读音无效', invalid_hanzi_pinyin: '字表读音无效',
+        start: '开始检查', refresh: '重新检查', checking: '检查中…', loading: '正在检查，请稍候。',
+        empty: '此分类没有结果。', failed: '检查失败：{message}', previous: '上一页', next: '下一页',
+        page: '第 {current} / {total} 页',
+    },
     hanzi_editor: {
         title: '编辑汉字', search_placeholder: '查询汉字或输入 py san1', search_results: '搜索结果（点击编辑）', no_results: '未找到相关汉字', search_failed: '搜索失败：{message}',
         previous: '上一条', first: '第一条', next: '下一条', last: '最后一条',

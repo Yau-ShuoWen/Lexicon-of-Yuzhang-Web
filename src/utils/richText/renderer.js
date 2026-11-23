@@ -131,7 +131,7 @@ export function renderRichText(text, context = getRouteContext()) {
             continue
         }
 
-        const table = consumeTable(lines, index, renderInline)
+        const table = consumeTable(lines, index, value => renderContent(value.replace(/\\\\/g, '\n')))
         if (table) {
             parts.push({html: table.html, block: true, kind: 'table'})
             index = table.nextIndex
@@ -152,5 +152,5 @@ export function renderRichText(text, context = getRouteContext()) {
         index++
     }
 
-    return joinParts(normalizeHeadingWhitespace(parts)).replace(/\\\\/g, '<br>')
+    return joinParts(normalizeHeadingWhitespace(parts))
 }

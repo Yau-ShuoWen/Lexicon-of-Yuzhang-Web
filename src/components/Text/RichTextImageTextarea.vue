@@ -20,6 +20,7 @@ import moveIcon from '../../assets/icons/move.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
+import plusIcon from '../../assets/icons/plus-white.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
 import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
 
@@ -39,6 +40,14 @@ const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)
 const tableRowPattern = /^\s*\|(.+)\|\s*$/
 const tableDividerPattern = /^:?-{2,}[!*+]?:?$/
 function tableCells(line) { return line.trim().slice(1, -1).split('|').map(cell => cell.trim()) }
+function tableCellParagraphs(source) {
+  return source.split('\\\\').map(line => {
+    const parsed = parseListLine(line)
+    return { type: 'paragraph', attrs: { listType: parsed.listType },
+      content: [...(parsed.listType ? [{ type: 'listMarker', attrs: { listType: parsed.listType } }] : []),
+        ...parseRichEditorText(parsed.text)] }
+  })
+}
 function tableFromLines(lines, start) {
   const first = lines[start]
   if (!tableRowPattern.test(first)) return null
@@ -62,7 +71,7 @@ function tableFromLines(lines, start) {
   while (columns.length < columnCount) columns.push({ align: 'left', width: 'nowrap' })
   return { end, node: { type: 'editorTable', attrs: { columns, hasHeader }, content: rows.map(row => ({
     type: 'editorTableRow', content: columns.map((_, index) => ({
-      type: 'editorTableCell', content: parseRichEditorText(row[index] || '')
+      type: 'editorTableCell', content: tableCellParagraphs(row[index] || '')
     }))
   })) } }
 }
@@ -72,7 +81,6 @@ function tableDivider(column) {
   return `${column.align === 'center' || column.align === 'left' && column.marker?.startsWith(':') ? ':' : ''}---${width}${column.align === 'center' || column.align === 'right' ? ':' : ''}`
 }
 const editor = shallowRef(null)
-const tableDraft = ref(null)
 const fileInput = ref(null)
 const insertMenu = ref(null)
 const mobileInsertButton = ref(null)
@@ -285,7 +293,7 @@ function toDocument(value) {
 }
 function textOf(node) {
   if (node.type === 'editorTable') {
-    const rows = (node.content || []).map(row => `|${(row.content || []).map(cell => (cell.content || []).map(textOf).join('')).join('|')}|`)
+    const rows = (node.content || []).map(row => `|${(row.content || []).map(cell => (cell.content || []).map(textOf).join('\\\\')).join('|')}|`)
     const divider = `|${(node.attrs?.columns || []).map(tableDivider).join('|')}|`
     rows.splice(node.attrs?.hasHeader ? 1 : 0, 0, divider)
     return rows.join('\n')
@@ -529,11 +537,13 @@ function showFormatBubble() {
 function onEditorPointerDown(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) { formatBubble.value = null; return }
   if (!event.target.closest?.('.rich-image-editor__body')) return
+  if (event.target.closest?.('.rich-image-editor__table-add')) return
   const frame = event.target.closest?.('.rich-image-editor__table-frame')
-  if (frame && editor.value) {
+  const cell = event.target.closest?.('[data-editor-cell]')
+  if (frame && !cell && editor.value) {
     const rect = frame.getBoundingClientRect()
-    const topLeft = Math.abs(event.clientX - rect.left) < 24 && Math.abs(event.clientY - rect.top) < 24
-    const bottomRight = Math.abs(event.clientX - rect.right) < 24 && Math.abs(event.clientY - rect.bottom) < 24
+    const topLeft = Math.abs(event.clientX - rect.left) < 14 && Math.abs(event.clientY - rect.top) < 14
+    const bottomRight = Math.abs(event.clientX - rect.right) < 14 && Math.abs(event.clientY - rect.bottom) < 14
     if (topLeft || bottomRight) {
       const position = tablePositionForFrame(editor.value.view, frame)
       if (position != null) {
@@ -775,8 +785,10 @@ function handleTableArrow(view, event) {
   let columnIndex = $from.index(rowDepth)
   const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight'
   if (horizontal) {
-    const atEdge = event.key === 'ArrowLeft' ? $from.parentOffset === 0
-      : $from.parentOffset === $from.parent.content.size
+    const cell = $from.node(cellDepth)
+    const atEdge = event.key === 'ArrowLeft'
+      ? $from.index(cellDepth) === 0 && $from.parentOffset === 0
+      : $from.index(cellDepth) === cell.childCount - 1 && $from.parentOffset === $from.parent.content.size
     if (!atEdge) return false
   }
   if (!horizontal) {
@@ -820,14 +832,16 @@ function handleTableArrow(view, event) {
   for (let index = 0; index < columnIndex; index++) target += table.child(rowIndex).child(index).nodeSize
   const cell = table.child(rowIndex).child(columnIndex)
   const atEnd = event.key === 'ArrowLeft'
-  let cursor = target + 1 + (atEnd ? cell.content.size : 0)
+  const firstText = target + 2
+  const lastText = target + cell.content.size
+  let cursor = atEnd ? lastText : firstText
   if (!horizontal && cell.content.size) {
     const sourceX = view.coordsAtPos($from.pos).left
     const cellRect = view.nodeDOM(target)?.getBoundingClientRect()
-    const firstLine = view.coordsAtPos(target + 1)
+    const firstLine = view.coordsAtPos(firstText)
     const x = cellRect ? Math.max(cellRect.left + 2, Math.min(sourceX, cellRect.right - 2)) : sourceX
     const nearby = view.posAtCoords({ left: x, top: (firstLine.top + firstLine.bottom) / 2 })?.pos
-    if (nearby != null) cursor = Math.max(target + 1, Math.min(nearby, target + 1 + cell.content.size))
+    if (nearby != null) cursor = Math.max(firstText, Math.min(nearby, lastText))
   }
   view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, cursor)))
   return true
@@ -898,19 +912,30 @@ function updateTableColumn(key, value) {
   instance.view.dispatch(instance.state.tr.setNodeMarkup(menu.position, undefined, { ...node.attrs, columns }))
 }
 function openTableDraft() {
-  tableDraft.value = { rows: 3, columns: 2, hasHeader: false, position: pendingInsertPosition }
-  closeInsertMenu()
+  const menu = insertMenu.value
+  if (!menu) return
+  insertMenu.value = { kind: 'table-create', rows: 3, columns: 2, hasHeader: false,
+    position: pendingInsertPosition,
+    x: Math.max(8, Math.min(menu.x, window.innerWidth - 250)),
+    y: Math.max(8, Math.min(menu.y, window.innerHeight - 260)) }
+}
+function adjustTableDraft(field, delta) {
+  const draft = insertMenu.value
+  if (draft?.kind !== 'table-create') return
+  const max = field === 'rows' ? 30 : 12
+  draft[field] = Math.max(1, Math.min(max, (Number(draft[field]) || 1) + delta))
 }
 function createTable() {
-  const draft = tableDraft.value
-  if (!draft || !editor.value) return
+  const draft = insertMenu.value
+  if (draft?.kind !== 'table-create' || !editor.value) return
   const rowCount = Math.max(1, Math.min(30, Number(draft.rows) || 1))
   const columnCount = Math.max(1, Math.min(12, Number(draft.columns) || 1))
   const columns = Array.from({ length: columnCount }, () => ({ align: 'left', width: 'nowrap' }))
   const content = Array.from({ length: rowCount }, () => ({ type: 'editorTableRow',
-    content: Array.from({ length: columnCount }, () => ({ type: 'editorTableCell' })) }))
+    content: Array.from({ length: columnCount }, () => ({ type: 'editorTableCell',
+      content: [{ type: 'paragraph' }] })) }))
   const position = draft.position
-  tableDraft.value = null
+  closeInsertMenu()
   const instance = editor.value
   const $position = instance.state.doc.resolve(Math.min(position ?? instance.state.selection.from, instance.state.doc.content.size))
   const emptyParagraph = $position.depth && $position.node(1).type.name === 'paragraph'
@@ -1181,13 +1206,95 @@ const EditorParagraph = Paragraph.extend({
   }
 })
 
+function tableIsCompact(node) {
+  return node.attrs.columns.length > 0 && node.attrs.columns.every(column => column.width === 'nowrap')
+}
+function appendTableRow(position) {
+  const instance = editor.value
+  const table = instance?.state.doc.nodeAt(position)
+  if (table?.type.name !== 'editorTable' || table.childCount >= 30) return
+  const { editorTableRow, editorTableCell } = instance.state.schema.nodes
+  const cells = Array.from({ length: table.attrs.columns.length }, () =>
+    editorTableCell.create(null, instance.state.schema.nodes.paragraph.create()))
+  instance.view.dispatch(instance.state.tr.insert(position + table.nodeSize - 1, editorTableRow.create(null, cells)))
+}
+function appendTableColumn(position) {
+  const instance = editor.value
+  const table = instance?.state.doc.nodeAt(position)
+  if (table?.type.name !== 'editorTable' || table.attrs.columns.length >= 12) return
+  const tr = instance.state.tr
+  const rowEnds = []
+  table.forEach((row, offset) => rowEnds.push(position + 1 + offset + row.nodeSize - 1))
+  for (const end of rowEnds.reverse()) tr.insert(end,
+    instance.state.schema.nodes.editorTableCell.create(null, instance.state.schema.nodes.paragraph.create()))
+  tr.setNodeMarkup(position, undefined, { ...table.attrs,
+    columns: [...table.attrs.columns, { align: 'left', width: 'nowrap' }] })
+  instance.view.dispatch(tr)
+}
+
 const EditorTable = Node.create({
   name: 'editorTable', group: 'block', content: 'editorTableRow*', isolating: true, selectable: true,
   addAttributes() { return { columns: { default: [] }, hasHeader: { default: false } } },
   parseHTML() { return [{ tag: 'div[data-editor-table]' }] },
-  renderHTML({ node }) { return ['div', { 'data-editor-table': '', class: `rich-image-editor__table-frame${node.attrs.columns.length && node.attrs.columns.every(column => column.width === 'nowrap') ? ' rich-image-editor__table-frame--compact' : ''}` },
-    ['table', { 'data-has-header': String(node.attrs.hasHeader),
-      class: `rich-image-editor__table${node.attrs.columns.length && node.attrs.columns.every(column => column.width === 'nowrap') ? ' rich-image-editor__table--compact' : ''}` }, ['tbody', 0]]] }
+  renderHTML({ node }) { return ['div', { 'data-editor-table': '', class: `rich-image-editor__table-frame${tableIsCompact(node) ? ' rich-image-editor__table-frame--compact' : ''}` },
+    ['div', { class: 'rich-image-editor__table-scroll' }, ['table', { 'data-has-header': String(node.attrs.hasHeader),
+      class: `rich-image-editor__table${tableIsCompact(node) ? ' rich-image-editor__table--compact' : ''}` }, ['tbody', 0]]]] },
+  addNodeView() {
+    return ({ node, getPos }) => {
+      const frame = document.createElement('div')
+      frame.dataset.editorTable = ''
+      const scroll = document.createElement('div')
+      scroll.className = 'rich-image-editor__table-scroll'
+      const table = document.createElement('table')
+      const tbody = document.createElement('tbody')
+      table.append(tbody)
+      scroll.append(table)
+      frame.append(scroll)
+      const addButton = (kind, label, action) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = `rich-image-editor__table-add rich-image-editor__table-add--${kind}`
+        button.setAttribute('aria-label', label)
+        button.title = label
+        const icon = document.createElement('img')
+        icon.src = plusIcon
+        icon.alt = ''
+        button.append(icon)
+        button.contentEditable = 'false'
+        button.addEventListener('mousedown', event => event.preventDefault())
+        button.addEventListener('click', event => { event.preventDefault(); action(getPos()) })
+        frame.append(button)
+        return button
+      }
+      const addColumn = addButton('column', '在右侧增加一列', appendTableColumn)
+      const addRow = addButton('row', '在下方增加一行', appendTableRow)
+      const placeButtons = () => {
+        const firstRow = tbody.firstElementChild?.getBoundingClientRect()
+        const firstCell = tbody.firstElementChild?.firstElementChild?.getBoundingClientRect()
+        const bounds = frame.getBoundingClientRect()
+        if (firstRow) addColumn.style.top = `${firstRow.top + firstRow.height / 2 - bounds.top}px`
+        if (firstCell) addRow.style.left = `${firstCell.left + firstCell.width / 2 - bounds.left}px`
+      }
+      const observer = new ResizeObserver(placeButtons)
+      observer.observe(table)
+      const update = current => {
+        if (current.type.name !== 'editorTable') return false
+        const compact = tableIsCompact(current)
+        frame.className = `rich-image-editor__table-frame${compact ? ' rich-image-editor__table-frame--compact' : ''}`
+        table.className = `rich-image-editor__table${compact ? ' rich-image-editor__table--compact' : ''}`
+        table.dataset.hasHeader = String(current.attrs.hasHeader)
+        addColumn.disabled = current.attrs.columns.length >= 12
+        addRow.disabled = current.childCount >= 30
+        requestAnimationFrame(() => { if (frame.isConnected) placeButtons() })
+        return true
+      }
+      update(node)
+      return { dom: frame, contentDOM: tbody, update,
+        stopEvent: event => !!event.target.closest?.('.rich-image-editor__table-add'),
+        ignoreMutation: mutation => mutation.type !== 'selection' && !tbody.contains(mutation.target),
+        destroy: () => observer.disconnect() }
+    }
+  }
 })
 const EditorTableRow = Node.create({
   name: 'editorTableRow', content: 'editorTableCell+', isolating: true,
@@ -1195,7 +1302,7 @@ const EditorTableRow = Node.create({
   renderHTML() { return ['tr', { 'data-editor-row': '' }, 0] }
 })
 const EditorTableCell = Node.create({
-  name: 'editorTableCell', content: 'inline*', isolating: true,
+  name: 'editorTableCell', content: 'paragraph+', isolating: true,
   parseHTML() { return [{ tag: 'td[data-editor-cell]' }] },
   renderHTML() { return ['td', { 'data-editor-cell': '' }, 0] }
 })
@@ -1639,9 +1746,19 @@ onMounted(() => {
       },
       clipboardTextSerializer: plainFromSlice,
       handleTextInput: (view, from, to, text) => {
-        if (text !== ' ' || from !== to) return false
+        if (from !== to) return false
         const $from = view.state.doc.resolve(from)
         if (!$from.parent.isTextblock) return false
+        if (text === '\\' && $from.parentOffset > 0
+          && $from.parent.textBetween($from.parentOffset - 1, $from.parentOffset) === '\\'
+          && Array.from({ length: $from.depth }, (_, index) => $from.node(index + 1))
+            .some(node => node.type.name === 'editorTableCell')) {
+          const splitAt = from - 1
+          const tr = view.state.tr.delete(splitAt, from).split(splitAt)
+          view.dispatch(tr.setSelection(TextSelection.create(tr.doc, splitAt + 2)))
+          return true
+        }
+        if (text !== ' ') return false
         const listType = listTypeForInput($from.parent, $from.parentOffset, text)
         if (!listType) return false
         const tr = view.state.tr.delete(from - 1, from)
@@ -1781,20 +1898,18 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
           <label class="rich-image-editor__menu-field">宽度行为<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.width" @change="updateTableColumn('width', $event.target.value)"><option value="nowrap">按内容宽度</option><option value="normal">一般宽度</option><option value="long">长内容</option></select></label>
           <label class="rich-image-editor__menu-field">对齐<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.align" @change="updateTableColumn('align', $event.target.value)"><option value="left">靠左</option><option value="center">居中</option><option value="right">靠右</option></select></label>
         </template>
+        <form v-else-if="insertMenu.kind === 'table-create'" class="rich-image-editor__table-create" @submit.prevent="createTable">
+          <div class="rich-image-editor__menu-heading">创建竖向表格</div>
+          <div class="rich-image-editor__menu-field rich-image-editor__table-count"><label for="rich-editor-table-rows">行数</label><div class="rich-image-editor__table-count-control"><button type="button" aria-label="减少一行" :disabled="insertMenu.rows <= 1" @click="adjustTableDraft('rows', -1)"><img :src="leftIcon" alt="" /></button><input id="rich-editor-table-rows" v-model.number="insertMenu.rows" type="number" min="1" max="30" required /><button type="button" aria-label="增加一行" :disabled="insertMenu.rows >= 30" @click="adjustTableDraft('rows', 1)"><img :src="rightIcon" alt="" /></button></div></div>
+          <div class="rich-image-editor__menu-field rich-image-editor__table-count"><label for="rich-editor-table-columns">列数</label><div class="rich-image-editor__table-count-control"><button type="button" aria-label="减少一列" :disabled="insertMenu.columns <= 1" @click="adjustTableDraft('columns', -1)"><img :src="leftIcon" alt="" /></button><input id="rich-editor-table-columns" v-model.number="insertMenu.columns" type="number" min="1" max="12" required /><button type="button" aria-label="增加一列" :disabled="insertMenu.columns >= 12" @click="adjustTableDraft('columns', 1)"><img :src="rightIcon" alt="" /></button></div></div>
+          <label class="rich-image-editor__menu-field rich-image-editor__menu-field--checkbox"><input v-model="insertMenu.hasHeader" type="checkbox" /> 首行作为表头</label>
+          <div class="rich-image-editor__table-create-actions"><button type="button" @click="closeInsertMenu">取消</button><button type="submit">创建</button></div>
+        </form>
         <template v-else>
           <button type="button" role="menuitem" @click="openTableDraft">创建表格</button>
           <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
           <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
         </template>
-      </div>
-      <div v-if="tableDraft" class="rich-image-editor__table-backdrop" @click.self="tableDraft = null">
-        <form class="rich-image-editor__table-dialog" @submit.prevent="createTable">
-          <strong>创建竖向表格</strong>
-          <label>行数<input v-model.number="tableDraft.rows" type="number" min="1" max="30" required /></label>
-          <label>列数<input v-model.number="tableDraft.columns" type="number" min="1" max="12" required /></label>
-          <label><input v-model="tableDraft.hasHeader" type="checkbox" /> 首行作为表头</label>
-          <div><button type="button" @click="tableDraft = null">取消</button><button type="submit">创建</button></div>
-        </form>
       </div>
       <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click="onViewerBackdropClick" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
         <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__previous" aria-label="上一张图片" @click="movePreview(-1)"><img :src="leftIcon" alt="" /></button><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__next" aria-label="下一张图片" @click="movePreview(1)"><img :src="rightIcon" alt="" /></button></div>
@@ -1832,24 +1947,37 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__menu-divider { height: 1px; margin: 4px -4px; background: #e4e9e4; }
 .rich-image-editor__menu-field { display: grid; gap: 4px; padding: 6px 10px; }
 .rich-image-editor__menu-field select { min-height: 29px; border: 1px solid #cad8cc; background: #fff; color: inherit; }
-.rich-image-editor__table-backdrop { position: fixed; z-index: 3200; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .24); }
-.rich-image-editor__table-dialog { display: grid; gap: 14px; min-width: 250px; padding: 20px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; }
-.rich-image-editor__table-dialog label { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
-.rich-image-editor__table-dialog input[type="number"] { width: 70px; padding: 5px; }
-.rich-image-editor__table-dialog > div { display: flex; justify-content: flex-end; gap: 8px; }
+.rich-image-editor__table-create { display: grid; min-width: 210px; padding: 3px; }
+.rich-image-editor__table-create .rich-image-editor__table-count { grid-template-columns: 42px 1fr; align-items: center; }
+.rich-image-editor__table-count-control { display: flex; align-items: center; gap: 2px; }
+.rich-image-editor__table-count-control button { display: grid; place-items: center; width: 27px; min-height: 27px; padding: 4px; }
+.rich-image-editor__table-count-control button img { display: block; width: 12px; height: 12px; }
+.rich-image-editor__table-create input[type="number"] { box-sizing: border-box; width: 50px; padding: 4px 2px; border: 1px solid #cad8cc; border-radius: 3px; font: inherit; text-align: center; appearance: textfield; }
+.rich-image-editor__table-create input[type="number"]::-webkit-inner-spin-button, .rich-image-editor__table-create input[type="number"]::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.rich-image-editor__table-create .rich-image-editor__menu-field--checkbox { display: flex; justify-content: flex-start; gap: 7px; }
+.rich-image-editor__table-create-actions { display: flex; justify-content: flex-end; gap: 4px; padding: 5px 3px 2px; }
 .rich-image-editor__mobile-insert { position: fixed; z-index: 2999; width: 36px; height: 36px; padding: 0; border: 1px solid #9db5a2; border-radius: 50%; background: #fff; color: #254d34; font-size: 24px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; outline: none; counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__body .ProseMirror-gapcursor::after) { top: -1px; width: 0; height: 1.5em; border-top: 0; border-left: 2px solid #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
-.rich-image-editor :deep(.rich-image-editor__table-frame) { box-sizing: border-box; width: 100%; max-width: 100%; margin: 12px 0; border: 1px solid #b9cdbb; border-radius: 8px; overflow-x: auto; }
+.rich-image-editor :deep(.rich-image-editor__table-frame) { position: relative; box-sizing: border-box; width: 100%; max-width: 100%; margin: 12px 0; border: 1px solid #b9cdbb; border-radius: 8px; }
 .rich-image-editor :deep(.rich-image-editor__table-frame--compact) { width: fit-content; }
+.rich-image-editor :deep(.rich-image-editor__table-scroll) { max-width: 100%; overflow-x: auto; border-radius: 7px; }
+.rich-image-editor :deep(.rich-image-editor__table-add) { position: absolute; z-index: 2; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #417a51; border-radius: 50%; background: #417a51; opacity: 0; pointer-events: auto; transform: translate(-50%, -50%); }
+.rich-image-editor :deep(.rich-image-editor__table-add img) { display: block; width: 14px; height: 14px; }
+.rich-image-editor :deep(.rich-image-editor__table-add--column) { top: 50%; left: 100%; }
+.rich-image-editor :deep(.rich-image-editor__table-add--row) { top: 100%; left: 50%; }
+.rich-image-editor :deep(.rich-image-editor__table-frame:hover .rich-image-editor__table-add:not(:disabled)), .rich-image-editor :deep(.rich-image-editor__table-add:hover), .rich-image-editor :deep(.rich-image-editor__table-add:focus-visible) { opacity: 1; }
+.rich-image-editor :deep(.rich-image-editor__table-add:disabled) { display: none; }
 .rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode), .rich-image-editor :deep(.rich-image-editor__table-frame--selected) { outline: 2px solid #316ac5; outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__table-frame--selected *::selection), .rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode *::selection) { color: inherit; background: transparent; }
 .rich-image-editor :deep(.rich-image-editor__table) { width: 100%; border-collapse: collapse; table-layout: auto; }
 .rich-image-editor :deep(.rich-image-editor__table--compact) { width: max-content; max-width: 100%; }
-.rich-image-editor :deep(.rich-image-editor__table td) { padding: 8px 10px; border: 0; border-right: 1px solid #cbd9cd; border-bottom: 1px solid #cbd9cd; vertical-align: top; outline-offset: -2px; }
+.rich-image-editor :deep(.rich-image-editor__table td) { padding: 8px 10px; border: 0; border-right: 1px solid #cbd9cd; border-bottom: 1px solid #cbd9cd; vertical-align: top; outline-offset: -2px; counter-reset: rich-editor-ordered; }
+.rich-image-editor :deep(.rich-image-editor__table td p) { margin: 0; min-height: 1.5em; line-height: 1.5; }
+.rich-image-editor :deep(.rich-image-editor__table td p:has(> .rich-image-editor__format--heading)) { margin-top: 0; }
 .rich-image-editor :deep(.rich-image-editor__table tr > td:last-child) { border-right: 0; }
 .rich-image-editor :deep(.rich-image-editor__table tr:last-child td) { border-bottom: 0; }
 .rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--nowrap) { width: 1%; min-width: 0; white-space: nowrap; }

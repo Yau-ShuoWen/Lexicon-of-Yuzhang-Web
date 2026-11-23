@@ -6,7 +6,8 @@ import StarterKit from '@tiptap/starter-kit'
 import Paragraph from '@tiptap/extension-paragraph'
 import Image from '@tiptap/extension-image'
 import { Fragment, Slice } from '@tiptap/pm/model'
-import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, Selection, TextSelection } from '@tiptap/pm/state'
+import { GapCursor } from '@tiptap/pm/gapcursor'
 import { dropPoint } from '@tiptap/pm/transform'
 import { closeHistory } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -35,7 +36,43 @@ const emit = defineEmits(['update:modelValue', 'upload-state-change', 'image-add
 const picturePattern = /^\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~([0-9]{2,3}))?}$/
 const embeddedPicturePattern = /\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
+const tableRowPattern = /^\s*\|(.+)\|\s*$/
+const tableDividerPattern = /^:?-{2,}[!*+]?:?$/
+function tableCells(line) { return line.trim().slice(1, -1).split('|').map(cell => cell.trim()) }
+function tableFromLines(lines, start) {
+  const first = lines[start]
+  if (!tableRowPattern.test(first)) return null
+  const firstCells = tableCells(first)
+  const firstIsDivider = firstCells.every(cell => tableDividerPattern.test(cell))
+  const second = lines[start + 1]
+  const hasHeader = !firstIsDivider && tableRowPattern.test(second || '')
+    && tableCells(second).every(cell => tableDividerPattern.test(cell))
+  if (!firstIsDivider && !hasHeader) return null
+  const divider = firstIsDivider ? firstCells : tableCells(second)
+  const columns = divider.map(cell => ({
+    align: cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : 'left',
+    width: cell.includes('*') ? 'long' : cell.includes('+') ? 'normal' : 'nowrap',
+    marker: cell
+  }))
+  const rows = []
+  if (hasHeader) rows.push(firstCells)
+  let end = start + (hasHeader ? 2 : 1)
+  while (end < lines.length && tableRowPattern.test(lines[end])) rows.push(tableCells(lines[end++]))
+  const columnCount = Math.max(columns.length, ...rows.map(row => row.length))
+  while (columns.length < columnCount) columns.push({ align: 'left', width: 'nowrap' })
+  return { end, node: { type: 'editorTable', attrs: { columns, hasHeader }, content: rows.map(row => ({
+    type: 'editorTableRow', content: columns.map((_, index) => ({
+      type: 'editorTableCell', content: parseRichEditorText(row[index] || '')
+    }))
+  })) } }
+}
+function tableDivider(column) {
+  if (column.marker) return column.marker
+  const width = column.width === 'long' ? '*' : column.width === 'normal' ? '+' : ''
+  return `${column.align === 'center' || column.align === 'left' && column.marker?.startsWith(':') ? ':' : ''}---${width}${column.align === 'center' || column.align === 'right' ? ':' : ''}`
+}
 const editor = shallowRef(null)
+const tableDraft = ref(null)
 const fileInput = ref(null)
 const insertMenu = ref(null)
 const mobileInsertButton = ref(null)
@@ -219,9 +256,14 @@ function pictureToDocument(source) {
   return { type: 'image', attrs: { src: imageFor(picture[2])?.url || '', imageId: picture[2], alt: picture[1] || '', displayWidth: Number(picture[3]) || 160 } }
 }
 function toDocument(value) {
+  const lines = value.replace(/\r/g, '').split('\n')
+  let coveredUntil = 0
   return {
     type: 'doc',
-    content: value.replace(/\r/g, '').split('\n').map(sourceLine => {
+    content: lines.flatMap((sourceLine, index) => {
+      if (index < coveredUntil) return []
+      const table = tableFromLines(lines, index)
+      if (table) { coveredUntil = table.end; return [table.node] }
       const { listType, text: line } = parseListLine(sourceLine)
       const content = listType ? [{ type: 'listMarker', attrs: { listType } }] : []
       let offset = 0
@@ -237,11 +279,17 @@ function toDocument(value) {
         offset = match.index + match[0].length
       }
       if (offset < line.length) content.push(...parseRichEditorText(line.slice(offset)))
-      return { type: 'paragraph', attrs: { listType }, content }
+      return [{ type: 'paragraph', attrs: { listType }, content }]
     })
   }
 }
 function textOf(node) {
+  if (node.type === 'editorTable') {
+    const rows = (node.content || []).map(row => `|${(row.content || []).map(cell => (cell.content || []).map(textOf).join('')).join('|')}|`)
+    const divider = `|${(node.attrs?.columns || []).map(tableDivider).join('|')}|`
+    rows.splice(node.attrs?.hasHeader ? 1 : 0, 0, divider)
+    return rows.join('\n')
+  }
   if (node.type === 'paragraph') {
     return (node.content || []).map(textOf).join('')
   }
@@ -264,6 +312,10 @@ function plainFromSlice(slice) {
   return serializeSelectedRichText(slice.content.content.map(node => node.toJSON()), textOf)
 }
 function plainTextSlice(text, schema) {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n')
+  if (lines.some((_, index) => tableFromLines(lines, index))) {
+    return new Slice(Fragment.fromArray(toDocument(text).content.map(node => schema.nodeFromJSON(node))), 0, 0)
+  }
   const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line => {
     const parsed = parseListLine(line)
     return schema.nodeFromJSON({ type: 'paragraph', attrs: { listType: parsed.listType },
@@ -418,7 +470,16 @@ const textFormats = [
 ]
 const formatBubble = ref(null)
 let selectionPointerId = null
+let selectionStartedOutsideTable = false
+let tableCornerDrag = null
 let formatBubbleFrame = 0
+function tablePositionForFrame(view, frame) {
+  let found = null
+  view.state.doc.descendants((node, position) => {
+    if (node.type.name === 'editorTable' && view.nodeDOM(position) === frame) found = position
+  })
+  return found
+}
 function scheduleFormatBubble() {
   cancelAnimationFrame(formatBubbleFrame)
   formatBubbleFrame = requestAnimationFrame(() => { formatBubbleFrame = 0; showFormatBubble() })
@@ -468,13 +529,80 @@ function showFormatBubble() {
 function onEditorPointerDown(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) { formatBubble.value = null; return }
   if (!event.target.closest?.('.rich-image-editor__body')) return
+  const frame = event.target.closest?.('.rich-image-editor__table-frame')
+  if (frame && editor.value) {
+    const rect = frame.getBoundingClientRect()
+    const topLeft = Math.abs(event.clientX - rect.left) < 24 && Math.abs(event.clientY - rect.top) < 24
+    const bottomRight = Math.abs(event.clientX - rect.right) < 24 && Math.abs(event.clientY - rect.bottom) < 24
+    if (topLeft || bottomRight) {
+      const position = tablePositionForFrame(editor.value.view, frame)
+      if (position != null) {
+        tableCornerDrag = { pointerId: event.pointerId, position, fromTop: topLeft,
+          x: event.clientX, y: event.clientY, moved: false }
+        event.preventDefault()
+        formatBubble.value = null
+        return
+      }
+    }
+  }
   selectionPointerId = event.pointerId
+  selectionStartedOutsideTable = !frame
   formatBubble.value = null
 }
+function moveTableCornerDrag(event) {
+  const drag = tableCornerDrag
+  if (!drag || drag.pointerId !== event.pointerId || !editor.value) return
+  if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4) drag.moved = true
+  if (!drag.moved) return
+  const view = editor.value.view
+  const node = view.state.doc.nodeAt(drag.position)
+  if (node?.type.name !== 'editorTable') return
+  const frame = view.nodeDOM(drag.position)
+  const rect = frame?.getBoundingClientRect()
+  const inside = rect && event.clientX >= rect.left && event.clientX <= rect.right
+    && event.clientY >= rect.top && event.clientY <= rect.bottom
+  const anchor = drag.fromTop ? drag.position : drag.position + node.nodeSize
+  const opposite = drag.fromTop ? drag.position + node.nodeSize : drag.position
+  const mapped = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+  const head = inside || mapped == null || drag.position < mapped && mapped < drag.position + node.nodeSize
+    ? opposite : mapped
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head)))
+}
 function onSelectionPointerEnd(event) {
+  if (tableCornerDrag?.pointerId === event.pointerId) {
+    if (event.type === 'pointerup') moveTableCornerDrag(event)
+    const drag = tableCornerDrag
+    tableCornerDrag = null
+    if (event.type === 'pointerup' && !drag.moved && editor.value) {
+      editor.value.view.dispatch(editor.value.state.tr.setSelection(NodeSelection.create(editor.value.state.doc, drag.position)))
+    }
+    return
+  }
   if (selectionPointerId !== event.pointerId) return
   selectionPointerId = null
-  if (event.type === 'pointerup') scheduleFormatBubble()
+  if (event.type === 'pointerup') {
+    queueMicrotask(() => {
+      if (editor.value) includeWholeTableInSelection(editor.value.view, true)
+      scheduleFormatBubble()
+    })
+  }
+}
+function includeWholeTableInSelection(view, afterPointerUp = false) {
+  if (!selectionStartedOutsideTable || selectionPointerId === null && !afterPointerUp) return false
+  const { state } = view
+  const { selection } = state
+  if (selection.empty || !(selection instanceof TextSelection)) return false
+  const { anchor, head } = selection
+  let table = null
+  state.doc.descendants((node, position) => {
+    if (node.type.name === 'editorTable' && position < head && head < position + node.nodeSize) {
+      table = { position, end: position + node.nodeSize }
+    }
+  })
+  if (!table || table.position < anchor && anchor < table.end) return false
+  const target = anchor < table.position ? table.end : table.position
+  view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, anchor, target)))
+  return true
 }
 const boundedFormats = new Set(['b', 'i', 'd', 'h', 'code', 'dot'])
 function formatSelectedText(key) {
@@ -624,7 +752,85 @@ function splitOrMergeFormattedLine(view, event) {
   return false
 }
 function handleFormattedKeyDown(view, event) {
+  if (handleTableArrow(view, event)) return true
   return splitOrMergeFormattedLine(view, event) || moveAcrossFormatBoundary(view, event)
+}
+let pendingTableExit = null
+function handleTableArrow(view, event) {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+    || event.ctrlKey || event.metaKey || event.shiftKey || !view.state.selection.empty) return false
+  const { state } = view
+  const { $from } = state.selection
+  let cellDepth = -1
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === 'editorTableCell') { cellDepth = depth; break }
+  }
+  if (cellDepth < 0) return false
+  if (event.altKey) { event.preventDefault(); return true }
+  const rowDepth = cellDepth - 1
+  const tableDepth = rowDepth - 1
+  if (tableDepth < 1 || $from.node(tableDepth).type.name !== 'editorTable') return false
+  const table = $from.node(tableDepth)
+  let rowIndex = $from.index(tableDepth)
+  let columnIndex = $from.index(rowDepth)
+  const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+  if (horizontal) {
+    const atEdge = event.key === 'ArrowLeft' ? $from.parentOffset === 0
+      : $from.parentOffset === $from.parent.content.size
+    if (!atEdge) return false
+  }
+  if (!horizontal) {
+    const cellDOM = view.nodeDOM($from.before(cellDepth))
+    const range = document.createRange()
+    if (cellDOM) range.selectNodeContents(cellDOM)
+    const lineTops = cellDOM ? new Set([...range.getClientRects()].filter(rect => rect.width || rect.height)
+      .map(rect => Math.round(rect.top))) : new Set()
+    if (lineTops.size > 1) return false
+  }
+  event.preventDefault()
+  if (event.key === 'ArrowLeft') {
+    columnIndex--
+    if (columnIndex < 0) { rowIndex--; if (rowIndex >= 0) columnIndex = table.child(rowIndex).childCount - 1 }
+  }
+  if (event.key === 'ArrowRight') {
+    columnIndex++
+    if (columnIndex >= table.child(rowIndex).childCount) { rowIndex++; columnIndex = 0 }
+  }
+  if (event.key === 'ArrowUp') rowIndex--
+  if (event.key === 'ArrowDown') rowIndex++
+  if (rowIndex < 0 || rowIndex >= table.childCount) {
+    const now = performance.now()
+    const samePress = pendingTableExit?.key === event.key
+      && pendingTableExit.position === $from.pos && now - pendingTableExit.time < 500
+    pendingTableExit = event.repeat ? null : { key: event.key, position: $from.pos, time: now }
+    if (!samePress || event.repeat) return true
+    pendingTableExit = null
+    const direction = rowIndex < 0 ? -1 : 1
+    const boundary = rowIndex < 0 ? $from.before(tableDepth) : $from.after(tableDepth)
+    const $boundary = state.doc.resolve(boundary)
+    const outside = GapCursor.valid($boundary) ? new GapCursor($boundary)
+      : Selection.near($boundary, direction)
+    view.dispatch(state.tr.setSelection(outside))
+    return true
+  }
+  pendingTableExit = null
+  let target = $from.start(tableDepth)
+  for (let index = 0; index < rowIndex; index++) target += table.child(index).nodeSize
+  target++
+  for (let index = 0; index < columnIndex; index++) target += table.child(rowIndex).child(index).nodeSize
+  const cell = table.child(rowIndex).child(columnIndex)
+  const atEnd = event.key === 'ArrowLeft'
+  let cursor = target + 1 + (atEnd ? cell.content.size : 0)
+  if (!horizontal && cell.content.size) {
+    const sourceX = view.coordsAtPos($from.pos).left
+    const cellRect = view.nodeDOM(target)?.getBoundingClientRect()
+    const firstLine = view.coordsAtPos(target + 1)
+    const x = cellRect ? Math.max(cellRect.left + 2, Math.min(sourceX, cellRect.right - 2)) : sourceX
+    const nearby = view.posAtCoords({ left: x, top: (firstLine.top + firstLine.bottom) / 2 })?.pos
+    if (nearby != null) cursor = Math.max(target + 1, Math.min(nearby, target + 1 + cell.content.size))
+  }
+  view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, cursor)))
+  return true
 }
 function openInsertMenuAt(position, x, y) {
   const instance = editor.value
@@ -638,6 +844,24 @@ function openInsertMenuAt(position, x, y) {
 function onEditorContextMenu(view, event) {
   if (event.target.closest?.('.rich-image-editor__picture, .rich-image-editor__group')) return false
   formatBubble.value = null
+  const cell = event.target.closest?.('[data-editor-cell]')
+  if (cell) {
+    const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+    if (position != null) {
+      const $position = view.state.doc.resolve(position)
+      for (let depth = $position.depth; depth > 0; depth--) {
+        if ($position.node(depth).type.name !== 'editorTable') continue
+        const table = $position.node(depth)
+        const row = cell.parentElement
+        const columnIndex = [...row.children].indexOf(cell)
+        event.preventDefault()
+        insertMenu.value = { kind: 'table-column', position: $position.before(depth), columnIndex,
+          x: Math.max(8, Math.min(event.clientX, window.innerWidth - 220)),
+          y: Math.max(8, Math.min(event.clientY, window.innerHeight - 230)) }
+        return true
+      }
+    }
+  }
   const selected = selectedFormat(view.state)
   if (selected && !selected.blocked) {
     event.preventDefault()
@@ -646,12 +870,54 @@ function onEditorContextMenu(view, event) {
       y: Math.max(8, Math.min(event.clientY, window.innerHeight - 240)) }
     return true
   }
-  if (!props.imagesEnabled) return false
   const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
   if (position == null) return false
   event.preventDefault()
   openInsertMenuAt(position, event.clientX, event.clientY)
   return true
+}
+function selectTableFrame(view, event) {
+  if (event.button !== 0) return false
+  const frame = event.target.closest?.('.rich-image-editor__table-frame')
+  if (!frame || event.target.closest('[data-editor-cell]')) return false
+  const position = tablePositionForFrame(view, frame)
+  if (position == null) return false
+  event.preventDefault()
+  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)))
+  view.focus()
+  return true
+}
+function updateTableColumn(key, value) {
+  const menu = insertMenu.value
+  const instance = editor.value
+  if (!menu || menu.kind !== 'table-column' || !instance) return
+  const node = instance.state.doc.nodeAt(menu.position)
+  if (node?.type.name !== 'editorTable') return
+  const columns = node.attrs.columns.map((column, index) => index === menu.columnIndex
+    ? { ...column, [key]: value, marker: null } : column)
+  instance.view.dispatch(instance.state.tr.setNodeMarkup(menu.position, undefined, { ...node.attrs, columns }))
+}
+function openTableDraft() {
+  tableDraft.value = { rows: 3, columns: 2, hasHeader: false, position: pendingInsertPosition }
+  closeInsertMenu()
+}
+function createTable() {
+  const draft = tableDraft.value
+  if (!draft || !editor.value) return
+  const rowCount = Math.max(1, Math.min(30, Number(draft.rows) || 1))
+  const columnCount = Math.max(1, Math.min(12, Number(draft.columns) || 1))
+  const columns = Array.from({ length: columnCount }, () => ({ align: 'left', width: 'nowrap' }))
+  const content = Array.from({ length: rowCount }, () => ({ type: 'editorTableRow',
+    content: Array.from({ length: columnCount }, () => ({ type: 'editorTableCell' })) }))
+  const position = draft.position
+  tableDraft.value = null
+  const instance = editor.value
+  const $position = instance.state.doc.resolve(Math.min(position ?? instance.state.selection.from, instance.state.doc.content.size))
+  const emptyParagraph = $position.depth && $position.node(1).type.name === 'paragraph'
+    && !$position.node(1).content.size && !$position.node(1).attrs.listType
+  const insertAt = $position.depth ? $position.after(1) : $position.pos
+  const range = emptyParagraph ? { from: $position.before(1), to: insertAt } : insertAt
+  instance.commands.insertContentAt(range, { type: 'editorTable', attrs: { columns, hasHeader: draft.hasHeader }, content })
 }
 function updateMobileInsertButton(view) {
   if (!props.imagesEnabled || !isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
@@ -913,6 +1179,25 @@ const EditorParagraph = Paragraph.extend({
       renderHTML: attrs => attrs.listType ? { 'data-list-type': attrs.listType } : {}
     } }
   }
+})
+
+const EditorTable = Node.create({
+  name: 'editorTable', group: 'block', content: 'editorTableRow*', isolating: true, selectable: true,
+  addAttributes() { return { columns: { default: [] }, hasHeader: { default: false } } },
+  parseHTML() { return [{ tag: 'div[data-editor-table]' }] },
+  renderHTML({ node }) { return ['div', { 'data-editor-table': '', class: `rich-image-editor__table-frame${node.attrs.columns.length && node.attrs.columns.every(column => column.width === 'nowrap') ? ' rich-image-editor__table-frame--compact' : ''}` },
+    ['table', { 'data-has-header': String(node.attrs.hasHeader),
+      class: `rich-image-editor__table${node.attrs.columns.length && node.attrs.columns.every(column => column.width === 'nowrap') ? ' rich-image-editor__table--compact' : ''}` }, ['tbody', 0]]] }
+})
+const EditorTableRow = Node.create({
+  name: 'editorTableRow', content: 'editorTableCell+', isolating: true,
+  parseHTML() { return [{ tag: 'tr[data-editor-row]' }] },
+  renderHTML() { return ['tr', { 'data-editor-row': '' }, 0] }
+})
+const EditorTableCell = Node.create({
+  name: 'editorTableCell', content: 'inline*', isolating: true,
+  parseHTML() { return [{ tag: 'td[data-editor-cell]' }] },
+  renderHTML() { return ['td', { 'data-editor-cell': '' }, 0] }
 })
 
 const ListMarker = Node.create({
@@ -1303,6 +1588,7 @@ onMounted(() => {
   window.addEventListener('scroll', refreshMobileInsertButton, true)
   document.addEventListener('pointerdown', onOutsideInsertMenu)
   window.addEventListener('pointerup', onSelectionPointerEnd)
+  window.addEventListener('pointermove', moveTableCornerDrag)
   window.addEventListener('pointercancel', onSelectionPointerEnd)
   editor.value = new Editor({
     content: toDocument(props.modelValue),
@@ -1312,7 +1598,7 @@ onMounted(() => {
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false, paragraph: false
-    }), EditorParagraph, ListMarker, RichFormat, RichComment, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
+    }), EditorParagraph, EditorTable, EditorTableRow, EditorTableCell, ListMarker, RichFormat, RichComment, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -1327,6 +1613,18 @@ onMounted(() => {
           }
         })
         state.doc.descendants((node, position) => {
+          if (node.type.name === 'editorTable') {
+            if (state.selection.from <= position && state.selection.to >= position + node.nodeSize) {
+              selected.push(Decoration.node(position, position + node.nodeSize, { class: 'rich-image-editor__table-frame--selected' }))
+            }
+            node.forEach((row, rowOffset) => row.forEach((cell, cellOffset, columnIndex) => {
+              const setting = node.attrs.columns[columnIndex] || {}
+              const width = setting.width || 'normal'
+              selected.push(Decoration.node(position + 1 + rowOffset + 1 + cellOffset,
+                position + 1 + rowOffset + 1 + cellOffset + cell.nodeSize,
+                { class: `rich-image-editor__cell--${width}`, style: `text-align:${setting.align || 'left'}` }))
+            }))
+          }
           if (!node.isTextblock || !node.lastChild || node.lastChild.type.name !== 'formatBoundary'
             || node.lastChild.attrs.side !== 'end') return
           selected.push(Decoration.widget(position + node.nodeSize - 1, () => {
@@ -1381,7 +1679,7 @@ onMounted(() => {
         return plainTextSlice(text, view.state.schema)
       },
       handleDOMEvents: {
-        mousedown: selectFormatBoundary,
+        mousedown: (view, event) => selectTableFrame(view, event) || selectFormatBoundary(view, event),
         contextmenu: onEditorContextMenu,
         focus: () => { queueMicrotask(refreshMobileInsertButton); return false },
         blur: () => { mobileInsertButton.value = null; return false },
@@ -1429,6 +1727,7 @@ onMounted(() => {
     },
     onUpdate: updateModel,
     onSelectionUpdate: ({ editor: instance }) => {
+      if (includeWholeTableInSelection(instance.view)) return
       updateMobileInsertButton(instance.view)
       const selection = instance.state.selection
       if (selectionPointerId !== null) formatBubble.value = null
@@ -1442,7 +1741,7 @@ onMounted(() => {
   })
   if (isMobile) nextTick(() => updateMobileInsertButton(editor.value.view))
 })
-onUnmounted(() => { finishBoxDrag(); cancelAnimationFrame(formatBubbleFrame); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); window.removeEventListener('pointerup', onSelectionPointerEnd); window.removeEventListener('pointercancel', onSelectionPointerEnd); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
+onUnmounted(() => { finishBoxDrag(); cancelAnimationFrame(formatBubbleFrame); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); window.removeEventListener('pointermove', moveTableCornerDrag); window.removeEventListener('pointerup', onSelectionPointerEnd); window.removeEventListener('pointercancel', onSelectionPointerEnd); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
 watch(() => props.modelValue, value => {
   if (emittedValues.has(value) || !editor.value || value === fromDocument()) return
   emittedValues.clear()
@@ -1477,10 +1776,25 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
         <template v-else-if="insertMenu.kind === 'format'">
           <button v-for="format in textFormats.filter(item => item.key !== 'h1' || insertMenu.selection.wholeLine)" :key="format.key" type="button" role="menuitem" :disabled="!!insertMenu.selection.key && insertMenu.selection.key !== format.key" @mousedown.prevent @click="formatSelectedText(format.key)">{{ insertMenu.selection.key === format.key ? `取消${format.label}` : format.label }}</button>
         </template>
-        <template v-else>
-          <button type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
-          <button type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
+        <template v-else-if="insertMenu.kind === 'table-column'">
+          <div class="rich-image-editor__menu-heading">第 {{ insertMenu.columnIndex + 1 }} 列</div>
+          <label class="rich-image-editor__menu-field">宽度行为<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.width" @change="updateTableColumn('width', $event.target.value)"><option value="nowrap">按内容宽度</option><option value="normal">一般宽度</option><option value="long">长内容</option></select></label>
+          <label class="rich-image-editor__menu-field">对齐<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.align" @change="updateTableColumn('align', $event.target.value)"><option value="left">靠左</option><option value="center">居中</option><option value="right">靠右</option></select></label>
         </template>
+        <template v-else>
+          <button type="button" role="menuitem" @click="openTableDraft">创建表格</button>
+          <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
+          <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
+        </template>
+      </div>
+      <div v-if="tableDraft" class="rich-image-editor__table-backdrop" @click.self="tableDraft = null">
+        <form class="rich-image-editor__table-dialog" @submit.prevent="createTable">
+          <strong>创建竖向表格</strong>
+          <label>行数<input v-model.number="tableDraft.rows" type="number" min="1" max="30" required /></label>
+          <label>列数<input v-model.number="tableDraft.columns" type="number" min="1" max="12" required /></label>
+          <label><input v-model="tableDraft.hasHeader" type="checkbox" /> 首行作为表头</label>
+          <div><button type="button" @click="tableDraft = null">取消</button><button type="submit">创建</button></div>
+        </form>
       </div>
       <div v-if="activePicture" ref="viewer" class="diary-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" tabindex="-1" @keydown="onViewerKeydown" @click="onViewerBackdropClick" @wheel.prevent="setZoom(zoom + ($event.deltaY < 0 ? .1 : -.1))">
         <div class="diary-image-viewer__image-wrap"><button type="button" class="diary-image-viewer__close" aria-label="关闭预览" @click="closePreview"><img :src="closeIcon" alt="" draggable="false" /></button><a v-if="activeImage?.url" class="diary-image-viewer__download" :href="activeImage.url" :download="`diary-image-${previewId}`" aria-label="下载原图" title="下载原图"><img :src="downloadIcon" alt="" draggable="false" /></a><div class="diary-image-viewer__zoom"><button type="button" aria-label="缩小预览" @click="setZoom(zoom - .1)"><img :src="zoomOutIcon" alt="" /></button><button type="button" aria-label="放大预览" @click="setZoom(zoom + .1)"><img :src="zoomInIcon" alt="" /></button></div><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__previous" aria-label="上一张图片" @click="movePreview(-1)"><img :src="leftIcon" alt="" /></button><canvas ref="previewCanvas" :style="{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${zoom})` }" @pointerdown="startPreviewDrag" @pointermove="movePreviewDrag" @pointerup="endPreviewDrag" @pointercancel="endPreviewDrag" /><button v-if="previewGroupIds.length > 1" type="button" class="diary-image-viewer__next" aria-label="下一张图片" @click="movePreview(1)"><img :src="rightIcon" alt="" /></button></div>
@@ -1516,11 +1830,32 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__menu-size button { flex: none; width: 26px; padding: 0; text-align: center; }
 .rich-image-editor__menu-size input { width: 132px; accent-color: #417a51; }
 .rich-image-editor__menu-divider { height: 1px; margin: 4px -4px; background: #e4e9e4; }
+.rich-image-editor__menu-field { display: grid; gap: 4px; padding: 6px 10px; }
+.rich-image-editor__menu-field select { min-height: 29px; border: 1px solid #cad8cc; background: #fff; color: inherit; }
+.rich-image-editor__table-backdrop { position: fixed; z-index: 3200; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .24); }
+.rich-image-editor__table-dialog { display: grid; gap: 14px; min-width: 250px; padding: 20px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; }
+.rich-image-editor__table-dialog label { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.rich-image-editor__table-dialog input[type="number"] { width: 70px; padding: 5px; }
+.rich-image-editor__table-dialog > div { display: flex; justify-content: flex-end; gap: 8px; }
 .rich-image-editor__mobile-insert { position: fixed; z-index: 2999; width: 36px; height: 36px; padding: 0; border: 1px solid #9db5a2; border-radius: 50%; background: #fff; color: #254d34; font-size: 24px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .rich-image-editor button, .diary-image-viewer button { padding: 5px 10px; border: 1px solid #cad8cc; border-radius: 6px; background: #fff; color: var(--color-text); cursor: pointer; }
 .rich-image-editor :deep(.rich-image-editor__body) { box-sizing: border-box; min-height: 360px; padding: 14px; border: 1px solid #cad8cc; border-radius: 8px; background: #fff; color: #252a31; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; outline: none; counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rich-image-editor :deep(.rich-image-editor__body .ProseMirror-gapcursor::after) { top: -1px; width: 0; height: 1.5em; border-top: 0; border-left: 2px solid #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__table-frame) { box-sizing: border-box; width: 100%; max-width: 100%; margin: 12px 0; border: 1px solid #b9cdbb; border-radius: 8px; overflow-x: auto; }
+.rich-image-editor :deep(.rich-image-editor__table-frame--compact) { width: fit-content; }
+.rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode), .rich-image-editor :deep(.rich-image-editor__table-frame--selected) { outline: 2px solid #316ac5; outline-offset: 2px; }
+.rich-image-editor :deep(.rich-image-editor__table-frame--selected *::selection), .rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode *::selection) { color: inherit; background: transparent; }
+.rich-image-editor :deep(.rich-image-editor__table) { width: 100%; border-collapse: collapse; table-layout: auto; }
+.rich-image-editor :deep(.rich-image-editor__table--compact) { width: max-content; max-width: 100%; }
+.rich-image-editor :deep(.rich-image-editor__table td) { padding: 8px 10px; border: 0; border-right: 1px solid #cbd9cd; border-bottom: 1px solid #cbd9cd; vertical-align: top; outline-offset: -2px; }
+.rich-image-editor :deep(.rich-image-editor__table tr > td:last-child) { border-right: 0; }
+.rich-image-editor :deep(.rich-image-editor__table tr:last-child td) { border-bottom: 0; }
+.rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--nowrap) { width: 1%; min-width: 0; white-space: nowrap; }
+.rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--normal) { min-width: 7em; }
+.rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--long) { min-width: 16em; }
+.rich-image-editor :deep(.rich-image-editor__table[data-has-header="true"] tr:first-child td) { font-weight: 600; background: #f5f8f5; }
 .rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }

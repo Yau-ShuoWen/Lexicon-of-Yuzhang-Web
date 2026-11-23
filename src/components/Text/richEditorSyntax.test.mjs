@@ -2,13 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Schema } from '@tiptap/pm/model'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
-import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText } from './richEditorSyntax.js'
+import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
+import { parseInline } from '../../utils/richText/inline.js'
 
 const schema = new Schema({
   nodes: { doc: { content: 'paragraph+' }, paragraph: { content: 'inline*', attrs: { listType: { default: null } } }, text: { group: 'inline' },
     formatBoundary: { group: 'inline', inline: true, atom: true, attrs: { side: {}, tag: {} } },
     listMarker: { group: 'inline', inline: true, atom: true, attrs: { listType: {} } } },
-  marks: { richFormat: { attrs: { tag: {} }, inclusive: true } }
+  marks: { richFormat: { attrs: { tag: {} }, inclusive: true }, richComment: {} }
 })
 const documentOf = text => schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: parseRichEditorText(text) }] })
 const sourceOf = doc => doc.firstChild.content.content.map(node => serializeRichEditorText(node.toJSON())).join('')
@@ -137,4 +138,25 @@ test('复制部分或完整格式文字时得到对应的富文本原文', () =>
   assert.equal(serializeSelectedRichText([list], other), '+ {dot 着重}')
   assert.equal(serializeSelectedRichText([{ ...list, content: text }], other), '{dot 着重}')
   assert.equal(serializeSelectedRichText([marker], other), '+ ')
+})
+
+test('注释在编辑和预览中显示灰色并保留边界原文', () => {
+  const source = '前/* 注释 */后'
+  const doc = documentOf(source)
+  assert.equal(sourceOf(doc), source)
+  assert.equal(doc.firstChild.child(1).marks[0].type.name, 'richComment')
+  assert.match(parseInline(source), /<span class="rt-comment">\/\* 注释 \*\/<\/span>/)
+  assert.match(parseInline('/* {b 注释} [拼音] */'),
+    /<span class="rt-comment">\/\* <b>注释<\/b>/)
+  const formatted = documentOf('前/* 注释连同{b 加粗}边界 */后')
+  let boldAt = null
+  formatted.descendants((node, at) => {
+    if (node.isText && node.text === '加粗') boldAt = at
+  })
+  const state = EditorState.create({ schema, doc: formatted })
+  const withoutComment = state.apply(state.tr.removeMark(boldAt, boldAt + 2, schema.marks.richComment))
+  const repaired = synchronizeCommentMarks(withoutComment)
+  assert.ok(repaired)
+  assert.ok(schema.marks.richComment.isInSet(repaired.doc.nodeAt(boldAt).marks))
+  assert.equal(sourceOf(repaired.doc), '前/* 注释连同{b 加粗}边界 */后')
 })

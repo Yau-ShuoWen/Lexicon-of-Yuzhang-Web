@@ -25,6 +25,8 @@
     text-emphasis-position: under;
 }
 
+.rt-comment, .rt-comment * { color: #777 !important; }
+
 /*富文本空行*/
 .rt-empty-line {
     display: block;

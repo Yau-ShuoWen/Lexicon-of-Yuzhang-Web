@@ -1,4 +1,4 @@
-const formatPattern = /\{(b|i|d|h1|h|code|dot) ([^{}\r\n]+)}/g
+const formatPattern = /\/\*[^\r\n]*?\*\/|\{(b|i|d|h1|h|code|dot) ([^{}\r\n]+)}/g
 const boundedFormats = new Set(['b', 'i', 'd', 'h', 'code', 'dot'])
 
 export function parseListLine(line) {
@@ -17,6 +17,15 @@ export function parseRichEditorText(value) {
   let offset = 0
   for (const match of value.matchAll(formatPattern)) {
     if (match.index > offset) content.push({ type: 'text', text: value.slice(offset, match.index) })
+    if (match[0].startsWith('/*')) {
+      const inner = parseRichEditorText(match[0].slice(2, -2))
+      content.push({ type: 'text', text: '/*', marks: [{ type: 'richComment' }] })
+      content.push(...inner.map(node => node.type === 'text'
+        ? { ...node, marks: [...(node.marks || []), { type: 'richComment' }] } : node))
+      content.push({ type: 'text', text: '*/', marks: [{ type: 'richComment' }] })
+      offset = match.index + match[0].length
+      continue
+    }
     if (boundedFormats.has(match[1])) content.push({ type: 'formatBoundary', attrs: { side: 'start', tag: match[1] } })
     content.push({ type: 'text', text: match[2], marks: [{ type: 'richFormat', attrs: { tag: match[1] } }] })
     if (boundedFormats.has(match[1])) content.push({ type: 'formatBoundary', attrs: { side: 'end', tag: match[1] } })
@@ -24,6 +33,40 @@ export function parseRichEditorText(value) {
   }
   if (offset < value.length) content.push({ type: 'text', text: value.slice(offset) })
   return content
+}
+
+export function synchronizeCommentMarks(state) {
+  const mark = state.schema.marks.richComment.create()
+  const tr = state.tr
+  state.doc.descendants((paragraph, position) => {
+    if (!paragraph.isTextblock) return
+    const parts = []
+    let text = ''
+    paragraph.forEach((node, offset) => {
+      if (!node.isText) return
+      parts.push({ node, position: position + 1 + offset, offset: text.length })
+      text += node.text
+    })
+    const ranges = [...text.matchAll(/\/\*[^\r\n]*?\*\//g)]
+      .map(match => [match.index, match.index + match[0].length])
+    for (const part of parts) {
+      const cuts = new Set([0, part.node.text.length])
+      for (const [start, end] of ranges) {
+        cuts.add(Math.max(0, Math.min(part.node.text.length, start - part.offset)))
+        cuts.add(Math.max(0, Math.min(part.node.text.length, end - part.offset)))
+      }
+      const points = [...cuts].sort((a, b) => a - b)
+      for (let index = 0; index < points.length - 1; index++) {
+        const from = points[index]
+        const to = points[index + 1]
+        const inside = ranges.some(([start, end]) => part.offset + from >= start && part.offset + to <= end)
+        const marked = !!mark.isInSet(part.node.marks)
+        if (inside && !marked) tr.addMark(part.position + from, part.position + to, mark)
+        if (!inside && marked) tr.removeMark(part.position + from, part.position + to, mark)
+      }
+    }
+  })
+  return tr.steps.length ? tr : null
 }
 
 export function serializeRichEditorText(node) {

@@ -20,7 +20,7 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
-import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText } from './richEditorSyntax.js'
+import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -883,6 +883,28 @@ const RichFormat = Mark.create({
   }
 })
 
+const RichComment = Mark.create({
+  name: 'richComment',
+  inclusive: false,
+  parseHTML() { return [{ tag: 'span[data-rich-comment]' }] },
+  renderHTML() { return ['span', { 'data-rich-comment': '', class: 'rich-image-editor__comment' }, 0] },
+  addInputRules() {
+    return [new InputRule({
+      find: /\/\*[^\r\n]*?\*\/$/,
+      handler: ({ range, match, commands }) => {
+        commands.insertContentAt(range, { type: 'text', text: match[0], marks: [{ type: 'richComment' }] })
+      }
+    })]
+  },
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      appendTransaction(transactions, _oldState, newState) {
+        return transactions.some(tr => tr.docChanged) ? synchronizeCommentMarks(newState) : null
+      }
+    })]
+  }
+})
+
 const EditorParagraph = Paragraph.extend({
   addAttributes() {
     return { ...this.parent?.(), listType: {
@@ -1290,7 +1312,7 @@ onMounted(() => {
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false, paragraph: false
-    }), EditorParagraph, ListMarker, RichFormat, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
+    }), EditorParagraph, ListMarker, RichFormat, RichComment, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -1515,6 +1537,8 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__format--large) { font-size: 1.4em; font-weight: 700; }
 .rich-image-editor :deep(.rich-image-editor__format--code) { padding: 1px 0; border-top: 1.5px solid #e2e5ea; border-bottom: 1.5px solid #e2e5ea; background: #f1f3f5; color: #24292f; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; line-height: 1.5; }
 .rich-image-editor :deep(.rich-image-editor__format--dot) { text-emphasis: filled dot; -webkit-text-emphasis: filled dot; text-emphasis-position: under; -webkit-text-emphasis-position: under; }
+.rich-image-editor :deep(.rich-image-editor__comment),
+.rich-image-editor :deep(.rich-image-editor__comment *) { color: #777 !important; }
 .rich-image-editor :deep(.rich-image-editor__format-boundary) { padding: 0 1px; color: transparent; }
 .rich-image-editor :deep(.rich-image-editor__format-boundary--code) { padding: 1px 3px; border-top: 1.5px solid #e2e5ea; border-bottom: 1.5px solid #e2e5ea; background: #f1f3f5; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; line-height: 1.5; }
 .rich-image-editor :deep(.rich-image-editor__format-boundary--code.rich-image-editor__format-boundary--start) { border-left: 1.5px solid #e2e5ea; border-radius: 4px 0 0 4px; }

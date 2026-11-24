@@ -132,6 +132,6 @@ export function consumeTable(lines, start, renderInline) {
 
     return {
         nextIndex: index,
-        html: `<div class="rt-table-wrap ${tableMode}-wrap">${table}</div>`
+        html: `<div class="rt-table-shadow-frame ${tableMode}-frame"><div class="rt-table-wrap ${tableMode}-wrap">${table}</div></div>`
     }
 }

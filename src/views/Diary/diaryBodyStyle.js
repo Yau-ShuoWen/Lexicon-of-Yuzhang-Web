@@ -1,4 +1,12 @@
 import { formatRichText } from '../../utils/textFormatter.js'
+import { attachTableScrollShadow } from '../../utils/richText/tableScrollShadow.js'
+
+const tableShadowCleanups = new WeakMap()
+
+export function clearDiaryTableShadows(element) {
+  tableShadowCleanups.get(element)?.forEach(cleanup => cleanup())
+  tableShadowCleanups.delete(element)
+}
 
 // 特调内容全部来自日记正文；此文件只负责提取、限定 CSS 范围和执行 JS。
 const BLOCK = /^:::(style|script)\s*\n([\s\S]*?)\n:::\s*(?:\n|$)/gm
@@ -13,7 +21,10 @@ export function renderDiaryBody(element, source) {
     blocks.push({type, content})
     return ''
   })
+  clearDiaryTableShadows(element)
   element.innerHTML = formatRichText(body, images, { viewMode, diaryPictures: true }) || ''
+  tableShadowCleanups.set(element, [...element.querySelectorAll('.rt-table-shadow-frame')].map(frame =>
+    attachTableScrollShadow(frame, frame.querySelector('.rt-table-wrap'))))
   for (const img of element.querySelectorAll('.rt-picture img[data-image-id]')) {
     img.addEventListener('error', async () => {
       try {
@@ -59,5 +70,8 @@ export default {
   mounted(element, binding) { renderDiaryBody(element, binding.value) },
   updated(element, binding) {
     if (binding.value !== binding.oldValue) renderDiaryBody(element, binding.value)
+  },
+  unmounted(element) {
+    clearDiaryTableShadows(element)
   }
 }

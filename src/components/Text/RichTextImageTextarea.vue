@@ -21,7 +21,7 @@ import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import plusIcon from '../../assets/icons/plus-white.svg'
-import { renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
+import { clearDiaryTableShadows, renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
 import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
 
 const props = defineProps({
@@ -1860,7 +1860,7 @@ onMounted(() => {
   })
   if (isMobile) nextTick(() => updateMobileInsertButton(editor.value.view))
 })
-onUnmounted(() => { finishBoxDrag(); cancelAnimationFrame(formatBubbleFrame); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); window.removeEventListener('pointermove', moveTableCornerDrag); window.removeEventListener('pointerup', onSelectionPointerEnd); window.removeEventListener('pointercancel', onSelectionPointerEnd); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); editor.value?.destroy() })
+onUnmounted(() => { finishBoxDrag(); cancelAnimationFrame(formatBubbleFrame); window.removeEventListener('keydown', onPreviewShortcut); window.removeEventListener('keydown', onInsertMenuKeydown); window.removeEventListener('scroll', refreshMobileInsertButton, true); window.removeEventListener('pointermove', moveTableCornerDrag); window.removeEventListener('pointerup', onSelectionPointerEnd); window.removeEventListener('pointercancel', onSelectionPointerEnd); document.removeEventListener('pointerdown', onOutsideInsertMenu); for (const timer of retryTimers.values()) clearTimeout(timer); if (fullPreviewBody.value) clearDiaryTableShadows(fullPreviewBody.value); editor.value?.destroy() })
 watch(() => props.modelValue, value => {
   if (emittedValues.has(value) || !editor.value || value === fromDocument()) return
   emittedValues.clear()

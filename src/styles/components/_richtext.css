@@ -634,15 +634,51 @@
 
 /* ========================富文本表格====================== */
 
+.rt-table-shadow-frame {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0;
+    overflow: hidden;
+    border: 1px solid #b9cdbb;
+    border-radius: 8px;
+}
+
+.rt-table-compact-frame {
+    width: fit-content;
+}
+
+.rt-table-shadow-frame::before,
+.rt-table-shadow-frame::after {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    pointer-events: none;
+    content: '';
+}
+
+.rt-table-shadow-frame::before {
+    border-top-left-radius: 6px;
+    opacity: var(--table-shadow-left, 0);
+    box-shadow: inset 6px 0 7px -5px rgb(0 0 0 / 12%);
+}
+
+.rt-table-shadow-frame::after {
+    border-top-right-radius: 6px;
+    opacity: var(--table-shadow-right, 0);
+    box-shadow: inset -6px 0 7px -5px rgb(0 0 0 / 12%);
+}
+
 .rt-table-wrap {
+    box-sizing: border-box;
     width: 100%;
     overflow-x: auto;
     max-width: 100%;
-    margin: 0.85em 0;
+    margin: 0;
 
     background: #fff;
-    border: 1px solid #b9cdbb;
-    border-radius: 8px;
 
     scrollbar-width: thin;
     scrollbar-color: #c5d5c7 transparent;
@@ -681,28 +717,35 @@
     border-spacing: 0;
 
     color: var(--color-text, #333333);
-    font-size: 0.96em;
+    font-size: inherit;
     line-height: 1.5;
     font-variant-numeric: tabular-nums;
 }
 
 .rt-table th,
 .rt-table td {
-    padding: 13px 12px;
+    padding: 8px 10px;
     border: 0;
-    border-right: 1px solid #d7e2d8;
-    border-bottom: 1px solid #d7e2d8;
+    border-right: 1px solid #cbd9cd;
+    border-bottom: 1px solid #cbd9cd;
 
     overflow-wrap: break-word;
     word-break: normal;
-    vertical-align: middle;
+    vertical-align: top;
+}
+
+.rt-table th:empty::before,
+.rt-table td:empty::before {
+    display: block;
+    min-height: 1.5em;
+    content: '';
 }
 
 .rt-table tr > :last-child {
     border-right: 0;
 }
 
-.rt-table tbody tr:last-child > td {
+.rt-table tbody tr:last-child > * {
     border-bottom: 0;
 }
 
@@ -713,11 +756,12 @@
 
     color: var(--color-text, #333333);
     font-weight: 600;
-    background: #fff;
+    background: #f5f8f5;
 }
 
 .rt-table-left-header tbody th {
     position: sticky;
+    top: auto;
     left: 0;
     z-index: 1;
 }
@@ -771,18 +815,17 @@
 
 @media (max-width: 768px) {
 
-    .rt-table-wrap {
+    .rt-table-shadow-frame {
         margin: 0.7em 0;
-        border-radius: 8px;
     }
 
-    .rt-table {
-        font-size: 0.93em;
+    .rt-table-wrap {
+        border-radius: 8px;
     }
 
     .rt-table th,
     .rt-table td {
-        padding: 11px 10px;
+        padding: 8px 10px;
     }
 
     .rt-col-normal {

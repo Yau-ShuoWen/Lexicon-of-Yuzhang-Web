@@ -38,7 +38,7 @@ const picturePattern = /^\{p (?:(.*?)=>)?([1-9][0-9]*|[0-9a-f-]{36})(?:~([0-9]{2
 const embeddedPicturePattern = /\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const tableRowPattern = /^\s*\|(.+)\|\s*$/
-const tableDividerPattern = /^:?-{2,}[!*+]?:?$/
+const tableDividerPattern = /^:?-{2,}[!*+$]?:?$|^:?-{2,}:?[!*+$]?$/
 function tableCells(line) { return line.trim().slice(1, -1).split('|').map(cell => cell.trim()) }
 function tableCellParagraphs(source) {
   return source.split('\\\\').map(line => {
@@ -58,10 +58,11 @@ function tableFromLines(lines, start) {
     && tableCells(second).every(cell => tableDividerPattern.test(cell))
   if (!firstIsDivider && !hasHeader) return null
   const divider = firstIsDivider ? firstCells : tableCells(second)
+  const leftHeader = firstIsDivider && divider[0].includes('$')
   const columns = divider.map(cell => ({
     align: cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : 'left',
     width: cell.includes('*') ? 'long' : cell.includes('+') ? 'normal' : 'nowrap',
-    marker: cell
+    marker: cell.replace('$', '')
   }))
   const rows = []
   if (hasHeader) rows.push(firstCells)
@@ -69,7 +70,7 @@ function tableFromLines(lines, start) {
   while (end < lines.length && tableRowPattern.test(lines[end])) rows.push(tableCells(lines[end++]))
   const columnCount = Math.max(columns.length, ...rows.map(row => row.length))
   while (columns.length < columnCount) columns.push({ align: 'left', width: 'nowrap' })
-  return { end, node: { type: 'editorTable', attrs: { columns, hasHeader }, content: rows.map(row => ({
+  return { end, node: { type: 'editorTable', attrs: { columns, hasHeader, leftHeader }, content: rows.map(row => ({
     type: 'editorTableRow', content: columns.map((_, index) => ({
       type: 'editorTableCell', content: tableCellParagraphs(row[index] || '')
     }))
@@ -294,7 +295,7 @@ function toDocument(value) {
 function textOf(node) {
   if (node.type === 'editorTable') {
     const rows = (node.content || []).map(row => `|${(row.content || []).map(cell => (cell.content || []).map(textOf).join('\\\\')).join('|')}|`)
-    const divider = `|${(node.attrs?.columns || []).map(tableDivider).join('|')}|`
+    const divider = `|${(node.attrs?.columns || []).map((column, index) => `${tableDivider(column)}${node.attrs?.leftHeader && index === 0 ? '$' : ''}`).join('|')}|`
     rows.splice(node.attrs?.hasHeader ? 1 : 0, 0, divider)
     return rows.join('\n')
   }
@@ -914,7 +915,7 @@ function updateTableColumn(key, value) {
 function openTableDraft() {
   const menu = insertMenu.value
   if (!menu) return
-  insertMenu.value = { kind: 'table-create', rows: 3, columns: 2, hasHeader: false,
+  insertMenu.value = { kind: 'table-create', rows: 3, columns: 2, hasHeader: false, leftHeader: false,
     position: pendingInsertPosition,
     x: Math.max(8, Math.min(menu.x, window.innerWidth - 250)),
     y: Math.max(8, Math.min(menu.y, window.innerHeight - 260)) }
@@ -942,7 +943,7 @@ function createTable() {
     && !$position.node(1).content.size && !$position.node(1).attrs.listType
   const insertAt = $position.depth ? $position.after(1) : $position.pos
   const range = emptyParagraph ? { from: $position.before(1), to: insertAt } : insertAt
-  instance.commands.insertContentAt(range, { type: 'editorTable', attrs: { columns, hasHeader: draft.hasHeader }, content })
+  instance.commands.insertContentAt(range, { type: 'editorTable', attrs: { columns, hasHeader: draft.hasHeader, leftHeader: draft.leftHeader }, content })
 }
 function updateMobileInsertButton(view) {
   if (!props.imagesEnabled || !isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
@@ -1234,7 +1235,7 @@ function appendTableColumn(position) {
 
 const EditorTable = Node.create({
   name: 'editorTable', group: 'block', content: 'editorTableRow*', isolating: true, selectable: true,
-  addAttributes() { return { columns: { default: [] }, hasHeader: { default: false } } },
+  addAttributes() { return { columns: { default: [] }, hasHeader: { default: false }, leftHeader: { default: false } } },
   parseHTML() { return [{ tag: 'div[data-editor-table]' }] },
   renderHTML({ node }) { return ['div', { 'data-editor-table': '', class: `rich-image-editor__table-frame${tableIsCompact(node) ? ' rich-image-editor__table-frame--compact' : ''}` },
     ['div', { class: 'rich-image-editor__table-scroll' }, ['table', { 'data-has-header': String(node.attrs.hasHeader),
@@ -1283,6 +1284,7 @@ const EditorTable = Node.create({
         frame.className = `rich-image-editor__table-frame${compact ? ' rich-image-editor__table-frame--compact' : ''}`
         table.className = `rich-image-editor__table${compact ? ' rich-image-editor__table--compact' : ''}`
         table.dataset.hasHeader = String(current.attrs.hasHeader)
+        table.dataset.leftHeader = String(current.attrs.leftHeader)
         addColumn.disabled = current.attrs.columns.length >= 12
         addRow.disabled = current.childCount >= 30
         requestAnimationFrame(() => { if (frame.isConnected) placeButtons() })
@@ -1902,7 +1904,8 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
           <div class="rich-image-editor__menu-heading">创建竖向表格</div>
           <div class="rich-image-editor__menu-field rich-image-editor__table-count"><label for="rich-editor-table-rows">行数</label><div class="rich-image-editor__table-count-control"><button type="button" aria-label="减少一行" :disabled="insertMenu.rows <= 1" @click="adjustTableDraft('rows', -1)"><img :src="leftIcon" alt="" /></button><input id="rich-editor-table-rows" v-model.number="insertMenu.rows" type="number" min="1" max="30" required /><button type="button" aria-label="增加一行" :disabled="insertMenu.rows >= 30" @click="adjustTableDraft('rows', 1)"><img :src="rightIcon" alt="" /></button></div></div>
           <div class="rich-image-editor__menu-field rich-image-editor__table-count"><label for="rich-editor-table-columns">列数</label><div class="rich-image-editor__table-count-control"><button type="button" aria-label="减少一列" :disabled="insertMenu.columns <= 1" @click="adjustTableDraft('columns', -1)"><img :src="leftIcon" alt="" /></button><input id="rich-editor-table-columns" v-model.number="insertMenu.columns" type="number" min="1" max="12" required /><button type="button" aria-label="增加一列" :disabled="insertMenu.columns >= 12" @click="adjustTableDraft('columns', 1)"><img :src="rightIcon" alt="" /></button></div></div>
-          <label class="rich-image-editor__menu-field rich-image-editor__menu-field--checkbox"><input v-model="insertMenu.hasHeader" type="checkbox" /> 首行作为表头</label>
+          <label class="rich-image-editor__menu-field rich-image-editor__menu-field--checkbox"><input v-model="insertMenu.hasHeader" type="checkbox" @change="insertMenu.leftHeader = false" /> 首行作为表头</label>
+          <label class="rich-image-editor__menu-field rich-image-editor__menu-field--checkbox"><input v-model="insertMenu.leftHeader" type="checkbox" @change="insertMenu.hasHeader = false" /> 首列作为表头</label>
           <div class="rich-image-editor__table-create-actions"><button type="button" @click="closeInsertMenu">取消</button><button type="submit">创建</button></div>
         </form>
         <template v-else>
@@ -1984,6 +1987,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--normal) { min-width: 7em; }
 .rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--long) { min-width: 16em; }
 .rich-image-editor :deep(.rich-image-editor__table[data-has-header="true"] tr:first-child td) { font-weight: 600; background: #f5f8f5; }
+.rich-image-editor :deep(.rich-image-editor__table[data-left-header="true"] tr td:first-child) { font-weight: 600; background: #f5f8f5; }
 .rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }

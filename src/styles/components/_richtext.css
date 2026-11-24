@@ -716,6 +716,12 @@
     background: #fff;
 }
 
+.rt-table-left-header tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
 .rt-table .rt-pinyin {
     white-space: nowrap;
 }

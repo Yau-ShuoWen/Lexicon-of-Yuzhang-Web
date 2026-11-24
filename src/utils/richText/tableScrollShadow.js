@@ -2,8 +2,9 @@ export function attachTableScrollShadow(frame, scroll) {
   const update = () => {
     const remaining = Math.max(0, scroll.scrollWidth - scroll.clientWidth)
     const left = Math.max(0, Math.min(scroll.scrollLeft, remaining))
-    frame.style.setProperty('--table-shadow-left', String(Math.min(left / 32, 1)))
-    frame.style.setProperty('--table-shadow-right', String(Math.min((remaining - left) / 32, 1)))
+    const fadeDistance = Math.max(1, Math.min(scroll.clientWidth, remaining))
+    frame.style.setProperty('--table-shadow-left', String(Math.min(left / fadeDistance, 1)))
+    frame.style.setProperty('--table-shadow-right', String(Math.min((remaining - left) / fadeDistance, 1)))
   }
   const observer = new ResizeObserver(update)
   observer.observe(scroll)

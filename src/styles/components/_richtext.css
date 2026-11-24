@@ -662,13 +662,13 @@
 .rt-table-shadow-frame::before {
     border-top-left-radius: 6px;
     opacity: var(--table-shadow-left, 0);
-    box-shadow: inset 6px 0 7px -5px rgb(0 0 0 / 12%);
+    box-shadow: inset 8px 0 9px -5px rgb(0 0 0 / 12%);
 }
 
 .rt-table-shadow-frame::after {
     border-top-right-radius: 6px;
     opacity: var(--table-shadow-right, 0);
-    box-shadow: inset -6px 0 7px -5px rgb(0 0 0 / 12%);
+    box-shadow: inset -8px 0 9px -5px rgb(0 0 0 / 12%);
 }
 
 .rt-table-wrap {

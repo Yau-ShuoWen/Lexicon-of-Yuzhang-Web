@@ -555,6 +555,9 @@
 /* ========================富文本 blockquote====================== */
 
 .rt-blockquote {
+    box-sizing: border-box;
+    width: 66.667%;
+    max-width: 100%;
     padding: 12px 14px;
     margin: 12px 0;
 
@@ -565,6 +568,10 @@
     background-color: #f4f8fd;
     color: var(--color-text);
     line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+    .rt-blockquote { width: 100%; }
 }
 
 .rt-blockquote-gap {
@@ -590,6 +597,10 @@
 }
 
 .rt-blockquote-tag .rt-li-dot {
+    color: var(--bq-accent);
+}
+
+.rt-blockquote-tag .rt-list-number {
     color: var(--bq-accent);
 }
 

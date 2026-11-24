@@ -22,6 +22,8 @@ import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import plusIcon from '../../assets/icons/plus-white.svg'
 import { clearDiaryTableShadows, renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
+import { BLOCKQUOTE_TAG_MAP } from '../../utils/blockquote.js'
+import quoteTagIcon from '../../assets/icons/calendar/bookmark.svg'
 import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
 
 const props = defineProps({
@@ -39,6 +41,45 @@ const embeddedPicturePattern = /\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f
 const embeddedElementPattern = /\{pg (?:\{p [^{}]+})*}|\{p (?:(?:[^{}\r\n]*?)=>)?(?:[1-9][0-9]*|[0-9a-f-]{36})(?:~[0-9]{2,3})?}/g
 const tableRowPattern = /^\s*\|(.+)\|\s*$/
 const tableDividerPattern = /^:?-{2,}[!*+$]?:?$|^:?-{2,}:?[!*+$]?$/
+const quoteStyles = Object.entries(BLOCKQUOTE_TAG_MAP).map(([key, config]) => ({ key, ...config }))
+function quoteFromLines(lines, start) {
+  if (!/^\s*```/.test(lines[start])) return null
+  const opening = lines[start].replace(/^\s*```/, '')
+  const sameLineEnd = opening.indexOf('```')
+  let end = start + 1
+  if (sameLineEnd < 0) while (end < lines.length && !/```\s*$/.test(lines[end])) end++
+  if (sameLineEnd < 0 && end >= lines.length) return null
+  const content = sameLineEnd >= 0 ? [opening.slice(0, sameLineEnd)]
+    : [...(opening ? [opening] : []), ...lines.slice(start + 1, end)]
+  const closing = sameLineEnd >= 0 ? '' : lines[end].replace(/```\s*$/, '')
+  if (closing) content.push(closing)
+  const normalized = content.join('\n').trim().split('\n').map(line => line.trim())
+  const singleLineTag = normalized.length === 1 && !!normalized[0]
+  const styleName = normalized[0]
+  const hasStyle = normalized.length >= 2
+    && (styleName === 'tag' || Object.hasOwn(BLOCKQUOTE_TAG_MAP, styleName))
+  const tag = singleLineTag ? 'tag' : hasStyle ? styleName : null
+  const title = singleLineTag ? normalized[0] : tag ? normalized[1] : ''
+  const body = tag === 'dm' ? content.slice(2) : tag ? normalized.slice(2) : normalized
+  const headerOnly = !!tag && (tag === 'tag' || body.length === 0)
+  const bodyLines = body.length ? body : ['']
+  const bodyNodes = []
+  for (let index = 0; !headerOnly && index < bodyLines.length; index++) {
+    const table = tag !== 'dm' && tableFromLines(bodyLines, index)
+    if (table) { bodyNodes.push(table.node); index = table.end - 1; continue }
+    const parsed = tag === 'dm' ? { listType: null, text: bodyLines[index] } : parseListLine(bodyLines[index])
+    bodyNodes.push({ type: 'paragraph', attrs: { listType: parsed.listType }, content: [
+      ...(parsed.listType ? [{ type: 'listMarker', attrs: { listType: parsed.listType } }] : []),
+      ...(tag === 'dm' ? parsed.text ? [{ type: 'text', text: parsed.text }] : [] : parseRichEditorText(parsed.text))
+    ] })
+  }
+  return { end: sameLineEnd >= 0 ? start + 1 : end + 1, node: { type: 'editorQuote', attrs: {
+    tag, sourceForm: singleLineTag ? (sameLineEnd >= 0 ? 'inline' : 'single') : null
+  }, content: [
+    { type: 'quoteTitle', attrs: { tag, headerOnly }, content: title ? parseRichEditorText(title) : [] },
+    ...bodyNodes
+  ] } }
+}
 function tableCells(line) { return line.trim().slice(1, -1).split('|').map(cell => cell.trim()) }
 function tableCellParagraphs(source) {
   return source.split('\\\\').map(line => {
@@ -84,6 +125,16 @@ function tableDivider(column) {
 const editor = shallowRef(null)
 const fileInput = ref(null)
 const insertMenu = ref(null)
+let activeTableFrame = null
+watch(insertMenu, menu => {
+  activeTableFrame?.classList.remove('rich-image-editor__table-frame--menu-active')
+  activeTableFrame = null
+  if (!['table-column', 'table-actions'].includes(menu?.kind)) return
+  const frame = editor.value?.view.nodeDOM(menu.position)
+  if (!frame?.classList.contains('rich-image-editor__table-frame')) return
+  frame.classList.add('rich-image-editor__table-frame--menu-active')
+  activeTableFrame = frame
+}, { flush: 'post' })
 const mobileInsertButton = ref(null)
 let pendingInsertPosition = null
 const uploading = ref(false)
@@ -271,6 +322,8 @@ function toDocument(value) {
     type: 'doc',
     content: lines.flatMap((sourceLine, index) => {
       if (index < coveredUntil) return []
+      const quote = quoteFromLines(lines, index)
+      if (quote) { coveredUntil = quote.end; return [quote.node] }
       const table = tableFromLines(lines, index)
       if (table) { coveredUntil = table.end; return [table.node] }
       const { listType, text: line } = parseListLine(sourceLine)
@@ -293,6 +346,18 @@ function toDocument(value) {
   }
 }
 function textOf(node) {
+  if (node.type === 'editorQuote') {
+    const lines = (node.content || []).map(textOf)
+    if (node.attrs?.tag === 'tag') {
+      if (node.attrs.sourceForm === 'inline') return `\`\`\`${lines[0]}\`\`\``
+      if (node.attrs.sourceForm === 'single') return `\`\`\`\n${lines[0]}\n\`\`\``
+      return `\`\`\`\ntag\n${lines[0]}\n\`\`\``
+    }
+    if (node.content?.length === 1 && node.attrs?.tag) return `\`\`\`\n${node.attrs.tag}\n${lines[0]}\n\`\`\``
+    const body = lines.slice(1).join('\n')
+    return `\`\`\`\n${node.attrs?.tag ? `${node.attrs.tag}\n${lines[0]}\n` : ''}${body}\n\`\`\``
+  }
+  if (node.type === 'quoteTitle') return (node.content || []).map(textOf).join('')
   if (node.type === 'editorTable') {
     const rows = (node.content || []).map(row => `|${(row.content || []).map(cell => (cell.content || []).map(textOf).join('\\\\')).join('|')}|`)
     const divider = `|${(node.attrs?.columns || []).map((column, index) => `${tableDivider(column)}${node.attrs?.leftHeader && index === 0 ? '$' : ''}`).join('|')}|`
@@ -318,11 +383,19 @@ function textOf(node) {
   return (node.content || []).map(textOf).join('')
 }
 function plainFromSlice(slice) {
+  let containsQuote = false
+  slice.content.forEach(node => {
+    if (node.type.name === 'editorQuote' || node.type.name === 'quoteTitle') containsQuote = true
+    node.descendants(child => {
+      if (child.type.name === 'editorQuote' || child.type.name === 'quoteTitle') containsQuote = true
+    })
+  })
+  if (containsQuote) return slice.content.textBetween(0, slice.content.size, '\n')
   return serializeSelectedRichText(slice.content.content.map(node => node.toJSON()), textOf)
 }
 function plainTextSlice(text, schema) {
   const lines = text.replace(/\r\n?/g, '\n').split('\n')
-  if (lines.some((_, index) => tableFromLines(lines, index))) {
+  if (lines.some((_, index) => tableFromLines(lines, index) || quoteFromLines(lines, index))) {
     return new Slice(Fragment.fromArray(toDocument(text).content.map(node => schema.nodeFromJSON(node))), 0, 0)
   }
   const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map(line => {
@@ -343,7 +416,11 @@ function handlePlainClipboard(view, event, cut = false) {
     node.descendants(child => { if (child.type.name === 'image') hasImage = true })
   })
   if (hasImage) return false
-  event.clipboardData.setData('text/plain', plainFromSlice(slice).replace(/\n/g, '\r\n'))
+  const insideQuote = [selection.$from, selection.$to].some($position =>
+    Array.from({ length: $position.depth }, (_, index) => $position.node(index + 1))
+      .some(node => node.type.name === 'editorQuote'))
+  const copied = insideQuote ? view.state.doc.textBetween(selection.from, selection.to, '\n') : plainFromSlice(slice)
+  event.clipboardData.setData('text/plain', copied.replace(/\n/g, '\r\n'))
   event.preventDefault()
   if (cut) view.dispatch(closeHistory(view.state.tr).delete(selection.from, selection.to))
   return true
@@ -469,13 +546,13 @@ function insertEmptyGroup(position) {
 }
 function closeInsertMenu() { insertMenu.value = null }
 const textFormats = [
-  { key: 'b', label: '粗体', glyph: '粗' },
-  { key: 'i', label: '斜体', glyph: '斜' },
-  { key: 'd', label: '删除线', glyph: '删' },
+  { key: 'b', label: '粗体', glyph: '粗体' },
+  { key: 'i', label: '斜体', glyph: '斜体' },
+  { key: 'd', label: '删除', glyph: '删除' },
   { key: 'h1', label: '标题', glyph: '标题' },
   { key: 'h', label: '大字', glyph: '大字' },
-  { key: 'code', label: '代码', glyph: '代码' },
-  { key: 'dot', label: '着重号', glyph: '点' }
+  { key: 'code', label: '代码块', glyph: '代码块' },
+  { key: 'dot', label: '着重', glyph: '着重' }
 ]
 const formatBubble = ref(null)
 let selectionPointerId = null
@@ -763,8 +840,65 @@ function splitOrMergeFormattedLine(view, event) {
   return false
 }
 function handleFormattedKeyDown(view, event) {
+  if ((event.key === 'Delete' || event.key === 'Backspace')
+    && view.state.selection instanceof NodeSelection
+    && view.state.selection.node.type.name === 'editorTable') {
+    event.preventDefault()
+    removeTableAt(view, view.state.selection.from)
+    return true
+  }
+  if (handleQuoteKey(view, event)) return true
   if (handleTableArrow(view, event)) return true
   return splitOrMergeFormattedLine(view, event) || moveAcrossFormatBoundary(view, event)
+}
+let pendingQuoteExit = null
+function handleQuoteKey(view, event) {
+  const { state } = view
+  const { $from } = state.selection
+  let quoteDepth = -1
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === 'editorQuote') { quoteDepth = depth; break }
+  }
+  if (quoteDepth < 0 || !state.selection.empty) return false
+  const quote = $from.node(quoteDepth)
+  const childIndex = $from.index(quoteDepth)
+  const bodyStart = $from.start(quoteDepth) + quote.firstChild.nodeSize
+  if (quote.childCount > 1 && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    if ($from.parent.type.name === 'quoteTitle' && event.key === 'ArrowRight'
+      && $from.parentOffset === $from.parent.content.size) {
+      event.preventDefault()
+      view.dispatch(state.tr.setSelection(Selection.near(state.doc.resolve(bodyStart + 1), 1)))
+      return true
+    }
+    if (childIndex === 1 && $from.parent.type.name === 'paragraph' && event.key === 'ArrowLeft'
+      && $from.pos === bodyStart + 1) {
+      event.preventDefault()
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, bodyStart - 1)))
+      return true
+    }
+  }
+  if ($from.parent.type.name === 'quoteTitle' && event.key === 'Enter') {
+    event.preventDefault()
+    if (quote.childCount > 1) view.dispatch(state.tr.setSelection(Selection.near(state.doc.resolve(bodyStart + 1), 1)))
+    return true
+  }
+  if (!['ArrowUp', 'ArrowDown'].includes(event.key) || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false
+  const exitingTop = event.key === 'ArrowUp' && childIndex === 0 && $from.parentOffset === 0
+  const exitingBottom = event.key === 'ArrowDown' && childIndex === quote.childCount - 1
+    && $from.parentOffset === $from.parent.content.size
+  if (!exitingTop && !exitingBottom) { pendingQuoteExit = null; return false }
+  const now = performance.now()
+  const samePress = pendingQuoteExit?.key === event.key && pendingQuoteExit.position === $from.pos
+    && now - pendingQuoteExit.time < 500
+  pendingQuoteExit = event.repeat ? null : { key: event.key, position: $from.pos, time: now }
+  if (!samePress || event.repeat) { event.preventDefault(); return true }
+  pendingQuoteExit = null
+  const direction = exitingTop ? -1 : 1
+  const boundary = exitingTop ? $from.before(quoteDepth) : $from.after(quoteDepth)
+  const $boundary = state.doc.resolve(boundary)
+  view.dispatch(state.tr.setSelection(GapCursor.valid($boundary) ? new GapCursor($boundary) : Selection.near($boundary, direction)))
+  event.preventDefault()
+  return true
 }
 let pendingTableExit = null
 function handleTableArrow(view, event) {
@@ -859,6 +993,7 @@ function openInsertMenuAt(position, x, y) {
 function onEditorContextMenu(view, event) {
   if (event.target.closest?.('.rich-image-editor__picture, .rich-image-editor__group')) return false
   formatBubble.value = null
+  const frame = event.target.closest?.('.rich-image-editor__table-frame')
   const cell = event.target.closest?.('[data-editor-cell]')
   if (cell) {
     const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
@@ -866,15 +1001,24 @@ function onEditorContextMenu(view, event) {
       const $position = view.state.doc.resolve(position)
       for (let depth = $position.depth; depth > 0; depth--) {
         if ($position.node(depth).type.name !== 'editorTable') continue
-        const table = $position.node(depth)
         const row = cell.parentElement
         const columnIndex = [...row.children].indexOf(cell)
         event.preventDefault()
         insertMenu.value = { kind: 'table-column', position: $position.before(depth), columnIndex,
-          x: Math.max(8, Math.min(event.clientX, window.innerWidth - 220)),
+          x: Math.max(8, Math.min(event.clientX, window.innerWidth - 370)),
           y: Math.max(8, Math.min(event.clientY, window.innerHeight - 230)) }
         return true
       }
+    }
+  }
+  if (frame) {
+    const position = tablePositionForFrame(view, frame)
+    if (position != null) {
+      event.preventDefault()
+      insertMenu.value = { kind: 'table-actions', position,
+        x: Math.max(8, Math.min(event.clientX, window.innerWidth - 170)),
+        y: Math.max(8, Math.min(event.clientY, window.innerHeight - 120)) }
+      return true
     }
   }
   const selected = selectedFormat(view.state)
@@ -902,6 +1046,17 @@ function selectTableFrame(view, event) {
   view.focus()
   return true
 }
+function focusEmptyTableCell(view, event) {
+  if (event.button !== 0) return false
+  const cell = event.target.closest?.('td[data-editor-cell]')
+  const paragraph = cell?.querySelector(':scope > p')
+  if (!paragraph || paragraph.textContent?.trim()) return false
+  const position = view.posAtDOM(paragraph, 0)
+  event.preventDefault()
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(position), 1)))
+  view.focus()
+  return true
+}
 function updateTableColumn(key, value) {
   const menu = insertMenu.value
   const instance = editor.value
@@ -912,6 +1067,36 @@ function updateTableColumn(key, value) {
     ? { ...column, [key]: value, marker: null } : column)
   instance.view.dispatch(instance.state.tr.setNodeMarkup(menu.position, undefined, { ...node.attrs, columns }))
 }
+function removeTableAt(view, position) {
+  const { state } = view
+  const table = state.doc.nodeAt(position)
+  if (table?.type.name !== 'editorTable') return false
+  const $position = state.doc.resolve(position)
+  let quoteDepth = 0
+  for (let depth = $position.depth; depth > 0; depth--) {
+    if ($position.node(depth).type.name === 'editorQuote') { quoteDepth = depth; break }
+  }
+  const tr = state.tr.delete(position, position + table.nodeSize)
+  if (quoteDepth && $position.node(quoteDepth).childCount === 2) {
+    const quoteStart = $position.before(quoteDepth)
+    const title = $position.node(quoteDepth).firstChild
+    tr.setNodeMarkup(quoteStart + 1, undefined, { ...title.attrs, headerOnly: true })
+  }
+  view.dispatch(tr)
+  return true
+}
+async function operateTable(action) {
+  const menu = insertMenu.value
+  const instance = editor.value
+  const table = instance?.state.doc.nodeAt(menu?.position)
+  if (!menu || !['table-column', 'table-actions'].includes(menu.kind) || table?.type.name !== 'editorTable') return
+  if (action !== 'delete') {
+    try { await navigator.clipboard.writeText(textOf(table.toJSON())) }
+    catch { alert('复制表格失败，请检查剪贴板权限'); return }
+  }
+  if (action !== 'copy') removeTableAt(instance.view, menu.position)
+  closeInsertMenu()
+}
 function openTableDraft() {
   const menu = insertMenu.value
   if (!menu) return
@@ -919,6 +1104,61 @@ function openTableDraft() {
     position: pendingInsertPosition,
     x: Math.max(8, Math.min(menu.x, window.innerWidth - 250)),
     y: Math.max(8, Math.min(menu.y, window.innerHeight - 260)) }
+}
+function createQuote() {
+  const instance = editor.value
+  if (!instance) return
+  const position = pendingInsertPosition
+  closeInsertMenu()
+  const $position = instance.state.doc.resolve(Math.min(position ?? instance.state.selection.from, instance.state.doc.content.size))
+  const emptyParagraph = $position.depth && $position.node(1).type.name === 'paragraph'
+    && !$position.node(1).content.size && !$position.node(1).attrs.listType
+  const insertAt = $position.depth ? $position.after(1) : $position.pos
+  const range = emptyParagraph ? { from: $position.before(1), to: insertAt } : insertAt
+  instance.commands.insertContentAt(range, { type: 'editorQuote', attrs: { tag: 'bq' }, content: [
+    { type: 'quoteTitle', attrs: { tag: 'bq' } }, { type: 'paragraph' }
+  ] })
+}
+function openQuoteStyle(view, event) {
+  const icon = event.target.closest?.('.rich-image-editor__quote-style')
+  if (!icon) return false
+  const quote = icon.closest('[data-editor-quote]')
+  if (!quote) return false
+  const position = view.posAtDOM(quote.parentNode, [...quote.parentNode.childNodes].indexOf(quote))
+  if (view.state.doc.nodeAt(position)?.type.name !== 'editorQuote') return false
+  event.preventDefault()
+  insertMenu.value = { kind: 'quote-style', position,
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 190)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 260)) }
+  return true
+}
+function toggleQuoteTag(view, event) {
+  const button = event.target.closest?.('.rich-image-editor__quote-tag-toggle')
+  if (!button) return false
+  const quoteElement = button.closest('[data-editor-quote]')
+  if (!quoteElement) return false
+  const position = view.posAtDOM(quoteElement.parentNode, [...quoteElement.parentNode.childNodes].indexOf(quoteElement))
+  const quote = view.state.doc.nodeAt(position)
+  if (quote?.type.name !== 'editorQuote') return false
+  event.preventDefault()
+  const headerOnly = quote.childCount > 1
+  const tag = quote.attrs.tag && quote.attrs.tag !== 'tag' ? quote.attrs.tag : 'bq'
+  const { editorQuote, quoteTitle, paragraph } = view.state.schema.nodes
+  const title = quoteTitle.create({ ...quote.firstChild.attrs, tag, headerOnly }, quote.firstChild.content)
+  const content = headerOnly ? [title] : [title, paragraph.create()]
+  view.dispatch(view.state.tr.replaceWith(position, position + quote.nodeSize, editorQuote.create({ tag, sourceForm: null }, content)))
+  return true
+}
+function setQuoteStyle(tag) {
+  const menu = insertMenu.value
+  const instance = editor.value
+  if (menu?.kind !== 'quote-style' || !instance || !BLOCKQUOTE_TAG_MAP[tag]) return
+  const node = instance.state.doc.nodeAt(menu.position)
+  if (node?.type.name !== 'editorQuote') return
+  const tr = instance.state.tr.setNodeMarkup(menu.position, undefined, { ...node.attrs, tag, sourceForm: null })
+  tr.setNodeMarkup(menu.position + 1, undefined, { ...node.firstChild.attrs, tag })
+  instance.view.dispatch(tr)
+  closeInsertMenu()
 }
 function adjustTableDraft(field, delta) {
   const draft = insertMenu.value
@@ -939,11 +1179,34 @@ function createTable() {
   closeInsertMenu()
   const instance = editor.value
   const $position = instance.state.doc.resolve(Math.min(position ?? instance.state.selection.from, instance.state.doc.content.size))
-  const emptyParagraph = $position.depth && $position.node(1).type.name === 'paragraph'
-    && !$position.node(1).content.size && !$position.node(1).attrs.listType
-  const insertAt = $position.depth ? $position.after(1) : $position.pos
-  const range = emptyParagraph ? { from: $position.before(1), to: insertAt } : insertAt
-  instance.commands.insertContentAt(range, { type: 'editorTable', attrs: { columns, hasHeader: draft.hasHeader, leftHeader: draft.leftHeader }, content })
+  let quoteDepth = 0
+  for (let depth = $position.depth; depth > 0; depth--) {
+    if ($position.node(depth).type.name === 'editorQuote') { quoteDepth = depth; break }
+  }
+  const blockDepth = quoteDepth ? quoteDepth + 1 : 1
+  const hasBlock = $position.depth >= blockDepth
+  const block = hasBlock ? $position.node(blockDepth) : null
+  const emptyParagraph = block?.type.name === 'paragraph' && !block.content.size && !block.attrs.listType
+  const insertAt = hasBlock ? $position.after(blockDepth) : quoteDepth
+    ? $position.start(quoteDepth) + $position.node(quoteDepth).firstChild.nodeSize : $position.pos
+  const range = emptyParagraph ? { from: $position.before(blockDepth), to: insertAt } : insertAt
+  const tableContent = { type: 'editorTable', attrs: {
+    columns, hasHeader: draft.hasHeader, leftHeader: draft.leftHeader
+  }, content }
+  if (quoteDepth) {
+    const tr = instance.state.tr
+    const table = instance.state.schema.nodeFromJSON(tableContent)
+    const quotePosition = $position.before(quoteDepth)
+    const quote = $position.node(quoteDepth)
+    if (quote.childCount === 1) {
+      const tag = quote.attrs.tag === 'tag' ? 'bq' : quote.attrs.tag
+      tr.setNodeMarkup(quotePosition, undefined, { ...quote.attrs, tag, sourceForm: null })
+      tr.setNodeMarkup(quotePosition + 1, undefined, { ...quote.firstChild.attrs, tag, headerOnly: false })
+    }
+    if (emptyParagraph) tr.replaceWith(range.from, range.to, table)
+    else tr.insert(insertAt, table)
+    instance.view.dispatch(tr)
+  } else instance.commands.insertContentAt(range, tableContent)
 }
 function updateMobileInsertButton(view) {
   if (!props.imagesEnabled || !isMobile || !view.hasFocus() || !view.state.selection.empty) { mobileInsertButton.value = null; return }
@@ -1207,6 +1470,34 @@ const EditorParagraph = Paragraph.extend({
   }
 })
 
+const QuoteTitle = Node.create({
+  name: 'quoteTitle', content: 'inline*', defining: true,
+  addAttributes() { return {
+    tag: { default: null, parseHTML: element => element.getAttribute('data-quote-title-tag') },
+    headerOnly: { default: false, parseHTML: element => element.getAttribute('data-quote-header-only') === 'true' }
+  } },
+  parseHTML() { return [{ tag: 'div[data-quote-title]' }] },
+  renderHTML({ node }) { return ['div', { 'data-quote-title': '', 'data-quote-title-tag': node.attrs.tag || '', 'data-quote-header-only': String(node.attrs.headerOnly), class: 'rt-blockquote__header' },
+    ['img', { class: 'rt-blockquote__icon rich-image-editor__quote-style', src: BLOCKQUOTE_TAG_MAP[node.attrs.tag]?.icon || BLOCKQUOTE_TAG_MAP.bq.icon, alt: '选择引用样式', contenteditable: 'false', draggable: 'false' }],
+    ['span', { class: 'rt-blockquote__title' }, 0],
+    ['button', { type: 'button', class: 'rich-image-editor__quote-tag-toggle', contenteditable: 'false', title: node.attrs.headerOnly ? '显示正文' : '仅保留标题', 'aria-label': node.attrs.headerOnly ? '显示正文' : '仅保留标题' },
+      ['img', { src: quoteTagIcon, alt: '', draggable: 'false' }]]] }
+})
+const EditorQuote = Node.create({
+  name: 'editorQuote', group: 'block', content: 'quoteTitle (paragraph|editorTable)*', defining: true, isolating: true,
+  addAttributes() { return {
+    tag: { default: null, parseHTML: element => element.getAttribute('data-quote-tag') },
+    sourceForm: { default: null, parseHTML: element => element.getAttribute('data-quote-source-form') }
+  } },
+  parseHTML() { return [{ tag: 'blockquote[data-editor-quote]' }] },
+  renderHTML({ node }) {
+    const config = BLOCKQUOTE_TAG_MAP[node.attrs.tag] || (node.attrs.tag === 'tag' ? BLOCKQUOTE_TAG_MAP.bq : null)
+    const style = config ? `--bq-accent:${config.accent};--bq-bg:${config.bg};--bq-header-bg:${config.headerBg};--bq-icon-bg:${config.iconBg};--bq-text:${config.text || config.accent}` : ''
+    return ['blockquote', { 'data-editor-quote': '', 'data-quote-tag': node.attrs.tag || '',
+      'data-quote-source-form': node.attrs.sourceForm || '',
+      class: `rt-blockquote${config ? ` rt-blockquote-tag${node.attrs.tag === 'dm' ? ' rt-blockquote-tag--dm' : ''}` : ''}`, style }, 0]
+  }
+})
 function tableIsCompact(node) {
   return node.attrs.columns.length > 0 && node.attrs.columns.every(column => column.width === 'nowrap')
 }
@@ -1281,7 +1572,9 @@ const EditorTable = Node.create({
       const update = current => {
         if (current.type.name !== 'editorTable') return false
         const compact = tableIsCompact(current)
-        frame.className = `rich-image-editor__table-frame${compact ? ' rich-image-editor__table-frame--compact' : ''}`
+        const menu = insertMenu.value
+        const menuActive = ['table-column', 'table-actions'].includes(menu?.kind) && menu.position === getPos()
+        frame.className = `rich-image-editor__table-frame${compact ? ' rich-image-editor__table-frame--compact' : ''}${menuActive ? ' rich-image-editor__table-frame--menu-active' : ''}`
         table.className = `rich-image-editor__table${compact ? ' rich-image-editor__table--compact' : ''}`
         table.dataset.hasHeader = String(current.attrs.hasHeader)
         table.dataset.leftHeader = String(current.attrs.leftHeader)
@@ -1330,8 +1623,8 @@ const ListMarker = Node.create({
       appendTransaction(transactions, _oldState, newState) {
         if (!transactions.some(tr => tr.docChanged)) return null
         const tr = newState.tr
-        newState.doc.forEach((paragraph, position) => {
-          if (!paragraph.isTextblock) return
+        newState.doc.descendants((paragraph, position) => {
+          if (paragraph.type.name !== 'paragraph') return
           const listType = paragraph.firstChild?.type.name === 'listMarker'
             ? paragraph.firstChild.attrs.listType : null
           if (paragraph.attrs.listType !== listType) {
@@ -1707,7 +2000,7 @@ onMounted(() => {
       heading: false, horizontalRule: false, italic: false, link: false,
       listItem: false, listKeymap: false, orderedList: false, strike: false,
       underline: false, trailingNode: false, paragraph: false
-    }), EditorParagraph, EditorTable, EditorTableRow, EditorTableCell, ListMarker, RichFormat, RichComment, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
+    }), EditorParagraph, EditorQuote, QuoteTitle, EditorTable, EditorTableRow, EditorTableCell, ListMarker, RichFormat, RichComment, FormatBoundary, ...(props.imagesEnabled ? [DiaryImageGroup, DiaryImage.configure({ inline: true })] : [])],
     editorProps: {
       attributes: { class: 'rich-image-editor__body', 'aria-label': props.placeholder, spellcheck: 'false' },
       decorations: state => {
@@ -1798,7 +2091,7 @@ onMounted(() => {
         return plainTextSlice(text, view.state.schema)
       },
       handleDOMEvents: {
-        mousedown: (view, event) => selectTableFrame(view, event) || selectFormatBoundary(view, event),
+        mousedown: (view, event) => toggleQuoteTag(view, event) || openQuoteStyle(view, event) || focusEmptyTableCell(view, event) || selectTableFrame(view, event) || selectFormatBoundary(view, event),
         contextmenu: onEditorContextMenu,
         focus: () => { queueMicrotask(refreshMobileInsertButton); return false },
         blur: () => { mobileInsertButton.value = null; return false },
@@ -1816,6 +2109,11 @@ onMounted(() => {
         }
       },
       handlePaste: (view, event) => {
+        if (view.state.selection.$from.parent.type.name === 'quoteTitle') {
+          const title = (event.clipboardData?.getData('text/plain') || '').replace(/\r/g, '').split('\n')[0]
+          if (title) view.dispatch(view.state.tr.insertText(title))
+          return true
+        }
         const html = event.clipboardData?.getData('text/html') || ''
         // Let ProseMirror keep the order of text and images in rich clipboard content.
         // Copied images have their ID removed so paste uploads the original again.
@@ -1881,7 +2179,8 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
     <input v-if="imagesEnabled" ref="fileInput" type="file" accept="image/*" class="rich-image-editor__file-input" @change="upload($event.target.files[0], isMobile && pendingInsertPosition === null, pendingInsertPosition)" />
     <Teleport to="body">
       <div v-if="formatBubble && !fullPreview" class="rich-image-editor__format-bubble" :style="{ left: `${formatBubble.x}px`, top: `${formatBubble.y}px` }" role="toolbar" aria-label="文字格式" @mousedown.prevent>
-        <button v-for="format in textFormats.filter(item => item.key !== 'h1' || formatBubble.wholeLine)" :key="format.key" type="button" :class="[`rich-image-editor__format-button--${format.key}`, { 'is-active': formatBubble.key === format.key }]" :aria-label="formatBubble.key === format.key ? `取消${format.label}` : format.label" :title="formatBubble.key === format.key ? `取消${format.label}` : format.label" :disabled="!!formatBubble.key && formatBubble.key !== format.key" @click="formatSelectedText(format.key)">{{ format.glyph }}</button>
+        <button v-for="format in textFormats.filter(item => item.key !== 'h1' || formatBubble.wholeLine)" :key="format.key" type="button" :class="[`rich-image-editor__format-button--${format.key}`, { 'is-active': formatBubble.key === format.key }]" :aria-label="format.label" :title="format.label" :disabled="!!formatBubble.key" @click="formatSelectedText(format.key)"><span>{{ format.glyph }}</span></button>
+        <button v-if="formatBubble.key" type="button" class="rich-image-editor__format-cancel" :aria-label="`取消${textFormats.find(item => item.key === formatBubble.key)?.label || '格式'}`" :title="`取消${textFormats.find(item => item.key === formatBubble.key)?.label || '格式'}`" @click="formatSelectedText(formatBubble.key)"><img :src="closeIcon" alt="" /></button>
       </div>
       <button v-if="imagesEnabled && mobileInsertButton && !insertMenu && !fullPreview" type="button" class="rich-image-editor__mobile-insert" :style="{ left: `${mobileInsertButton.x}px`, top: `${mobileInsertButton.y}px` }" aria-label="插入图片或图片组" @pointerdown.prevent @click="openMobileInsertMenu">＋</button>
       <div v-if="insertMenu" class="rich-image-editor__insert-menu" :style="{ left: `${insertMenu.x}px`, top: `${insertMenu.y}px` }" role="menu" :aria-label="insertMenu.kind === 'image' ? '图片操作' : '插入内容'">
@@ -1895,10 +2194,22 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
         <template v-else-if="insertMenu.kind === 'format'">
           <button v-for="format in textFormats.filter(item => item.key !== 'h1' || insertMenu.selection.wholeLine)" :key="format.key" type="button" role="menuitem" :disabled="!!insertMenu.selection.key && insertMenu.selection.key !== format.key" @mousedown.prevent @click="formatSelectedText(format.key)">{{ insertMenu.selection.key === format.key ? `取消${format.label}` : format.label }}</button>
         </template>
+        <template v-else-if="insertMenu.kind === 'quote-style'">
+          <button v-for="style in quoteStyles" :key="style.key" type="button" role="menuitem" class="rich-image-editor__quote-option" :style="{ color: style.text || style.accent }" @mousedown.prevent @click="setQuoteStyle(style.key)"><img :src="style.icon" alt="" /><span>{{ { pyq: '朋友圈', warn: '警告', sl: '思考', bq: '便签', dm: '代码', bc: '补充', gd: '观点', lt: '聊天' }[style.key] || style.key }}</span></button>
+        </template>
         <template v-else-if="insertMenu.kind === 'table-column'">
-          <div class="rich-image-editor__menu-heading">第 {{ insertMenu.columnIndex + 1 }} 列</div>
-          <label class="rich-image-editor__menu-field">宽度行为<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.width" @change="updateTableColumn('width', $event.target.value)"><option value="nowrap">按内容宽度</option><option value="normal">一般宽度</option><option value="long">长内容</option></select></label>
-          <label class="rich-image-editor__menu-field">对齐<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.align" @change="updateTableColumn('align', $event.target.value)"><option value="left">靠左</option><option value="center">居中</option><option value="right">靠右</option></select></label>
+          <div class="rich-image-editor__table-menu-layout">
+            <div><div class="rich-image-editor__menu-heading">第 {{ insertMenu.columnIndex + 1 }} 列</div>
+              <label class="rich-image-editor__menu-field">宽度行为<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.width" @change="updateTableColumn('width', $event.target.value)"><option value="nowrap">按内容宽度</option><option value="normal">一般宽度</option><option value="long">长内容</option></select></label>
+              <label class="rich-image-editor__menu-field">对齐<select :value="editor?.state.doc.nodeAt(insertMenu.position)?.attrs.columns[insertMenu.columnIndex]?.align" @change="updateTableColumn('align', $event.target.value)"><option value="left">靠左</option><option value="center">居中</option><option value="right">靠右</option></select></label>
+            </div>
+            <div class="rich-image-editor__table-menu-actions"><button type="button" role="menuitem" @click="operateTable('copy')">复制表格</button><button type="button" role="menuitem" @click="operateTable('cut')">剪切表格</button><button type="button" role="menuitem" @click="operateTable('delete')">删除表格</button></div>
+          </div>
+        </template>
+        <template v-else-if="insertMenu.kind === 'table-actions'">
+          <button type="button" role="menuitem" @click="operateTable('copy')">复制表格</button>
+          <button type="button" role="menuitem" @click="operateTable('cut')">剪切表格</button>
+          <button type="button" role="menuitem" @click="operateTable('delete')">删除表格</button>
         </template>
         <form v-else-if="insertMenu.kind === 'table-create'" class="rich-image-editor__table-create" @submit.prevent="createTable">
           <div class="rich-image-editor__menu-heading">创建竖向表格</div>
@@ -1910,6 +2221,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
         </form>
         <template v-else>
           <button type="button" role="menuitem" @click="openTableDraft">创建表格</button>
+          <button type="button" role="menuitem" @click="createQuote">创建引用区块</button>
           <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertImageFromMenu">插入图片</button>
           <button v-if="imagesEnabled" type="button" role="menuitem" @click="insertGroupFromMenu">插入图片组</button>
         </template>
@@ -1926,21 +2238,30 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__file-input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 .rich-image-editor__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--color-text); font-weight: 600; }
 .rich-image-editor__head-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.rich-image-editor__format-bubble { position: fixed; z-index: 3100; display: flex; gap: 2px; padding: 4px; border: 1px solid #cad8cc; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); transform: translateX(-50%); }
-.rich-image-editor__format-bubble button { display: grid; place-items: center; width: 38px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #254d34; font-size: 19px; cursor: pointer; }
+.rich-image-editor__format-bubble { position: fixed; z-index: 3100; display: flex; align-items: center; gap: 0; padding: 3px; border: 1px solid #cad8cc; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); transform: translateX(-50%); }
+.rich-image-editor__format-bubble button { display: grid; place-items: center; min-width: 42px; height: 32px; padding: 0 4px; border: 0; border-radius: 4px; background: transparent; color: #254d34; font-size: 15px; line-height: 1.2; white-space: nowrap; cursor: pointer; }
 .rich-image-editor__format-bubble .rich-image-editor__format-button--b { font-weight: 700; }
 .rich-image-editor__format-bubble .rich-image-editor__format-button--i { font-style: italic; }
 .rich-image-editor__format-bubble .rich-image-editor__format-button--d { text-decoration: line-through; }
 .rich-image-editor__format-bubble .rich-image-editor__format-button--h1,
-.rich-image-editor__format-bubble .rich-image-editor__format-button--h { width: 60px; font-size: 21px; font-weight: 700; line-height: 1; }
-.rich-image-editor__format-bubble .rich-image-editor__format-button--code { box-sizing: border-box; width: 56px; height: 32px; margin: 2px; border: 1px solid #d9e0da; background: #f1f3f5; color: #254d34; font-family: 'Microsoft JhengHei', 'HanaMinB', sans-serif; font-size: 19px; line-height: 1; }
-.rich-image-editor__format-bubble button:hover, .rich-image-editor__format-bubble button.is-active { background: #edf3ee; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--h { min-width: 48px; font-size: 17px; font-weight: 700; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--code { box-sizing: border-box; height: 28px; margin: 2px 1px; padding: 0 5px; border: 1px solid #d9e0da; background: #f1f3f5; color: #254d34; font-family: 'Microsoft JhengHei', 'HanaMinB', sans-serif; font-size: 15px; }
+.rich-image-editor__format-bubble .rich-image-editor__format-button--dot span { display: inline-block; transform: translateY(3px); -webkit-text-emphasis: filled dot; text-emphasis: filled dot; -webkit-text-emphasis-position: under; text-emphasis-position: under; }
+.rich-image-editor__format-bubble .rich-image-editor__format-cancel { min-width: 28px; margin-left: 2px; border-left: 1px solid #d9e0da; border-radius: 0 4px 4px 0; }
+.rich-image-editor__format-bubble .rich-image-editor__format-cancel img { width: 12px; height: 12px; }
+.rich-image-editor__format-bubble button.is-active { background: #edf3ee; }
 .rich-image-editor__format-bubble button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .rich-image-editor__format-bubble button:disabled { opacity: .35; cursor: default; }
 .rich-image-editor__workarea { min-width: 0; }
 .rich-image-editor__workarea > div { min-width: 0; }
 .rich-image-editor__insert-menu { position: fixed; z-index: 3000; display: grid; min-width: 168px; padding: 4px; border: 1px solid #d5d9d5; border-radius: 7px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .15); color: #252a31; font-size: 13px; line-height: 1.35; }
 .rich-image-editor__insert-menu button { min-height: 29px; padding: 5px 12px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rich-image-editor__insert-menu:has(.rich-image-editor__quote-option) { max-height: min(390px, 75vh); overflow-y: auto; }
+.rich-image-editor__insert-menu .rich-image-editor__quote-option { display: flex; align-items: center; gap: 9px; min-width: 150px; font-weight: 600; }
+.rich-image-editor__quote-option img { width: 20px; height: 20px; object-fit: contain; }
+.rich-image-editor__table-menu-layout { display: grid; grid-template-columns: minmax(200px, 1fr) 106px; }
+.rich-image-editor__table-menu-actions { display: grid; align-content: start; border-left: 1px solid #e2e8e3; }
+.rich-image-editor__table-menu-actions button { white-space: nowrap; }
 .rich-image-editor__insert-menu button:hover, .rich-image-editor__insert-menu button:focus-visible { background: #edf3ee; }
 .rich-image-editor__insert-menu button:disabled { color: #9ca89e; cursor: default; }
 .rich-image-editor__menu-heading { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px 3px; color: #515b54; }
@@ -1965,6 +2286,27 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__body .ProseMirror-gapcursor::after) { top: -1px; width: 0; height: 1.5em; border-top: 0; border-left: 2px solid #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote) { line-height: 1.6; counter-reset: rich-editor-ordered; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag) { padding: 0; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote__header) { cursor: text; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote__title) { min-width: 1em; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rt-blockquote__title:empty::before) { content: '标题'; opacity: .6; pointer-events: none; }
+.rich-image-editor :deep(.rich-image-editor__body .rich-image-editor__quote-tag-toggle) { display: grid; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 3px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.rich-image-editor :deep(.rich-image-editor__body .rich-image-editor__quote-tag-toggle img) { width: 17px; height: 17px; }
+.rich-image-editor :deep(.rich-image-editor__body .rich-image-editor__quote-style) { cursor: pointer; }
+.rich-image-editor :deep(.rich-image-editor__body [data-quote-tag=""] > .rt-blockquote__header) { display: none; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag > p) { padding: 0 14px; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag > p:nth-child(2)) { padding-top: 10px; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag > p:last-child) { padding-bottom: 12px; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag--dm > p) { font-family: Consolas, 'Cascadia Mono', 'Microsoft JhengHei', 'HanaMinB', sans-serif; white-space: pre; overflow-wrap: normal; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag > .rich-image-editor__table-frame) { width: fit-content; min-width: min(340px, calc(100% - 28px)); max-width: calc(100% - 28px); margin: 10px 14px 12px; border-color: color-mix(in srgb, var(--bq-accent) 45%, #3d4b40); background: #fff; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag > .rich-image-editor__table-frame .rich-image-editor__table--compact) { width: 100%; max-width: 100%; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table td) { border-color: color-mix(in srgb, var(--bq-accent) 45%, #3d4b40); background: #fff; }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table[data-has-header="true"] tr:first-child td),
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table[data-left-header="true"] tr td:first-child) { background: var(--bq-bg); }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table-add) { border-color: var(--bq-accent); background: var(--bq-accent); }
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__list-marker[data-list-marker="bullet"]::before),
+.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__list-marker[data-list-marker="ordered"]::before) { color: var(--bq-accent); }
 .rich-image-editor :deep(.rich-image-editor__table-frame) { position: relative; box-sizing: border-box; width: 100%; max-width: 100%; margin: 12px 0; border: 1px solid #b9cdbb; border-radius: 8px; }
 .rich-image-editor :deep(.rich-image-editor__table-frame--compact) { width: fit-content; }
 .rich-image-editor :deep(.rich-image-editor__table-scroll) { max-width: 100%; overflow-x: auto; border-radius: 7px; }
@@ -1975,6 +2317,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__table-frame:hover .rich-image-editor__table-add:not(:disabled)), .rich-image-editor :deep(.rich-image-editor__table-add:hover), .rich-image-editor :deep(.rich-image-editor__table-add:focus-visible) { opacity: 1; }
 .rich-image-editor :deep(.rich-image-editor__table-add:disabled) { display: none; }
 .rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode), .rich-image-editor :deep(.rich-image-editor__table-frame--selected) { outline: 2px solid #316ac5; outline-offset: 2px; }
+.rich-image-editor :deep(.rich-image-editor__table-frame--menu-active) { outline: 2px solid var(--bq-accent, #316ac5); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__table-frame--selected *::selection), .rich-image-editor :deep(.rich-image-editor__table-frame.ProseMirror-selectednode *::selection) { color: inherit; background: transparent; }
 .rich-image-editor :deep(.rich-image-editor__table) { width: 100%; border-collapse: collapse; table-layout: auto; }
 .rich-image-editor :deep(.rich-image-editor__table--compact) { width: max-content; max-width: 100%; }
@@ -1988,7 +2331,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__table td.rich-image-editor__cell--long) { min-width: 16em; }
 .rich-image-editor :deep(.rich-image-editor__table[data-has-header="true"] tr:first-child td) { font-weight: 600; background: #f5f8f5; }
 .rich-image-editor :deep(.rich-image-editor__table[data-left-header="true"] tr td:first-child) { font-weight: 600; background: #f5f8f5; }
-.rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-reset: rich-editor-ordered; }
+.rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-set: rich-editor-ordered 0; }
 .rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }
 .rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="bullet"]::before) { content: '●'; position: relative; top: -4px; color: #1f6722; font-family: PMingLiU, sans-serif; font-size: 12px; }

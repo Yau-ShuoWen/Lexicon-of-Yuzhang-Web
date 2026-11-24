@@ -45,6 +45,16 @@ function renderBlockquote(content, nextIndex, renderInline, renderContent) {
     const tagName = /^[a-z][a-z0-9]*$/.test(firstLine) ? firstLine : null
     const config = tagName ? BLOCKQUOTE_TAG_MAP[tagName] : null
 
+    if ((tagName === 'tag' && normalized.length >= 2) || (normalized.length === 1 && !!normalized[0])) {
+        const tagStyle = BLOCKQUOTE_TAG_MAP.bq
+        const style = `--bq-accent:${tagStyle.accent};--bq-bg:${tagStyle.bg};--bq-header-bg:${tagStyle.headerBg};--bq-icon-bg:${tagStyle.iconBg};--bq-text:${tagStyle.text || tagStyle.accent}`
+        const title = tagName === 'tag' && normalized.length >= 2 ? normalized[1] : normalized[0]
+        return {
+            nextIndex,
+            html: `<blockquote class="rt-blockquote rt-blockquote-tag" style="${style}"><div class="rt-blockquote__header"><img class="rt-blockquote__icon" src="${tagStyle.icon}" alt="tag"><span class="rt-blockquote__title">${renderInline(title)}</span></div></blockquote>`
+        }
+    }
+
     if (config && normalized.length >= 2) {
         const title = renderInline(normalized[1])
         const bodyLines = tagName === 'dm' ? content.slice(2) : normalized.slice(2)

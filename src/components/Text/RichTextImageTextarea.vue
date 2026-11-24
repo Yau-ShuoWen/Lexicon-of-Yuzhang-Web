@@ -419,7 +419,10 @@ function handlePlainClipboard(view, event, cut = false) {
   const insideQuote = [selection.$from, selection.$to].some($position =>
     Array.from({ length: $position.depth }, (_, index) => $position.node(index + 1))
       .some(node => node.type.name === 'editorQuote'))
-  const copied = insideQuote ? view.state.doc.textBetween(selection.from, selection.to, '\n') : plainFromSlice(slice)
+  const copied = insideQuote
+    ? view.state.doc.textBetween(selection.from, selection.to, '\n', node => node.type.name === 'listMarker'
+      ? node.attrs.listType === 'bullet' ? '- ' : '+ ' : '')
+    : plainFromSlice(slice)
   event.clipboardData.setData('text/plain', copied.replace(/\n/g, '\r\n'))
   event.preventDefault()
   if (cut) view.dispatch(closeHistory(view.state.tr).delete(selection.from, selection.to))

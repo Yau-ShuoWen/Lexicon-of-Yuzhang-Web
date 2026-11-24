@@ -9,7 +9,9 @@ export function parseListLine(line) {
 
 export function listTypeForInput(paragraph, offset, text) {
   if (text !== ' ' || paragraph.attrs.listType || offset !== 1) return null
-  return paragraph.textContent === '-' ? 'bullet' : paragraph.textContent === '+' ? 'ordered' : null
+  if (paragraph.firstChild?.type.name !== 'text') return null
+  const firstCharacter = paragraph.firstChild.text[0]
+  return firstCharacter === '-' ? 'bullet' : firstCharacter === '+' ? 'ordered' : null
 }
 
 export function parseRichEditorText(value) {

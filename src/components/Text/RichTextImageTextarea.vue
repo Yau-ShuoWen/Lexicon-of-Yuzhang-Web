@@ -2289,6 +2289,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rich-image-editor :deep(.rich-image-editor__body .ProseMirror-gapcursor::after) { top: -1px; width: 0; height: 1.5em; border-top: 0; border-left: 2px solid #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__body p) { margin: 0; min-height: 1.55em; }
+.rich-image-editor :deep(.rich-image-editor__body p[data-list-type]) { text-indent: 1.1em hanging; }
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote) { line-height: 1.6; counter-reset: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag) { padding: 0; }
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote__header) { cursor: text; }

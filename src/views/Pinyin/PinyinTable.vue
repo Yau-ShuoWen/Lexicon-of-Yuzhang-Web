@@ -29,7 +29,7 @@ const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
 const hasSwitchedPanel = ref(false)
 const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), transfer: t('pinyin_table.transfer_title'), faq: t('pinyin_table.faq_title') })[activePanel.value])
 function switchPanel(direction) {
-  selectedItemId.value = null
+  closeChildren()
   hasSwitchedPanel.value = true
   const index = panels.indexOf(activePanel.value)
   activePanel.value = panels[(index + direction + panels.length) % panels.length]
@@ -69,19 +69,25 @@ function stopLoading() {
 // 生命周期
 onMounted(fetchTable)
 onMounted(() => {
-  window.addEventListener('scroll', closeChildren, true)
-  window.addEventListener('resize', closeChildren)
+  window.addEventListener('scroll', updateOnNestedScroll, true)
+  window.addEventListener('resize', updatePopoverPosition)
   document.addEventListener('pointerdown', closeOnOutsidePointer)
 })
 onUnmounted(() => {
-  window.removeEventListener('scroll', closeChildren, true)
-  window.removeEventListener('resize', closeChildren)
+  window.removeEventListener('scroll', updateOnNestedScroll, true)
+  window.removeEventListener('resize', updatePopoverPosition)
   document.removeEventListener('pointerdown', closeOnOutsidePointer)
 })
 
 function closeChildren() {
   selectedItemId.value = null
   selectedButton = null
+}
+
+function updateOnNestedScroll(event) {
+  if (selectedItemId.value === null || popoverRef.value?.contains(event.target)) return
+  if ([document, document.documentElement, document.body, window].includes(event.target)) return
+  updatePopoverPosition()
 }
 
 function closeOnOutsidePointer(event) {
@@ -119,35 +125,46 @@ function handleItemClick(item, event) {
   }
   selectedButton = event.currentTarget
   currentChildren.value = item.children
-  const rect = event.currentTarget.getBoundingClientRect()
+  updatePopoverPosition()
+  selectedItemId.value = item.id
+}
+
+function updatePopoverPosition() {
+  if (!selectedButton) return
+  if (!selectedButton.isConnected) {
+    closeChildren()
+    return
+  }
+
+  const rect = selectedButton.getBoundingClientRect()
   const mobile = window.innerWidth <= 500
   const cellWidth = rect.width
   const padding = mobile ? 8 : 12
   const gap = 6
   const maxColumns = Math.max(1, Math.floor((window.innerWidth - 16 - padding * 2 + gap) / (cellWidth + gap)))
-  const columns = Math.min(item.children.length, maxColumns)
+  const columns = Math.min(currentChildren.value.length, maxColumns)
   const contentWidth = columns * cellWidth + (columns - 1) * gap + padding * 2
-  const rows = Math.ceil(item.children.length / columns)
+  const rows = Math.ceil(currentChildren.value.length / columns)
   const height = rows * rect.height + (rows - 1) * gap + padding * 2
   const above = rect.top >= height + 8 || rect.top > window.innerHeight - rect.bottom
   const availableHeight = Math.max(52, above ? rect.top - 16 : window.innerHeight - rect.bottom - 16)
   const width = Math.min(window.innerWidth - 16, contentWidth + (height > availableHeight ? 16 : 0))
-  const groupRect = event.currentTarget.closest('.attribute-group')?.getBoundingClientRect()
+  const groupRect = selectedButton.closest('.attribute-group')?.getBoundingClientRect()
   const center = mobile && columns === maxColumns && maxColumns >= 3 && groupRect
     ? groupRect.left + groupRect.width / 2
     : rect.left + rect.width / 2
   const left = Math.max(8, Math.min(center - width / 2, window.innerWidth - width - 8))
+  const displayedHeight = Math.min(height, availableHeight)
+  // 弹窗挂在 body 下，使用页面坐标才能与格子同步滚动。
   popoverStyle.value = {
     '--child-columns': columns,
     '--child-width': `${cellWidth}px`,
     '--popover-padding': `${padding}px`,
-    left: `${left}px`,
-    top: above ? 'auto' : `${rect.bottom + 8}px`,
-    bottom: above ? `${window.innerHeight - rect.top + 8}px` : 'auto',
+    left: `${left + window.scrollX}px`,
+    top: `${(above ? rect.top - displayedHeight - 8 : rect.bottom + 8) + window.scrollY}px`,
     width: `${width}px`,
     maxHeight: `${availableHeight}px`
   }
-  selectedItemId.value = item.id
 }
 
 /* ---------- 监听路由变化 ---------- */
@@ -414,8 +431,8 @@ watch([dialect, language], fetchTable)
 }
 .item-box.selected { border-color: var(--color-primary); background: #edf5ed; }
 .pinyin-children-popover {
-  position: fixed;
-  z-index: 1000;
+  position: absolute;
+  z-index: 980;
   box-sizing: border-box;
   padding: var(--popover-padding, 12px);
   border: 1px solid #b9d8bf;

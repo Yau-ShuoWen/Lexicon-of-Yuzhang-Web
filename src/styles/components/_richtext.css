@@ -46,6 +46,10 @@
     white-space: nowrap;
 }
 
+.rt-list-number {
+    font-family: 'Cambria', 'Cambria Math', serif;
+}
+
 .rt-list-content {
     min-width: 0;
 }

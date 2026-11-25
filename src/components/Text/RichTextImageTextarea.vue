@@ -2339,7 +2339,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }
 .rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="bullet"]::before) { content: '●'; position: relative; top: -4px; color: #1f6722; font-family: PMingLiU, sans-serif; font-size: 12px; }
-.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="ordered"]::before) { content: counter(rich-editor-ordered) '.'; }
+.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="ordered"]::before) { content: counter(rich-editor-ordered) '.'; font-family: 'Cambria', 'Cambria Math', serif; }
 .rich-image-editor :deep(.rich-image-editor__list-marker--selected) { background: #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__list-marker--selected::before) { color: #fff !important; }
 .rich-image-editor :deep(.rich-image-editor__body p:has(> .rich-image-editor__format--heading)) { margin-top: 1.6em; }

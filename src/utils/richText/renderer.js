@@ -41,7 +41,7 @@ function renderLine(line, orderedIndex, context) {
     }
     if (line.startsWith('- ')) {
         return {
-            html: `<span class="rt-list-item"><span class="rt-list-marker rt-li-dot">●</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            html: `<div class="rt-list-item"><span class="rt-list-marker rt-li-dot">●</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></div>`,
             orderedIndex: 0,
             block: true,
         }
@@ -49,7 +49,7 @@ function renderLine(line, orderedIndex, context) {
     if (line.startsWith('+ ')) {
         const next = orderedIndex + 1
         return {
-            html: `<span class="rt-list-item"><span class="rt-list-marker rt-list-number">${next}.</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            html: `<div class="rt-list-item"><span class="rt-list-marker rt-list-number">${next}.</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></div>`,
             orderedIndex: next,
             block: true,
         }

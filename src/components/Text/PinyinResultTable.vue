@@ -3,17 +3,13 @@ import { nextTick, onMounted, ref, watch } from 'vue'
 import { CopyDocument } from '@element-plus/icons-vue'
 import { showSuccess } from '../../services/ToastService.js'
 import { convertPinyinForCopy } from '../../utils/pinyinBlock.js'
-import mandarinIcon from '../../assets/icons/pinyin/mandarin.svg'
 import pinyinIcon from '../../assets/icons/settings/pinyin.svg'
-import keyboardIcon from '../../assets/icons/pinyin/keyboard.svg'
 import ipaIcon from '../../assets/icons/pinyin/ipa.svg'
 import bookIcon from '../../assets/icons/special/book.svg'
 
 const ICONS_BY_TAG = Object.freeze({
-  putonghua: mandarinIcon,
   standard: pinyinIcon,
   other: pinyinIcon,
-  keyboard: keyboardIcon,
   yzcIPA: ipaIcon,
   dictIPA: bookIcon
 })

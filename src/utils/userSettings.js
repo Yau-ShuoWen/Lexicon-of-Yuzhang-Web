@@ -14,7 +14,6 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({
 
 const DIALECT_NOTATIONS = new Set(['standard', 'ganCommon', 'other', 'yzcIPA', 'dictIPA'])
 const LEGACY_DIALECT_NOTATIONS = {
-  mandarinApproximation: 'putonghua',
   dictionaryIpa: 'yzcIPA',
   alternate: 'other',
   referenceIpa: 'dictIPA'

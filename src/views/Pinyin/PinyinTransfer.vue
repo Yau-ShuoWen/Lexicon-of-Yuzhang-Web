@@ -102,7 +102,8 @@ onBeforeUnmount(() => {
 <template>
   <section class="pinyin-transfer">
     <div class="transfer-body">
-      <div class="transfer-field">
+      <div class="transfer-field transfer-input-wrap">
+        <div class="transfer-input-marker" aria-hidden="true"></div>
         <textarea
           v-model="input"
           class="transfer-input"
@@ -139,7 +140,7 @@ onBeforeUnmount(() => {
 .transfer-results {
   box-sizing: border-box;
   padding: 22px 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--pinyin-card-border);
   border-radius: var(--border-radius-lg);
   background: #fff;
   box-shadow: var(--pinyin-card-shadow);
@@ -164,16 +165,29 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.transfer-input-wrap { position: relative; }
+
+.transfer-input-marker {
+  position: absolute;
+  top: 23px;
+  left: 20.5px;
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-primary);
+  pointer-events: none;
+}
+
 .transfer-input {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  height: 96px;
-  min-height: 96px;
+  height: 142px;
+  min-height: 142px;
   margin: 0;
-  padding: 12px 16px;
+  padding: 60px 20px 12px;
   resize: none;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--pinyin-card-border);
   border-radius: var(--border-radius-lg);
   background: #fff;
   color: var(--color-text);

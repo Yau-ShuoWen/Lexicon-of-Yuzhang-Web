@@ -30,7 +30,7 @@ const sections = [[3, 2], [2, 3, 3, 3]]
 
 .skeleton-section {
   padding: 22px 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--pinyin-card-border);
   border-radius: var(--border-radius-lg);
   background: #fff;
   box-shadow: var(--pinyin-card-shadow);

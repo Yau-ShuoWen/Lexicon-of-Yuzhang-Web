@@ -201,22 +201,25 @@ watch([dialect, language], fetchTable)
 
 
 .pinyin-hero {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   min-height: 116px;
   box-sizing: border-box;
-  border: 1px solid var(--color-border);
+  border: 1px solid #b9d8bf;
   border-radius: var(--border-radius-lg);
   padding: 28px;
   margin-bottom: 18px;
   color: var(--color-text);
-  background: #c7e4ca;
-  box-shadow: var(--pinyin-card-shadow);
+  background: #d5ebd8;
+  box-shadow: 0 2px 8px rgba(27, 67, 31, .06);
   user-select: none;
   -webkit-user-select: none;
 }
 
 .hero-title {
-  margin: 0 0 14px;
+  margin: 0;
   color: #245c35;
   font-size: 30px;
   font-weight: 700;
@@ -224,10 +227,8 @@ watch([dialect, language], fetchTable)
 }
 
 .panel-navigation {
-  position: absolute;
-  right: 28px;
-  bottom: 28px;
   display: flex;
+  flex: 0 0 auto;
   gap: 16px;
 }
 .panel-navigation button {
@@ -245,7 +246,7 @@ watch([dialect, language], fetchTable)
 .panel-navigation button:hover, .panel-navigation button:focus-visible { background: rgba(36, 92, 53, .28); }
 .panel-navigation button:hover img, .panel-navigation button:focus-visible img { opacity: 1; }
 .panel-content { min-width: 0; }
-.input-guide { min-width: 0; padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.input-guide { min-width: 0; padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .input-guide p { margin: 0; }
 .pinyin-faq__fallback details { border-top: 1px solid #dce8dd; }
 .pinyin-faq__fallback summary { padding: 14px 2px; cursor: pointer; font-weight: 650; }
@@ -254,7 +255,7 @@ watch([dialect, language], fetchTable)
 /* ======== 分组卡片 ======== */
 .attribute-group {
   background: #fff;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--pinyin-card-border);
   border-radius: var(--border-radius-lg);
 
   padding: 22px 20px;
@@ -387,12 +388,12 @@ watch([dialect, language], fetchTable)
 .pinyin-content-host {
   min-width: 0;
 }
-.pinyin-faq { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.pinyin-faq { padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .pinyin-faq__item { border-top: 1px solid #dce8dd; }
 .pinyin-faq__item summary { padding: 14px 2px; color: var(--color-text); font-weight: 650; cursor: pointer; }
 .pinyin-faq__answer { padding: 0 2px 16px; color: var(--color-text); line-height: 1.7; white-space: pre-wrap; }
 .panel-skeleton { display: grid; gap: 18px; }
-.skeleton-card { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.skeleton-card { padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .skeleton-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .skeleton-heading::before { content: ''; width: 6px; height: 22px; border-radius: 4px; background: var(--color-primary); }
 .accent-1 .skeleton-heading::before { background: var(--color-secondary); }
@@ -435,7 +436,8 @@ watch([dialect, language], fetchTable)
 }
 
 .pinyin-layout {
-  --pinyin-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
+  --pinyin-card-border: #d3ddd5;
+  --pinyin-card-shadow: 0 1px 5px rgba(27, 67, 31, .035);
   width: 1088px;
   padding-bottom: 100px;
 }
@@ -480,7 +482,6 @@ watch([dialect, language], fetchTable)
     padding: 20px 18px;
   }
   .panel-navigation {
-    position: static;
     grid-column: 1 / -1;
     grid-row: 1;
     width: 100%;

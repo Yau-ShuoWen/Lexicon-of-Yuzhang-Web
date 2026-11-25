@@ -1,9 +1,8 @@
 <!-- PinyinTable -->
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showError } from '../../services/ToastService.js'
-import PinyinDetail from './PinyinDetail.vue'
 import PinyinTableSkeleton from './PinyinTableSkeleton.vue'
 import { useHead } from '@vueuse/head'
 import { useI18n } from 'vue-i18n'
@@ -11,7 +10,6 @@ import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
 import TextInfo from '../../components/Status/TextInfo.vue'
 import { tableFromDocument } from '../../utils/pinyinDocument.js'
-import informationIcon from '../../assets/icons/about.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 
@@ -24,13 +22,14 @@ const {t} = useI18n()
 
 const pinyinData = ref([])
 const faq = ref([])
-const panels = ['table', 'input', 'faq']
+const panels = ['table', 'input', 'transfer', 'faq']
 const storageKey = 'pinyin-panel'
 const savedPanel = localStorage.getItem(storageKey)
 const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
 const hasSwitchedPanel = ref(false)
-const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), faq: t('pinyin_table.faq_title') })[activePanel.value])
+const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), transfer: t('pinyin_table.transfer_title'), faq: t('pinyin_table.faq_title') })[activePanel.value])
 function switchPanel(direction) {
+  closeChildren()
   hasSwitchedPanel.value = true
   const index = panels.indexOf(activePanel.value)
   activePanel.value = panels[(index + direction + panels.length) % panels.length]
@@ -38,9 +37,11 @@ function switchPanel(direction) {
 }
 const loading = ref(true)
 const showSkeleton = ref(false)
-const showDetail = ref(false)
-const currentKey = ref('')
-const currentChildren = ref(null)
+const selectedItemId = ref(null)
+const currentChildren = ref([])
+const popoverStyle = ref({})
+const popoverRef = ref(null)
+let selectedButton = null
 let skeletonTimer = null
 
 const hasData = computed(() => pinyinData.value.length > 0)
@@ -67,10 +68,38 @@ function stopLoading() {
 
 // 生命周期
 onMounted(fetchTable)
+onMounted(() => {
+  window.addEventListener('scroll', updateOnNestedScroll, true)
+  window.addEventListener('resize', updatePopoverPosition)
+  document.addEventListener('pointerdown', closeOnOutsidePointer)
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateOnNestedScroll, true)
+  window.removeEventListener('resize', updatePopoverPosition)
+  document.removeEventListener('pointerdown', closeOnOutsidePointer)
+})
+
+function closeChildren() {
+  selectedItemId.value = null
+  selectedButton = null
+}
+
+function updateOnNestedScroll(event) {
+  if (selectedItemId.value === null || popoverRef.value?.contains(event.target)) return
+  if ([document, document.documentElement, document.body, window].includes(event.target)) return
+  updatePopoverPosition()
+}
+
+function closeOnOutsidePointer(event) {
+  if (selectedItemId.value === null) return
+  if (popoverRef.value?.contains(event.target) || selectedButton?.contains(event.target)) return
+  closeChildren()
+}
 
 async function fetchTable() {
   try {
     startLoading()
+    closeChildren()
     const document = await request(`/api/pinyin/document/${dialect.value}`)
     faq.value = document?.faq || []
     if (document) pinyinData.value = tableFromDocument(document, language.value)
@@ -88,12 +117,54 @@ async function fetchTable() {
   }
 }
 
-function handleItemClick(item) {
-  if (!item.exist) return
+function handleItemClick(item, event) {
+  if (!item.exist || !item.children || item.children.length <= 1) return
+  if (selectedItemId.value === item.id) {
+    closeChildren()
+    return
+  }
+  selectedButton = event.currentTarget
+  currentChildren.value = item.children
+  updatePopoverPosition()
+  selectedItemId.value = item.id
+}
 
-  currentKey.value = item.id
-  currentChildren.value = item.children || null
-  showDetail.value = true
+function updatePopoverPosition() {
+  if (!selectedButton) return
+  if (!selectedButton.isConnected) {
+    closeChildren()
+    return
+  }
+
+  const rect = selectedButton.getBoundingClientRect()
+  const mobile = window.innerWidth <= 500
+  const cellWidth = rect.width
+  const padding = mobile ? 8 : 12
+  const gap = 6
+  const maxColumns = Math.max(1, Math.floor((window.innerWidth - 16 - padding * 2 + gap) / (cellWidth + gap)))
+  const columns = Math.min(currentChildren.value.length, maxColumns)
+  const contentWidth = columns * cellWidth + (columns - 1) * gap + padding * 2
+  const rows = Math.ceil(currentChildren.value.length / columns)
+  const height = rows * rect.height + (rows - 1) * gap + padding * 2
+  const above = rect.top >= height + 8 || rect.top > window.innerHeight - rect.bottom
+  const availableHeight = Math.max(52, above ? rect.top - 16 : window.innerHeight - rect.bottom - 16)
+  const width = Math.min(window.innerWidth - 16, contentWidth + (height > availableHeight ? 16 : 0))
+  const groupRect = selectedButton.closest('.attribute-group')?.getBoundingClientRect()
+  const center = mobile && columns === maxColumns && maxColumns >= 3 && groupRect
+    ? groupRect.left + groupRect.width / 2
+    : rect.left + rect.width / 2
+  const left = Math.max(8, Math.min(center - width / 2, window.innerWidth - width - 8))
+  const displayedHeight = Math.min(height, availableHeight)
+  // 弹窗挂在 body 下，使用页面坐标才能与格子同步滚动。
+  popoverStyle.value = {
+    '--child-columns': columns,
+    '--child-width': `${cellWidth}px`,
+    '--popover-padding': `${padding}px`,
+    left: `${left + window.scrollX}px`,
+    top: `${(above ? rect.top - displayedHeight - 8 : rect.bottom + 8) + window.scrollY}px`,
+    width: `${width}px`,
+    maxHeight: `${availableHeight}px`
+  }
 }
 
 /* ---------- 监听路由变化 ---------- */
@@ -110,12 +181,6 @@ watch([dialect, language], fetchTable)
       <h1 class="hero-title">
         {{ panelTitle }}
       </h1>
-
-      <p v-if="activePanel === 'table'" class="hero-hint">
-        <img :src="informationIcon" alt="" draggable="false" />
-        <span>{{ $t('pinyin_table.hint') }}</span>
-      </p>
-      <p v-else class="hero-hint">{{ $t(activePanel === 'input' ? 'pinyin_table.input_label' : 'pinyin_table.faq_label') }}</p>
 
       <nav class="panel-navigation" :aria-label="$t('pinyin_table.panel_navigation')">
         <button type="button" :aria-label="$t('pinyin_table.previous_panel')" @click="switchPanel(-1)"><img :src="leftIcon" alt="" /></button>
@@ -149,11 +214,11 @@ watch([dialect, language], fetchTable)
                       v-for="(item, itemIndex) in group.item"
                       :key="item.id"
                       class="item-box"
-                      :class="{ invalid: !item.exist, 'initial-item-enter': !hasSwitchedPanel }"
+                      :class="{ invalid: !item.exist, 'initial-item-enter': !hasSwitchedPanel, selected: selectedItemId === item.id }"
                       type="button"
                       :disabled="!item.exist"
                       :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
-                      @click="handleItemClick(item)"
+                      @click="handleItemClick(item, $event)"
                   >
                     <div class="main-display" v-formatted-text="item.standard"/>
                   </button>
@@ -168,15 +233,16 @@ watch([dialect, language], fetchTable)
     <div v-show="activePanel === 'input'" class="panel-content">
       <div v-if="showSkeleton && !hasSwitchedPanel" class="panel-skeleton">
         <section class="skeleton-card"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
-        <section class="skeleton-card accent-1"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
       </div>
       <template v-else>
         <section class="input-guide" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.input_guide')">
           <div class="pinyin-group-header"><h3>{{ $t('pinyin_table.input_guide') }}</h3></div>
           <TextInfo :dialect="dialect.toString()" :language="language.toString()" :text-key="`pinyin-explain:${dialect}`" />
         </section>
-        <PinyinTransfer :class="{ 'initial-enter': !hasSwitchedPanel }" :dialect="dialect.toString()" :language="language.toString()" />
       </template>
+    </div>
+    <div v-show="activePanel === 'transfer'" class="panel-content">
+      <PinyinTransfer :class="{ 'initial-enter': !hasSwitchedPanel }" :dialect="dialect.toString()" :language="language.toString()" />
     </div>
     <section v-if="showSkeleton && !hasSwitchedPanel" v-show="activePanel === 'faq'" class="skeleton-card" aria-hidden="true"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
     <section v-else v-show="activePanel === 'faq'" class="pinyin-faq" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.faq_title')">
@@ -192,14 +258,15 @@ watch([dialect, language], fetchTable)
       </details>
     </section>
   </div>
-  <PinyinDetail
-      :show="showDetail"
-      :dialect="dialect.toString()"
-      :language="language.toString()"
-      :pinyinKey="currentKey"
-      :documentChildren="currentChildren"
-      @close="showDetail = false"
-  />
+  <Teleport to="body">
+    <div v-if="selectedItemId !== null" ref="popoverRef" class="pinyin-children-popover" :style="popoverStyle" role="region" :aria-label="$t('pinyin_table.detail_title')">
+      <div class="pinyin-children-row">
+        <div v-for="child in currentChildren" :key="child.id" class="item-box child-box">
+          <div class="main-display" v-formatted-text="child.title ? ` [${child.title}] ` : child.key" />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 
@@ -207,52 +274,34 @@ watch([dialect, language], fetchTable)
 
 
 .pinyin-hero {
-  position: relative;
-  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 116px;
+  box-sizing: border-box;
+  border: 1px solid #b9d8bf;
   border-radius: var(--border-radius-lg);
   padding: 28px;
   margin-bottom: 18px;
   color: var(--color-text);
-  background: #c7e4ca;
-  box-shadow: var(--pinyin-card-shadow);
+  background: #d5ebd8;
+  box-shadow: 0 2px 8px rgba(27, 67, 31, .06);
   user-select: none;
   -webkit-user-select: none;
 }
 
 .hero-title {
-  margin: 0 0 14px;
+  margin: 0;
   color: #245c35;
   font-size: 30px;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.hero-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 7px 11px;
-  border: 1px solid #a9cfb1;
-  border-radius: 999px;
-  color: #315f3c;
-  background: #e5f3e7;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.hero-hint img {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  opacity: .72;
-}
-
 .panel-navigation {
-  position: absolute;
-  right: 28px;
-  bottom: 28px;
   display: flex;
+  flex: 0 0 auto;
   gap: 16px;
 }
 .panel-navigation button {
@@ -270,7 +319,7 @@ watch([dialect, language], fetchTable)
 .panel-navigation button:hover, .panel-navigation button:focus-visible { background: rgba(36, 92, 53, .28); }
 .panel-navigation button:hover img, .panel-navigation button:focus-visible img { opacity: 1; }
 .panel-content { min-width: 0; }
-.input-guide { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.input-guide { min-width: 0; padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .input-guide p { margin: 0; }
 .pinyin-faq__fallback details { border-top: 1px solid #dce8dd; }
 .pinyin-faq__fallback summary { padding: 14px 2px; cursor: pointer; font-weight: 650; }
@@ -279,7 +328,7 @@ watch([dialect, language], fetchTable)
 /* ======== 分组卡片 ======== */
 .attribute-group {
   background: #fff;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--pinyin-card-border);
   border-radius: var(--border-radius-lg);
 
   padding: 22px 20px;
@@ -380,6 +429,22 @@ watch([dialect, language], fetchTable)
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+.item-box.selected { border-color: var(--color-primary); background: #edf5ed; }
+.pinyin-children-popover {
+  position: absolute;
+  z-index: 980;
+  box-sizing: border-box;
+  padding: var(--popover-padding, 12px);
+  border: 1px solid #b9d8bf;
+  border-radius: var(--border-radius-lg);
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(27, 67, 31, .17), 0 2px 5px rgba(27, 67, 31, .08);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.pinyin-children-row { display: grid; grid-template-columns: repeat(var(--child-columns, 1), var(--child-width, 76px)); gap: 6px; }
+.child-box { width: var(--child-width, 76px); cursor: default; }
+.item-box.child-box:hover { border-color: #d6e6d2; background: #f7faf7; }
 
 /* ======== invalid ======== */
 .item-box.invalid {
@@ -395,6 +460,7 @@ watch([dialect, language], fetchTable)
 
 /* ======== 文字 ======== */
 .main-display {
+  font-family: 'Cambria', 'Cambria Math', serif;
   font-size: 22px;
   text-align: center;
   color: var(--color-text);
@@ -412,12 +478,12 @@ watch([dialect, language], fetchTable)
 .pinyin-content-host {
   min-width: 0;
 }
-.pinyin-faq { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.pinyin-faq { padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .pinyin-faq__item { border-top: 1px solid #dce8dd; }
 .pinyin-faq__item summary { padding: 14px 2px; color: var(--color-text); font-weight: 650; cursor: pointer; }
 .pinyin-faq__answer { padding: 0 2px 16px; color: var(--color-text); line-height: 1.7; white-space: pre-wrap; }
 .panel-skeleton { display: grid; gap: 18px; }
-.skeleton-card { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.skeleton-card { padding: 22px 20px; border: 1px solid var(--pinyin-card-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .skeleton-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .skeleton-heading::before { content: ''; width: 6px; height: 22px; border-radius: 4px; background: var(--color-primary); }
 .accent-1 .skeleton-heading::before { background: var(--color-secondary); }
@@ -460,7 +526,8 @@ watch([dialect, language], fetchTable)
 }
 
 .pinyin-layout {
-  --pinyin-card-shadow: 0 3px 12px rgba(27, 67, 31, .09);
+  --pinyin-card-border: #d3ddd5;
+  --pinyin-card-shadow: 0 1px 5px rgba(27, 67, 31, .035);
   width: 1088px;
   padding-bottom: 100px;
 }
@@ -496,13 +563,58 @@ watch([dialect, language], fetchTable)
     width: 100%;
   }
 
-  .pinyin-hero {
-    padding: 22px 18px 84px;
+  .attribute-group {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 8px 12px 24px;
+    box-shadow: none;
   }
-  .panel-navigation { right: 18px; bottom: 16px; }
+
+  .attribute-group + .attribute-group {
+    padding-top: 24px;
+    border-top: 1px solid #d4e1d7;
+  }
+
+  .this-table-block {
+    gap: 0;
+  }
+
+  .item-box {
+    background: #e5f1e8;
+    border: 1.5px solid #b3ceb9;
+  }
+
+  .item-box.invalid {
+    background: #e9eff0;
+    border-color: #cbd6d7;
+  }
+
+  .pinyin-hero {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    column-gap: 12px;
+    min-height: 108px;
+    padding: 20px 18px;
+  }
+  .panel-navigation {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .panel-navigation button { pointer-events: auto; }
 
   .hero-title {
-    font-size: 24px;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(16px, 5.5vw, 24px);
+    text-align: center;
+    overflow-wrap: anywhere;
   }
 
   /* 每行只有一个 group */

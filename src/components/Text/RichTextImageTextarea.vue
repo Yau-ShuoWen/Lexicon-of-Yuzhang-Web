@@ -22,7 +22,7 @@ import rightIcon from '../../assets/icons/to-right.svg'
 import ungroupIcon from '../../assets/icons/ungroup.svg'
 import plusIcon from '../../assets/icons/plus-white.svg'
 import { clearDiaryTableShadows, renderDiaryBody } from '../../views/Diary/diaryBodyStyle.js'
-import { BLOCKQUOTE_TAG_MAP } from '../../utils/blockquote.js'
+import { BLOCKQUOTE_TAG_MAP, UNDEFINED_BLOCKQUOTE_STYLE, blockquoteStyleForTag, blockquoteStyleVariables } from '../../utils/blockquote.js'
 import quoteTagIcon from '../../assets/icons/calendar/bookmark.svg'
 import { isAtFormattedJoin, listTypeForInput, mergeFormattedParagraphs, parseListLine, parseRichEditorText, serializeRichEditorText, serializeSelectedRichText, synchronizeCommentMarks } from './richEditorSyntax.js'
 
@@ -57,7 +57,7 @@ function quoteFromLines(lines, start) {
   const singleLineTag = normalized.length === 1 && !!normalized[0]
   const styleName = normalized[0]
   const hasStyle = normalized.length >= 2
-    && (styleName === 'tag' || Object.hasOwn(BLOCKQUOTE_TAG_MAP, styleName))
+    && (styleName === 'tag' || /^[a-z][a-z0-9]*$/.test(styleName))
   const tag = singleLineTag ? 'tag' : hasStyle ? styleName : null
   const title = singleLineTag ? normalized[0] : tag ? normalized[1] : ''
   const body = tag === 'dm' ? content.slice(2) : tag ? normalized.slice(2) : normalized
@@ -850,9 +850,30 @@ function handleFormattedKeyDown(view, event) {
     removeTableAt(view, view.state.selection.from)
     return true
   }
+  if (createQuoteFromTagLine(view, event)) return true
   if (handleQuoteKey(view, event)) return true
   if (handleTableArrow(view, event)) return true
   return splitOrMergeFormattedLine(view, event) || moveAcrossFormatBoundary(view, event)
+}
+function createQuoteFromTagLine(view, event) {
+  if (event.key !== 'Enter' || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey
+    || !view.state.selection.empty) return false
+  const { state } = view
+  const { $from } = state.selection
+  if ($from.depth !== 1 || $from.parent.type.name !== 'paragraph'
+    || $from.parent.attrs.listType || $from.parentOffset !== $from.parent.content.size) return false
+  const paragraph = $from.parent
+  if (paragraph.childCount !== 1 || !paragraph.firstChild.isText || paragraph.firstChild.marks.length) return false
+  const match = /^```([a-z][a-z0-9]*)$/.exec(paragraph.textContent)
+  if (!match) return false
+  const tag = match[1]
+  const { editorQuote, quoteTitle, paragraph: paragraphType } = state.schema.nodes
+  const position = $from.before()
+  const quote = editorQuote.create({ tag }, [quoteTitle.create({ tag, headerOnly: false }), paragraphType.create()])
+  const tr = state.tr.replaceWith(position, $from.after(), quote)
+  view.dispatch(tr.setSelection(TextSelection.create(tr.doc, position + 2)))
+  event.preventDefault()
+  return true
 }
 let pendingQuoteExit = null
 function handleQuoteKey(view, event) {
@@ -1130,7 +1151,8 @@ function openQuoteStyle(view, event) {
   const position = view.posAtDOM(quote.parentNode, [...quote.parentNode.childNodes].indexOf(quote))
   if (view.state.doc.nodeAt(position)?.type.name !== 'editorQuote') return false
   event.preventDefault()
-  insertMenu.value = { kind: 'quote-style', position,
+  const tag = view.state.doc.nodeAt(position).attrs.tag
+  insertMenu.value = { kind: 'quote-style', position, unknownTag: tag && tag !== 'tag' && !Object.hasOwn(BLOCKQUOTE_TAG_MAP, tag) ? tag : null,
     x: Math.max(8, Math.min(event.clientX, window.innerWidth - 190)),
     y: Math.max(8, Math.min(event.clientY, window.innerHeight - 260)) }
   return true
@@ -1481,7 +1503,7 @@ const QuoteTitle = Node.create({
   } },
   parseHTML() { return [{ tag: 'div[data-quote-title]' }] },
   renderHTML({ node }) { return ['div', { 'data-quote-title': '', 'data-quote-title-tag': node.attrs.tag || '', 'data-quote-header-only': String(node.attrs.headerOnly), class: 'rt-blockquote__header' },
-    ['img', { class: 'rt-blockquote__icon rich-image-editor__quote-style', src: BLOCKQUOTE_TAG_MAP[node.attrs.tag]?.icon || BLOCKQUOTE_TAG_MAP.bq.icon, alt: '选择引用样式', contenteditable: 'false', draggable: 'false' }],
+    ['img', { class: 'rt-blockquote__icon rich-image-editor__quote-style', src: blockquoteStyleForTag(node.attrs.tag)?.icon || BLOCKQUOTE_TAG_MAP.bq.icon, alt: '选择引用样式', contenteditable: 'false', draggable: 'false' }],
     ['span', { class: 'rt-blockquote__title' }, 0],
     ['button', { type: 'button', class: 'rich-image-editor__quote-tag-toggle', contenteditable: 'false', title: node.attrs.headerOnly ? '显示正文' : '仅保留标题', 'aria-label': node.attrs.headerOnly ? '显示正文' : '仅保留标题' },
       ['img', { src: quoteTagIcon, alt: '', draggable: 'false' }]]] }
@@ -1494,8 +1516,8 @@ const EditorQuote = Node.create({
   } },
   parseHTML() { return [{ tag: 'blockquote[data-editor-quote]' }] },
   renderHTML({ node }) {
-    const config = BLOCKQUOTE_TAG_MAP[node.attrs.tag] || (node.attrs.tag === 'tag' ? BLOCKQUOTE_TAG_MAP.bq : null)
-    const style = config ? `--bq-accent:${config.accent};--bq-bg:${config.bg};--bq-header-bg:${config.headerBg};--bq-icon-bg:${config.iconBg};--bq-text:${config.text || config.accent}` : ''
+    const config = blockquoteStyleForTag(node.attrs.tag)
+    const style = blockquoteStyleVariables(config)
     return ['blockquote', { 'data-editor-quote': '', 'data-quote-tag': node.attrs.tag || '',
       'data-quote-source-form': node.attrs.sourceForm || '',
       class: `rt-blockquote${config ? ` rt-blockquote-tag${node.attrs.tag === 'dm' ? ' rt-blockquote-tag--dm' : ''}` : ''}`, style }, 0]
@@ -2198,7 +2220,8 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
           <button v-for="format in textFormats.filter(item => item.key !== 'h1' || insertMenu.selection.wholeLine)" :key="format.key" type="button" role="menuitem" :disabled="!!insertMenu.selection.key && insertMenu.selection.key !== format.key" @mousedown.prevent @click="formatSelectedText(format.key)">{{ insertMenu.selection.key === format.key ? `取消${format.label}` : format.label }}</button>
         </template>
         <template v-else-if="insertMenu.kind === 'quote-style'">
-          <button v-for="style in quoteStyles" :key="style.key" type="button" role="menuitem" class="rich-image-editor__quote-option" :style="{ color: style.text || style.accent }" @mousedown.prevent @click="setQuoteStyle(style.key)"><img :src="style.icon" alt="" /><span>{{ { pyq: '朋友圈', warn: '警告', sl: '思考', bq: '便签', dm: '代码', bc: '补充', gd: '观点', lt: '聊天' }[style.key] || style.key }}</span></button>
+          <div v-if="insertMenu.unknownTag" class="rich-image-editor__quote-option" :style="{ color: UNDEFINED_BLOCKQUOTE_STYLE.accent }"><img :src="UNDEFINED_BLOCKQUOTE_STYLE.icon" alt="" /><span>未定义（{{ insertMenu.unknownTag }}）</span></div>
+          <button v-for="style in quoteStyles" :key="style.key" type="button" role="menuitem" class="rich-image-editor__quote-option" :style="{ color: style.text || style.accent }" @mousedown.prevent @click="setQuoteStyle(style.key)"><img :src="style.icon" alt="" /><span>{{ { pyq: '朋友圈', jg: '警告', sl: '思考', bq: '便签', dm: '代码', bc: '补充', gd: '观点', lt: '聊天' }[style.key] || style.key }}</span></button>
         </template>
         <template v-else-if="insertMenu.kind === 'table-column'">
           <div class="rich-image-editor__table-menu-layout">
@@ -2261,6 +2284,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor__insert-menu button { min-height: 29px; padding: 5px 12px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .rich-image-editor__insert-menu:has(.rich-image-editor__quote-option) { max-height: min(390px, 75vh); overflow-y: auto; }
 .rich-image-editor__insert-menu .rich-image-editor__quote-option { display: flex; align-items: center; gap: 9px; min-width: 150px; font-weight: 600; }
+.rich-image-editor__insert-menu div.rich-image-editor__quote-option { padding: 7px 10px; cursor: default; }
 .rich-image-editor__quote-option img { width: 20px; height: 20px; object-fit: contain; }
 .rich-image-editor__table-menu-layout { display: grid; grid-template-columns: minmax(200px, 1fr) 106px; }
 .rich-image-editor__table-menu-actions { display: grid; align-content: start; border-left: 1px solid #e2e8e3; }

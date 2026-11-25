@@ -1,4 +1,4 @@
-import { BLOCKQUOTE_TAG_MAP } from '../blockquote.js'
+import { blockquoteStyleForTag, blockquoteStyleVariables } from '../blockquote.js'
 
 function escapeHtml(text) {
     return text
@@ -43,11 +43,11 @@ function renderBlockquote(content, nextIndex, renderInline, renderContent) {
     const normalized = content.join('\n').trim().split('\n').map(line => line.trim())
     const firstLine = normalized[0] || ''
     const tagName = /^[a-z][a-z0-9]*$/.test(firstLine) ? firstLine : null
-    const config = tagName ? BLOCKQUOTE_TAG_MAP[tagName] : null
+    const config = tagName && tagName !== 'tag' ? blockquoteStyleForTag(tagName) : null
 
     if ((tagName === 'tag' && normalized.length >= 2) || (normalized.length === 1 && !!normalized[0])) {
-        const tagStyle = BLOCKQUOTE_TAG_MAP.bq
-        const style = `--bq-accent:${tagStyle.accent};--bq-bg:${tagStyle.bg};--bq-header-bg:${tagStyle.headerBg};--bq-icon-bg:${tagStyle.iconBg};--bq-text:${tagStyle.text || tagStyle.accent}`
+        const tagStyle = blockquoteStyleForTag('tag')
+        const style = blockquoteStyleVariables(tagStyle)
         const title = tagName === 'tag' && normalized.length >= 2 ? normalized[1] : normalized[0]
         return {
             nextIndex,
@@ -61,7 +61,7 @@ function renderBlockquote(content, nextIndex, renderInline, renderContent) {
         const body = tagName === 'dm'
             ? bodyLines.map(escapeHtml).join('<br>')
             : renderContent(bodyLines.join('\n'))
-        const style = `--bq-accent:${config.accent};--bq-bg:${config.bg};--bq-header-bg:${config.headerBg};--bq-icon-bg:${config.iconBg};--bq-text:${config.text || config.accent}`
+        const style = blockquoteStyleVariables(config)
         const modifierClass = tagName === 'dm' ? ' rt-blockquote-tag--dm' : ''
         return {
             nextIndex,

@@ -215,7 +215,7 @@ export default {
         transfer_result_title: "轉換結果",
         load_failed: "載入拼音表失敗",
         faq_detail_question: "怎樣查看某個拼音的詳細資訊？",
-        faq_detail_answer: "在拼音表中點擊方格，即可查看該拼音的詳細資訊。灰色方格不可點擊。",
+        faq_detail_answer: "在拼音表中點擊有多個子項的方格，即可在方格附近查看子項。灰色方格不可點擊。",
         faq_transfer_question: "怎樣使用拼音轉換？",
         faq_transfer_answer: "切換到「拼音轉換」，輸入拼音後，結果會自動顯示在下方。",
         faq_tone_question: "聲調符號標在哪裡？",

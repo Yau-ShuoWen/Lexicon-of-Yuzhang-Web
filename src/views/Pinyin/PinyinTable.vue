@@ -1,9 +1,8 @@
 <!-- PinyinTable -->
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showError } from '../../services/ToastService.js'
-import PinyinDetail from './PinyinDetail.vue'
 import PinyinTableSkeleton from './PinyinTableSkeleton.vue'
 import { useHead } from '@vueuse/head'
 import { useI18n } from 'vue-i18n'
@@ -30,6 +29,7 @@ const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
 const hasSwitchedPanel = ref(false)
 const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), transfer: t('pinyin_table.transfer_title'), faq: t('pinyin_table.faq_title') })[activePanel.value])
 function switchPanel(direction) {
+  selectedItemId.value = null
   hasSwitchedPanel.value = true
   const index = panels.indexOf(activePanel.value)
   activePanel.value = panels[(index + direction + panels.length) % panels.length]
@@ -37,9 +37,11 @@ function switchPanel(direction) {
 }
 const loading = ref(true)
 const showSkeleton = ref(false)
-const showDetail = ref(false)
-const currentKey = ref('')
-const currentChildren = ref(null)
+const selectedItemId = ref(null)
+const currentChildren = ref([])
+const popoverStyle = ref({})
+const popoverRef = ref(null)
+let selectedButton = null
 let skeletonTimer = null
 
 const hasData = computed(() => pinyinData.value.length > 0)
@@ -66,10 +68,32 @@ function stopLoading() {
 
 // 生命周期
 onMounted(fetchTable)
+onMounted(() => {
+  window.addEventListener('scroll', closeChildren, true)
+  window.addEventListener('resize', closeChildren)
+  document.addEventListener('pointerdown', closeOnOutsidePointer)
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', closeChildren, true)
+  window.removeEventListener('resize', closeChildren)
+  document.removeEventListener('pointerdown', closeOnOutsidePointer)
+})
+
+function closeChildren() {
+  selectedItemId.value = null
+  selectedButton = null
+}
+
+function closeOnOutsidePointer(event) {
+  if (selectedItemId.value === null) return
+  if (popoverRef.value?.contains(event.target) || selectedButton?.contains(event.target)) return
+  closeChildren()
+}
 
 async function fetchTable() {
   try {
     startLoading()
+    closeChildren()
     const document = await request(`/api/pinyin/document/${dialect.value}`)
     faq.value = document?.faq || []
     if (document) pinyinData.value = tableFromDocument(document, language.value)
@@ -87,12 +111,43 @@ async function fetchTable() {
   }
 }
 
-function handleItemClick(item) {
-  if (!item.exist) return
-
-  currentKey.value = item.id
-  currentChildren.value = item.children || null
-  showDetail.value = true
+function handleItemClick(item, event) {
+  if (!item.exist || !item.children || item.children.length <= 1) return
+  if (selectedItemId.value === item.id) {
+    closeChildren()
+    return
+  }
+  selectedButton = event.currentTarget
+  currentChildren.value = item.children
+  const rect = event.currentTarget.getBoundingClientRect()
+  const mobile = window.innerWidth <= 500
+  const cellWidth = rect.width
+  const padding = mobile ? 8 : 12
+  const gap = 6
+  const maxColumns = Math.max(1, Math.floor((window.innerWidth - 16 - padding * 2 + gap) / (cellWidth + gap)))
+  const columns = Math.min(item.children.length, maxColumns)
+  const contentWidth = columns * cellWidth + (columns - 1) * gap + padding * 2
+  const rows = Math.ceil(item.children.length / columns)
+  const height = rows * rect.height + (rows - 1) * gap + padding * 2
+  const above = rect.top >= height + 8 || rect.top > window.innerHeight - rect.bottom
+  const availableHeight = Math.max(52, above ? rect.top - 16 : window.innerHeight - rect.bottom - 16)
+  const width = Math.min(window.innerWidth - 16, contentWidth + (height > availableHeight ? 16 : 0))
+  const groupRect = event.currentTarget.closest('.attribute-group')?.getBoundingClientRect()
+  const center = mobile && columns === maxColumns && maxColumns >= 3 && groupRect
+    ? groupRect.left + groupRect.width / 2
+    : rect.left + rect.width / 2
+  const left = Math.max(8, Math.min(center - width / 2, window.innerWidth - width - 8))
+  popoverStyle.value = {
+    '--child-columns': columns,
+    '--child-width': `${cellWidth}px`,
+    '--popover-padding': `${padding}px`,
+    left: `${left}px`,
+    top: above ? 'auto' : `${rect.bottom + 8}px`,
+    bottom: above ? `${window.innerHeight - rect.top + 8}px` : 'auto',
+    width: `${width}px`,
+    maxHeight: `${availableHeight}px`
+  }
+  selectedItemId.value = item.id
 }
 
 /* ---------- 监听路由变化 ---------- */
@@ -142,11 +197,11 @@ watch([dialect, language], fetchTable)
                       v-for="(item, itemIndex) in group.item"
                       :key="item.id"
                       class="item-box"
-                      :class="{ invalid: !item.exist, 'initial-item-enter': !hasSwitchedPanel }"
+                      :class="{ invalid: !item.exist, 'initial-item-enter': !hasSwitchedPanel, selected: selectedItemId === item.id }"
                       type="button"
                       :disabled="!item.exist"
                       :style="{ animationDelay: (itemIndex * 35) + 'ms' }"
-                      @click="handleItemClick(item)"
+                      @click="handleItemClick(item, $event)"
                   >
                     <div class="main-display" v-formatted-text="item.standard"/>
                   </button>
@@ -186,14 +241,15 @@ watch([dialect, language], fetchTable)
       </details>
     </section>
   </div>
-  <PinyinDetail
-      :show="showDetail"
-      :dialect="dialect.toString()"
-      :language="language.toString()"
-      :pinyinKey="currentKey"
-      :documentChildren="currentChildren"
-      @close="showDetail = false"
-  />
+  <Teleport to="body">
+    <div v-if="selectedItemId !== null" ref="popoverRef" class="pinyin-children-popover" :style="popoverStyle" role="region" :aria-label="$t('pinyin_table.detail_title')">
+      <div class="pinyin-children-row">
+        <div v-for="child in currentChildren" :key="child.id" class="item-box child-box">
+          <div class="main-display" v-formatted-text="child.title ? ` [${child.title}] ` : child.key" />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 
@@ -356,6 +412,22 @@ watch([dialect, language], fetchTable)
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+.item-box.selected { border-color: var(--color-primary); background: #edf5ed; }
+.pinyin-children-popover {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: var(--popover-padding, 12px);
+  border: 1px solid #b9d8bf;
+  border-radius: var(--border-radius-lg);
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(27, 67, 31, .17), 0 2px 5px rgba(27, 67, 31, .08);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.pinyin-children-row { display: grid; grid-template-columns: repeat(var(--child-columns, 1), var(--child-width, 76px)); gap: 6px; }
+.child-box { width: var(--child-width, 76px); cursor: default; }
+.item-box.child-box:hover { border-color: #d6e6d2; background: #f7faf7; }
 
 /* ======== invalid ======== */
 .item-box.invalid {
@@ -371,6 +443,7 @@ watch([dialect, language], fetchTable)
 
 /* ======== 文字 ======== */
 .main-display {
+  font-family: 'Cambria', 'Cambria Math', serif;
   font-size: 22px;
   text-align: center;
   color: var(--color-text);

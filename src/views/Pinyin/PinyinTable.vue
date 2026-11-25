@@ -546,6 +546,33 @@ watch([dialect, language], fetchTable)
     width: 100%;
   }
 
+  .attribute-group {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 8px 12px 24px;
+    box-shadow: none;
+  }
+
+  .attribute-group + .attribute-group {
+    padding-top: 24px;
+    border-top: 1px solid #d4e1d7;
+  }
+
+  .this-table-block {
+    gap: 0;
+  }
+
+  .item-box {
+    background: #e5f1e8;
+    border: 1.5px solid #b3ceb9;
+  }
+
+  .item-box.invalid {
+    background: #e9eff0;
+    border-color: #cbd6d7;
+  }
+
   .pinyin-hero {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 42px;

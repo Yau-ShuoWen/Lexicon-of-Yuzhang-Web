@@ -116,13 +116,32 @@ const sections = [[3, 2], [2, 3, 3, 3]]
 }
 
 @media (max-width: 500px) {
+  .pinyin-skeleton {
+    gap: 0;
+  }
+
   .skeleton-section {
-    padding: 22px 20px;
+    padding: 8px 12px 24px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .skeleton-section + .skeleton-section {
+    padding-top: 24px;
+    border-top: 1px solid #d4e1d7;
   }
 
   .skeleton-group {
     width: 100%;
     grid-auto-columns: 1fr;
+  }
+
+  .skeleton-item {
+    box-sizing: border-box;
+    border: 1.5px solid #b3ceb9;
+    background: #e5f1e8;
   }
 }
 

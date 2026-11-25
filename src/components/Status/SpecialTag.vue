@@ -52,7 +52,7 @@ const neutralTheme = {
 const themeMap = {
   l0: BLOCKQUOTE_TAG_MAP.bq,
   l1: BLOCKQUOTE_TAG_MAP.pyq,
-  l2: BLOCKQUOTE_TAG_MAP.warn,
+  l2: BLOCKQUOTE_TAG_MAP.jg,
   l3: neutralTheme,
   l4: BLOCKQUOTE_TAG_MAP.sl
 }

@@ -41,7 +41,7 @@ function renderLine(line, orderedIndex, context) {
     }
     if (line.startsWith('- ')) {
         return {
-            html: `<span class="rt-list-item"><span class="rt-list-marker rt-li-dot">●</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            html: `<div class="rt-list-item"><span class="rt-list-marker rt-li-dot">●</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></div>`,
             orderedIndex: 0,
             block: true,
         }
@@ -49,7 +49,7 @@ function renderLine(line, orderedIndex, context) {
     if (line.startsWith('+ ')) {
         const next = orderedIndex + 1
         return {
-            html: `<span class="rt-list-item"><span class="rt-list-marker rt-list-number">${next}.</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></span>`,
+            html: `<div class="rt-list-item"><span class="rt-list-marker rt-list-number">${next}.</span><span class="rt-list-content">${parseInline(line.slice(2), context)}</span></div>`,
             orderedIndex: next,
             block: true,
         }
@@ -131,7 +131,7 @@ export function renderRichText(text, context = getRouteContext()) {
             continue
         }
 
-        const table = consumeTable(lines, index, renderInline)
+        const table = consumeTable(lines, index, value => renderContent(value.replace(/\\\\/g, '\n')))
         if (table) {
             parts.push({html: table.html, block: true, kind: 'table'})
             index = table.nextIndex
@@ -152,5 +152,5 @@ export function renderRichText(text, context = getRouteContext()) {
         index++
     }
 
-    return joinParts(normalizeHeadingWhitespace(parts)).replace(/\\\\/g, '<br>')
+    return joinParts(normalizeHeadingWhitespace(parts))
 }

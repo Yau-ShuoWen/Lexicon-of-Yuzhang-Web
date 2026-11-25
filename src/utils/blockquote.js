@@ -1,7 +1,15 @@
 // 标签引用块配置（可编程映射）
-// 键 = 引用块首行的标签名，如 ```warn 中的 warn
+// 键 = 引用块首行的标签名，如 ```jg 中的 jg
 // 新增标签只需在此处添加一项：icon 图标 + accent 主题色 + bg 背景色
 // 可选：text 单独指定标题文字颜色（不配置则默认使用 accent 主题色）
+export const UNDEFINED_BLOCKQUOTE_STYLE = {
+    icon: new URL('../assets/icons/blockquoteTag/便签.svg', import.meta.url).href,
+    accent: '#737a76',
+    bg: '#f5f5f5',
+    headerBg: '#e7e9e8',
+    iconBg: '#d5d9d7'
+};
+
 export const BLOCKQUOTE_TAG_MAP = {
     // 蓝色系：朋友圈
     pyq: {
@@ -12,7 +20,7 @@ export const BLOCKQUOTE_TAG_MAP = {
         iconBg: '#a7c8fb'
     },
     // 橙红色系：警告
-    warn: {
+    jg: {
         icon: new URL('../assets/icons/blockquoteTag/警告.svg', import.meta.url).href,
         accent: '#f97316',
         bg: '#fff7ed',
@@ -66,3 +74,15 @@ export const BLOCKQUOTE_TAG_MAP = {
     },
 
 };
+
+export function blockquoteStyleForTag(tag) {
+    if (Object.hasOwn(BLOCKQUOTE_TAG_MAP, tag)) return BLOCKQUOTE_TAG_MAP[tag]
+    if (tag === 'tag') return BLOCKQUOTE_TAG_MAP.bq
+    return tag ? UNDEFINED_BLOCKQUOTE_STYLE : null
+}
+
+export function blockquoteStyleVariables(style) {
+    return style
+        ? `--bq-accent:${style.accent};--bq-bg:${style.bg};--bq-header-bg:${style.headerBg};--bq-icon-bg:${style.iconBg};--bq-text:${style.text || style.accent}`
+        : ''
+}

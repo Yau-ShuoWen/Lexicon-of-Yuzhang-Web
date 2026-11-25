@@ -18,6 +18,14 @@ export function parseInline(text, context = getRouteContext()) {
     let index = 0
 
     while (index < text.length) {
+        if (text.startsWith('/*', index)) {
+            const end = text.indexOf('*/', index + 2)
+            if (end !== -1) {
+                html += `<span class="rt-comment">/*${parseInline(text.slice(index + 2, end), context)}*/</span>`
+                index = end + 2
+                continue
+            }
+        }
         const consumed = consumePinyinBlock(text, index, context, parseInline)
             || consumeCurlyTag(text, index, context, parseInline)
             || consumePhonetic(text, index)

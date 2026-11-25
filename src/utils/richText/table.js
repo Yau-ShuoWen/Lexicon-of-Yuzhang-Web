@@ -8,7 +8,7 @@ function splitTableRow(line) {
 
 function isAlignRow(line) {
     return isTableRow(line) && splitTableRow(line).every(cell =>
-        /^:?-{2,}[!*+]?:?$/.test(cell) || /^:?-{2,}:?[!*+]?$/.test(cell)
+        /^:?-{2,}[!*+$]?:?$/.test(cell) || /^:?-{2,}:?[!*+$]?$/.test(cell)
     )
 }
 
@@ -75,7 +75,7 @@ function buildMergedRows(sourceRows, columnCount) {
     return parsedRows.map(row => row.anchors.filter(cell => !cell.hidden))
 }
 
-function renderRows(sectionTag, rows, columnCount, cellTag, alignments, renderInline) {
+function renderRows(sectionTag, rows, columnCount, cellTag, alignments, renderInline, leftHeaders = false) {
     let html = `<${sectionTag}>`
     for (const row of buildMergedRows(rows, columnCount)) {
         html += '<tr>'
@@ -87,7 +87,9 @@ function renderRows(sectionTag, rows, columnCount, cellTag, alignments, renderIn
             const colspan = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : ''
             const rowspan = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : ''
             const align = merged ? 'center' : (info.align || 'left')
-            html += `<${cellTag} class="${classes.join(' ')}" style="text-align:${align}"${colspan}${rowspan}>${renderInline(cell.content)}</${cellTag}>`
+            const tag = leftHeaders && cell.column === 0 ? 'th' : cellTag
+            const scope = tag === 'th' && leftHeaders ? ' scope="row"' : ''
+            html += `<${tag} class="${classes.join(' ')}" style="text-align:${align}"${scope}${colspan}${rowspan}>${renderInline(cell.content)}</${tag}>`
         }
         html += '</tr>'
     }
@@ -121,14 +123,15 @@ export function consumeTable(lines, start, renderInline) {
         ? 'rt-table-compact'
         : widthTypes.includes('long') ? 'rt-table-fill' : 'rt-table-auto'
     const columnCount = headers ? headers.length : Math.max(alignments.length, ...rows.map(row => row.length))
+    const leftHeaders = !headers && splitTableRow(lines[start])[0].includes('$')
 
-    let table = `<table class="rt-table ${tableMode}">`
+    let table = `<table class="rt-table ${tableMode}${leftHeaders ? ' rt-table-left-header' : ''}">`
     if (headers) table += renderRows('thead', [headers], columnCount, 'th', alignments, renderInline)
-    if (rows.length) table += renderRows('tbody', rows, columnCount, 'td', alignments, renderInline)
+    if (rows.length) table += renderRows('tbody', rows, columnCount, 'td', alignments, renderInline, leftHeaders)
     table += '</table>'
 
     return {
         nextIndex: index,
-        html: `<div class="rt-table-wrap ${tableMode}-wrap">${table}</div>`
+        html: `<div class="rt-table-shadow-frame ${tableMode}-frame"><div class="rt-table-wrap ${tableMode}-wrap">${table}</div></div>`
     }
 }

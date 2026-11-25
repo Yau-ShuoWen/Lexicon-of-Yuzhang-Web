@@ -204,6 +204,12 @@ const routes = [
                         meta: {requiresAuth: true, requiresAdmin: true}
                     },
                     {
+                        path: 'tool/rich-text-editor',
+                        name: 'RichTextEditorLab',
+                        component: () => import('../views/Developer/Tool/RichTextEditorLab.vue'),
+                        meta: {requiresAuth: true, requiresAdmin: true}
+                    },
+                    {
                         path: 'test/pinyin-ipa',
                         name: 'TestPinyinAndIPA',
                         component: () => import('../views/Developer/Tool/TestPinyinIPA.vue')

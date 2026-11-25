@@ -2309,8 +2309,6 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table[data-has-header="true"] tr:first-child td),
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table[data-left-header="true"] tr td:first-child) { background: var(--bq-bg); }
 .rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__table-add) { border-color: var(--bq-accent); background: var(--bq-accent); }
-.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__list-marker[data-list-marker="bullet"]::before),
-.rich-image-editor :deep(.rich-image-editor__body .rt-blockquote-tag .rich-image-editor__list-marker[data-list-marker="ordered"]::before) { color: var(--bq-accent); }
 .rich-image-editor :deep(.rich-image-editor__table-frame) { position: relative; box-sizing: border-box; width: 100%; max-width: 100%; margin: 12px 0; border: 1px solid #b9cdbb; border-radius: 8px; }
 .rich-image-editor :deep(.rich-image-editor__table-frame--compact) { width: fit-content; }
 .rich-image-editor :deep(.rich-image-editor__table-scroll) { max-width: 100%; overflow-x: auto; border-radius: 7px; }
@@ -2338,8 +2336,8 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__body p:not([data-list-type="ordered"])) { counter-set: rich-editor-ordered 0; }
 .rich-image-editor :deep(.rich-image-editor__body p[data-list-type="ordered"]) { counter-increment: rich-editor-ordered; }
 .rich-image-editor :deep(.rich-image-editor__list-marker) { display: inline-block; width: 1.1em; white-space: nowrap; vertical-align: baseline; }
-.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="bullet"]::before) { content: '●'; position: relative; top: -4px; color: #1f6722; font-family: PMingLiU, sans-serif; font-size: 12px; }
-.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="ordered"]::before) { content: counter(rich-editor-ordered) '.'; font-family: 'Cambria', 'Cambria Math', serif; }
+.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="bullet"]::before) { content: '●'; position: relative; top: -4px; color: var(--rt-text-theme, #1f6722); font-family: PMingLiU, sans-serif; font-size: 12px; }
+.rich-image-editor :deep(.rich-image-editor__list-marker[data-list-marker="ordered"]::before) { content: counter(rich-editor-ordered) '.'; color: var(--rt-text-theme, #1f6722); font-family: 'Cambria', 'Cambria Math', serif; }
 .rich-image-editor :deep(.rich-image-editor__list-marker--selected) { background: #316ac5; }
 .rich-image-editor :deep(.rich-image-editor__list-marker--selected::before) { color: #fff !important; }
 .rich-image-editor :deep(.rich-image-editor__body p:has(> .rich-image-editor__format--heading)) { margin-top: 1.6em; }
@@ -2347,7 +2345,7 @@ watch([() => props.modelValue, () => props.images], () => { if (fullPreview.valu
 .rich-image-editor :deep(.rich-image-editor__format--bold) { font-weight: 700; }
 .rich-image-editor :deep(.rich-image-editor__format--italic) { font-style: italic; }
 .rich-image-editor :deep(.rich-image-editor__format--strike) { text-decoration: line-through; }
-.rich-image-editor :deep(.rich-image-editor__format--heading) { font-size: 1.4em; font-weight: 700; }
+.rich-image-editor :deep(.rich-image-editor__format--heading) { font-size: 1.4em; font-weight: 700; color: var(--rt-text-theme, #1f6722); }
 .rich-image-editor :deep(.rich-image-editor__format--large) { font-size: 1.4em; font-weight: 700; }
 .rich-image-editor :deep(.rich-image-editor__format--code) { padding: 1px 0; border-top: 1.5px solid #e2e5ea; border-bottom: 1.5px solid #e2e5ea; background: #f1f3f5; color: #24292f; font-family: Consolas, 'Cascadia Mono', 'Courier New', 'Microsoft JhengHei', 'HanaMinB', monospace; font-size: .92em; line-height: 1.5; }
 .rich-image-editor :deep(.rich-image-editor__format--dot) { text-emphasis: filled dot; -webkit-text-emphasis: filled dot; text-emphasis-position: under; -webkit-text-emphasis-position: under; }

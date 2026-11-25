@@ -5,6 +5,7 @@
 
     font-size: 1.4em;
     font-weight: 700;
+    color: var(--rt-text-theme, #1f6722);
 
     display: inline;
 }
@@ -48,6 +49,7 @@
 
 .rt-list-number {
     font-family: 'Cambria', 'Cambria Math', serif;
+    color: var(--rt-text-theme, #1f6722);
 }
 
 .rt-list-content {
@@ -56,7 +58,7 @@
 
 .rt-li-dot {
     font-family: PMingLiU, sans-serif;
-    color: #1f6722;
+    color: var(--rt-text-theme, #1f6722);
     font-size: 12px;
     vertical-align: 0.2em;
     transform: translateY(-3px);
@@ -591,6 +593,7 @@
     --bq-header-bg: #c1ebc7;
     --bq-icon-bg: #97d8a0;
     --bq-text: #199e2d;
+    --rt-text-theme: var(--bq-text);
 
     padding: 0;
     overflow: hidden;
@@ -598,14 +601,6 @@
     border: 1px solid var(--bq-header-bg);
     border-left: 4px solid var(--bq-accent);
     background-color: var(--bq-bg);
-}
-
-.rt-blockquote-tag .rt-li-dot {
-    color: var(--bq-accent);
-}
-
-.rt-blockquote-tag .rt-list-number {
-    color: var(--bq-accent);
 }
 
 .rt-blockquote-tag .rt-blockquote__header {

@@ -1,7 +1,7 @@
 import { getUserSettings } from './userSettings.js'
 
 export const PINYIN_NOTATIONS = Object.freeze([
-    {value: 'standard', label: '标准写法', labelTc: '標準寫法', preview: 'lān còng'},
+    {value: 'standard', label: '词典式拼音', labelTc: '詞典式拼音', preview: 'lān còng'},
     {value: 'ganCommon', label: '赣语通用拼音', labelTc: '贛語通用拼音', preview: 'lan4 cong1'},
     {value: 'yzcIPA', label: '国际音标', labelTc: '國際音標', preview: "lan˧˥ ts'ɔŋ˦˨"},
     {value: 'other', label: '其他版拼音', labelTc: '其他版拼音', note: '如果有', noteTc: '如果有', preview: 'lān ceòng'},

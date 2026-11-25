@@ -73,7 +73,17 @@ async function transfer() {
   }
 }
 
-function handleInput() {
+function handleInput(event) {
+  const field = event.target
+  const original = field.value
+  const normalized = original.replace(/[\r\n]+/g, ' ')
+  if (normalized !== original) {
+    const caret = field.selectionStart
+    const nextCaret = original.slice(0, caret).replace(/[\r\n]+/g, ' ').length
+    field.value = normalized
+    field.setSelectionRange(nextCaret, nextCaret)
+    input.value = normalized
+  }
   window.clearTimeout(timer)
   timer = window.setTimeout(transfer, 250)
 }
@@ -91,9 +101,6 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="pinyin-transfer">
-    <header class="transfer-heading">
-      <h2>{{ $t('pinyin_table.transfer_title') }}</h2>
-    </header>
     <div class="transfer-body">
       <div class="transfer-field">
         <textarea
@@ -101,14 +108,19 @@ onBeforeUnmount(() => {
           class="transfer-input"
           :class="{active: hasInput}"
           rows="2"
+          wrap="off"
           :aria-label="$t('pinyin_table.transfer_input_placeholder')"
           :placeholder="$t('pinyin_table.transfer_input_placeholder')"
+          @keydown.enter.prevent
           @input="handleInput"
         />
       </div>
 
-      <div class="transfer-field">
-        <PinyinResultTable v-if="rows.length" :pairs="rows" appearance="panel" />
+      <div class="transfer-field transfer-results">
+        <header class="transfer-results-heading">
+          <h2>{{ $t('pinyin_table.transfer_result_title') }}</h2>
+        </header>
+        <PinyinResultTable v-if="rows.length" :pairs="rows" appearance="transfer" />
         <div v-else class="result-empty" role="status" aria-live="polite">
           {{ failed ? $t('pinyin_table.transfer_failed') : $t('alphabet_transfer.result_placeholder') }}
         </div>
@@ -119,30 +131,22 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pinyin-transfer {
-  margin-top: 18px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.transfer-results {
+  box-sizing: border-box;
   padding: 22px 20px;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   background: #fff;
   box-shadow: var(--pinyin-card-shadow);
 }
+.transfer-results-heading { margin-bottom: 14px; }
 
-.transfer-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.transfer-heading::before {
-  content: '';
-  width: 6px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--color-secondary);
-}
-
-.transfer-heading h2 {
+.transfer-results-heading h2 {
   margin: 0;
   color: var(--color-text);
   font-size: 19px;
@@ -152,7 +156,7 @@ onBeforeUnmount(() => {
 .transfer-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: 24px;
 }
 
 .transfer-field {
@@ -164,17 +168,21 @@ onBeforeUnmount(() => {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  height: 78px;
-  min-height: 78px;
+  height: 96px;
+  min-height: 96px;
   margin: 0;
   padding: 12px 16px;
   resize: none;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  background: #f7faf7;
+  border-radius: var(--border-radius-lg);
+  background: #fff;
   color: var(--color-text);
   font: inherit;
   line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-shadow: var(--pinyin-card-shadow);
   outline: none;
   transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
 }
@@ -183,28 +191,22 @@ onBeforeUnmount(() => {
 .transfer-input:focus {
   border-color: var(--color-primary);
   background: #fff;
-  box-shadow: 0 0 0 2px rgba(46, 125, 50, .14);
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, .14), var(--pinyin-card-shadow);
 }
 
 .result-empty {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 254px;
-  padding: 14px 16px;
-  border: 1px dashed #d5dde5;
-  border-radius: 14px;
-  background: #eef2f4;
+  justify-content: flex-start;
+  min-height: 64px;
+  padding: 14px 0;
   color: var(--color-text-light);
-  font-size: 20px;
-  text-align: center;
-}
-
-@media (max-width: 750px) {
-  .result-empty { min-height: 180px; }
+  font-size: 16px;
+  text-align: left;
 }
 
 @media (max-width: 500px) {
-  .pinyin-transfer { padding: 18px 14px; }
+  .transfer-results { padding: 18px 14px; }
 }
+
 </style>

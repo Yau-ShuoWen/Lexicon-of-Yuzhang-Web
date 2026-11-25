@@ -11,7 +11,6 @@ import { request } from '../../services/request.js'
 import PinyinTransfer from './PinyinTransfer.vue'
 import TextInfo from '../../components/Status/TextInfo.vue'
 import { tableFromDocument } from '../../utils/pinyinDocument.js'
-import informationIcon from '../../assets/icons/about.svg'
 import leftIcon from '../../assets/icons/to-left.svg'
 import rightIcon from '../../assets/icons/to-right.svg'
 
@@ -24,12 +23,12 @@ const {t} = useI18n()
 
 const pinyinData = ref([])
 const faq = ref([])
-const panels = ['table', 'input', 'faq']
+const panels = ['table', 'input', 'transfer', 'faq']
 const storageKey = 'pinyin-panel'
 const savedPanel = localStorage.getItem(storageKey)
 const activePanel = ref(panels.includes(savedPanel) ? savedPanel : 'table')
 const hasSwitchedPanel = ref(false)
-const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), faq: t('pinyin_table.faq_title') })[activePanel.value])
+const panelTitle = computed(() => ({ table: `${t('dialect.' + dialect.value)}${t('pinyin_table.title')}`, input: t('pinyin_table.input_title', { dialect: t('dialect.' + dialect.value) }), transfer: t('pinyin_table.transfer_title'), faq: t('pinyin_table.faq_title') })[activePanel.value])
 function switchPanel(direction) {
   hasSwitchedPanel.value = true
   const index = panels.indexOf(activePanel.value)
@@ -111,12 +110,6 @@ watch([dialect, language], fetchTable)
         {{ panelTitle }}
       </h1>
 
-      <p v-if="activePanel === 'table'" class="hero-hint">
-        <img :src="informationIcon" alt="" draggable="false" />
-        <span>{{ $t('pinyin_table.hint') }}</span>
-      </p>
-      <p v-else class="hero-hint">{{ $t(activePanel === 'input' ? 'pinyin_table.input_label' : 'pinyin_table.faq_label') }}</p>
-
       <nav class="panel-navigation" :aria-label="$t('pinyin_table.panel_navigation')">
         <button type="button" :aria-label="$t('pinyin_table.previous_panel')" @click="switchPanel(-1)"><img :src="leftIcon" alt="" /></button>
         <button type="button" :aria-label="$t('pinyin_table.next_panel')" @click="switchPanel(1)"><img :src="rightIcon" alt="" /></button>
@@ -168,15 +161,16 @@ watch([dialect, language], fetchTable)
     <div v-show="activePanel === 'input'" class="panel-content">
       <div v-if="showSkeleton && !hasSwitchedPanel" class="panel-skeleton">
         <section class="skeleton-card"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
-        <section class="skeleton-card accent-1"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
       </div>
       <template v-else>
         <section class="input-guide" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.input_guide')">
           <div class="pinyin-group-header"><h3>{{ $t('pinyin_table.input_guide') }}</h3></div>
           <TextInfo :dialect="dialect.toString()" :language="language.toString()" :text-key="`pinyin-explain:${dialect}`" />
         </section>
-        <PinyinTransfer :class="{ 'initial-enter': !hasSwitchedPanel }" :dialect="dialect.toString()" :language="language.toString()" />
       </template>
+    </div>
+    <div v-show="activePanel === 'transfer'" class="panel-content">
+      <PinyinTransfer :class="{ 'initial-enter': !hasSwitchedPanel }" :dialect="dialect.toString()" :language="language.toString()" />
     </div>
     <section v-if="showSkeleton && !hasSwitchedPanel" v-show="activePanel === 'faq'" class="skeleton-card" aria-hidden="true"><div class="skeleton-heading"><span class="skeleton-title shimmer" /></div><span class="skeleton-line shimmer" /></section>
     <section v-else v-show="activePanel === 'faq'" class="pinyin-faq" :class="{ 'initial-enter': !hasSwitchedPanel }" :aria-label="$t('pinyin_table.faq_title')">
@@ -208,6 +202,8 @@ watch([dialect, language], fetchTable)
 
 .pinyin-hero {
   position: relative;
+  min-height: 116px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   padding: 28px;
@@ -225,27 +221,6 @@ watch([dialect, language], fetchTable)
   font-size: 30px;
   font-weight: 700;
   line-height: 1.3;
-}
-
-.hero-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 7px 11px;
-  border: 1px solid #a9cfb1;
-  border-radius: 999px;
-  color: #315f3c;
-  background: #e5f3e7;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.hero-hint img {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  opacity: .72;
 }
 
 .panel-navigation {
@@ -270,7 +245,7 @@ watch([dialect, language], fetchTable)
 .panel-navigation button:hover, .panel-navigation button:focus-visible { background: rgba(36, 92, 53, .28); }
 .panel-navigation button:hover img, .panel-navigation button:focus-visible img { opacity: 1; }
 .panel-content { min-width: 0; }
-.input-guide { padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
+.input-guide { min-width: 0; padding: 22px 20px; border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); background: #fff; box-shadow: var(--pinyin-card-shadow); }
 .input-guide p { margin: 0; }
 .pinyin-faq__fallback details { border-top: 1px solid #dce8dd; }
 .pinyin-faq__fallback summary { padding: 14px 2px; cursor: pointer; font-weight: 650; }
@@ -497,12 +472,31 @@ watch([dialect, language], fetchTable)
   }
 
   .pinyin-hero {
-    padding: 22px 18px 84px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    column-gap: 12px;
+    min-height: 108px;
+    padding: 20px 18px;
   }
-  .panel-navigation { right: 18px; bottom: 16px; }
+  .panel-navigation {
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .panel-navigation button { pointer-events: auto; }
 
   .hero-title {
-    font-size: 24px;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(16px, 5.5vw, 24px);
+    text-align: center;
+    overflow-wrap: anywhere;
   }
 
   /* 每行只有一个 group */
